@@ -4,6 +4,17 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-03-12 – Package Published to Utopia Testnet
+- Goal: Publish civilization_control package (gate_control + trade_post) to Utopia testnet for integration testing
+- Files: `contracts/civilization_control/Published.toml` (generated), `contracts/civilization_control/Move.lock` (updated), `docs/operations/day1-validation.md` (publish record added)
+- Diff: +40 LoC docs, generated publish metadata
+- Risk: medium (first on-chain deployment)
+- Gates: move-build ✅ move-test ✅ (21/21) publish ✅ (tx digest `EBU5T9cDymgUnyGTdtXkfBWuUmfWLKEMLJT5VXU8p5QU`)
+- Artifacts: Package `0xb41a…6a04`, GateConfig (shared) `0x8655…45f2`, GateControl AdminCap `0xaedc…9b3e`, TradePostAdminCap `0x1ffb…df06`, UpgradeCap `0x1dea…fa3`
+- Follow-ups: Authorize extensions on test gates/SSUs (requires OwnerCap — manual step); Hour 5 integration testing
+
+---
+
 ## 2026-03-12 – TradePost Foundation Implementation
 - Goal: Implement TradePost SSU extension — listing lifecycle (create/buy/cancel) with typed witness pattern for cross-address atomic trading
 - Files: `contracts/civilization_control/sources/trade_post.move` (created), `contracts/civilization_control/tests/trade_post_tests.move` (created), `docs/core/march-11-reimplementation-checklist.md` (updated)

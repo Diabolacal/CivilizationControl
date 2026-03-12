@@ -236,7 +236,43 @@ None. All Day 1 checks pass. CivilizationControl implementation can proceed.
 
 ### Next Steps
 
-1. Uncomment World dependency in `Move.toml` and begin GateControl implementation
-2. Build extension, test on localnet, publish to Utopia
+1. ~~Uncomment World dependency in `Move.toml` and begin GateControl implementation~~ — DONE (Hour 1)
+2. ~~Build extension, test on localnet, publish to Utopia~~ — DONE (see below)
+
+---
+
+## Publish Record — Utopia Testnet (2026-03-12)
+
+| Key | Value |
+|-----|-------|
+| Transaction Digest | `EBU5T9cDymgUnyGTdtXkfBWuUmfWLKEMLJT5VXU8p5QU` |
+| Status | Success |
+| Executed Epoch | 1036 |
+| Build Env | `testnet_utopia` |
+| Gas Budget | 500,000,000 MIST |
+| Gas Used | ~54.26 MIST (storage 53.83 + compute 1.41 − rebate 0.98) |
+| Modules Published | `gate_control`, `trade_post` |
+| Tests at publish | 21/21 pass (11 GateControl + 10 TradePost) |
+
+### Published Objects
+
+| Object | ID | Owner |
+|--------|----|-------|
+| **Package** | `0xb41a7ce1b492064c09a9545a16edce1f73ac069f5a85712f0eadc7e3bb246a04` | Immutable |
+| **GateConfig** (shared) | `0x8655eb39017766ef275ba0104819228bff90e25d997a38385f2eb4ddf65d45f2` | Shared |
+| **GateControl AdminCap** | `0xaedc8ce4e44ed195d58ae12e433e1fa7fb9126403f930f2b41dbc3a0c8c09b3e` | Publisher (`0xacff…b1`) |
+| **TradePostAdminCap** | `0x1ffbb24485a838b562e815f34b9a965493e9d056a857264ad3e43b9dd7e3df06` | Publisher (`0xacff…b1`) |
+| **UpgradeCap** | `0x1dea9aedbd461969de0358da66368bd2cc3a140983c17a205ee0ec66ce09efa3` | Publisher (`0xacff…b1`) |
+
+### Integration Readiness
+
+Package is live on Utopia. Next steps require **human/manual world setup**:
+
+1. **Authorize `GateAuth`** on target gates: `gate::authorize_extension<GateAuth>(gate, owner_cap)` — requires gate OwnerCap
+2. **Authorize `TradeAuth`** on target SSUs: `storage_unit::authorize_extension<TradeAuth>(ssu, owner_cap)` — requires SSU OwnerCap
+3. **Identify test assets**: gates, SSUs, characters, and items on Utopia for end-to-end flow
+4. **Configure policies**: set tribe rules / coin tolls via AdminCap + GateConfig
+5. **Create test listings**: create and share Listing objects for trade flows
+6. **End-to-end validation**: jump permits + item trades on live Utopia
 3. Run live validation: confirm extended-gate jump works end-to-end with EVE Vault on Utopia
 4. If extended-gate jump flow is not handled by the base dApp, evaluate building a jump UI using the `evefrontier:sponsoredTransaction` wallet feature

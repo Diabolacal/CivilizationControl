@@ -390,13 +390,15 @@ Verify these on hackathon day. If any break, reassess the corresponding module.
 
 ### Hour 5: Integration on Local Devnet / Test Server (2 hours)
 
-- [ ] Run infrastructure setup chain (Pattern 5) — on test server if admin tools available, otherwise local devnet
-- [ ] Publish CivControl extension package
-- [ ] Authorize extension on both test gates
+> **Package published to Utopia testnet** (2026-03-12). Transaction digest: `EBU5T9cDymgUnyGTdtXkfBWuUmfWLKEMLJT5VXU8p5QU`. Package ID: `0xb41a7ce1b492064c09a9545a16edce1f73ac069f5a85712f0eadc7e3bb246a04`. Full publish record in [`docs/operations/day1-validation.md`](../operations/day1-validation.md#publish-record--utopia-testnet-2026-03-12).
+
+- [x] ~~Run infrastructure setup chain (Pattern 5) — on test server if admin tools available, otherwise local devnet~~ — Using live Utopia testnet (world already deployed)
+- [x] Publish CivControl extension package — **DONE** (see publish record above)
+- [ ] Authorize extension on both test gates — **REQUIRES**: gate OwnerCap; call `gate::authorize_extension<GateAuth>(gate, owner_cap)`
 - [ ] Test: correct tribe → permit issued → jump succeeds → JumpEvent emitted
 - [ ] Test: wrong tribe → transaction aborts
 - [ ] Test: coin toll → payment transferred → permit issued
-- [ ] Authorize TradePost extension on test SSU (same published package)
+- [ ] Authorize TradePost extension on test SSU (same published package) — **REQUIRES**: SSU OwnerCap; call `storage_unit::authorize_extension<TradeAuth>(ssu, owner_cap)`
 - [ ] Mint test items into SSU
 - [ ] Create listing as seller
 - [ ] Buy as different address → Item transferred, payment received
@@ -406,7 +408,7 @@ Verify these on hackathon day. If any break, reassess the corresponding module.
 
 - [x] Add custom events to GateControl: `TribeCheckPassedEvent`, `TollCollectedEvent` — included in Hour 1 foundation (also `TribeRuleSetEvent`, `CoinTollSetEvent`, `RuleRemovedEvent`)
 - [x] Add custom events to TradePost: `ListingCreatedEvent`, `ListingPurchasedEvent`, `ListingCancelledEvent` — included in Hour 3 TradePost foundation
-- [ ] Verify events appear in `sui client events --package <pkg>`
+- [ ] Verify events appear in `sui client events --package <pkg>` — requires live integration (Hour 5)
 
 ### Hour 8+: Dashboard / Web UI
 
