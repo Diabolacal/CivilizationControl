@@ -4,6 +4,27 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-03-12 – TradePost Foundation Implementation
+- Goal: Implement TradePost SSU extension — listing lifecycle (create/buy/cancel) with typed witness pattern for cross-address atomic trading
+- Files: `contracts/civilization_control/sources/trade_post.move` (created), `contracts/civilization_control/tests/trade_post_tests.move` (created), `docs/core/march-11-reimplementation-checklist.md` (updated)
+- Diff: +280 LoC source, +260 LoC tests
+- Risk: medium (new Move module, SSU extension integration)
+- Gates: move-build ✅ move-test ✅ (21/21 pass: 11 GateControl + 10 TradePost)
+- Decisions:
+  - Separate `TradePostAdminCap` from GateControl's `AdminCap` — independent admin control per module
+  - `TradeAuth` witness mint is `public(package)` per builder-scaffold convention
+  - `Listing` has `key` only (no `store`) — shared via `share_listing()` which calls `transfer::share_object`
+  - `create_listing` returns `Listing` (composable) — caller shares via PTB calling `share_listing()`
+  - `buy()` returns `Item` to caller — composable PTB pattern, buyer handles final transfer
+  - Items delivered via direct transfer (not `deposit_item<Auth>`) because v0.0.15 `parent_id` validation prevents cross-SSU deposit
+  - Exact payment required in `buy()` — caller splits coin in PTB (`txb.splitCoins`)
+  - No item locking — seller retains full SSU access; buy fails if inventory insufficient
+  - SSU must be online for trades (enforced by `withdraw_item` online guard)
+  - `quantity: u32` field in Listing supports partial inventory listings
+- Follow-ups: Integration test on Utopia testnet; extension freeze demo integration; TurretControl module
+
+---
+
 ## 2026-03-12 – GateControl Foundation Implementation
 - Goal: Implement GateControl typed witness extension — tribe filter + coin toll rules with per-gate dynamic field config
 - Files: `contracts/civilization_control/Move.toml` (modified), `contracts/civilization_control/sources/gate_control.move` (created, replaced placeholder), `contracts/civilization_control/tests/gate_control_tests.move` (created)

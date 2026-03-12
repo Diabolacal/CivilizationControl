@@ -369,23 +369,24 @@ Verify these on hackathon day. If any break, reassess the corresponding module.
 - [x] `sui move build` ✅ `sui move test` ✅ (11/11 pass)
 - [x] Custom events included in foundation: `TribeCheckPassedEvent`, `TollCollectedEvent`, `TribeRuleSetEvent`, `CoinTollSetEvent`, `RuleRemovedEvent`
 
-### Hour 3: CivControl TradePost Module (2–3 hours)
+### Hour 3: CivControl TradePost Module (2–3 hours) — ✅ COMPLETE (2026-03-12)
 
-- [ ] Add TradePost sources to `contracts/civcontrol/` (same package — shared `CivControlConfig`)
-- [ ] Define `TradeAuth has drop {}` witness struct
-- [ ] Define `Listing` struct: `{ id, storage_unit_id, seller, item_type_id, price }`
-- [ ] Implement `create_listing()` — seller creates, listing is shared
-- [ ] Implement `buy()`:
-  1. Verify listing matches SSU
-  2. Verify payment >= price
-  3. `storage_unit::withdraw_item<TradeAuth>(ssu, character, TradeAuth{}, type_id, quantity, ctx)`
-  4. `transfer::public_transfer(item, ctx.sender())`
-  5. Handle payment: exact or with change
-  6. `transfer::public_transfer(payment, listing.seller)`
-  7. Destroy listing
-- [ ] Implement `cancel_listing()` — seller only
-- [ ] Write Move unit tests
-- [ ] `sui move build` + `sui move test`
+> **Path note:** Uses `contracts/civilization_control/` (same package as GateControl). `TradePostAdminCap` is separate from GateControl's `AdminCap`. Listings are composable shared objects via `share_listing()`.
+
+- [x] Add TradePost sources to `contracts/civilization_control/` (same package)
+- [x] Define `TradeAuth has drop {}` witness struct — `public(package)` mint per convention
+- [x] Define `Listing` struct: `{ id, storage_unit_id, seller, item_type_id, quantity, price }` — added `quantity: u32` field for partial inventory listings
+- [x] Implement `create_listing()` — returns `Listing`, caller shares via `share_listing()`
+- [x] Implement `buy()`:
+  1. Verify listing matches SSU ✅
+  2. Verify payment >= price ✅
+  3. `storage_unit::withdraw_item<TradeAuth>(ssu, character, TradeAuth{}, type_id, quantity, ctx)` ✅ (v0.0.15+ signature with `quantity` + `ctx`)
+  4. Returns `Item` to caller (composable — PTB handles final transfer) ✅
+  5. `transfer::public_transfer(payment, listing.seller)` ✅
+  6. Destroy listing ✅
+- [x] Implement `cancel_listing()` — seller only, sender check
+- [x] Write Move unit tests — 10 tests, all pass
+- [x] `sui move build` ✅ `sui move test` ✅ (21/21 total: 11 GateControl + 10 TradePost)
 
 ### Hour 5: Integration on Local Devnet / Test Server (2 hours)
 
@@ -404,7 +405,7 @@ Verify these on hackathon day. If any break, reassess the corresponding module.
 ### Hour 7: Event Emission + Custom Events (1 hour)
 
 - [x] Add custom events to GateControl: `TribeCheckPassedEvent`, `TollCollectedEvent` — included in Hour 1 foundation (also `TribeRuleSetEvent`, `CoinTollSetEvent`, `RuleRemovedEvent`)
-- [ ] Add custom events to TradePost: `ListingCreatedEvent`, `TradeSettledEvent`, `ListingCancelledEvent`
+- [x] Add custom events to TradePost: `ListingCreatedEvent`, `ListingPurchasedEvent`, `ListingCancelledEvent` — included in Hour 3 TradePost foundation
 - [ ] Verify events appear in `sui client events --package <pkg>`
 
 ### Hour 8+: Dashboard / Web UI
