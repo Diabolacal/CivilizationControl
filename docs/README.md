@@ -86,6 +86,7 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 | [architecture/in-game-dapp-surface.md](architecture/in-game-dapp-surface.md) | In-game embedded browser constraints (Chromium 122 CEF) |
 | [architecture/authenticated-user-surface-analysis.md](architecture/authenticated-user-surface-analysis.md) | Wallet-to-structures discovery read-path |
 | [architecture/sui-playground-capabilities.md](architecture/sui-playground-capabilities.md) | Capabilities deep dive — smart structures, experiments |
+| [architecture/evevault-sponsorship-analysis.md](architecture/evevault-sponsorship-analysis.md) | EVE Vault sponsored tx path analysis — AdminACL blocker resolution |
 
 ## Strategy
 
@@ -139,6 +140,7 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 | [operations/gate-lifecycle-runbook.md](operations/gate-lifecycle-runbook.md) | 13-step gate lifecycle procedure with evidence |
 | [operations/demo-evidence-appendix.md](operations/demo-evidence-appendix.md) | Demo evidence mapping — beat sheet artifacts to scripts |
 | [operations/submodule-refresh-prompt.md](operations/submodule-refresh-prompt.md) | Reusable submodule refresh procedure |
+| [operations/day1-validation.md](operations/day1-validation.md) | **Day 1 chain validation results** — Utopia testnet IDs, source assumption checks, blockers |
 
 ## Demo
 
