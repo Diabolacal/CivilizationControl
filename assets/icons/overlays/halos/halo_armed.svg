@@ -1,0 +1,41 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!--
+    Halo: Armed. Defense Mode emphasis ring.
+    Spec 3.2: Soft radial gradient, 4 to 6 units beyond glyph boundary.
+    Spec 3.3: Amber halo extends turret visual footprint to communicate
+    active defense perimeter.
+
+    Geometry:
+      Center: (12, 12)
+      Halo circle radius: 14
+        Glyph max extent is approx 10 units from center (hexagon R=9 + stroke 1).
+        14 minus 10 = 4 units beyond glyph boundary (lower bound of spec range).
+        Outer edge: 12+14 = 26, extends 2 units beyond viewBox on each side.
+        This is intentional: the halo is a soft fade, so the clipped outer
+        fringe is invisible (opacity approaches 0 at edge). The visible gradient
+        ring sits within the viewBox.
+      Fill: radial gradient (currentColor at center, transparent at edge)
+        Inner stop: offset 40%, stop-opacity 0.6
+        Outer stop: offset 100%, stop-opacity 0
+        The 40% inner offset creates a subtle falloff zone between the glyph
+        edge (approx 10/14 = 71% of radius) and the dense halo region (40%).
+        This avoids a hard disc appearance while keeping the halo visible.
+
+    Z-order: Behind glyph (spec 3.2).
+    Color: Applied via currentColor. Runtime sets the CSS variable
+    state-armed (amber).
+
+    Note: Uses radialGradient, NOT CSS blur (spec: soft radial gradient).
+  -->
+  <defs>
+    <radialGradient id="haloArmedGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="40%" stop-color="currentColor" stop-opacity="0.6" />
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <circle
+    cx="12" cy="12" r="14"
+    fill="url(#haloArmedGradient)"
+    stroke="none"
+  />
+</svg>

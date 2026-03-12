@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!--
+    Status Pip — Persistent micro-status indicator
+    Spec §3.2: "4-unit filled circle, positioned at glyph's 5 o'clock (bottom-right)"
+
+    Geometry:
+      Center: (18, 18) — 5 o'clock relative to glyph center (12,12)
+      Radius: 2 (diameter 4 units per spec)
+      Fill: currentColor (runtime sets semantic color: green/amber/red)
+      No stroke
+
+    Position rationale:
+      Glyph occupies center 20×20 (x: 2–22, y: 2–22).
+      Pip at (18, 18) sits in the lower-right quadrant.
+      Pip outer edge: 18+2 = 20 — within the 24-unit viewBox.
+      Pip does not overlap glyph center area (hexagon R=9 → outer edge ~21).
+      At 5 o'clock position, the pip clears the glyph's bottom-right
+      and sits visually "beside" the structure, not on top of it.
+
+    Z-order: Above glyph, behind badge (spec §3.2).
+  -->
+  <circle
+    cx="18" cy="18" r="2"
+    fill="currentColor"
+    stroke="none"
+  />
+</svg>

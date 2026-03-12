@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" width="10" height="10">
+  <!--
+    Mini Turret — Equilateral triangle, apex up
+    Grid: 10×10, visual center near (5,5)
+
+    Vertex table:
+      Apex:         (5,   1.5)
+      Bottom-left:  (2,   7)
+      Bottom-right: (8,   7)
+
+    Geometry notes:
+      Height:     5.5 units (y: 1.5 → 7)
+      Base width: 6 units   (x: 2 → 8)
+      Ideal equilateral base for h=5.5: 2×5.5/√3 ≈ 6.35
+      Actual base: 6 → ~5.5% narrower than true equilateral.
+      Side lengths: diagonal ≈ 6.26, base = 6 (2.6% difference).
+      Reads as equilateral at all render sizes ≤ 24px.
+
+    Centroid: ((5+2+8)/3, (1.5+7+7)/3) = (5, 5.17)
+      0.17 units below geometric center — caused by pixel-
+      alignment constraints; invisible at target render sizes.
+
+    Margins (including half-stroke):
+      Top:    1.5 − 0.5 = 1.0   ✓
+      Bottom: 10 − 7 − 0.5 = 2.5 ✓
+      Left:   2 − 0.5 = 1.5     ✓
+      Right:  10 − 8 − 0.5 = 1.5 ✓
+  -->
+  <polygon
+    points="5,1.5 8,7 2,7"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="1"
+    stroke-linejoin="round"
+  />
+</svg>

@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 14 10" width="14" height="10">
+  <!--
+    Badge: Link Count — Rounded rectangle container for link multiplicity.
+    Renders at midpoint of cross-system gate links (§6.10, §6.14).
+    Shows how many parallel corridors exist between two solar systems.
+
+    This SVG provides the container shape and a centered "×"
+    placeholder mark. The actual multiplicity number is rendered
+    by the React component at runtime.
+
+    Geometry:
+      Rounded rect: x=0.5, y=0.5, width=13, height=9, rx=2, ry=2
+        (inset 0.5 on all sides for half stroke-width)
+      Multiplication placeholder (×):
+        Stroke 1: (5, 3) → (9, 7)
+        Stroke 2: (9, 3) → (5, 7)
+      × stroke-width=0.75, linecap=butt
+  -->
+  <rect
+    x="0.5" y="0.5" width="13" height="9" rx="2" ry="2"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="1"
+  />
+  <path
+    d="M 5,3 L 9,7 M 9,3 L 5,7"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="0.75"
+    stroke-linecap="butt"
+  />
+</svg>

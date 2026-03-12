@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" width="10" height="10">
+  <!--
+    Mini Network Node — Regular hexagon (pointy-top) + center core dot
+    Grid: 10×10, center (5,5)
+    Circumradius: ~3.5 (top/bottom vertices), ~3.35 (side vertices)
+    Vertices pixel-aligned to integers or .5; slight irregularity
+    from rounding 3.5×sin(60°)=3.03 → 3.0 (0.9% error, subpixel).
+
+    Vertex table (clockwise from 12 o'clock):
+      V0 (top):         (5,   1.5)
+      V1 (upper-right): (8,   3.5)
+      V2 (lower-right): (8,   6.5)
+      V3 (bottom):      (5,   8.5)
+      V4 (lower-left):  (2,   6.5)
+      V5 (upper-left):  (2,   3.5)
+
+    Core dot: cx=5, cy=5, r=0.75 (diameter 1.5 — small enough
+    to preserve interior negative space).
+  -->
+  <polygon
+    points="5,1.5 8,3.5 8,6.5 5,8.5 2,6.5 2,3.5"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="1"
+    stroke-linejoin="round"
+  />
+  <circle
+    cx="5" cy="5" r="0.75"
+    fill="currentColor"
+    stroke="none"
+  />
+</svg>

@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8" width="8" height="8">
+  <!--
+    Badge: Warning — Circle + exclamation mark (! = stroke + dot)
+    Renders at NWN NE corner on fuel-low / degraded state.
+    Spec §3.3: "!" badge, amber.
+
+    Geometry:
+      Circle: cx=4, cy=4, r=3, stroke-width=1
+      Exclamation stroke: (4, 2) → (4, 4.25), stroke-width=1, butt
+      Exclamation dot: cx=4, cy=5.75, r=0.45, fill=currentColor
+
+    Spacing budget (bottom):
+      Circle inner edge at y=6.5 (cy+r-half_stroke = 4+3-0.5)
+      Dot outer edge at y=6.2 (5.75+0.45)
+      Bottom clearance: 0.3 units — matches left/right feel.
+      Stem-to-dot gap: 5.75-0.45-4.25 = 1.05 units — clearly separated.
+  -->
+  <circle
+    cx="4" cy="4" r="3"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="1"
+  />
+  <line
+    x1="4" y1="2" x2="4" y2="4.25"
+    stroke="currentColor"
+    stroke-width="1"
+    stroke-linecap="butt"
+  />
+  <circle
+    cx="4" cy="5.75" r="0.45"
+    fill="currentColor"
+    stroke="none"
+  />
+</svg>

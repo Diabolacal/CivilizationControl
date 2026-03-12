@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 12 8" width="12" height="8">
+  <!--
+    Badge: Count — Rounded rectangle container for numeric count.
+    Renders at glyph NE corner for structure counts, turret counts, etc.
+    Spec §3.3: "+3" pattern (number rendered by UI, not baked in).
+
+    This SVG provides the container shape and a centered "+"
+    placeholder mark. The actual count digit is rendered as a
+    <text> or DOM overlay by the React component at runtime.
+
+    Geometry:
+      Rounded rect: x=0.5, y=0.5, width=11, height=7, rx=2, ry=2
+        (inset 0.5 on all sides for half stroke-width)
+      Plus placeholder:
+        Horizontal: (4, 4) → (8, 4)
+        Vertical:   (6, 2) → (6, 6)
+      Plus stroke-width=0.75, linecap=butt
+  -->
+  <rect
+    x="0.5" y="0.5" width="11" height="7" rx="2" ry="2"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="1"
+  />
+  <path
+    d="M 4,4 L 8,4 M 6,2 L 6,6"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="0.75"
+    stroke-linecap="butt"
+  />
+</svg>

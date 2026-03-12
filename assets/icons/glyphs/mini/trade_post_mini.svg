@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" width="10" height="10">
+  <!--
+    Mini Trade Post (SSU) — Nested squares, both centered at (5,5)
+    Grid: 10×10
+
+    Outer square: origin (2, 2), size 6×6, stroke-width 1
+    Inner square: origin (3.5, 3.5), size 3×3, stroke-width 0.5
+
+    Inner stroke-width rationale:
+      24×24 set uses outer=2, inner=1 (2:1 ratio).
+      At mini scale: outer=1, inner=0.5 preserves the hierarchy.
+      At 10px render, inner stroke = 0.5px (subpixel but present
+      via anti-aliasing). At 12px+, clearly visible.
+
+    Margins (outer square, including half-stroke):
+      All sides: 2 − 0.5 = 1.5  ✓
+
+    Distinction from mini hexagon:
+      Square has 4 vertices at 90° vs hexagon's 6 vertices.
+      Flat top/bottom edges contrast with hexagon's pointy top.
+      Inner square reinforces the "container" metaphor.
+  -->
+  <rect
+    x="2" y="2" width="6" height="6"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="1"
+    stroke-linejoin="round"
+  />
+  <rect
+    x="3.5" y="3.5" width="3" height="3"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="0.5"
+    stroke-linejoin="round"
+  />
+</svg>

@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 10 10" width="10" height="10">
+  <!--
+    Mini Gate — Ring (r=3) with dual 20° aperture notches at 3 and 9 o'clock
+    Grid: 10×10, center (5,5)
+    Radius: 3 (outer stroke edge at 3.5 from center → 0.5 margin)
+
+    Notch angle: 20° (increased from 24×24 set's 15°).
+    At r=3/10px, a 15° notch produces a chord gap of only 0.79 units
+    (~0.8px at 10px) which collapses visually. 20° yields a 1.04-unit
+    gap (~1px at 10px, ~1.2px at 12px) — the minimum for legibility.
+
+    Arc endpoint table (20° notch = ±10° from horizontal):
+      Computed with exact trig, NOT snapped to .5 grid.
+      A (right, above):  5 + 3·cos(10°), 5 − 3·sin(10°) = (7.95, 4.48)
+      B (left,  above):  5 − 3·cos(10°), 5 − 3·sin(10°) = (2.05, 4.48)
+      C (left,  below):  5 − 3·cos(10°), 5 + 3·sin(10°) = (2.05, 5.52)
+      D (right, below):  5 + 3·cos(10°), 5 + 3·sin(10°) = (7.95, 5.52)
+
+      All four points lie exactly on the r=3 circle (no snapping).
+
+    Arc 1 (upper): A → B through 12 o'clock  (160°, sweep=0, large-arc=0)
+    Arc 2 (lower): C → D through  6 o'clock  (160°, sweep=0, large-arc=0)
+
+    Linecap: butt — matches 24×24 gate's crisp notch edges.
+  -->
+  <path
+    d="M 7.95,4.48 A 3,3 0 0,0 2.05,4.48
+       M 2.05,5.52 A 3,3 0 0,0 7.95,5.52"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="1"
+    stroke-linecap="butt"
+  />
+</svg>

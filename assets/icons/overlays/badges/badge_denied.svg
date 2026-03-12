@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8" width="8" height="8">
+  <!--
+    Badge: Denied — Circle + ✕ mark
+    Renders at gate NE corner on Denied event (hostile blocked).
+    Spec §3.3: "✕" badge, red, 2s hold.
+
+    Geometry:
+      Circle: cx=4, cy=4, r=3, stroke-width=1
+      X mark: two diagonal strokes within 4×4 safe area
+        Stroke 1: (2, 2) → (6, 6)
+        Stroke 2: (6, 2) → (2, 6)
+      X stroke-width=1, linecap=butt
+  -->
+  <circle
+    cx="4" cy="4" r="3"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="1"
+  />
+  <path
+    d="M 2,2 L 6,6 M 6,2 L 2,6"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="1"
+    stroke-linecap="butt"
+  />
+</svg>

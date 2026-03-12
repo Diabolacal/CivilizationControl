@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 24" width="32" height="24">
+  <!--
+    Solar System Aggregate — Rounded rectangle container for Network View.
+    32×24 viewBox per §6.14. Corner radius r=4.
+    Rect inset 1 unit on all sides (half stroke-width) to keep stroke
+    within viewBox bounds.
+    Interior not drawn here — label + miniature count row are rendered
+    by the React component at runtime.
+  -->
+  <rect
+    x="1" y="1" width="30" height="22" rx="4" ry="4"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="2"
+    stroke-linejoin="miter"
+  />
+</svg>

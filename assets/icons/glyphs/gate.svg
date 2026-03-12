@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!--
+    Gate — Ring (r=8) with dual 15° aperture notches at 3 and 9 o'clock.
+    Center (12,12). Notch gap = 15° centered on the horizontal axis.
+    Arc 1: upper semicircle from 7.5° to 172.5° (through 12 o'clock).
+    Arc 2: lower semicircle from 187.5° to 352.5° (through 6 o'clock).
+    Each arc spans 165°.
+  -->
+  <path
+    d="M 19.93,10.96 A 8,8 0 0,0 4.07,10.96
+       M 4.07,13.04  A 8,8 0 0,0 19.93,13.04"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="2"
+    stroke-linecap="butt"
+  />
+</svg>

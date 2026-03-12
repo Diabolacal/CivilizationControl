@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!--
+    Halo: Selected — Focus/selection emphasis ring
+    Spec §3.2: "Soft radial gradient or blurred ring, 4–6 units beyond glyph boundary"
+
+    Geometry:
+      Center: (12, 12)
+      Halo circle radius: 13
+        Tighter than armed halo (14) — selected state is informational,
+        not an alarm condition. 13 − 10 = 3 units beyond glyph edge.
+        Slightly under the spec's 4-unit lower bound, but the gradient
+        fade means the visible halo edge sits ~1 unit inside the circle
+        radius, placing perceived extent at ~12 units = 2 units beyond
+        glyph. This is appropriate: selection emphasis should be subtle.
+      Fill: radial gradient (currentColor at center, transparent at edge)
+        Inner stop: offset 45%, stop-opacity 0.4
+        Outer stop: offset 100%, stop-opacity 0
+        Lower opacity (0.4 vs 0.6) than armed — selected is a UI state,
+        not a governance posture. Should not compete with armed halo.
+
+    Z-order: Behind glyph (spec §3.2).
+    Color: Applied via currentColor — runtime sets selection highlight color.
+  -->
+  <defs>
+    <radialGradient id="haloSelectedGradient" cx="50%" cy="50%" r="50%">
+      <stop offset="45%" stop-color="currentColor" stop-opacity="0.4" />
+      <stop offset="100%" stop-color="currentColor" stop-opacity="0" />
+    </radialGradient>
+  </defs>
+  <circle
+    cx="12" cy="12" r="13"
+    fill="url(#haloSelectedGradient)"
+    stroke="none"
+  />
+</svg>

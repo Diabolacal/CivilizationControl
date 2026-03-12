@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!--
+    Pulse Base — Static event expansion ring
+    Spec §3.2: "Brief (200–400ms) radial expansion + fade from glyph center"
+    Spec §3.3: Used for Denied (red), Toll Collected (green), Trade Settled (green)
+
+    This SVG provides the STATIC geometry only.
+    Animation is handled by the React component:
+      - Radius: 6 → 16 (expansion)
+      - Opacity: 1 → 0 (fade)
+      - Duration: 200–300ms (revenue) or 300ms (denied)
+
+    Geometry:
+      Center: (12, 12) — glyph center
+      Initial radius: 6 (visible pulse starts just inside glyph boundary)
+      Stroke width: 2 (matches glyph stroke weight for visual consistency)
+      Fill: none (ring only, not disc)
+      Stroke: currentColor (runtime sets event-denied or event-revenue token)
+
+    The React layer will animate the <circle> r attribute from 6 → 16
+    while fading opacity from 1 → 0. At r=16, the pulse ring extends
+    4 units beyond the glyph boundary — matching halo extent.
+
+    Z-order: Above halo, behind badge (spec §3.2).
+  -->
+  <circle
+    cx="12" cy="12" r="6"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="2"
+  />
+</svg>
