@@ -38,8 +38,7 @@ Pattern libraries (e.g., PTB docs) accelerate implementation but do not override
 | `docs/strategy/civilization-control/civilizationcontrol-hackathon-emotional-objective.md` | Emotional design target |
 | `docs/strategy/civilization-control/civilizationcontrol-strategy-memo.md` | Strategic positioning |
 | `docs/strategy/civilization-control/civilizationcontrol-product-vision.md` | Product vision |
-| `docs/strategy/_shared/hackathon-portfolio-roadmap.md` | Portfolio strategy and prize targeting |
-| `docs/strategy/_shared/marketing-plan.md` | Marketing and submission narrative |
+
 
 ## UX Documents (copy for design guidance)
 
@@ -69,14 +68,31 @@ Pattern libraries (e.g., PTB docs) accelerate implementation but do not override
 | `docs/architecture/in-game-dapp-surface.md` | In-game embedded browser constraints (787px, Chromium 122) |
 | `docs/architecture/authenticated-user-surface-analysis.md` | Wallet-to-structures discovery read-path analysis |
 
+## Analysis Documents (copy for risk/claims context)
+
+| File | Purpose |
+|------|--------|
+| `docs/analysis/must-work-claim-registry.md` | Must-work claims registry |
+| `docs/analysis/assumption-registry-and-demo-fragility-audit.md` | Risk assumptions and demo fragility audit |
+
+## Validation Documents (copy for localnet validation evidence)
+
+| File | Purpose |
+|------|--------|
+| `docs/validation/admin-acl-enrollment-validation.md` | Admin ACL enrollment validation |
+| `docs/validation/compound-df-key-validation.md` | Compound dynamic-field key validation |
+| `docs/validation/extension-integration-e2e-validation.md` | Extension integration E2E validation |
+| `docs/validation/localnet-validation-backlog.md` | Localnet validation backlog |
+| `docs/validation/ssu-extension-e2e-validation.md` | SSU extension E2E validation |
+
 ## Operations Documents (copy for bootstrap procedures)
 
 | File | Purpose |
-|------|---------|
+|------|--------|
 | `docs/operations/gate-lifecycle-runbook.md` | 13-step gate lifecycle procedure |
-
 | `docs/operations/demo-evidence-appendix.md` | Evidence collection appendix |
 | `docs/operations/submodule-refresh-prompt.md` | Reusable submodule refresh procedure |
+| `docs/operations/DECISIONS_TEMPLATE.md` | Decision log entry template |
 
 ## Documentation Infrastructure (copy for repo hygiene)
 
@@ -148,28 +164,6 @@ These documents are pattern templates only.
 All function signatures, object requirements, and package IDs must be revalidated against the latest world-contracts commit and hackathon test server deployment before implementation.
 
 ---
-
-## Other-Project Strategy Documents (project-specific routing)
-
-These documents carry forward into **their own project repos only** — NOT the CivilizationControl submission repo.
-
-| File | Target Repo |
-|------|-------------|
-| `docs/strategy/flappy-frontier/flappy-frontier-product-vision.md` | Flappy Frontier repo |
-| `docs/strategy/cargo-bond/cargo-bond-product-vision.md` | Cargo Bond / Atomic Courier repo |
-| `docs/strategy/fortune-gauntlet/fortune-gauntlet-project-vision.md` | Fortune Gauntlet repo |
-| `docs/strategy/fortune-gauntlet/fortune-gauntlet-scoring-memo.md` | Fortune Gauntlet repo |
-
----
-
-## Intentional Exclusions from CC Carry-Forward
-
-The following are useful docs but are deliberately **not included** in the CC export set:
-
-- `docs/analysis/must-work-claim-registry.md` — claims already captured in `validation.md`, `claim-proof-matrix.md`, and `day1-checklist.md`
-- `docs/analysis/assumption-registry-and-demo-fragility-audit.md` — risk assumptions absorbed into `march-11-reimplementation-checklist.md` and `day1-checklist.md`
-- `docs/operations/DECISIONS_TEMPLATE.md` — template format embedded in `.github/copilot-instructions.md`; not needed as a standalone file
-- `docs/validation/` — localnet validation evidence stays in the evidence repo; carry-forward validation procedures live in `docs/core/validation.md`
 
 ---
 

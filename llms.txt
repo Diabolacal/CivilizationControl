@@ -1,0 +1,34 @@
+# CivilizationControl — Documentation Map
+
+> **Note to Agents:** This file serves as a high-level map to the most important documentation in this repository.
+> For agent guardrails, see `.github/copilot-instructions.md` and `AGENTS.md`.
+
+## Critical Entry Points
+- **Agent Rules**: `.github/copilot-instructions.md` (MUST READ)
+- **Agent Context**: `AGENTS.md` (MUST READ)
+- **Security**: `.github/security-guidelines.md`
+- **System Spec**: `docs/core/spec.md`
+
+## Key Documentation
+- **System Specification**: `docs/core/spec.md`
+- **Implementation Plan**: `docs/core/civilizationcontrol-implementation-plan.md`
+- **Day-1 Checklist**: `docs/core/day1-checklist.md`
+- **Demo Beat Sheet**: `docs/core/civilizationcontrol-demo-beat-sheet.md`
+- **Decision Log**: `docs/decision-log.md`
+
+## Architecture
+- **Gate Lifecycle**: `docs/architecture/gate-lifecycle-function-reference.md`
+- **Auth Model**: `docs/architecture/world-contracts-auth-model.md`
+- **Read Provider**: `docs/architecture/read-provider-abstraction.md`
+
+## PTB Patterns
+- **Library Index**: `docs/ptb/README.md`
+- **Core Patterns**: `docs/ptb/ptb-patterns.md`
+
+## Strategy & Voice
+- **Voice & Narrative**: `docs/strategy/civilization-control/civilizationcontrol-voice-and-narrative.md`
+- **Product Vision**: `docs/strategy/civilization-control/civilizationcontrol-product-vision.md`
+
+## Operations
+- **Gate Lifecycle Runbook**: `docs/operations/gate-lifecycle-runbook.md`
+- **Decision Template**: `docs/operations/DECISIONS_TEMPLATE.md`

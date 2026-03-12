@@ -1,0 +1,11 @@
+[package]
+name = "civilization_control"
+edition = "2024.beta"
+
+[dependencies]
+# Sui framework auto-added by toolchain
+# TODO: Add world-contracts dependency once package ID is known
+# World = { local = "../../vendor/world-contracts/contracts/world" }
+
+[addresses]
+civilization_control = "0x0"

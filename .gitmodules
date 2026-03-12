@@ -1,0 +1,6 @@
+[submodule "vendor/world-contracts"]
+	path = vendor/world-contracts
+	url = https://github.com/evefrontier/world-contracts
+[submodule "vendor/builder-scaffold"]
+	path = vendor/builder-scaffold
+	url = https://github.com/evefrontier/builder-scaffold
