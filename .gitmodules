@@ -4,3 +4,9 @@
 [submodule "vendor/builder-scaffold"]
 	path = vendor/builder-scaffold
 	url = https://github.com/evefrontier/builder-scaffold
+[submodule "vendor/evevault"]
+	path = vendor/evevault
+	url = https://github.com/evefrontier/evevault
+[submodule "vendor/builder-documentation"]
+	path = vendor/builder-documentation
+	url = https://github.com/evefrontier/builder-documentation
