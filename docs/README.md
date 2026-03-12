@@ -142,6 +142,12 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 | [operations/submodule-refresh-prompt.md](operations/submodule-refresh-prompt.md) | Reusable submodule refresh procedure |
 | [operations/day1-validation.md](operations/day1-validation.md) | **Day 1 chain validation results** — Utopia testnet IDs, source assumption checks, blockers |
 
+## Working Memory
+
+| File | Purpose |
+|------|---------|
+| [working_memory/2026-03-12_march11-foundation.md](working_memory/2026-03-12_march11-foundation.md) | March 11 foundation sprint — GateControl progress, environment state, next steps |
+
 ## Demo
 
 | File | Purpose |

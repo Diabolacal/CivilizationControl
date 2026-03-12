@@ -328,51 +328,46 @@ Verify these on hackathon day. If any break, reassess the corresponding module.
 
 ## Day-1 Checklist (Ordered Steps)
 
-### Hour 0: Repository Setup (30 min)
+### Hour 0: Repository Setup (30 min) — ✅ COMPLETE (2026-03-12)
 
-- [ ] Confirm hackathon has started (UTC timestamp check)
-- [ ] Create fresh GitHub repo (no prior commits)
-- [ ] `git init` + first commit with only intended template files
-- [ ] Add submodules:
-  ```
-  git submodule add https://github.com/evefrontier/builder-scaffold.git vendor/builder-scaffold
-  git submodule add https://github.com/evefrontier/world-contracts.git vendor/world-contracts
-  ```
-- [ ] Verify commit timestamp is on or after March 11
-- [ ] Push to GitHub
+- [x] Confirm hackathon has started (UTC timestamp check)
+- [x] Create fresh GitHub repo (no prior commits)
+- [x] `git init` + first commit with only intended template files
+- [x] Add submodules: `world-contracts`, `builder-scaffold`, `evevault`, `builder-documentation`
+- [x] Verify commit timestamp is on or after March 11
+- [x] Push to GitHub
 - [ ] Register on Deepsurge (if not done)
 
-### Hour 0.5: Environment Verification (30 min)
+### Hour 0.5: Environment Verification (30 min) — ✅ COMPLETE (2026-03-12)
 
-**Primary target: Hackathon Test Server** (available from March 11). Local devnet is a fallback.
+**Completed on Utopia testnet.** Full results in [`docs/operations/day1-validation.md`](../operations/day1-validation.md).
 
-- [ ] Pull latest `world-contracts` — check for API changes since Feb 16
-- [ ] Verify assumptions A1–A4 by reading key function signatures:
-  - `gate.move`: `authorize_extension`, `issue_jump_permit`, `jump_with_permit`
-  - `storage_unit.move`: `withdraw_item`, `deposit_item`, `authorize_extension`
-  - `inventory.move`: `Item` struct abilities
-- [ ] **Connect to hackathon test server:** `sui client new-env --alias testserver --rpc <RPC_URL>` → `sui client switch --env testserver`
-- [ ] Verify test server connection: `sui client active-env` → "testserver"
-- [ ] Check test server for pre-published world-contracts (query known types)
-- [ ] **Fallback:** Start local devnet: `cd vendor/builder-scaffold/docker && docker compose run --rm sui-dev`
-- [ ] If using local devnet: Publish world package: `sui client publish --gas-budget 500000000`
-- [ ] Record all shared object IDs (GovernorCap, AdminACL, ObjectRegistry, etc.)
+- [x] Pull latest `world-contracts` — v0.0.18, all assumptions verified
+- [x] Verify assumptions A1–A5, A8 by reading key function signatures — all PASS
+- [x] **Connected to Utopia testnet:** `https://fullnode.testnet.sui.io:443`, active env `testnet`
+- [x] Verified test server connection: all 8 Utopia object IDs LIVE-VERIFIED
+- [x] Check test server for pre-published world-contracts — confirmed on-chain
+- [x] Record all shared object IDs — see `day1-validation.md` Environment State table
+- N/A: Local devnet / publish steps (using live Utopia testnet instead)
 
-### Hour 1: CivControl GateControl Module (2–3 hours)
+### Hour 1: CivControl GateControl Module (2–3 hours) — ✅ COMPLETE (2026-03-12)
 
-- [ ] Create Move package: `contracts/civcontrol/` (single package for both GateControl and TradePost — matches spec.md §3.1)
-- [ ] Define `GateAuth has drop {}` witness struct (gate extension)
-- [ ] Define `CivControlConfig` shared object with UID for dynamic fields
-- [ ] Implement rule key/value structs:
-  - `TribeRuleKey` / `TribeRule { tribe_id: u32 }`
-  - `CoinTollKey` / `CoinTollRule { price: u64, treasury: address }`
-- [ ] Implement `request_jump_permit()`:
-  1. Check tribe rule (if exists) → compare character.tribe_id
-  2. Check coin toll (if exists) → verify payment, transfer to treasury
-  3. Call `gate::issue_jump_permit<GateAuth>(...)`
-- [ ] Implement admin functions: `set_tribe_rule()`, `set_coin_toll()`, `remove_rule()`
-- [ ] Write Move unit tests (`#[test]` functions)
-- [ ] `sui move build` + `sui move test`
+> **Path note:** This checklist originally referenced `contracts/civcontrol/`. The implementation uses `contracts/civilization_control/` — the existing validated repo path established during scaffold packaging. No rename was performed; the canonical path already builds and tests cleanly. See decision log entry 2026-03-12.
+
+- [x] Move package exists at `contracts/civilization_control/` with world dependency configured
+- [x] Define `GateAuth has drop {}` witness struct (gate extension) — `public(package)` mint per builder-scaffold convention
+- [x] Define shared config object (`GateConfig`) with UID for dynamic fields — named `GateConfig` (not `CivControlConfig`) for clarity; serves the same purpose
+- [x] Implement rule key/value structs:
+  - `TribeRuleKey { gate_id }` / `TribeRule { tribe: u32 }` — per-gate via compound DF key
+  - `CoinTollKey { gate_id }` / `CoinTollRule { price: u64, treasury: address }` — per-gate via compound DF key
+- [x] Implement `request_jump_permit()` + `request_jump_permit_free()`:
+  1. Check tribe rule (if exists) → compare `character.tribe()` ✅
+  2. Check coin toll (if exists) → verify payment, transfer to treasury ✅
+  3. Call `gate::issue_jump_permit<GateAuth>(...)` ✅
+- [x] Implement admin functions: `set_tribe_rule()`, `set_coin_toll()`, `remove_tribe_rule()`, `remove_coin_toll()`
+- [x] Write Move unit tests — 11 tests, all pass
+- [x] `sui move build` ✅ `sui move test` ✅ (11/11 pass)
+- [x] Custom events included in foundation: `TribeCheckPassedEvent`, `TollCollectedEvent`, `TribeRuleSetEvent`, `CoinTollSetEvent`, `RuleRemovedEvent`
 
 ### Hour 3: CivControl TradePost Module (2–3 hours)
 
@@ -408,7 +403,7 @@ Verify these on hackathon day. If any break, reassess the corresponding module.
 
 ### Hour 7: Event Emission + Custom Events (1 hour)
 
-- [ ] Add custom events to GateControl: `TribeCheckPassedEvent`, `TollCollectedEvent`
+- [x] Add custom events to GateControl: `TribeCheckPassedEvent`, `TollCollectedEvent` — included in Hour 1 foundation (also `TribeRuleSetEvent`, `CoinTollSetEvent`, `RuleRemovedEvent`)
 - [ ] Add custom events to TradePost: `ListingCreatedEvent`, `TradeSettledEvent`, `ListingCancelledEvent`
 - [ ] Verify events appear in `sui client events --package <pkg>`
 
