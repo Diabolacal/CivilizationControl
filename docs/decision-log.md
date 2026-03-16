@@ -4,6 +4,54 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-03-16 – JWT Nonce Mismatch Diagnosis + Error Handling
+- Goal: Debug "JWT nonce mismatch" error in owner-auth harness; determine if harness or Vault issue
+- Files: `src/App.tsx` (StatusDisplay improved)
+- Diff: +18 LoC
+- Risk: low (UI error messaging only)
+- Gates: typecheck ✅ build ✅
+- Root cause: EVE Vault internal state — device data (ephemeralKey + randomness + epoch) regenerated after login, causing stored nonce to diverge from JWT's nonce. This is a known race condition inside `vendor/evevault/packages/shared/src/stores/deviceStore.ts` `getZkProof()` (L578). **Not fixable from dApp code.** Recovery requires full Vault sign-out + sign-in to re-derive both JWT and device data atomically.
+- Changes: Added nonce-mismatch-specific recovery instructions in the UI error display
+- Follow-ups: User must sign out of EVE Vault and sign back in to clear stale state, then retry
+
+---
+
+## 2026-03-12 – Browser Auth Harness for Owner-Signed Transactions
+- Goal: Build minimal browser harness to execute the two blocked authorize_extension PTBs via EVE Vault wallet signing (game wallet not in local Sui keystore)
+- Files: `src/` (10 new files), `package.json`, `tsconfig.json`, `vite.config.mts`, `index.html`, `.env`
+- Diff: ~350 LoC added (new harness scaffold)
+- Risk: low (operational tooling only, no contract changes, no production deploy)
+- Gates: typecheck ✅ build ✅
+- Design choices: Standard signing (not sponsored) — owner operations don't use `verify_sponsor`; `tx.object()` auto-resolves `Receiving<T>` types; `signAndExecuteTransaction` (not `signAndExecute`) is the correct DAppKit method; `optimizeDeps.entries` limited to `index.html` to prevent Vite scanning vendor `.html` files
+- Follow-ups: Run harness in browser with EVE Vault to execute authorize_extension on gate + SSU
+
+---
+
+## 2026-03-12 – Hour 5 Live Integration Execution (Utopia)
+- Goal: Execute smallest credible live mutation sequence to prove CivilizationControl is wired into real Utopia assets
+- Files: `docs/operations/day1-validation.md` (Hour 5 execution section added)
+- Diff: +120 LoC docs
+- Risk: medium (on-chain state mutations — tribe rule DF + shared Listing object)
+- Gates: N/A (no code changes, PTB-only operations)
+- Results:
+  - Phase 3 `set_tribe_rule`: tribe=1000167 on gate `0xf130…` — TX `DXGsGVq8rVeGzUJkcRRkxMW4NvuZjUPY6uhBR5SyKtiK` ✅
+  - Phase 4 `create_listing` + `share_listing`: item=78437, qty=1, price=1000 — TX `C3t5MJ5xtUsNyUe1B6nERFUYw2AHja4EbyNjQFNFMcJZ` ✅
+  - Phases 1-2 (authorize extensions): PTBs prepared, blocked on game wallet `0xad02…` not in local keystore
+- Follow-ups: Import game wallet or use EVE Vault to execute extension authorization; then test end-to-end jump/trade flows
+
+---
+
+## 2026-03-12 – Hour 5 Asset Discovery (Utopia)
+- Goal: Map all live Utopia assets for wallet `0xad02…fb71` from chain data alone; select test candidates for GateControl + TradePost integration
+- Files: `docs/operations/day1-validation.md` (Hour 5 section added)
+- Diff: +130 LoC docs
+- Risk: low (read-only chain discovery, no mutations)
+- Gates: N/A (no code changes)
+- Findings: 70 OwnerCaps (12 gates, 5 SSUs, 41 turrets, 9 nodes, 2 assemblies, 1 character). Primary test pair: Gate `0xf130…` + SSU `0x73a2…` (ONLINE, 5 items) co-located at Node `0x8bad…`
+- Follow-ups: Authorize extensions via PTB (requires wallet signing); test tribe rule + listing creation
+
+---
+
 ## 2026-03-12 – Package Published to Utopia Testnet
 - Goal: Publish civilization_control package (gate_control + trade_post) to Utopia testnet for integration testing
 - Files: `contracts/civilization_control/Published.toml` (generated), `contracts/civilization_control/Move.lock` (updated), `docs/operations/day1-validation.md` (publish record added)

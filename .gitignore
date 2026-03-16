@@ -65,3 +65,8 @@ temp_*
 *.bak
 *.swp
 *~
+
+# Debug / scratch artifacts from CLI exploration
+gate_obj.json
+playerprofile.json
+wallet_objects.txt
