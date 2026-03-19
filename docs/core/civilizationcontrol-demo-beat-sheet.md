@@ -40,14 +40,13 @@ This is not a feature tour. It is three minutes of escalating authority. Each be
 
 If stability forces cuts, protect these six. Everything else is expendable.
 
-| # | Proof Moment | Beat | What It Proves |
-|---|---|---|---|
-| 1 | Policy deploy tx digest | Beat 3 | Governance written on-chain in one action |
-| 1b | Extension freeze tx digest | Beat 3 | Rules are permanent — trustless, not just configured |
-| 2 | Hostile denied — MoveAbort visible | Beat 4 | Chain enforcement. No appeal. |
-| 3 | Toll collected — balance delta | Beat 5 | Revenue flows to operator atomically |
-| 4 | Defense Mode — single tx digest containing posture + turrets | Beat 6 | Infrastructure-wide state change, one click |
-| 5 | Trade settlement — buyer/seller balances | Beat 7 | Atomic commerce, no trust required |
+| # | Proof Moment | Beat | What It Proves | Live or Post-Prod |
+|---|---|---|---|---|
+| 1 | Policy deploy tx digests (tribe rule + coin toll) | Beat 3 | Governance written on-chain via UI | Live — Signal Feed shows events |
+| 2 | Hostile denied — MoveAbort | Beat 4 | Chain enforcement, no appeal | Post-prod overlay — operator dashboard cannot observe other wallets' failed txs |
+| 3 | Toll collected — balance delta | Beat 5 | Revenue flows to operator atomically | Live — Transit Proof button fires TollCollectedEvent in Signal Feed |
+| 4 | Defense Mode — single tx digest containing posture + turret extension swaps | Beat 6 | Infrastructure-wide state change, one click | Live — PostureChangedEvent in Signal Feed |
+| 5 | Trade settlement — buyer/seller balances | Beat 7 | Atomic commerce, no trust required | Live — ListingCreated + ListingPurchased events |
 
 ---
 
@@ -119,35 +118,26 @@ If stability forces cuts, protect these six. Everything else is expendable.
 **Spoken narration:**
 > "You decide who crosses and what they pay."
 
-*[Click into a gate. Policy panel opens. Three rule types: Tribe Filter, Toll, and Subscription Pass.]*
+*[Click into a gate. Policy panel opens. Two rule types: Tribe Filter and Toll.]*
 
-> "Tribe filter: only Tribe 7. Toll: five EVE per jump. And a subscription — fifty EVE for thirty days."
+> "Tribe filter: only your allies. Toll: five EVE per jump."
 
-*[Operator selects Tribe 7. Sets toll to 5 EVE. Enables subscription: 50 EVE / 30 days. Clicks "Deploy Policy."]*
+*[Operator selects a tribe. Sets toll to 5 EVE. Each rule deployed individually — sign, confirm.]*
 
-> "One action. Three rules. Deployed on-chain."
+> "Two rules. Each deployed on-chain. Signal Feed confirms."
 
-*[Confirmation: "Policy deployed. 3 rules active." Signal Feed updates.]*
+*[Signal Feed: TribeRuleSetEvent + CoinTollSetEvent entries appear.]*
 
-*[Beat. Operator clicks "Freeze Rules."]*
-
-> "Frozen. No one changes these rules. Not even you."
-
-*[Signal Feed: "Extension config frozen. Gate North-3." Lock icon appears on the gate's policy badge.]*
-
-**On-screen:** Gate detail → policy configuration → deploy → confirmation → freeze → lock indicator.
+**On-screen:** Gate detail → tribe rule set → toll set → Signal Feed confirmation.
 
 **Evidence overlay (post-production):**
-- Tx digest of policy deployment
-- Gate object showing `extension: Some(TypeName)` + 3 dynamic field rules (tribe + toll + subscription)
-- Tx digest of `freeze_extension_config` call
-- `ExtensionConfigFrozenEvent { assembly_id }` (world-contracts v0.0.18)
+- Tx digest of tribe rule deployment
+- Tx digest of toll deployment
+- Signal Feed showing both events
 
-**Signal Feed enrichment:** `ExtensionAuthorizedEvent` (world-contracts v0.0.15+) confirms policy deployment asynchronously via event polling (`suix_queryEvents`). Fields: `assembly_id`, `extension_type`. `ExtensionConfigFrozenEvent` confirms the freeze. Both are enrichment — the UI reacts immediately to the tx response, not to the event.
+**Purpose:** Core value — governance through interface, not CLI. Two clicks replace manual CLI configuration. No jargon about typed witnesses or dynamic fields.
 
-**Purpose:** Core value — governance through interface, not CLI. One click replaces 8+ commands. The freeze action elevates this from "configured" to "trustless" — proving the operator cannot rug-pull their own pilots. No jargon about typed witnesses or dynamic fields.
-
-**Technical note:** `freeze_extension_config(gate, owner_cap)` is irreversible (world-contracts v0.0.18). Requires: extension already authorized, not already frozen. After freeze, `authorize_extension` aborts with `EExtensionConfigFrozen`. The `is_extension_frozen()` reader can drive the UI lock indicator.
+**Scope note (2026-03-18):** Freeze and Subscription Pass are intentionally excluded from the live demo. Freeze is irreversible and permanently breaks posture switching on turrets (see `extension-freeze-safety-guide.md`). Subscription Pass is not implemented. The on-chain freeze capability exists and can be referenced in narration if desired, but must not be executed during recording.
 
 ---
 
@@ -158,22 +148,20 @@ If stability forces cuts, protect these six. Everything else is expendable.
 **Spoken narration:**
 > "A hostile pilot — wrong tribe — tries to jump."
 
-*[Signal Feed: new entry, red badge. "Jump denied. Tribe mismatch. Gate North-3."]*
+*[Narration over the policy view, showing the active tribe filter.]*
 
-*[Hold on the red entry for 2 seconds.]*
+> "The chain enforces it. The transaction aborts. No override. No appeal."
 
-> "Denied. The chain enforced it. No override. No appeal."
-
-**On-screen:** Signal Feed with denied entry. Red indicator.
+**On-screen:** Gate detail showing active tribe rule. Narration describes enforcement.
 
 **Evidence overlay (post-production):**
-- Failed tx digest (stored on-chain, verifiable on any Sui explorer)
-- MoveAbort code: `(tribe_permit, 0)` — ETribeMismatch
-- Shortened pilot address
+- Pre-captured failed tx digest from hostile wallet (Sui explorer screenshot)
+- MoveAbort code: `(gate_control, ETribeNotAllowed)`
+- Shortened hostile pilot address
 
-**Purpose:** First consequence. Policy → enforcement. The viewer sees that governance has teeth. The word "denied" lands with finality.
+**Purpose:** First consequence. Policy → enforcement. The viewer sees that governance has teeth.
 
-**Technical note:** MoveAbort reverts all effects including events. Detection is via wallet adapter failure response (`effects.status: "failure"`). No indexer needed.
+**Framing note (2026-03-18):** The hostile denied path produces NO on-chain events — `assert!` in `request_jump_permit` causes a MoveAbort that reverts everything, including any events that might have been emitted earlier in the transaction. The only evidence of denial is the failed transaction response in the hostile's own wallet. The operator's Signal Feed cannot observe other wallets' failed transactions. Evidence for this beat must be pre-captured from a hostile wallet and shown as a post-production overlay, or narrated honestly as "the hostile's transaction fails — the chain rejected it." Do not script the Signal Feed showing a denied entry — it will not happen live.
 
 ---
 
@@ -202,7 +190,9 @@ If stability forces cuts, protect these six. Everything else is expendable.
 
 **Purpose:** Same policy, opposite outcome. The gate discriminates and generates revenue. "The gate pays for itself" — six words that reframe infrastructure as an asset, not a cost.
 
-**Precondition note:** `jump_with_permit` requires AdminACL-authorized sponsor co-signature (or sender in AdminACL). Ensure sponsor address enrolled before this beat.
+**Precondition note (updated 2026-03-18):** `jump_with_permit` (actual jump execution) requires AdminACL sponsor co-signature. However, `request_jump_permit` (permit issuance + toll collection) is **now callable from the operator dashboard** via the Transit Proof section on any gate detail screen with a linked destination and authorized extension. This fires `TribeCheckPassedEvent` and `TollCollectedEvent` live in the Signal Feed, making this beat partially self-demonstrable. The operator generates a real toll-paid permit on their own gate — the distinction is that the character doesn't physically jump (that still requires AdminACL), but the revenue event and tribe check are real and on-chain.
+
+**Recommended recording approach:** Use the Transit Proof button on the gate detail screen to fire toll collection live, then cut to Signal Feed showing the TollCollectedEvent. Narrate as "An ally jumps through. Revenue collected." The permit issuance is genuine — the jump execution is implied.
 
 ---
 
@@ -210,10 +200,10 @@ If stability forces cuts, protect these six. Everything else is expendable.
 
 **Duration:** 30 seconds. This is the climax. Give it room.
 
-*[Signal Feed: new entry, amber badge. "Hostile detected — System Alpha-7." The entry scrolls in among prior events, no fanfare.]*
+*[Dashboard view. PostureControl clearly visible.]*
 
 **Spoken narration:**
-> "Threat inbound."
+> "Threat conditions change. One decision."
 
 *[Pause. 1 second.]*
 
@@ -221,35 +211,34 @@ If stability forces cuts, protect these six. Everything else is expendable.
 
 *[Operator clicks "Defense Mode."]*
 
-*[2 seconds of silence. Let the visual dominate.]*
+*[PostureControl shows "Executing…" — topology holds current teal colors (no premature change).]*
 
-*[Posture indicator shifts: "Open for Business" → "Defense Mode." Gate link lines shift green → amber. Turret icons flip grey → active. All indicators update in a wave across the Command Overview.]*
+*[Tx confirms. PostureControl shows "Confirming…" briefly. Then, over ~800ms, turret glyphs shift teal → amber. NWN nodes shift teal → amber. Defense overlay fades in across the topology canvas. Posture indicator transitions from "Commercial" to "Defensive."]*
 
-> "Gates locked. Turrets online. One transaction."
+*[Hold 2 seconds. Let the confirmed state change settle visually.]*
 
-*[Signal Feed floods with posture events: "Posture: Defense Mode." "Turret Alpha: ONLINE." "Turret Bravo: ONLINE." Gate status updates.]*
+> "Turrets re-armed. Posture switched. One transaction."
 
-*[Hold 3 seconds on the transformed Command Overview. Let the state change settle visually.]*
+*[Signal Feed: PostureChangedEvent appears.]*
 
-**On-screen:** The full Command Overview transforming — posture indicator, gate colors, turret states, Signal Feed cascade. This must feel like flipping a switch on an entire network.
+*[Hold 3 seconds on the transformed Command Overview. The teal→amber transition is smooth and deliberate — a visual confirmation of on-chain state, not an instant UI toggle.]*
+
+**On-screen:** The full Command Overview transforming — posture indicator, gate colors, turret states, Signal Feed. The transition is animated (~800ms) and tied to confirmed chain state — colors change only after the on-chain posture re-read completes, not on button click.
 
 **Evidence overlay (post-production):**
-- **Single tx digest** containing all posture changes (validated: single PTB, ~2.3s end-to-end — chain finality ~250ms + indexer sync)
-- `PostureChangedEvent`: `old_mode: BUSINESS → new_mode: DEFENSE`
-- Turret `StatusChangedEvent` × N (one per turret): `action: ONLINE`
-- Before/after state summary: turrets OFFLINE→ONLINE, gates open→tribe-locked, toll removed
+- **Single tx digest** containing all posture changes (single PTB)
+- `PostureChangedEvent`: `old_mode: COMMERCIAL → new_mode: DEFENSE`
+- Before/after state summary: turrets bouncer→defense extension swap
 
 **Purpose:** The hammer moment. Everything the demo has built — policy, enforcement, revenue — now escalates to infrastructure-wide command. One human decision, one on-chain transaction, every structure responds. This is the "command layer" claim made undeniable.
 
-**Signal cue note:** The "Hostile detected" Signal Feed entry is sourced from `PriorityListUpdatedEvent` (world-contracts `turret.move`). The game emits this event whenever a target's behaviour changes — specifically, when a ship enters turret proximity (`BehaviourChangeReason::ENTERED`) or begins attacking (`STARTED_ATTACK`). Each candidate in the event carries a `behaviour_change` field identifying the trigger. This fires **strictly earlier** than a `KillmailCreatedEvent` (which requires destruction), making it a leading indicator rather than a lagging one. The entry is purely informational — no automation, no proof moment. Its role is visual grounding: the operator sees intelligence, assesses the situation, and decides to act. "Threat inbound" reads as the operator's spoken assessment of visible intelligence, not an unsourced declaration.
+**Signal cue note (corrected 2026-03-18):** `BouncerTargetingEvent` and `DefenseTargetingEvent` are **game-engine-initiated** — they fire only when the game engine calls `get_target_priority_list` with actual hostiles in turret proximity. The operator cannot trigger these. They have never been tested live. Do NOT script the Signal Feed showing a "Hostile detected" entry as a cue for posture switch. The posture switch itself is the operator's provable action; turret targeting is an emergent consequence that depends on game-world activity.
 
-**Extension caveat:** The base `PriorityListUpdatedEvent` is only emitted when **no custom turret extension** is configured (guarded by `assert!(option::is_none(&turret.extension))` at `turret.move:296`). If CivilizationControl ships a custom turret extension, it must explicitly emit an equivalent event to preserve this observability path. The canonical extension example (`extension_examples/sources/turret.move`) demonstrates this pattern.
+**Corrected turret doctrine (2026-03-18):** Turrets are always online. Posture switching changes which turret extension is active (BouncerAuth → DefenseAuth), not power state. The PTB uses `authorize_extension<DefenseAuth>` (swap pattern), not `turret::online()`.
 
-**Requires runtime validation:** Confirm on testnet that `PriorityListUpdatedEvent` fires with expected `behaviour_change` values when ships enter turret range.
+**Technical reality (implemented):** Single PTB contains: `set_posture` + gate rule changes + N × (`borrow_owner_cap<Turret>` → `authorize_extension<DefenseAuth|BouncerAuth>` → `return_owner_cap`). Move modules: posture.move, turret_bouncer.move, turret_defense.move. All compile and test (21/21).
 
-**Technical reality (validated):** Single PTB contains 7–9 Move calls: `set_posture` + `set_tribe_config` + `clear_toll_config` + N × (`borrow_owner_cap<Turret>` → `turret::online` → `return_owner_cap`). Confirmed on localnet: both BUSINESS→DEFENSE and DEFENSE→BUSINESS pass. ~250ms on-chain execution. See [posture-switch validation](../sandbox/posture-switch-localnet-validation.md).
-
-**Preconditions:** ≥1 turret anchored + offline, connected to online/fueled NetworkNode. Gates in "Open for Business" (tribe+toll). OwnerCap<Turret> accessible via character borrow. Energy reservation available.
+**Preconditions:** ≥1 turret anchored + online with BouncerAuth extension configured (commercial posture). Gates in "Open for Business" (tribe+toll). OwnerCap<Turret> accessible via character borrow.
 
 ---
 
@@ -267,7 +256,7 @@ If stability forces cuts, protect these six. Everything else is expendable.
 
 > "Payment to the seller. Item to the buyer. One transaction."
 
-*[Signal Feed: "Trade settled. 1,000 Eupraxite. 10 EVE." Revenue counter ticks up again.]*
+*[Signal Feed: "Trade settled. 1,000 Eupraxite. 100 EVE." Revenue counter ticks up again.]*
 
 **On-screen:** Trade Post storefront → Buy → confirmation → Signal Feed + revenue update.
 
@@ -323,8 +312,8 @@ If stability forces cuts, protect these six. Everything else is expendable.
 |---|---|---|---|---|
 | 1 | Pain | 0:00 | 0:18 | 18s |
 | 2 | Power Reveal | 0:18 | 0:38 | 20s |
-| 3 | Policy + Freeze | 0:38 | 1:04 | 26s |
-| 4 | Denial | 1:04 | 1:22 | 18s |
+| 3 | Policy | 0:38 | 1:04 | 26s |
+| 4 | Denial (narrated) | 1:04 | 1:22 | 18s |
 | 5 | Revenue | 1:22 | 1:40 | 18s |
 | 6 | Defense Mode | 1:40 | 2:10 | 30s |
 | 7 | Commerce | 2:10 | 2:32 | 22s |
@@ -338,15 +327,14 @@ If stability forces cuts, protect these six. Everything else is expendable.
 
 Every major claim has a corresponding on-chain evidence moment.
 
-| Beat | Claim | Evidence Artifact | Overlay Format |
-|---|---|---|---|
-| 3 — Policy | Governance deployed in one action | Tx digest + gate object with extension + 3 DF rules (tribe + toll + subscription) | Digest badge + before/after state |
-| 3 — Freeze | Rules permanently locked — trustless governance | Tx digest of `freeze_extension_config` + `ExtensionConfigFrozenEvent` | Lock icon overlay + digest badge |
-| 4 — Denial | Hostile blocked by chain enforcement | Failed tx digest + MoveAbort `(tribe_permit, 0)` | Red overlay: digest + abort code |
-| 5 — Revenue | Toll revenue flows to operator atomically | Tx digest + `TollCollectedEvent` + balance delta (+5 EVE) | Green overlay: digest + balance |
-| 6 — Defense Mode | Infrastructure-wide state change, single tx | Single tx digest + `PostureChangedEvent` + N × `StatusChangedEvent` | Digest badge + before/after state matrix |
-| 7 — Commerce | Atomic settlement, no counterparty risk | Tx digest + `TradeSettledEvent` + buyer/seller balance deltas | Digest badge + balance comparison |
-| 8 — Command | System produces visible, aggregate value | Revenue totals in Command Overview + Signal Feed | UI screenshot (live) |
+| Beat | Claim | Evidence Artifact | Overlay Format | Source |
+|---|---|---|---|---|
+| 3 — Policy | Governance deployed via UI | Tx digests + `TribeRuleSetEvent` + `CoinTollSetEvent` | Digest badge per rule | Live Signal Feed |
+| 4 — Denial | Hostile blocked by chain enforcement | Failed tx digest + MoveAbort code | Red overlay: digest + abort code | Post-prod (hostile wallet capture) |
+| 5 — Revenue | Toll revenue flows to operator atomically | Tx digest + `TollCollectedEvent` + balance delta | Green overlay: digest + balance | Live — Transit Proof on gate detail |
+| 6 — Defense Mode | Infrastructure-wide state change, single tx | Single tx digest + `PostureChangedEvent` | Digest badge + topology color shift | Live Signal Feed + topology |
+| 7 — Commerce | Atomic settlement, no counterparty risk | Tx digest + `ListingCreatedEvent` / `ListingPurchasedEvent` | Digest badge + balance comparison | Live Signal Feed |
+| 8 — Command | System produces visible, aggregate value | Revenue totals in Command Overview + Signal Feed | UI screenshot (live) | Live UI |
 
 ---
 
@@ -368,24 +356,19 @@ Complete every item before pressing record. Incomplete items = retake risk.
 
 | # | Check | Status |
 |---|---|---|
-| 6 | ≥2 gates online, linked, NO current extension (clean baseline) | ☐ |
-| 7 | ≥1 trade post (SSU) online, authorized, ≥1 item listed | ☐ |
-| 8 | ≥2 turrets anchored, connected to NetworkNode, status: OFFLINE | ☐ |
-| 9 | ≥1 NetworkNode online, fueled, producing energy | ☐ |
-| 10 | Fuel efficiency set for turret fuel type (AdminACL) | ☐ |
-| 11 | Posture baseline: "Open for Business" (tribe+toll active on gates) | ☐ |
-| 11a | Turret threat signal staged: `PriorityListUpdatedEvent` with `BehaviourChangeReason::ENTERED` ready to appear in Signal Feed before Beat 6 (requires ≥1 turret online with hostile in proximity range) | ☐ |
-| 11b | Extension config NOT frozen on demo gates (freeze happens live in Beat 3; verify `is_extension_frozen()` returns false) | ☐ |
+| 6 | ≥1 gate online, extension authorized (GateAuth), NO tribe rules, NO coin tolls (clean baseline for Beat 3) | ☐ |
+| 7 | ≥1 trade post (SSU) online, extension authorized (TradeAuth), inventory present | ☐ |
+| 8 | ≥1 turret online, extension authorized (BouncerAuth for commercial posture) | ☐ |
+| 9 | ≥1 NetworkNode online, fueled | ☐ |
+| 10 | Posture baseline: Commercial ("Open for Business") | ☐ |
+| 10a | Extension config NOT frozen on any demo structures (verify `is_extension_frozen()` returns false) | ☐ |
 
 ### Accounts
 
 | # | Check | Status |
 |---|---|---|
-| 12 | Operator address funded (gas for all demo txs) | ☐ |
-| 13 | Hostile pilot: character exists, tribe ≠ filter value, funded | ☐ |
-| 14 | Ally pilot: character exists, tribe = filter value, funded: ≥20 EVE + gas (SUI) | ☐ |
-| 15 | Sponsor address enrolled in AdminACL (for jump txs) | ☐ |
-| 16 | All account addresses shortened for overlay display | ☐ |
+| 12 | Operator address funded: SUI for gas + EVE for trade demo | ☐ |
+| 13 | All overlay addresses shortened for display (post-production) | ☐ |
 
 ### Recording
 
@@ -517,7 +500,7 @@ Review the assembled video before exporting the final cut. Items 4–6 catch the
 - **Beat 1 — Removed "156 commands" stat.** The narrator says "thirteen commands" and "nine gates" — the judge multiplies. Spoon-feeding the arithmetic felt like a pitch deck stat. Letting the viewer compute it is engagement, not exposition.
 - **Beat 2 — Cut second "Every" and "sovereign."** "Gates, turrets, trade posts, network nodes" is more percussive than repeating "Every." Removed "sovereign" from narration — the concept is saved for Beat 8 where it's structurally load-bearing. Overuse dilutes authority.
 - **Beat 5 — Cut "Atomic. Irrevocable." → replaced with "Revenue to the operator."** Three words, no jargon. "Atomic" pings as chain-speak to non-crypto judges. The proof overlay shows the delta — no need to assert irrevocability verbally. Duration 20→18s.
-- **Beat 6 — Added 2 seconds of deliberate silence after the click.** The visual transformation must dominate before the narrator speaks. Post-click narration compressed from four sentences to three: "Gates locked. Turrets online. One transaction." Past tense = fait accompli, not description. Duration 27→30s.
+- **Beat 6 — Added 2 seconds of deliberate silence after the click.** The visual transformation must dominate before the narrator speaks. Post-click narration compressed from four sentences to three: "Gates locked. Turrets armed. One transaction." Past tense = fait accompli, not description. Duration 27→30s.
 - **Beat 7 — Compressed from 25s to 22s.** Cut "no trust required" (crypto-speak). Merged opening scene-setting with product line. Commerce is now clearly subordinate to Defense Mode in weight.
 - **Beat 8 — Replaced "Your frontier. Your rules. Your revenue." with "Your infrastructure. Under your command."** Closes the loop from Beat 1 ("no control" → "under your command"). The possessive triad was catchy but didn't complete the narrative arc. Cut "All on-chain. All sovereign." — listing chain attributes at the end is crypto-pride, not authority. Duration 20→15s.
 - **Beat 9 — Title card reduced to name only.** "CivilizationControl" — no subtitle. Three minutes defined what it is. Adding a descriptor undercuts the confidence. Duration 10→13s for a longer hold.

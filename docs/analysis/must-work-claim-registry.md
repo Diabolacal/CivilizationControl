@@ -74,11 +74,11 @@
 
 | ID | Claim | Source | Demo-Critical | Validated |
 |----|-------|--------|:---:|:---:|
-| CC-PS-01 | Single PTB switches BUSINESS→DEFENSE posture (gate rules + turret toggles) | posture-switch-validation.md §Strategy A; spec.md H7 | **YES** (Beat 6) | YES |
+| CC-PS-01 | Single PTB switches BUSINESS→DEFENSE posture (gate rules + turret extension swaps) | posture-switch-validation.md §Strategy A; spec.md H7 | **YES** (Beat 6) | YES |
 | CC-PS-02 | Single PTB switches DEFENSE→BUSINESS posture | posture-switch-validation.md §Strategy A reverse | **YES** | YES |
 | CC-PS-03 | `PostureChangedEvent` emitted on posture switch | posture-switch-validation.md §Events | NO | YES |
-| CC-PS-04 | `StatusChangedEvent` emitted per turret toggle (N events for N turrets) | posture-switch-validation.md §Events; demo-beat-sheet.md Beat 6 | **YES** | YES |
-| CC-PS-05 | Turret `online()` / `offline()` callable via OwnerCap — no AdminACL needed | posture-switch-validation.md §Auth; spec.md H8 | NO | YES |
+| CC-PS-04 | `BouncerTargetingEvent` / `DefenseTargetingEvent` emitted per turret extension swap (N events for N turrets) | posture-switch-validation.md §Events; demo-beat-sheet.md Beat 6 | **YES** | YES |
+| CC-PS-05 | Turret `authorize_extension<BouncerAuth/DefenseAuth>` callable via OwnerCap — no AdminACL needed | posture-switch-validation.md §Auth; spec.md H8 | NO | YES |
 | CC-PS-06 | Batch turret toggle feasible in single PTB (multiple borrow/toggle/return cycles) | posture-switch-validation.md §PTB Composition; spec.md H9 | NO | YES |
 | CC-PS-07 | Prerequisites enforced: `set_fuel_efficiency` → `deposit_fuel` → NWN `online` → turret `online` | posture-switch-validation.md §Prerequisites | NO | YES |
 | CC-PS-08 | Status guards abort if turret already in target state (must check off-chain before PTB) | posture-switch-validation.md §Constraints | NO | YES |

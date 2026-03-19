@@ -3,6 +3,7 @@ import ReactDOM from "react-dom/client";
 import { QueryClient } from "@tanstack/react-query";
 import { EveFrontierProvider } from "@evefrontier/dapp-kit";
 import App from "./App.tsx";
+import "./styles/index.css";
 
 const queryClient = new QueryClient();
 

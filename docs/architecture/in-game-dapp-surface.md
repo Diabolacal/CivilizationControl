@@ -300,7 +300,7 @@ When the gate owner visits (wallet connected, OwnerCap resolved):
 |-------|--------|-------|
 | `Coin<SUI>` | **Day-1 confirmed** | Tolls, trade settlement, all on-chain payments |
 | `Coin<EVE>` | **EXISTS on-chain** (10B supply, 9 decimals) but **not integrated** | Future: toll currency option. Requires EveTreasury interaction. |
-| Lux | **No on-chain representation** | Display denomination only (10,000 Lux ≈ 1 EVE token, Ethereum cycle rate) |
+| Lux | **No on-chain representation** | Display denomination only (100 Lux = 1 EVE) |
 
 **OPEN QUESTION:** Should CivilizationControl support `Coin<EVE>` tolls for Day-1? The token contract exists but treasury access and exchange flow are unresolved. Recommendation: `Coin<SUI>` only for Day-1, with `Coin<T>` generic architecture allowing future EVE integration.
 
@@ -343,7 +343,7 @@ The in-game DApp must clearly communicate sponsorship state to users:
 
 **CivilizationControl relevance:** Turret governance is feasible for tribe-level targeting policies but not for identity-specific policies (bonds, permits, address-level allow/deny). The closed-world constraint means the extension cannot read ExtensionConfig DFs at targeting time. Day-1 scope: turret enrollment (authorize extension) is achievable; custom targeting logic is limited to tribe-based rules.
 
-See [turret-contract-surface.md](../architecture/turret-contract-surface.md) for full analysis.
+CivilizationControl turret architecture: posture.move (PostureKey DF, set_posture), turret_bouncer.move (BouncerAuth witness, commercial targeting), turret_defense.move (DefenseAuth witness, defense targeting). Extension swap (BouncerAuth ↔ DefenseAuth), not online/offline toggle. Events: PostureChangedEvent, BouncerTargetingEvent, DefenseTargetingEvent.
 
 ---
 

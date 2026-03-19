@@ -298,7 +298,7 @@ The default `get_target_priority_list` (no extension) applies tribe-based filter
 
 `OnlineReceipt` -- must be consumed via `destroy_online_receipt()` in the same transaction. Enforces single-use targeting evaluation per online check.
 
-See [turret-contract-surface.md](turret-contract-surface.md) for full analysis.
+CivilizationControl turret architecture: posture.move (PostureKey DF, set_posture), turret_bouncer.move (BouncerAuth witness, commercial targeting), turret_defense.move (DefenseAuth witness, defense targeting). Extension swap (BouncerAuth ↔ DefenseAuth), not online/offline toggle.
 
 ### 4.5 Generic Assembly
 

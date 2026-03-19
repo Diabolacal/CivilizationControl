@@ -15,8 +15,8 @@ use sui::{
     coin::Coin,
     dynamic_field as df,
     event,
-    sui::SUI,
 };
+use assets::EVE::EVE;
 use world::{
     character::Character,
     gate::{Self, Gate},
@@ -63,7 +63,7 @@ public struct GateAuth has drop {}
 public struct TribeRuleKey has copy, drop, store { gate_id: ID }
 public struct TribeRule has drop, store { tribe: u32 }
 
-/// Per-gate coin toll rule. When present, a `Coin<SUI>` of at least
+/// Per-gate coin toll rule. When present, a `Coin<EVE>` of at least
 /// `price` must accompany the permit request. Payment is forwarded
 /// to `treasury`.
 public struct CoinTollKey has copy, drop, store { gate_id: ID }
@@ -133,7 +133,7 @@ public fun request_jump_permit(
     source_gate: &Gate,
     destination_gate: &Gate,
     character: &Character,
-    payment: Coin<SUI>,
+    payment: Coin<EVE>,
     clock: &Clock,
     ctx: &mut TxContext,
 ) {
@@ -334,6 +334,14 @@ public fun toll_treasury(config: &GateConfig, gate_id: ID): address {
     assert!(has_coin_toll(config, gate_id), ECoinTollNotSet);
     borrow_coin_toll(config, gate_id).treasury
 }
+
+// === Package-Internal Config Accessors ===
+
+/// Immutable UID reference — allows sibling modules to read DFs on GateConfig.
+public(package) fun config_uid(config: &GateConfig): &UID { &config.id }
+
+/// Mutable UID reference — allows sibling modules to write DFs on GateConfig.
+public(package) fun config_uid_mut(config: &mut GateConfig): &mut UID { &mut config.id }
 
 // === Private Helpers ===
 

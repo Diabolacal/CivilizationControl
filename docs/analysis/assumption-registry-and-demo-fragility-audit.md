@@ -150,7 +150,7 @@
 | A-46 | Extension package published ONCE — redeployment changes TypeName and requires re-authorization on all gates | march-11-checklist Known Pitfalls | Contract behavior | High | No | Thorough testing before first publish; compatible upgrades preserve TypeName |
 | A-47 | Compatible package upgrades preserve defining package ID (TypeName stable) | march-11-checklist GateControl validation #7 | Contract behavior | Medium | No | If unstable, every fix = full redeploy + re-authorize |
 | A-48 | Extension `Pub.local.toml` must reference correct world-contracts package ID, chain-id, and upgrade-capability | gate-lifecycle-runbook Step 11a | Infrastructure | Medium | Yes | Delete stale Pub.local.toml and recreate after genesis |
-| A-49 | ~~No turret module exists~~ Turret module exists (v0.0.14, 678 lines). Three assembly types: Gate, StorageUnit, Turret. Same extension pattern (authorize_extension + swap_or_fill). Extension has closed-world constraint (fixed 4-arg signature, no external state). (Updated 2026-03-02.) | world-contracts turret.move, turret-contract-surface.md | Contract behavior | Low | No | Turret extension feasible for tribe-based targeting; not for identity-specific policies |
+| A-49 | ~~No turret module exists~~ Turret module exists (v0.0.14+). Custom turret extensions ARE implemented: `turret_bouncer.move` (BouncerAuth — commercial targeting) and `turret_defense.move` (DefenseAuth — defense targeting). Extension swap via `authorize_extension<BouncerAuth/DefenseAuth>`. Posture tracked by `posture.move` PostureKey DF. (Updated 2026-03-17.) | world-contracts turret.move, contracts/civilization_control/ | Contract behavior | Low | No | Proven: BouncerAuth returns filtered priority list; DefenseAuth returns full priority boost |
 
 ### 1.10 Infrastructure and Environment
 
@@ -319,15 +319,15 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **On-chain actions** | Single PTB: `set_posture` + `set_tribe_config` + `clear_toll_config` + N × (borrow OwnerCap<Turret> → `turret::online` → return OwnerCap) |
+| **On-chain actions** | Single PTB: `set_posture` + `set_tribe_config` + `clear_toll_config` + N × (borrow OwnerCap<Turret> → `authorize_extension<DefenseAuth>` → return OwnerCap) |
 | **Transaction count** | 1 (single PTB, 7-9 Move calls) |
 | **Shared objects touched** | Gate(s) (mutable for config changes), Turret(s) (mutable via OwnerCap borrow), Character (mutable for OwnerCap borrow/return), NetworkNode (immutable for energy validation) |
-| **Event dependencies** | `PostureChangedEvent` (CC extension), N × `StatusChangedEvent` (world-contracts turret online/offline) |
+| **Event dependencies** | `PostureChangedEvent` (CC extension), N × `DefenseTargetingEvent` (CC extension — turret posture swap) |
 | **Assumptions referenced** | A-30, A-33, A-39, A-41, A-81 (posture switch validated on localnet — see posture-switch-localnet-validation.md) |
 | **Determinism score** | 3/5 |
-| **Failure surface** | Turret already online; NetworkNode not producing energy; gas budget exceeded for multi-call PTB; OwnerCap borrow/return ordering wrong; shared object contention on turrets |
+| **Failure surface** | Extension already authorized with same type; NetworkNode not producing energy; gas budget exceeded for multi-call PTB; OwnerCap borrow/return ordering wrong; shared object contention on turrets |
 | **Recoverability** | Moderate — fallback Strategy B: separate per-turret txs (~3s total, still impressive); pre-check all turret states + NWN energy before recording |
-| **Mitigation** | Pre-verify all turrets OFFLINE and NWN producing energy; validated on localnet (BUSINESS→DEFENSE and reverse both pass, ~2.3s e2e); have Strategy B fallback ready |
+| **Mitigation** | Pre-verify current posture DF matches expected state and NWN producing energy; validated on localnet (BUSINESS→DEFENSE and reverse both pass, ~2.3s e2e); have Strategy B fallback ready |
 
 ---
 

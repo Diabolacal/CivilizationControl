@@ -118,7 +118,7 @@ Do not select a specific voice. Select against these profile characteristics:
 2. Generate Beat 8 ("Your infrastructure. Under your command.") as test phrase at Stability 80.
 3. **Pass criteria:** The output sounds like a status report. No upward inflection. No warmth surge. No emphasis on "your."
 4. **Fail criteria:** The output sounds like a brand tagline, a motivational statement, or a question.
-5. Generate Beat 6 post-silence line ("Gates locked. Turrets online. One transaction.") at Stability 80.
+5. Generate Beat 6 post-silence line ("Gates locked. Turrets armed. One transaction.") at Stability 80.
 6. **Pass criteria:** Each phrase is a separate declarative statement. No acceleration between phrases. Micro-pauses audible.
 7. Select the voice that passes both tests with the least post-processing.
 
@@ -133,7 +133,7 @@ Do not select a specific voice. Select against these profile characteristics:
 | **3 — Policy** | 0:38–1:00 | Neutral-operational. Describing a governance action. | Slightly clipped — action sequence, not reflection. | 80 | 0–5 | 200ms between "Tribe filter: only Tribe 7" and "Toll: five EVE per jump." 400ms before "One action." |
 | **4 — Denial** | 1:00–1:18 | Cold-precise. The system acted. The narrator reports the outcome. | Measured. "Denied" lands with zero inflection change. | 85 | 0 | 500ms between "Denied." and "The chain enforced it." 300ms before "No override. No appeal." |
 | **5 — Revenue** | 1:18–1:36 | Neutral-factual. Revenue is stated, not celebrated. | Steady. No acceleration when toll is mentioned. | 80 | 0–5 | 200ms after "Five EVE collected." 400ms before "The gate pays for itself." |
-| **6 — Defense Mode** | 1:36–2:06 | Restrained gravity. The climax is the silence, not the voice. | Slow. Deliberate. Each word in the post-silence line is isolated. | 85 | 0 | **See §5 for full Defense Mode timing spec.** |
+| **6 — Defense Mode** | 1:36–2:06 | Restrained gravity. The climax is the silence, not the voice. | Slow. Deliberate. Each word in the post-silence line is isolated. | 85 | 0 | **See §5 for full Defense Mode timing spec.** Turrets armed, not "online." |
 | **7 — Commerce** | 2:06–2:28 | Neutral-operational. Commerce is subordinate to Defense Mode. | Slightly faster than Beat 6 — returning to operational cadence. | 80 | 0–5 | 200ms between trade description sentences. |
 | **8 — Command** | 2:28–2:43 | Authoritative finality. Closing the arc. | Slow-measured. The final line is the slowest delivery in the demo. | 85 | 0 | 500ms before "Your infrastructure. Under your command." Slight deceleration on "Under your command." |
 | **9 — Close** | 2:43–2:56 | N/A — no narration | N/A | N/A | N/A | Title card hold. Silence. |
@@ -280,7 +280,7 @@ One click.
 
 //SILENCE 2.0s — visual dominance window//
 
-Gates locked. Turrets online. One transaction.
+Gates locked. Turrets armed. One transaction.
 ```
 
 **Delivery notes:** Full spec in §5 below.
@@ -345,18 +345,18 @@ This is the climax. The narrator's restraint here determines whether the moment 
 | 1.2s | 1.0s | **Silence** | Dead silence — no music, no ambient, no narration |
 | 2.2s | ~0.8s | Narrator: "One click." | Voice only |
 | 3.0s | **2.0s** | **Silence — visual dominance window** | Dead silence. Screen shows posture shifting, gates changing color, turrets activating. This is the demo's hammer. |
-| 5.0s | ~3.5s | Narrator: "Gates locked. Turrets online. One transaction." | Voice only |
+| 5.0s | ~3.5s | Narrator: "Gates locked. Turrets armed. One transaction." | Voice only |
 | 8.5s | 3.0s | Hold on transformed Command Overview | Silence or minimal ambient |
 | 11.5s | ~18.5s | Signal Feed cascade + hold | Background state — narrator is done for this beat |
 
-### Micro-Pause Specification: "Gates locked. Turrets online. One transaction."
+### Micro-Pause Specification: "Gates locked. Turrets armed. One transaction."
 
 This three-phrase line is the most precisely timed narration in the demo.
 
 | Phrase | Duration | Pause After | Notes |
 |---|---|---|---|
 | "Gates locked." | ~0.9s | **400ms** | Past tense. Fait accompli. The gates are already locked when the narrator speaks. |
-| "Turrets online." | ~0.9s | **400ms** | Same register, same pace as "Gates locked." No escalation. |
+| "Turrets armed." | ~0.9s | **400ms** | Same register, same pace as "Gates locked." No escalation. |
 | "One transaction." | ~1.0s | — (beat ends) | Slight deceleration on "transaction." This is the proof claim. |
 
 **Total spoken duration:** ~3.5 seconds (including micro-pauses)
@@ -374,7 +374,7 @@ Eleven v3 does not support SSML `<break>` tags. The pauses in this line are achi
 ```
 Gates locked.
 
-Turrets online.
+Turrets armed.
 
 One transaction.
 ```
@@ -462,7 +462,7 @@ Reject any take that exhibits:
 | Acceleration through enumerations | "Gates, turrets, trade posts, network nodes" must not speed up. Each item has equal weight. |
 | Dramatic pitch drop on "Denied," "locked," or "threat" | Adds emotional coloring. These are system status words, not dramatic beats. |
 | Warmth surge on closing lines | "Under your command" must not sound inspirational. It is a summary. |
-| Breath sounds between short phrases | "Gates locked. [breath] Turrets online." — the breath fills the micro-pause that should be silence. |
+| Breath sounds between short phrases | "Gates locked. [breath] Turrets armed." — the breath fills the micro-pause that should be silence. |
 | Aspirated word-initial consonants | Over-emphasized "p" or "t" sounds (plosives) at sentence starts. Indicates the voice is "performing." |
 
 ### Pronunciation Dictionary

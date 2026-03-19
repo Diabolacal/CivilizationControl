@@ -73,7 +73,7 @@ Structural UX planning document for the CivilizationControl governance command l
 
 - On-chain settlement in `Coin<SUI>` — tolls, trades, storefront purchases
 - `Coin<T>` generic toll support architecturally possible (any coin type)
-- **Dual-display currency model:** **EVE** is the on-chain denomination used in demo narration and proof overlays (e.g., "5 EVE toll"). **Lux** (10,000 Lux = 1 EVE) is the in-game player-facing display denomination. Dashboard contexts may show both (e.g., "5 EVE · 50,000 Lux"). On-chain implementation remains `Coin<SUI>` for Day-1.
+- **Dual-display currency model:** **Lux** (100 Lux = 1 EVE) is the primary player-facing display denomination. **EVE** is the secondary on-chain denomination used in demo narration and proof overlays. Dashboard contexts may show both (e.g., "500 Lux · 5 EVE"). On-chain implementation remains `Coin<SUI>` for Day-1.
 
 ---
 
@@ -118,7 +118,7 @@ Structural UX planning document for the CivilizationControl governance command l
 ### Currency Constraints
 
 - **EVE Token exists on Sui** — `Coin<EVE>` is published (10B supply, 9 decimals, burn-only after init) but **not yet integrated** into CivilizationControl. Day-1 settlement uses `Coin<SUI>` only.
-- **Lux has no on-chain representation** — purely in-game engine currency (confirmed rate: 10,000 Lux = 1 EVE token; Lux-to-SUI depends on EVE/SUI exchange)
+- **Lux has no on-chain representation** — purely in-game engine currency (confirmed rate: 100 Lux = 1 EVE; Lux-to-SUI depends on EVE/SUI exchange)
 
 ### Hard UX Constraints
 
@@ -319,7 +319,7 @@ Or warning:
 | **Jump Count**       | "94 jumps (last 24h) · 1,247 all-time"            |
 | **Configure Toll**   | → opens Rule Composer economic module             |
 
-**Currency display convention:** **EVE** is primary in demo narration and proof overlays. **Lux** (10,000 Lux = 1 EVE) is the player-facing in-game denomination. Dual-display (EVE + Lux) is valid in dashboard/detail contexts. On-chain settlement uses `Coin<SUI>` for Day-1; conversion to `Coin<EVE>` is stretch.
+**Currency display convention:** **Lux** (100 Lux = 1 EVE) is the primary player-facing display denomination. **EVE** is the secondary on-chain denomination used in demo narration and proof overlays. Dual-display (Lux + EVE) is valid in dashboard/detail contexts. On-chain settlement uses `Coin<SUI>` for Day-1; conversion to `Coin<EVE>` is stretch.
 
 ### 5d. Linking Section
 
@@ -856,7 +856,7 @@ Operations requiring server computation (distance proofs for gate linking) or Ad
 
 #### 6. Dual-Currency Display
 
-Economic values use a dual-display model: **EVE** is the on-chain denomination shown in demo narration, proof overlays, and as the primary value in dashboards (e.g., "Toll: 5 EVE"). **Lux** (10,000 Lux = 1 EVE) is the in-game player-facing denomination shown as a secondary value where context allows (e.g., "5 EVE · 50,000 Lux"). On-chain settlement uses `Coin<SUI>` for Day-1.
+Economic values use a dual-display model: **Lux** (100 Lux = 1 EVE) is the primary player-facing denomination shown as the primary value in dashboards and UI (e.g., "Toll: 500 Lux"). **EVE** is the secondary on-chain denomination shown in demo narration, proof overlays, and as a secondary value where context allows (e.g., "500 Lux · 5 EVE"). On-chain settlement uses `Coin<SUI>` for Day-1.
 
 **Why:** Players price things in Lux; the chain settles in SUI. EVE bridges both worlds — meaningful to players and verifiable on-chain. Dual-display keeps the frontier metaphor intact without hiding the governance layer.
 

@@ -415,14 +415,27 @@ Verify these on hackathon day. If any break, reassess the corresponding module.
 - [x] Add custom events to TradePost: `ListingCreatedEvent`, `ListingPurchasedEvent`, `ListingCancelledEvent` — included in Hour 3 TradePost foundation
 - [x] Verify events appear in transaction output — confirmed: `ListingCreatedEvent` (TX `C3t5MJ5…`), `ListingCancelledEvent` (TX `E5791FG…`) emitted and visible in `events[]` of JSON output. Full event indexing via `suix_queryEvents` deferred to Hour 8+.
 
-### Hour 8+: Dashboard / Web UI
+### Hour 8+: Dashboard / Web UI — PARTIAL (2026-03-16 audit)
 
-- [ ] Set up frontend project (Vite + React + TypeScript)
-- [ ] Install `@mysten/sui` SDK
-- [ ] Fetch structure coordinates from `LocationRegistry` via `get_location(registry, assembly_id)` — auto-populate SVG topology map instead of manual position input (strengthens "Best Live Frontier Integration" angle)
-- [ ] Gate policy builder: toggle tribe rule, set toll price, freeze extension config
-- [ ] TradePost browser: list items, one-click buy
-- [ ] Event feed: subscribe to JumpEvents + TradeSettledEvents
+> **Frontend foundation complete.** Vite + React + TypeScript SPA with full wallet→chain data pipeline, topology visualization, and screen shell for all major surfaces. Cloudflare Pages preview live at `https://feature-dashboard-foundation.civilizationcontrol.pages.dev`. All core write paths implemented: gate policy (tribe rule + coin toll), TradePost buy, TradePost seller-side create + cancel with inventory browser. TurretControl + posture presets implemented (2026-03-18): two custom turret extensions (bouncer/defense), single-PTB posture switch, frontend PostureControl on Dashboard, turret list screen. Remaining gaps: freeze extension config, package republish, demo capture.
+
+- [x] Set up frontend project (Vite + React + TypeScript) — complete (Vite 6 + React 19 + Tailwind CSS v4)
+- [x] Install `@mysten/sui` SDK — using `@mysten/sui/jsonRpc` (`SuiJsonRpcClient`) per builder-scaffold convention
+- [x] Wallet connection via `@evefrontier/dapp-kit` (`EveFrontierProvider` + `ConnectButton`)
+- [x] Full asset discovery pipeline: wallet → PlayerProfile → Character → paginated OwnerCaps → Structure state (`suiReader.ts`, `useAssetDiscovery.ts`)
+- [x] Strategic Network Map (SVG topology) — spec-conformant visualization with real coordinate rendering, posture toggle, turret stacking, cluster layout
+- [x] Spatial pin system — solar system assignment per network node via autocomplete + localStorage persistence
+- [x] Static solar system catalog — 24.5k systems bundled at build time (`scripts/fetch-solar-systems.mjs`)
+- [x] Command Overview dashboard — live metrics from chain, topology panel, attention alerts
+- [x] Gate list + detail screens (display-only policy config)
+- [x] Trade post list + detail screens (full inventory enumeration + resolved item names)
+- [x] Activity feed screen (real event-driven Signal Feed with 8 CC event types, category filters, 30s polling)
+- [x] Governance vocabulary applied (CivilizationControl narrative voice)
+- [ ] Fetch structure coordinates from `LocationRegistry` via `get_location(registry, assembly_id)` — **DEFERRED:** using manual spatial pins instead; LocationRegistry chain-read is a future enhancement
+- [ ] Gate policy builder: toggle tribe rule, set toll price, freeze extension config — **COMPLETE (2026-03-16):** TribeRuleEditor + CoinTollEditor wired to live GateConfig DF reads + PTB mutation via AdminCap. Transaction feedback (pending/success/error) integrated. Remaining: freeze extension config toggle, batch posture preset.
+- [x] TradePost browser: list items, one-click buy — **COMPLETE (2026-03-16):** ListingCard + useListings (queryEvents→multiGetObjects) + useBuyListing (PTB: splitCoins + buy + transferObjects)
+- [x] TradePost seller-side: create listing + cancel listing — **COMPLETE (2026-03-17):** CreateListingForm rewritten with SSU inventory browser (InventoryBrowser component) + item-type catalog (390 types, build-time bundled via scripts/fetch-types.mjs). Manual type-ID entry demoted to advanced fallback toggle. ListingCard + Signal Feed show resolved item names. Unknown types degrade to "Unknown Type #N".
+- [x] Event feed: poll for all 8 CC events (TribeCheckPassed, TollCollected, TribeRuleSet, CoinTollSet, RuleRemoved, ListingCreated, ListingPurchased, ListingCancelled) — **COMPLETE (2026-03-16):** MoveModule query polling, eventParser, useSignalFeed hook, SignalEventRow, category filters, dashboard integration
 
 ---
 

@@ -10,7 +10,7 @@ module civilization_control::trade_post_tests;
 use civilization_control::trade_post;
 use sui::test_scenario as ts;
 use sui::coin;
-use sui::sui::SUI;
+use assets::EVE::EVE;
 
 const SELLER: address = @0x5E11;
 const BUYER: address = @0xB0B;
@@ -156,7 +156,7 @@ fun buy_with_insufficient_payment_aborts() {
         );
 
         // Create insufficient payment
-        let payment = coin::mint_for_testing<SUI>(500, scenario.ctx());
+        let payment = coin::mint_for_testing<EVE>(500, scenario.ctx());
 
         // buy_validation_only tests payment check without needing a real SSU
         trade_post::buy_validate_payment_for_testing(
@@ -186,7 +186,7 @@ fun buy_payment_validation_passes_with_exact_amount() {
             scenario.ctx(),
         );
 
-        let payment = coin::mint_for_testing<SUI>(1000, scenario.ctx());
+        let payment = coin::mint_for_testing<EVE>(1000, scenario.ctx());
 
         // Should not abort
         trade_post::buy_validate_payment_for_testing(
@@ -216,7 +216,7 @@ fun buy_payment_validation_passes_with_overpayment() {
             scenario.ctx(),
         );
 
-        let payment = coin::mint_for_testing<SUI>(2000, scenario.ctx());
+        let payment = coin::mint_for_testing<EVE>(2000, scenario.ctx());
 
         // Overpayment should also pass validation
         trade_post::buy_validate_payment_for_testing(

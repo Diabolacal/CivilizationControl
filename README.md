@@ -4,13 +4,14 @@ A **browser-only governance command layer** for EVE Frontier tribe leaders. Buil
 
 ## What It Does
 
-CivilizationControl gives tribe leaders a unified command surface over the structures they own — gates, storefronts, and turrets — without writing any code.
+CivilizationControl gives tribe leaders a unified command surface over the structures they own — gates, storefronts, turrets, and network nodes — without writing any code.
 
 | Module | Purpose |
 |--------|---------|
-| **GateControl** | Author policies (tribe filter + coin toll) on Smart Gates. Enforced on-chain via typed witness extension. |
-| **TradePost** | SSU-backed storefronts with cross-address atomic buy settlement using `Coin<SUI>`. |
-| **TurretControl** | Binary state toggle (online/offline) for owned turrets, orchestrated via Posture Presets. |
+| **GateControl** | Author policies (tribe filter + coin toll) on Smart Gates. Enforced on-chain via typed witness extension. Tribe autocomplete selector for policy authoring. |
+| **TradePost** | SSU-backed storefronts with cross-address atomic buy settlement using `Coin<EVE>`. |
+| **Posture System** | Two custom turret extensions (commercial + defense targeting) swapped via posture presets. Single-PTB infrastructure-wide posture switch. |
+| **Direct Power Control** | Per-structure and bulk online/offline for gates, turrets, SSUs, and network nodes. All operations use OwnerCap-only auth (no sponsored transactions needed). |
 
 **Architecture:** Publish-once, configure-via-data. One extension package publishes the governance logic. Players configure pre-built rule types via transactions that write dynamic fields. No end user writes Move code.
 
@@ -50,10 +51,22 @@ sui move test --path contracts/civilization_control
 sui client active-env
 ```
 
-### Frontend (when available)
+### Frontend
 
 ```bash
-# TODO: npm install && npm run dev
+npm install            # Install dependencies
+npm run dev            # Vite dev server (http://localhost:5173)
+npm run typecheck      # TypeScript check
+npm run build          # Production build → dist/
+npm run preview        # Preview production build
+```
+
+### Static Data Generation
+
+```bash
+npm run generate:solar-systems   # Refresh solar system catalog (24.5k entries)
+npm run generate:types           # Refresh item type catalog
+npm run generate:tribes          # Refresh tribe catalog from Stillness API (optional enrichment)
 ```
 
 ## Repository Structure

@@ -17,7 +17,7 @@ These documents capture structural patterns learned from world-contracts analysi
 ## What This Is NOT
 
 - **Not canonical spec.** `spec.md` defines what CivilizationControl does. These docs describe how PTBs are assembled generically.
-- **Not verified contract wiring.** Function signatures may have changed since these patterns were drafted. Upstream merges may alter parameters, object types, or auth requirements. Turret support confirmed in world-contracts v0.0.14; see `docs/architecture/turret-contract-surface.md` for turret function signatures.
+- **Not verified contract wiring.** Function signatures may have changed since these patterns were drafted. Upstream merges may alter parameters, object types, or auth requirements. Turret extension architecture: posture.move (PostureKey DF), turret_bouncer.move (BouncerAuth), turret_defense.move (DefenseAuth).
 - **Not copy-paste production code.** No TypeScript implementation exists here. These are documentation templates only.
 - **Not execution authority.** The March-11 Reimplementation Checklist (`march-11-reimplementation-checklist.md`) remains the execution authority for all implementation decisions.
 
@@ -110,7 +110,7 @@ For demo flows:
 ## Assumptions & Unknowns
 
 - World-contracts may change pre-March-11 (hotfixes, breaking changes)
-- Turret support confirmed in v0.0.14 (now v0.0.15). See docs/architecture/turret-contract-surface.md for signatures
+- Turret extension architecture: posture.move (PostureKey DF, set_posture), turret_bouncer.move (BouncerAuth witness), turret_defense.move (DefenseAuth witness). Extension swap (BouncerAuth ↔ DefenseAuth), not online/offline toggle
 - SSU withdraw/deposit may delete/recreate objects (do not assume object continuity across game boundary)
 - Package IDs used in these docs are **placeholders only** — real IDs are assigned at publish time
 - Auth model may change (AdminACL membership rules, verify_sponsor fallback behavior)

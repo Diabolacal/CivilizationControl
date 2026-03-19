@@ -1,7 +1,7 @@
 /// TradePost — SSU extension for cross-address marketplace trading.
 ///
 /// Sellers authorize `TradeAuth` on their SSU, then create shared `Listing`
-/// objects advertising items at a `Coin<SUI>` price. Buyers call `buy()` to
+/// objects advertising items at a `Coin<EVE>` price. Buyers call `buy()` to
 /// atomically withdraw the item from the seller's SSU and receive it via
 /// `transfer::public_transfer`, while payment goes to the seller.
 ///
@@ -18,8 +18,8 @@ module civilization_control::trade_post;
 use sui::{
     coin::Coin,
     event,
-    sui::SUI,
 };
+use assets::EVE::EVE;
 use world::{
     character::Character,
     inventory::Item,
@@ -66,7 +66,7 @@ public struct Listing has key {
     item_type_id: u64,
     /// Number of items offered in this listing.
     quantity: u32,
-    /// Price in MIST (SUI base units) for the entire listing.
+    /// Price in EVE base units for the entire listing.
     price: u64,
 }
 
@@ -168,7 +168,7 @@ public fun buy(
     storage_unit: &mut StorageUnit,
     character: &Character,
     listing: Listing,
-    payment: Coin<SUI>,
+    payment: Coin<EVE>,
     ctx: &mut TxContext,
 ): Item {
     let Listing {
@@ -323,7 +323,7 @@ public fun create_listing_for_testing(
 #[test_only]
 public fun buy_validate_payment_for_testing(
     listing: &Listing,
-    payment: &Coin<SUI>,
+    payment: &Coin<EVE>,
 ) {
     assert!(payment.value() >= listing.price, EInsufficientPayment);
 }

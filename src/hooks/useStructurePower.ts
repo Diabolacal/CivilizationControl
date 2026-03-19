@@ -1,0 +1,105 @@
+/**
+ * useStructurePower — Generic hook for structure online/offline operations.
+ *
+ * Supports single and batch operations for gates, turrets, SSUs, and
+ * network nodes. Wraps the PTB builders in structurePowerTx.ts.
+ */
+
+import { useCallback, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { useDAppKit } from "@mysten/dapp-kit-react";
+import {
+  buildAssemblyPowerTx,
+  buildBatchAssemblyPowerTx,
+  buildNodeOnlineTx,
+} from "@/lib/structurePowerTx";
+import type { ObjectId, StructureType, TxStatus, TxResult } from "@/types/domain";
+
+interface SinglePowerParams {
+  structureType: StructureType;
+  structureId: ObjectId;
+  ownerCapId: ObjectId;
+  networkNodeId: ObjectId;
+  online: boolean;
+}
+
+interface BatchPowerParams {
+  structureType: StructureType;
+  targets: { structureId: ObjectId; ownerCapId: ObjectId; networkNodeId: ObjectId }[];
+  online: boolean;
+}
+
+interface NodeOnlineParams {
+  nodeId: ObjectId;
+  ownerCapId: ObjectId;
+}
+
+/** Map known Move abort strings to user-friendly messages. */
+function friendlyError(raw: string): string {
+  if (raw.includes("ENetworkNodeMismatch")) return "Wrong network node — structure may have moved.";
+  if (raw.includes("EAssemblyInvalidStatus")) return "Structure is already in the target state.";
+  if (raw.includes("ENotOnline")) return "Structure is not online.";
+  if (raw.includes("ENoFuelToBurn")) return "No fuel deposited — node cannot come online.";
+  if (raw.includes("NotAuthorized")) return "OwnerCap does not match this structure.";
+  return raw;
+}
+
+export function useStructurePower() {
+  const dAppKit = useDAppKit();
+  const queryClient = useQueryClient();
+
+  const [status, setStatus] = useState<TxStatus>("idle");
+  const [result, setResult] = useState<TxResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const execute = useCallback(
+    async (buildTx: () => ReturnType<typeof buildAssemblyPowerTx>) => {
+      setStatus("pending");
+      setError(null);
+      setResult(null);
+      try {
+        const tx = buildTx();
+        const res = await dAppKit.signAndExecuteTransaction({ transaction: tx });
+        const txData =
+          res.$kind === "Transaction" ? res.Transaction : res.FailedTransaction;
+        if (!txData || res.$kind === "FailedTransaction") {
+          throw new Error("Transaction failed on-chain");
+        }
+        setResult({ digest: txData.digest });
+        setStatus("success");
+        queryClient.invalidateQueries({ queryKey: ["assetDiscovery"] });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(friendlyError(message));
+        setStatus("error");
+      }
+    },
+    [dAppKit, queryClient],
+  );
+
+  const toggleSingle = useCallback(
+    (params: SinglePowerParams) =>
+      execute(() => buildAssemblyPowerTx(params)),
+    [execute],
+  );
+
+  const toggleBatch = useCallback(
+    (params: BatchPowerParams) =>
+      execute(() => buildBatchAssemblyPowerTx(params)),
+    [execute],
+  );
+
+  const bringNodeOnline = useCallback(
+    (params: NodeOnlineParams) =>
+      execute(() => buildNodeOnlineTx(params)),
+    [execute],
+  );
+
+  const reset = useCallback(() => {
+    setStatus("idle");
+    setResult(null);
+    setError(null);
+  }, []);
+
+  return { status, result, error, toggleSingle, toggleBatch, bringNodeOnline, reset };
+}

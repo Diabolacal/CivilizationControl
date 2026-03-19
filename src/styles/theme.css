@@ -1,0 +1,128 @@
+/*
+ * CivilizationControl Design Tokens
+ * Source: SVG Topology Layer Spec + Figma Make Export (reconciled)
+ *
+ * Dark-first governance palette. Primary accent: orange-600 (#ea580c).
+ * Color doctrine follows SVG topology spec §4 — "gray infrastructure, colored exceptions."
+ */
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --font-size: 16px;
+
+  /* Surface */
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --card: #09090b;
+  --card-foreground: #f4f4f5;
+  --popover: #09090b;
+  --popover-foreground: #f4f4f5;
+
+  /* Primary: orange-600 — accent, CTA, ring */
+  --primary: #ea580c;
+  --primary-foreground: #fafafa;
+
+  /* Secondary / Muted / Accent: zinc-800 */
+  --secondary: #27272a;
+  --secondary-foreground: #f4f4f5;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #f4f4f5;
+
+  /* Destructive: red-500 */
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+
+  /* Borders / Input */
+  --border: #27272a;
+  --input: #27272a;
+  --input-background: #18181b;
+  --ring: #ea580c;
+
+  /* Chart palette */
+  --chart-1: #ea580c;
+  --chart-2: #a1a1aa;
+  --chart-3: #ef4444;
+  --chart-4: #52525b;
+  --chart-5: #c2410c;
+
+  /* Radius */
+  --radius: 0.25rem;
+
+  /* Sidebar */
+  --sidebar: #09090b;
+  --sidebar-foreground: #f4f4f5;
+  --sidebar-primary: #ea580c;
+  --sidebar-primary-foreground: #fafafa;
+  --sidebar-accent: #27272a;
+  --sidebar-accent-foreground: #f4f4f5;
+  --sidebar-border: #27272a;
+  --sidebar-ring: #ea580c;
+
+  /*
+   * Topology color tokens (from SVG Topology Layer Spec §4)
+   * These drive the Strategic Network Map and structure overlays.
+   *
+   * Hierarchy: alarm-critical > alarm-warning > state-online > neutral-gray
+   * "Green is not online" — green fires ONLY for economic events.
+   * Online/healthy = muted teal (unremarkable). Gray = neutral/idle.
+   */
+  --topo-neutral: #a1a1aa;       /* zinc-400 — default infrastructure stroke */
+  --topo-state-online: hsl(175, 45%, 50%); /* muted teal — operating normally */
+  --topo-state-offline: #ef4444; /* red-500 — hard stop / failure */
+  --topo-state-warning: #f59e0b; /* amber-500 — degraded / attention */
+  --topo-event-revenue: hsl(145, 65%, 50%); /* green — economic events ONLY */
+  --topo-event-denied: #ef4444;  /* red — hostile blocked */
+  --topo-armed: #f59e0b;         /* amber-500 — turret armed / defense halo */
+  --topo-selected: #ea580c;      /* primary — focus ring / selected halo */
+  --topo-link-healthy: hsl(175, 45%, 50%); /* matches state-online (teal) */
+  --topo-link-neutral: hsl(210, 8%, 35%);  /* dark gray — link at rest */
+  --topo-link-defense: #f59e0b;  /* amber — corridor restricted */
+  --topo-link-idle: #52525b;     /* zinc-600 — dormant / unlinked */
+  --topo-background: hsl(220, 15%, 8%); /* canvas — near-black cool */
+  --topo-grid: rgba(255, 255, 255, 0.04); /* grid lines — subtle, governance schematic */
+  --topo-glyph-neutral: hsl(210, 8%, 55%); /* mid-gray — default glyph stroke */
+}
+
+.dark {
+  --background: #09090b;
+  --foreground: #f4f4f5;
+  --card: #09090b;
+  --card-foreground: #f4f4f5;
+  --popover: #09090b;
+  --popover-foreground: #f4f4f5;
+  --primary: #ea580c;
+  --primary-foreground: #fafafa;
+  --secondary: #27272a;
+  --secondary-foreground: #f4f4f5;
+  --muted: #27272a;
+  --muted-foreground: #a1a1aa;
+  --accent: #27272a;
+  --accent-foreground: #f4f4f5;
+  --destructive: #ef4444;
+  --destructive-foreground: #fafafa;
+  --border: #27272a;
+  --input: #27272a;
+  --ring: #ea580c;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    font-size: var(--font-size);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  h1 { font-size: 1.25rem; font-weight: 700; line-height: 1.3; }
+  h2 { font-size: 0.875rem; font-weight: 600; line-height: 1.4; }
+  h3 { font-size: 0.75rem; font-weight: 500; line-height: 1.4; }
+  h4 { font-size: 0.6875rem; font-weight: 500; line-height: 1.4; }
+}

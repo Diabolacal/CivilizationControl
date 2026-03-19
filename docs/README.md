@@ -44,10 +44,10 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 
 | Term | Context | Notes |
 |------|---------|-------|
-| **SUI** | Day-1 display denomination | User-facing amounts |
-| **MIST** | On-chain smallest unit | 1 SUI = 10^9 MIST |
-| `Coin<SUI>` | On-chain token type | Day-1 settlement token |
-| `price_mist` | Canonical field name | Not `price_in_mist` |
+| **Lux** | Primary display denomination | Player-facing amounts · 100 Lux = 1 EVE |
+| **EVE** | On-chain settlement token | `Coin<EVE>` from assets package · 1 EVE = 10^9 base units |
+| `Coin<EVE>` | On-chain token type | Settlement token for tolls and trades |
+| **SUI** | Gas token only | Hidden from player UI — used for transaction fees |
 
 ---
 
@@ -141,6 +141,10 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 | [operations/demo-evidence-appendix.md](operations/demo-evidence-appendix.md) | Demo evidence mapping — beat sheet artifacts to scripts |
 | [operations/submodule-refresh-prompt.md](operations/submodule-refresh-prompt.md) | Reusable submodule refresh procedure |
 | [operations/day1-validation.md](operations/day1-validation.md) | **Day 1 chain validation results** — Utopia testnet IDs, source assumption checks, blockers |
+| [operations/sui-upgrade-type-origin-guide.md](operations/sui-upgrade-type-origin-guide.md) | **Sui upgrade type-origin guide** — dual package ID model, verification evidence |
+| [operations/extension-freeze-safety-guide.md](operations/extension-freeze-safety-guide.md) | **Extension freeze safety guide** — when/how to freeze, posture-switching constraint |
+| [operations/gate-control-web-capabilities.md](operations/gate-control-web-capabilities.md) | **Structure control web capabilities** — controllability matrix for gates, turrets, SSUs, network nodes |
+| [operations/operator-validation-checklist.md](operations/operator-validation-checklist.md) | **Operator validation checklist** — 10-step manual smoke test runbook for the dashboard |
 
 ## Working Memory
 

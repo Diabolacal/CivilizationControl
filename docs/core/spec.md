@@ -40,10 +40,10 @@ A **browser-only governance command layer** for EVE Frontier tribe leaders. Two 
 | Module | Purpose | World-Contracts Surface |
 |--------|---------|------------------------|
 | **GateControl** | Policy authoring (tribe filter + coin toll) on Smart Gates, enforced on-chain via typed witness extension | `gate.move`: `authorize_extension`, `issue_jump_permit`, `jump_with_permit` |
-| **TradePost** | SSU-backed storefronts with cross-address atomic buy settlement using `Coin<SUI>` | `storage_unit.move`: `authorize_extension`, `withdraw_item<Auth>`, `deposit_item<Auth>` |
-| **TurretControl** | Binary state toggle (online/offline) for owned turrets. No custom extension — native targeting only. Orchestrated via Posture Presets. | `turret.move`: `online`, `offline` (player-callable via `OwnerCap<Turret>`) |
+| **TradePost** | SSU-backed storefronts with cross-address atomic buy settlement using `Coin<EVE>` | `storage_unit.move`: `authorize_extension`, `withdraw_item<Auth>`, `deposit_item<Auth>` |
+| **Posture System** | Two custom turret extensions (`BouncerAuth`, `DefenseAuth`) swapped via posture mode. Extension-swap targeting, not power toggle. | `posture.move`: `set_posture`; `turret_bouncer.move`: `BouncerAuth`; `turret_defense.move`: `DefenseAuth`; `turret.move`: `authorize_extension` |
 
-> **Note:** Turret assembly exists in world-contracts v0.0.14 (`turret.move`) using the same extension pattern. CivilizationControl uses turrets at the state-toggle level only (`online`/`offline` via `OwnerCap<Turret>`) — CivilizationControl does not implement a custom turret extension. Default turret targeting already matches tribe_only policy. See [Turret Contract Surface](../architecture/turret-contract-surface.md). Turret state is orchestrated alongside gate policy via **Posture Presets** (Open for Business / Defense Mode).
+> **Note:** CivilizationControl implements two custom turret extensions: `turret_bouncer` (BouncerAuth, commercial targeting — aggressors +10000, non-tribe +1000) and `turret_defense` (DefenseAuth, defense targeting — aggressors +15000, non-tribe +5000). Posture switching swaps which extension is authorized via a single PTB. Turrets remain online in both modes; no power toggle is used. Turret state is orchestrated alongside gate policy via **Posture Presets** (Open for Business / Defense Mode).
 
 **Architecture model:** Publish-once, configure-via-data. One extension package is published by the CivControl team. Players configure pre-built rule types via PTBs that write dynamic fields to a shared `ExtensionConfig` object. No end user writes Move code.
 
@@ -64,7 +64,7 @@ A **browser-only governance command layer** for EVE Frontier tribe leaders. Two 
 |-----------|-----------|
 | No backend / indexer / database | Browser-only for Day-1. The read provider abstraction enables switching to Option B (proxy) or Option C (indexer) post-hackathon without UI changes |
 | No visual Move programming | Users configure opinionated rule blocks, not code |
-| No custom token for Day-1 | `Coin<SUI>` only. TribeMint (`Coin<TribeToken>`) is stretch. **Currency display:** demo narration uses "EVE" as the on-chain denomination; "Lux" (10,000 Lux = 1 EVE) is the player-facing display denomination. Dual-display (EVE + Lux) is valid in dashboard contexts. On-chain implementation remains `Coin<SUI>`. |
+| Settlement token: EVE | `Coin<EVE>` from the EVE Frontier assets package. **Currency display:** **Lux** (100 Lux = 1 EVE) is the primary player-facing display denomination. **EVE** is the secondary on-chain denomination used in demo narration and proof overlays. Dual-display (Lux + EVE) is valid in dashboard contexts. SUI is hidden gas only. TribeMint (`Coin<TribeToken>`) is stretch. |
 | No real-time coordinate mapping | ~~Coordinates are not on-chain — only Poseidon(2) hashes.~~ **2026-03-10:** `LocationRegistry` now stores plain-text coordinates on-chain (`reveal_location()` on all assemblies). Manual spatial pinning remains fallback; auto-placement from chain data is now feasible. |
 | No auto-discovery of structures | ~~Character resolution requires manual ID input (fallback).~~ **2026-03-10:** `PlayerProfile` (v0.0.16) enables wallet→Character lookup. Automated resolution is now standard path, not stretch. |
 | No multi-chain support | Sui only |
@@ -73,7 +73,7 @@ A **browser-only governance command layer** for EVE Frontier tribe leaders. Two 
 | No drag-and-drop rule ordering | Fixed evaluation order enforced in Move module |
 | No server-side analytics | No backend |
 | No in-game write operations for Day-1 | In-game browser lacks Sui wallet. Read-only in-game surface; external browser for writes. EVE Vault relay is stretch. |
-| No turret extension for Day-1 | Turret assembly exists (v0.0.14). CivilizationControl toggles turret online/offline state only — no custom turret extension will be built. Default turret targeting already matches tribe_only policy. Turret extensions cannot access external state (closed-world constraint). |
+| No turret extension for Day-1 | ~~No custom turret extension.~~ **2026-03-18:** Custom turret extensions implemented — `posture.move` + `turret_bouncer.move` + `turret_defense.move` ship in v2 package. Two-mode posture swap (BouncerAuth ↔ DefenseAuth). |
 
 ### 1.3 External Dependencies
 
@@ -107,8 +107,8 @@ Every chain write the app performs, with exact Move targets:
 | Operation | Move Call | Auth Required | Notes |
 |-----------|----------|---------------|-------|
 | Set tribe filter | `civcontrol::gate_rules::set_tribe_rule(&mut Config, gate_id, tribe_id)` | OwnerCap<Gate> | Dynamic field write |
-| Set coin toll | `civcontrol::gate_rules::set_coin_toll(&mut Config, gate_id, price_mist, treasury)` | OwnerCap<Gate> | Dynamic field write |
-| Set subscription tier | `civcontrol::gate_rules::set_subscription_tier(&mut Config, gate_id, price_mist, duration_ms)` | OwnerCap<Gate> | Dynamic field write — configures subscription pricing & duration for a gate |
+| Set coin toll | `civcontrol::gate_rules::set_coin_toll(&mut Config, gate_id, price, treasury)` | OwnerCap<Gate> | Dynamic field write — price in EVE base units |
+| Set subscription tier | `civcontrol::gate_rules::set_subscription_tier(&mut Config, gate_id, price, duration_ms)` | OwnerCap<Gate> | Dynamic field write — price in EVE base units |
 | Remove rule | `civcontrol::gate_rules::remove_*(&mut Config, gate_id)` | OwnerCap<Gate> | Dynamic field remove |
 
 #### Phase: Gate Jump (player-initiated)
@@ -138,7 +138,7 @@ All reads flow through the **read provider abstraction layer** ([architecture do
 | Structure state | `sui_multiGetObjects(ids, { showContent: true })` | Read gate/SSU fields |
 | Rule inspection | `suix_getDynamicFields(config_id)` + `sui_getDynamicFieldObject(config_id, key)` | Read configured rules |
 | Event polling | `suix_queryEvents({ MoveEventType: "..." }, cursor, limit)` | Signal Feed data |
-| Balance | `suix_getBalance(address, "0x2::sui::SUI")` | SUI balance display |
+| Balance | `suix_getCoins(address, EVE_COIN_TYPE)` | EVE balance display |
 | Inventory | `suix_getDynamicFields(inventory_uid)` | SSU item listing |
 
 **Polling interval:** 10 seconds (MVP default). Per-data-type intervals may vary — see [in-game-dapp-surface.md §10](../architecture/in-game-dapp-surface.md) for granular rates (structure state: 5–10s, rules: 15–30s, events: 5s). No WebSocket, no indexer subscription.
@@ -173,14 +173,14 @@ All reads flow through the **read provider abstraction layer** ([architecture do
 Single published package: `civcontrol`
 
 ```
-contracts/civcontrol/
-├── Move.toml          # Depends on world-contracts World package
+contracts/civilization_control/
+├── Move.toml              # Depends on world-contracts World package
 └── sources/
-    ├── config.move       # CivControlConfig + AdminCap + GateAuth + TradeAuth
-    ├── gate_rules.move   # Tribe filter + coin toll + subscription pass dynamic field rules
-    ├── gate_permit.move  # request_jump_permit (rule evaluation + permit issuance)
-    ├── trade_post.move   # Listing + buy + cancel
-    └── zk_gate.move      # (stretch) ZK membership verification
+    ├── gate_control.move     # GateConfig + AdminCap + GateAuth + tribe/toll rules
+    ├── trade_post.move       # Listing + buy + cancel + TradeAuth
+    ├── posture.move          # PostureKey DF + set_posture + PostureChangedEvent
+    ├── turret_bouncer.move   # BouncerAuth witness (commercial targeting)
+    └── turret_defense.move   # DefenseAuth witness (defense targeting)
 ```
 
 ### 3.2 Core Types
@@ -194,21 +194,21 @@ contracts/civcontrol/
 | `TribeRuleKey` | `copy, drop, store` | DF key: `{ gate_id: ID }` |
 | `TribeRule` | `drop, store` | DF value: `{ tribe_id: u32 }` |
 | `CoinTollKey` | `copy, drop, store` | DF key: `{ gate_id: ID }` |
-| `CoinTollRule` | `drop, store` | DF value: `{ price_mist: u64, treasury: address }` |
+| `CoinTollRule` | `drop, store` | DF value: `{ price: u64, treasury: address }` — price in EVE base units |
 | `SubPassKey` | `copy, drop, store` | DF key: `{ gate_id: ID }` |
 | `SubPassLedger` | `store` | DF value: `{ Table<ID, u64> }` — maps character_id → expiry_timestamp_ms |
 | `SubTierKey` | `copy, drop, store` | DF key: `{ gate_id: ID }` |
-| `SubTierConfig` | `drop, store` | DF value: `{ price_mist: u64, duration_ms: u64 }` — subscription pricing & duration |
+| `SubTierConfig` | `drop, store` | DF value: `{ price: u64, duration_ms: u64 }` — price in EVE base units |
 | `Listing` | `key, store` | Shared object — links SSU + item + price |
 
 ### 3.3 Custom Events
 
 | Event | Fields | Emitted By |
 |-------|--------|-----------|
-| `TollCollectedEvent` | `gate_id, character_id, amount_mist, timestamp_ms` | `request_jump_permit` |
-| `SubscriptionPurchasedEvent` | `gate_id, character_id, price_mist, expires_at_ms` | `purchase_subscription` |
-| `ListingCreatedEvent` | `listing_id, ssu_id, seller, item_type_id, price_mist` | `create_listing` |
-| `TradeSettledEvent` | `ssu_id, buyer, seller, item_type_id, quantity, price_mist` | `buy` |
+| `TollCollectedEvent` | `gate_id, character_id, amount, timestamp_ms` | `request_jump_permit` — amount in EVE base units |
+| `SubscriptionPurchasedEvent` | `gate_id, character_id, price, expires_at_ms` | `purchase_subscription` — price in EVE base units |
+| `ListingCreatedEvent` | `listing_id, ssu_id, seller, item_type_id, price` | `create_listing` — price in EVE base units |
+| `TradeSettledEvent` | `ssu_id, buyer, seller, item_type_id, quantity, price` | `buy` — price in EVE base units |
 | `ListingCancelledEvent` | `listing_id, ssu_id` | `cancel_listing` |
 
 ### 3.4 Rule Evaluation Order
@@ -217,7 +217,7 @@ Fixed AND composition inside `request_jump_permit`:
 
 1. **Tribe Filter** — if DF exists: `character.tribe() == rule.tribe_id` → abort on mismatch. **Note:** `character.tribe()` is the public accessor; `tribe_id()` is `#[test_only]`.
 2. **Subscription Pass** — if SubPassLedger DF exists: look up `character_id` in Table → if found AND `expiry >= clock.timestamp_ms()` → **skip toll collection** (pass holder jumps free). Expired entries are not auto-cleaned; subscription must be re-purchased.
-3. **Coin Toll** — if DF exists AND subscription did not bypass: `coin::value(&payment) >= rule.price_mist` → transfer to treasury → return change
+3. **Coin Toll** — if DF exists AND subscription did not bypass: `coin::value(&payment) >= rule.price` → transfer to treasury → return change (payment is `Coin<EVE>`)
 4. All passed → `gate::issue_jump_permit<GateAuth>(...)`
 
 Allow/Block list rules (stretch, not in Day-1 MVP) would insert at positions 0-1 before tribe:
@@ -259,8 +259,8 @@ Opinionated card-based UI (not visual programming). Two MVP module cards:
 | Module | Config | Display |
 |--------|--------|---------|
 | **Tribe Filter** | Toggle + tribe ID (u32) | "Tribe Filter: Allow Tribe 7 only" |
-| **Coin Toll** | Toggle + amount (MIST) + treasury (address) | "Coin Toll: 5 SUI per jump → 0x1a2b..." |
-| **Subscription Pass** | Toggle + price (MIST) + duration (days) | "Subscription: 50 SUI for 30 days — bypasses toll" |
+| **Coin Toll** | Toggle + amount (Lux) + treasury (address) | "EVE Toll: 50 Lux per jump → 0x1a2b..." |
+| **Subscription Pass** | Toggle + price (Lux) + duration (days) | "Subscription: 500 Lux for 30 days — bypasses toll" |
 
 7-step deployment flow: select gate → toggle modules → configure → preview → diff → sign → confirm.
 
@@ -295,7 +295,7 @@ Arc: A frontier operator wakes up to chaos. By the end, every gate, turret, and 
 | 3 | Policy — tribe filter + toll deployed | 22s | ★ Policy deploy tx digest |
 | 4 | Denial — hostile pilot blocked | 18s | ★ Denied tx + MoveAbort |
 | 5 | Revenue — ally tolled, operator paid | 18s | ★ Toll tx + balance delta |
-| 6 | Defense Mode — posture switch, turrets online | 30s | ★ Single PTB tx digest (posture + turrets) |
+| 6 | Defense Mode — posture switch, extension swap (BouncerAuth → DefenseAuth) | 30s | ★ Single PTB tx digest (posture + turrets) |
 | 7 | Commerce — TradePost atomic buy | 22s | ★ Buy tx + balance deltas |
 | 8 | Command — full system view, aggregate revenue | 15s | UI screenshot (live) |
 | 9 | Close — title card, no subtitle | 13s | — |
@@ -334,12 +334,12 @@ If TradePost UI not ready: 2-minute GateControl-only (Beats 1–5 + close). Drop
 | H1 | Sponsor address addable to AdminACL | BLOCKED | S05 |
 | H2 | Wallet → Character resolution works | PROVISIONAL | S27 |
 | H3 | In-game dApp surface works | BLOCKED | Day-1 test: (a) HTTPS loads in embedded browser, (b) portrait layout renders at 787×1198, (c) Sui RPC calls succeed from webview, (d) read-only mode with "Viewing Mode" badge, (e) objectId parsed from URL |
-| H4 | Coin<SUI> toll works on target network | PROVISIONAL | S14 |
+| H4 | Coin<EVE> toll works on target network | PROVISIONAL | S14 |
 | H5 | Event query performance ≤ 10s | PROVISIONAL | S26 |
 | H6 | world-contracts v0.0.13 stable | PROVISIONAL | S03 |
 | H7 | Single-PTB posture switch feasible | **VALIDATED** | Localnet validation: single PTB confirmed for both directions (~2–3s end-to-end; chain finality ~250ms + indexer sync). See [posture-switch validation](../sandbox/posture-switch-localnet-validation.md). |
-| H8 | NWN fueled+online for turret toggle | **VALIDATED** | Energy prerequisite chain required: `set_fuel_efficiency` → `deposit_fuel` → `network_node::online`. `turret::online()` aborts with `ENotProducingEnergy` otherwise. Demo dependency. |
-| H9 | Off-chain pre-check for turret state | **VALIDATED** | `status::online()`/`offline()` abort if already in target state. PTB construction must read current turret status before including toggle calls. |
+| H8 | NWN fueled+online for turret operation | **VALIDATED** | Energy prerequisite chain required: `set_fuel_efficiency` → `deposit_fuel` → `network_node::online`. Turrets must be online before extension authorization. Demo dependency. |
+| H9 | Off-chain pre-check for posture state | **VALIDATED** | Read current PostureKey DF before constructing swap PTB to avoid no-op `authorize_extension` calls. |
 
 ### Day-1 Hard Stops
 

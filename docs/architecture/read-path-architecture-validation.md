@@ -335,7 +335,7 @@ For the Stillness deployment bonus window (14 days post-submission), deploy Opti
 | Gate status change events exist | UX Spec §7 Signal Feed | **PARTIAL** — `StatusChangedEvent` exists in `status.move`, triggered by online/offline | **VALIDATED** — was incorrectly flagged as missing in some internal discussions |
 | Time-range event filtering is native | UX Spec §7 time range selector | **INCORRECT** — `suix_queryEvents` uses cursor-based pagination, not native time-range windows; `TimeRange` filter exists in JSON-RPC but is deprecated | Client must paginate and filter by checkpoint timestamp |
 | `suix_subscribeEvent` is available | UX Spec Appendix | **UNPROVEN** — availability on hackathon test server / Stillness RPC unknown | MVP should use polling (confirmed fallback design) |
-| Lux→SUI exchange rate is defined | UX Spec §14 ("487 Lux") | **CLARIFIED** — confirmed rate: 10,000 Lux = 1 EVE token. Lux-to-SUI depends on EVE/SUI exchange (undefined) | App-level Lux/EVE constant (10,000:1); SUI conversion deferred until EVE/SUI rate known |
+| Lux→SUI exchange rate is defined | UX Spec §14 ("487 Lux") | **CLARIFIED** — confirmed rate: 100 Lux = 1 EVE. Lux-to-SUI depends on EVE/SUI exchange (undefined) | App-level Lux/EVE constant (100:1); SUI conversion deferred until EVE/SUI rate known |
 | Revenue card data is available from chain | UX Spec §14 hierarchy revision | **PARTIAL** — requires custom extension events; world-contracts provides no revenue data | Revenue metric depends entirely on custom extension event emission |
 
 ### 6.2 Missing Events (Cannot Be Produced Without Custom Code)
@@ -458,7 +458,7 @@ GET /health
 | **Revenue tracking** | Custom extension events (TollCollectedEvent, TradeSettledEvent) | No world-contracts support; must be self-sovereign |
 | **Denial signals** | Demo: wallet adapter failure response (synchronous, zero infra); Production: two-step or backend relay | Failed tx stored on-chain with deterministic abort code; demo operator controls both wallets |
 | **Polling interval** | 10 seconds | Matches UX spec; within public RPC limits for single user |
-| **Lux exchange rate** | App-level constant: 10,000 Lux = 1 EVE; SUI conversion deferred until EVE/SUI rate known | Lux/EVE rate confirmed; user-configurable SUI display as stretch |
+| **Lux exchange rate** | App-level constant: 100 Lux = 1 EVE; SUI conversion deferred until EVE/SUI rate known | Lux/EVE rate confirmed; user-configurable SUI display as stretch |
 | **Event subscription** | Polling preferred; WebSocket as stretch | `suix_subscribeEvent` availability unconfirmed on target RPC |
 | **Time-range filtering** | Client-side filtering on checkpoint timestamp from paginated events | No native time-range support in GraphQL; JSON-RPC `TimeRange` filter exists but is deprecated |
 

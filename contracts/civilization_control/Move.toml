@@ -4,6 +4,7 @@ edition = "2024.beta"
 
 [dependencies]
 world = { local = "../../vendor/world-contracts/contracts/world" }
+assets = { local = "../../vendor/world-contracts/contracts/assets" }
 
 [environments]
 testnet_internal = "4c78adac"

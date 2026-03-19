@@ -7,16 +7,24 @@
     "dev": "vite",
     "build": "tsc && vite build",
     "typecheck": "tsc --noEmit",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "generate:solar-systems": "node scripts/fetch-solar-systems.mjs",
+    "generate:tribes": "node scripts/fetch-tribes.mjs",
+    "generate:types": "node scripts/fetch-types.mjs"
   },
   "dependencies": {
     "@evefrontier/dapp-kit": "^0.1.7",
     "@mysten/dapp-kit-core": "^1.0.4",
     "@mysten/dapp-kit-react": "^1.0.2",
     "@mysten/sui": "^2.4.0",
+    "@tailwindcss/vite": "^4.2.1",
     "@tanstack/react-query": "^5.80.2",
+    "clsx": "^2.1.1",
+    "lucide-react": "^0.577.0",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "react-router": "^7.13.1",
+    "tailwindcss": "^4.2.1"
   },
   "devDependencies": {
     "@types/node": "^25.5.0",

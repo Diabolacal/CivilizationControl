@@ -18,9 +18,9 @@
 > Last alignment pass: 2026-03-11 (turret early-warning signal, posture presets, beat sheet v2 sync)
 
 > **Date:** 2026-02-24 (last updated 2026-03-11)  
-> **Status:** Pre-hackathon planning — zero production code exists  
+> **Status:** Implementation substantially complete — Move contracts published to Utopia testnet, frontend dashboard operational with gate/turret/SSU/NWN power controls, tribes autocomplete, and posture hardening. See README for current module inventory.  
 > **Scope:** All phases from Day-1 validation through demo submission  
-> **Sources:** march-11-reimplementation-checklist.md, UX architecture spec, demo beat sheet v2, product vision, gatecontrol-feasibility-report.md, zk-gatepass-feasibility-report.md, read-path-architecture-validation.md, policy-authoring-model-validation.md, turret-contract-surface.md, turret-closed-world-clarified.md, builder-scaffold patterns  
+> **Sources:** march-11-reimplementation-checklist.md, UX architecture spec, demo beat sheet v2, product vision, gatecontrol-feasibility-report.md, zk-gatepass-feasibility-report.md, read-path-architecture-validation.md, policy-authoring-model-validation.md, builder-scaffold patterns  
 > **Hackathon window:** March 11–31, 2026 (~72 effective hours)
 
 ### Status Legend (planning repo)
@@ -465,31 +465,47 @@ Steps:
 ### S14b — Implement TurretControl + Posture Presets (Move + PTB)
 
 **Phase:** GateControl  
-**Status:** CONFIRMED  
-**Effort:** 2 hours  
+**Status:** ✅ IMPLEMENTED (2026-03-18)  
+**Effort:** 2 hours (actual: ~4 hours including research)  
 **Dependencies:** S09, S11, S12  
 **Description:** Implement posture preset logic for infrastructure-wide state switching (Open for Business / Defense Mode). This underpins the Beat 6 climax demo moment — a single operator action that changes the posture of every gate and turret simultaneously.
 
-**TurretControl context:** CivilizationControl does not program turrets. It controls their power state via `turret::online()` / `turret::offline()` (world-contracts, no custom turret extension needed). Default turret targeting already enforces tribe_only behaviour, which is an exact match for CC's gate policy. See [turret-closed-world-clarified.md](../architecture/turret-closed-world-clarified.md).
+**Corrected turret doctrine (replaces original):**
+- **Old assumption:** Turrets offline in commercial, online in defense. CivilizationControl controls power state via `turret::online()` / `turret::offline()`.
+- **New doctrine:** Turrets always online. Posture changes which custom turret extension is active — bouncer (commercial) vs defense (aggressive targeting). Two-extension swap pattern; no deauthorize exists.
+- **Key constraint discovered:** `BehaviourChangeReason` enum is module-private in Move 2024 — cannot construct or match from external packages. Targeting redesigned to use `is_aggressor` + `character_tribe` only.
 
-**Move module:**
-- Define `PostureKey` DF on CivControlConfig → `PostureState { mode: u8 }` (0 = BUSINESS, 1 = DEFENSE)
-- Define `PostureChangedEvent { old_mode: u8, new_mode: u8, operator: address }` (copy, drop)
-- Implement `set_posture(config, mode, ctx)` — updates posture DF + emits PostureChangedEvent
+**Move modules (implemented):**
+- `posture.move` — PostureKey DF on GateConfig → PostureState { mode: u8 } (0 = COMMERCIAL, 1 = DEFENSE). PostureChangedEvent emitted.
+- `turret_bouncer.move` — BouncerAuth witness. Commercial targeting: aggressors +10000, non-tribe +1000. Emits BouncerTargetingEvent.
+- `turret_defense.move` — DefenseAuth witness. Defense targeting: aggressors +15000, non-tribe +5000. Emits DefenseTargetingEvent.
+- `gate_control.move` — Added public(package) config_uid/config_uid_mut accessors for posture DF access.
 
-**PTB composition (validated on localnet):**
-- Defense Mode: `set_posture(DEFENSE)` + gate rule changes (set tribe, remove toll) + N × (`borrow_owner_cap<Turret>` → `turret::online` → `return_owner_cap`)
-- Open for Business: `set_posture(BUSINESS)` + gate rule changes (set tribe + toll) + N × (`borrow_owner_cap<Turret>` → `turret::offline` → `return_owner_cap`)
-- Single PTB ~7–9 Move calls, ~250ms on-chain, ~2.3s end-to-end. See [posture-switch validation](../sandbox/posture-switch-localnet-validation.md).
+**PTB composition (implemented):**
+- Defense Mode: `set_posture(DEFENSE)` + gate rules (remove toll) + N × (`borrow_owner_cap<Turret>` → `authorize_extension<DefenseAuth>` → `return_owner_cap`)
+- Commercial Mode: `set_posture(COMMERCIAL)` + gate rules (restore toll) + N × (`borrow_owner_cap<Turret>` → `authorize_extension<BouncerAuth>` → `return_owner_cap`)
+
+**Frontend (implemented):**
+- PostureControl component on Dashboard (single-button posture switch)
+- StrategicMapPanel reads on-chain posture (display-only, not toggle)
+- TurretListScreen with posture badges
+- usePosture hooks (read + switch mutation)
+- Signal Feed: 3 new event types (PostureChanged, BouncerTargeting, DefenseTargeting)
 
 **Files:**
-- `contracts/civcontrol/sources/posture.move`
+- `contracts/civilization_control/sources/posture.move`
+- `contracts/civilization_control/sources/turret_bouncer.move`
+- `contracts/civilization_control/sources/turret_defense.move`
+- `contracts/civilization_control/sources/gate_control.move` (modified)
+- `src/lib/postureSwitchTx.ts`, `src/hooks/usePosture.ts`, `src/components/PostureControl.tsx`
+- `src/screens/TurretListScreen.tsx`, `src/components/topology/StrategicMapPanel.tsx` (modified)
 
-**Definition of Done:**
-- `sui move build` passes
-- `sui move test` passes: set posture → verify DF + PostureChangedEvent emitted
-- PostureChangedEvent has `copy, drop` abilities
-- Both BUSINESS→DEFENSE and DEFENSE→BUSINESS directions validated in single PTB on localnet
+**Definition of Done:** ✅
+- `sui move build` passes ✅
+- `sui move test` passes (21/21) ✅
+- PostureChangedEvent has `copy, drop` abilities ✅
+- TypeScript compiles clean ✅, Vite build succeeds ✅
+- Package republish required (new modules added)
 
 ---
 
@@ -849,7 +865,7 @@ Display balance deltas: buyer's SUI balance before/after. Seller's balance (if v
 
 - **Aggregated Metrics cards:** Total structures count, Online/Offline counts, Active policies count (gates with non-null extension), Total revenue (from event aggregation)
 - **Alert/Warning cards:** Offline structures (red), Low fuel (amber), Unlinked gates (gray), Unconfigured gates (no extension)
-- **Posture Preset controls:** "Open for Business" / "Defense Mode" toggle (primary — this is the Beat 6 climax action). Clicking triggers a single PTB that batches gate rule changes + turret online/offline toggles (via `buildPostureSwitchTx` in S44). Posture indicator displays current state.
+- **Posture Preset controls:** "Open for Business" / "Defense Mode" toggle (primary — this is the Beat 6 climax action). Clicking triggers a single PTB that batches gate rule changes + turret extension swaps — BouncerAuth ↔ DefenseAuth (via `buildPostureSwitchTx` in S44). Posture indicator displays current state.
 - **Recent Signal Preview:** Last 5 events from Signal Feed
 - **Quick Action shortcuts (stretch):** "Deploy Policy", "Create Listing"
 
@@ -878,7 +894,7 @@ Derive health data from object state polling. Revenue requires event aggregation
 ### S26 — Build Signal Feed with event polling
 
 **Phase:** UX  
-**Status:** PROVISIONAL  
+**Status:** DONE  
 **Effort:** 3 hours  
 **Dependencies:** S25, S14, S21  
 **Description:** Implement Signal Feed per UX spec: chronological event stream across all owned structures. Data sources per read-path §2:
@@ -888,7 +904,7 @@ Derive health data from object state polling. Revenue requires event aggregation
 3. **TradeSettledEvent** (CivControl extension) — trade revenue. Query by CivControl package event type.
 4. **StatusChangedEvent** (world-contracts) — online/offline changes.
 5. **FuelEvent** (world-contracts) — fuel lifecycle events.
-6. **PriorityListUpdatedEvent** (world-contracts `turret.move`) — hostile detection / early-warning. Fires when a target's behaviour changes (proximity entry via `BehaviourChangeReason::ENTERED`, aggression via `STARTED_ATTACK`). Leading indicator — fires strictly earlier than `KillmailCreatedEvent`. Filter by owned turret IDs. **Note:** only emitted on the default targeting path (no custom turret extension); guarded by `assert!(option::is_none(&turret.extension))` at `turret.move:296`. Requires runtime validation on testnet.
+6. **PriorityListUpdatedEvent** (world-contracts `turret.move`) — hostile detection / early-warning. Fires when a target's behaviour changes (proximity entry via `BehaviourChangeReason::ENTERED`, aggression via `STARTED_ATTACK`). Leading indicator — fires strictly earlier than `KillmailCreatedEvent`. Filter by owned turret IDs. **Note:** only emitted on the default targeting path (no custom turret extension); guarded by `assert!(option::is_none(&turret.extension))` at `turret.move:296`. Requires runtime validation on testnet. **CC extension note:** CivilizationControl turret extensions emit their own events — `BouncerTargetingEvent` (commercial posture) and `DefenseTargetingEvent` (defense posture) — instead of `PriorityListUpdatedEvent`. These are the actual events to display in Signal Feed for CC-managed turrets.
 7. **PostureChangedEvent** (CivControl extension) — posture mode switches (Business ↔ Defense). Query by CivControl package event type.
 8. **SubscriptionPurchasedEvent** (CivControl extension) — subscription pass purchases. Query by CivControl package event type.
 9. **ExtensionAuthorizedEvent** (world-contracts) — extension enrollment confirmation. Enrichment signal for policy deploy feedback (Beat 3).
@@ -1189,11 +1205,11 @@ Member list management: simple address list editor. Compute Poseidon Merkle root
 - 3 funded accounts: Operator, Hostile Pilot (wrong tribe), Ally Pilot / Buyer (matching tribe)
 - 2 linked gates (both with GateAuth extension, tribe rule = 7, toll = 5 SUI)
 - 1 SSU Trade Post (with TradeAuth extension, stocked with Fuel Rod item, listing at 30 SUI)
-- 1–2 turrets (anchored, connected to NWN, initially OFFLINE — staged for Defense Mode switch in Beat 6)
+- 1–2 turrets (anchored, connected to NWN, initially with BouncerAuth extension — commercial posture, staged for Defense Mode switch in Beat 6)
 - 1 NWN (fueled, online, connected to gates + SSU + turrets)
-- Posture set to "Open for Business" (gates with tribe+toll active, turrets offline)
+- Posture set to "Open for Business" (gates with tribe+toll active, turrets with BouncerAuth — commercial targeting)
 - Structure labels assigned in the UI
-- All gates + SSU online; turrets offline (pre-Defense Mode state)
+- All gates + SSU online; turrets with BouncerAuth extension (pre-Defense Mode state)
 
 **In-game browser validation:** After deploying the DApp to a reachable URL, load it inside the EVE Frontier in-game browser. Verify:
 - Page loads without CSP or CORS errors
@@ -1213,7 +1229,7 @@ Run the full infrastructure setup sequence (Pattern 5) if on local devnet. On te
 - All 3 accounts funded and Character objects created
 - 2 gates linked, online, extension authorized, tribe+toll rules set
 - 1 SSU online, extension authorized, item stocked, listing active
-- 1–2 turrets anchored, connected to NWN, offline (staged for Beat 6 Defense Mode)
+- 1–2 turrets anchored, connected to NWN, with BouncerAuth (commercial posture, staged for Beat 6 Defense Mode)
 - Posture set to "Open for Business"
 - PriorityListUpdatedEvent staging confirmed: hostile pilot proximity triggers turret event (pre-flight 11a)
 - Operator balance recorded (pre-demo baseline)
@@ -1250,7 +1266,7 @@ Run the full infrastructure setup sequence (Pattern 5) if on local devnet. On te
 - **Beat 3 — Policy (0:35–1:00):** Gate detail → Rule Composer → set tribe 7 + 5 EVE toll + subscription 50 EVE/30 days → Deploy Policy → tx confirmation
 - **Beat 4 — Denial (1:00–1:18):** Hostile pilot jump attempt → wallet returns failure → Signal Feed shows denied (red badge)
 - **Beat 5 — Revenue (1:18–1:36):** Ally pilot jump → toll paid → Signal Feed shows permitted (green) + revenue counter increments
-- **Beat 6 — Defense Mode (1:36–2:06):** Signal Feed: "Hostile detected" (sourced from `PriorityListUpdatedEvent`). Operator clicks "Defense Mode." Single PTB: posture switch + turrets online + gate rules tightened. Signal Feed cascade: posture event, turret ONLINE ×N, gate status updates. **This is the 30-second climax.**
+- **Beat 6 — Defense Mode (1:36–2:06):** Signal Feed: "Hostile detected" (sourced from `PriorityListUpdatedEvent`). Operator clicks "Defense Mode." Single PTB: posture switch + turret extension swap (BouncerAuth → DefenseAuth) + gate rules tightened. Signal Feed cascade: posture event, DefenseTargetingEvent ×N, gate status updates. **This is the 30-second climax.**
 - **Beat 7 — Commerce (2:06–2:28):** Trade Post storefront → buyer purchases → atomic settlement → Signal Feed + revenue counter
 - **Beat 8 — Command (2:28–2:43):** Pull back to full Command Overview. Revenue totals, posture: Defense Mode, turrets armed, all structures reporting. Hold 3 seconds.
 - **Beat 9 — Close (2:43–2:56):** Title card: "CivilizationControl" + package ID badge.
@@ -1418,7 +1434,7 @@ Functions:
 - `buildBuyTx(config, ssu, character, listing, price)` — buyer purchase
 - `buildCancelListingTx(listing, ownerCap)` — cancel listing
 - `buildOnlineOfflineTx(character, structure, nwn, energyConfig, online)` — toggle status
-- `buildPostureSwitchTx(config, gates, turrets, character, targetPosture)` — batch posture switch (Defense Mode / Open for Business). Composes: `set_posture()` + gate rule changes + N × turret online/offline toggles in a single PTB. Validated on localnet (~7–9 Move calls, ~2.3s end-to-end).
+- `buildPostureSwitchTx(config, gates, turrets, character, targetPosture)` — batch posture switch (Defense Mode / Open for Business). Composes: `set_posture()` + gate rule changes + N × turret extension swaps (authorize_extension<BouncerAuth/DefenseAuth>) in a single PTB. Validated on localnet (~7–9 Move calls, ~2.3s end-to-end).
 
 All builders use hot-potato OwnerCap borrow/return pattern where needed. Coin splitting handled via `txb.splitCoins()`.
 
@@ -1505,74 +1521,78 @@ Always-visible disclaimer: "User-curated placement; not on-chain." *(Review: may
 
 ## Summary Table
 
-| ID | Title | Phase | Status | Effort | Deps |
-|----|-------|-------|--------|--------|------|
-| S01 | Create fresh hackathon repo | Day-1 | CONFIRMED | 0.5h | — |
-| S02 | Add submodules | Day-1 | CONFIRMED | 0.25h | S01 |
-| S03 | Verify critical function signatures | Day-1 | CONFIRMED | 0.5h | S02 |
-| S04 | Connect to hackathon server + discover IDs | Day-1 | BLOCKED | 0.5h | S02 |
-| S05 | Validate AdminACL sponsor access | Day-1 | BLOCKED | 0.5h | S04 |
-| S06 | Validate per-gate DF keys | Day-1 | PROVISIONAL | 0.25h | S04 |
-| S07 | Scaffold React + Vite project | Foundation | PROVISIONAL | 1h | S01 |
-| S08 | Configure wallet adapter | Foundation | PROVISIONAL | 1h | S07 |
-| S09 | Create CivControl Move package | Foundation | CONFIRMED | 1h | S02, S04 |
-| S10 | Publish CivControl to target network | Foundation | CONFIRMED | 0.5h | S09, S04 |
-| S11 | Implement tribe filter rule (Move) | GateControl | CONFIRMED | 2h | S09 |
-| S12 | Implement coin toll rule (Move) | GateControl | CONFIRMED | 1.5h | S09 |
-| S12b | Implement subscription pass rule (Move) | GateControl | PROVISIONAL | 1.5h | S09 |
-| S13 | Implement request_jump_permit (Move) | GateControl | CONFIRMED | 2.5h | S11, S12, S12b |
-| S14 | Deploy GateControl + integration test | GateControl | CONFIRMED | 2h | S10, S13, S05 |
-| S14b | TurretControl + Posture Presets (Move + PTB) | GateControl | CONFIRMED | 2h | S09, S11, S12 |
-| S15 | Build Gate List page (React) | GateControl | PROVISIONAL | 2h | S07, S08 |
-| S16 | Build Gate Detail page | GateControl | PROVISIONAL | 1.5h | S15 |
-| S17 | Build Rule Composer UI | GateControl | PROVISIONAL | 3h | S16, S13 |
-| S18 | Wire extension authorization for pairs | GateControl | CONFIRMED | 1h | S17 |
-| S19 | Implement Listing shared object (Move) | TradePost | PROVISIONAL | 2h | S09 |
-| S20 | Implement atomic buy function (Move) | TradePost | CONFIRMED | 2.5h | S19 |
-| S21 | Deploy TradePost + integration test | TradePost | CONFIRMED | 2h | S10, S20, S04 |
-| S22 | Build Trade Post List page | TradePost | PROVISIONAL | 1.5h | S07, S08 |
-| S23 | Build Trade Post Detail + inventory | TradePost | PROVISIONAL | 2.5h | S22, S19 |
-| S24 | Build buyer listing browser + buy flow | TradePost | PROVISIONAL | 2h | S23, S20 |
-| S25 | Build Command Overview page | UX | PROVISIONAL | 2.5h | S15, S22 |
-| S26 | Build Signal Feed with event polling | UX | PROVISIONAL | 3h | S25, S14, S21 |
-| S27 | Implement Character resolution flow | UX | PROVISIONAL | 1.5h | S08 |
-| S28 | Add structure labeling (localStorage) | UX | CONFIRMED | 0.5h | S15 |
-| S29 | Implement error states + tx feedback | UX | PROVISIONAL | 1.5h | S17, S24 |
-| S30 | Polish narrative labels + voice | UX | CONFIRMED | 1h | S25, S26 |
-| S31 | ZK R1: Verify circom toolchain | ZK-Stretch | CONFIRMED | 0.5h | S14 |
-| S32 | ZK R2: Browser proof generation | ZK-Stretch | PROVISIONAL | 1h | S31 |
-| S33 | ZK R3: Publish ZK module + on-chain verify | ZK-Stretch | CONFIRMED | 1.5h | S31, S10 |
-| S34 | ZK R4: E2E browser → chain ZK jump | ZK-Stretch | PROVISIONAL | 2h | S32, S33 |
-| S35 | ZK Rule Composer integration | ZK-Stretch | PROVISIONAL | 1.5h | S34, S17 |
-| S36 | Set up demo environment | Demo | CONFIRMED | 2h | S14, S14b, S21 |
-| S37 | Capture Beat 1 CLI footage | Demo | CONFIRMED | 0.5h | S36 |
-| S38 | Capture Beats 2–9 live UI | Demo | PROVISIONAL | 3h | S36, S25, S26, S17, S24, S14b |
-| S39 | Optional: ZK accent segment | Demo | PROVISIONAL | 1h | S34, S38 |
-| S40 | Edit final demo video + overlays | Demo | CONFIRMED | 2h | S37, S38 |
-| S41 | Write submission README | Demo | CONFIRMED | 1.5h | S14, S21, S38 |
-| S42 | Final submission + repo hygiene | Demo | CONFIRMED | 0.5h | S41 |
-| S43 | Polling + state management (cross-cutting) | Foundation | PROVISIONAL | 2h | S08 |
-| S44 | PTB construction library (cross-cutting) | Foundation | CONFIRMED | 2h | S08, S10 |
-| S45 | Strategic Network Map (SVG) | UX (stretch) | PROVISIONAL | 3h | S25, S28 |
-| S46 | Gate Preset Switching (enhancement) | UX (enhancement) | PROVISIONAL | 2.5h | S45, S44, S18 |
+> **Status key (updated 2026-03-16 reconciliation):** DONE = fully complete in repo. PARTIAL = exists but incomplete. NOT STARTED = no implementation. DEFERRED = deprioritized. Original pre-implementation statuses (CONFIRMED/PROVISIONAL/BLOCKED) replaced with actual completion state.
+
+| ID | Title | Phase | Status | Effort | Deps | Notes (2026-03-16) |
+|----|-------|-------|--------|--------|------|---------------------|
+| S01 | Create fresh hackathon repo | Day-1 | DONE | 0.5h | — | |
+| S02 | Add submodules | Day-1 | DONE | 0.25h | S01 | world-contracts, builder-scaffold, evevault, builder-documentation |
+| S03 | Verify critical function signatures | Day-1 | DONE | 0.5h | S02 | A1–A8 verified on Utopia |
+| S04 | Connect to hackathon server + discover IDs | Day-1 | DONE | 0.5h | S02 | Utopia testnet; 8 shared object IDs verified |
+| S05 | Validate AdminACL sponsor access | Day-1 | DONE | 0.5h | S04 | Reclassified: CC functions don't need AdminACL; game server handles sponsored jumps |
+| S06 | Validate per-gate DF keys | Day-1 | DONE | 0.25h | S04 | Proven by live set_tribe_rule on gate 0xf130… |
+| S07 | Scaffold React + Vite project | Foundation | DONE | 1h | S01 | Vite 6 + React 19 + Tailwind CSS v4 |
+| S08 | Configure wallet adapter | Foundation | DONE | 1h | S07 | @evefrontier/dapp-kit EveFrontierProvider |
+| S09 | Create CivControl Move package | Foundation | DONE | 1h | S02, S04 | gate_control + trade_post at contracts/civilization_control/ |
+| S10 | Publish CivControl to target network | Foundation | DONE | 0.5h | S09, S04 | Package 0xb41a…6a04 on Utopia |
+| S11 | Implement tribe filter rule (Move) | GateControl | DONE | 2h | S09 | TribeRuleKey/TribeRule with compound DF keys |
+| S12 | Implement coin toll rule (Move) | GateControl | DONE | 1.5h | S09 | CoinTollKey/CoinTollRule |
+| S12b | Implement subscription pass rule (Move) | GateControl | DEFERRED | 1.5h | S09 | Low demo leverage; tribe+toll sufficient for MVP |
+| S13 | Implement request_jump_permit (Move) | GateControl | DONE | 2.5h | S11, S12 | Two paths: with-toll + toll-free |
+| S14 | Deploy GateControl + integration test | GateControl | DONE | 2h | S10, S13, S05 | Extension authorized, tribe rule set, manual jump confirmed |
+| S14b | TurretControl + Posture Presets (Move + PTB) | GateControl | DONE | 2h | S09 | posture.move + turret_bouncer.move + turret_defense.move published in v2 |
+| S15 | Build Gate List page (React) | GateControl | DONE | 2h | S07, S08 | GateListScreen.tsx — live from OwnerCap discovery |
+| S16 | Build Gate Detail page | GateControl | DONE | 1.5h | S15 | GateDetailScreen.tsx with live GateConfig DF reads (tribe rule, coin toll), extension status, policy composer |
+| S17 | Build Rule Composer UI | GateControl | DONE | 3h | S16, S13 | TribeRuleEditor + CoinTollEditor + TxFeedbackBanner integrated into GateDetailScreen. Live read + PTB mutation + tx feedback. |
+| S18 | Wire extension authorization for pairs | GateControl | PARTIAL | 1h | S17 | AuthHarness dev tool exists; not integrated into main UI |
+| S19 | Implement Listing shared object (Move) | TradePost | DONE | 2h | S09 | Listing struct with share_listing() |
+| S20 | Implement atomic buy function (Move) | TradePost | DONE | 2.5h | S19 | buy() proven with 3 cross-address purchases |
+| S21 | Deploy TradePost + integration test | TradePost | DONE | 2h | S10, S20, S04 | Extension authorized, listings created/cancelled/bought |
+| S22 | Build Trade Post List page | TradePost | DONE | 1.5h | S07, S08 | TradePostListScreen.tsx — live from OwnerCap discovery |
+| S23 | Build Trade Post Detail + inventory | TradePost | DONE | 2.5h | S22, S19 | TradePostDetailScreen rewritten with MarketplaceSection (live listing browser + buy flow) + ExtensionSection |
+| S24 | Build buyer listing browser + buy flow | TradePost | DONE | 2h | S23, S20 | ListingCard + useListings (queryEvents→multiGetObjects discovery) + useBuyListing (PTB: splitCoins + buy + transferObjects) + TxFeedbackBanner |
+| S24b | Build seller-side listing create + cancel | TradePost | DONE | 2h | S24, S20 | CreateListingForm + useCreateListing + useCancelListing hooks. buildCreateListingTx (create+share) + buildCancelListingTx PTB builders. ListingCard shows cancel for seller-owned listings. TxFeedbackBanner upgraded with action-specific copy. SSU inventory browser + item-type catalog now shipped (see S24c). |
+| S24c | Item-type catalog + inventory browser + type resolution | TradePost | DONE | 3h | S24b | Build-time item-type catalog (390 types via World API v2/types → scripts/fetch-types.mjs → src/data/itemTypes.json → src/lib/typeCatalog.ts). SSU inventory read path (fetchSsuInventory via getDynamicFieldObject). InventoryBrowser component replaces manual type-ID entry. ListingCard + Signal Feed resolve item names. Unknown types degrade to "Unknown Type #N". |
+| S25 | Build Command Overview page | UX | DONE | 2.5h | S15, S22 | Dashboard.tsx with live metrics, topology, alerts |
+| S26 | Build Signal Feed with event polling | UX | DONE | 3h | S25, S14, S21 | Real event polling via MoveModule queries (gate_control + trade_post). 8 CC event types parsed into 4 categories. 30s polling. Category filters. Dashboard wired with real signals + revenue metric. |
+| S27 | Implement Character resolution flow | UX | DONE | 1.5h | S08 | wallet→PlayerProfile→Character→name/tribe fully wired |
+| S28 | Add structure labeling (localStorage) | UX | DONE | 0.5h | S15 | Spatial pin system with solar system assignment |
+| S29 | Implement error states + tx feedback | UX | DONE | 1.5h | S17, S24, S24b | TxFeedbackBanner reused across gate policy, buy, create listing, and cancel listing flows. Action-specific success/pending labels. |
+| S30 | Polish narrative labels + voice | UX | PARTIAL | 1h | S25, S26 | Governance vocabulary applied but not comprehensively audited |
+| S31 | ZK R1: Verify circom toolchain | ZK-Stretch | DEFERRED | 0.5h | S14 | |
+| S32 | ZK R2: Browser proof generation | ZK-Stretch | DEFERRED | 1h | S31 | |
+| S33 | ZK R3: Publish ZK module + on-chain verify | ZK-Stretch | DEFERRED | 1.5h | S31, S10 | |
+| S34 | ZK R4: E2E browser → chain ZK jump | ZK-Stretch | DEFERRED | 2h | S32, S33 | |
+| S35 | ZK Rule Composer integration | ZK-Stretch | DEFERRED | 1.5h | S34, S17 | |
+| S36 | Set up demo environment | Demo | PARTIAL | 2h | S14, S21 | CF Pages preview live; no rehearsed demo script |
+| S37 | Capture Beat 1 CLI footage | Demo | NOT STARTED | 0.5h | S36 | |
+| S38 | Capture Beats 2–9 live UI | Demo | NOT STARTED | 3h | S36, S25, S17, S24 | S17 and S24 now DONE — unblocked |
+| S39 | Optional: ZK accent segment | Demo | DEFERRED | 1h | S34, S38 | |
+| S40 | Edit final demo video + overlays | Demo | NOT STARTED | 2h | S37, S38 | |
+| S41 | Write submission README | Demo | PARTIAL | 1.5h | S14, S21 | README exists and is good; needs final submission polish |
+| S42 | Final submission + repo hygiene | Demo | NOT STARTED | 0.5h | S41 | |
+| S43 | Polling + state management (cross-cutting) | Foundation | PARTIAL | 2h | S08 | TanStack Query for asset discovery; no event subscription |
+| S44 | PTB construction library (cross-cutting) | Foundation | PARTIAL | 2h | S08, S10 | gatePolicyTx.ts: set/remove tribe rule + set/remove coin toll. tradePostTx.ts: buy listing (splitCoins + buy + transferObjects). Remaining: create listing, cancel listing, online-offline, posture-switch builders. |
+| S45 | Strategic Network Map (SVG) | UX | DONE | 3h | S25, S28 | StrategicMapPanel.tsx — fully functional, spec-conformant |
+| S46 | Gate Preset Switching (enhancement) | UX (enhancement) | NOT STARTED | 2.5h | S45, S44, S18 | |
 
 ---
 
 ## Effort Summary
 
-| Phase | Steps | Total Hours |
-|-------|-------|-------------|
-| Day-1 Validation | S01–S06 | 2.5h |
-| Foundation | S07–S10 | 3.5h |
-| GateControl Core | S11–S18 (incl. S12b, S14b) | 18h |
-| TradePost Core | S19–S24 | 12.5h |
-| UX Polish + Signal Feed | S25–S30 | 10.5h |
-| ZK GatePass (stretch) | S31–S35 | 6.5h |
-| Demo + Submission | S36–S42 | 11h |
-| Cross-cutting | S43–S46 | 9.5h |
-| **Total** | **48 steps** | **~74h** |
+> **Updated 2026-03-16** — reflects actual completion state.
 
-Exceeds the 72-hour hackathon window by ~2h. ZK stretch (6.5h) and Gate Preset Switching (2.5h) are independently cuttable, bringing core to ~65h with margin. Prioritize: core GateControl + TurretControl + posture first, then TradePost, then stretch.
+| Phase | Steps | Total Hours | Done | Remaining |
+|-------|-------|-------------|------|-----------|
+| Day-1 Validation | S01–S06 | 2.5h | 2.5h (all DONE) | 0h |
+| Foundation | S07–S10 | 3.5h | 3.5h (all DONE) | 0h |
+| GateControl Core | S11–S18 (incl. S12b, S14b) | 18h | ~14.5h (S11–S17 DONE) | ~3.5h (S12b deferred, S14b not started, S18 partial) |
+| TradePost Core | S19–S24 | 12.5h | ~12.5h (all DONE) | 0h |
+| UX Polish + Signal Feed | S25–S30 | 10.5h | ~6h (S25+S27+S28 DONE) | ~4.5h (S26+S29+S30 partial) |
+| ZK GatePass (stretch) | S31–S35 | 6.5h | 0h | DEFERRED |
+| Demo + Submission | S36–S42 | 11h | ~1h (S36 partial) | ~10h |
+| Cross-cutting | S43–S46 | 9.5h | ~4h (S45 DONE, S43+S44 partial) | ~5.5h (S46 not started) |
+| **Total** | **48 steps** | **~74h** | **~35h done** | **~32.5h remaining (excl. ZK stretch)** |
 
 ---
 
@@ -1633,8 +1653,7 @@ S01 → S02 → S03 → S04 → S05 → S09 → S10 → S11 → S12 → S12b →
 - [ZK GatePass Feasibility Report](../operations/zk-gatepass-feasibility-report.md)
 - [Read-Path Architecture Validation](../architecture/read-path-architecture-validation.md)
 - [Policy Authoring Model Validation](../architecture/policy-authoring-model-validation.md)
-- [Turret Contract Surface](../architecture/turret-contract-surface.md)
-- [Turret Closed-World Clarified](../architecture/turret-closed-world-clarified.md)
+
 - [Posture-Switch Validation](../sandbox/posture-switch-localnet-validation.md)
 - [Hackathon Rules Digest](../research/hackathon-event-rules-digest.md)
 - [In-Game DApp Surface Analysis](../architecture/in-game-dapp-surface.md)

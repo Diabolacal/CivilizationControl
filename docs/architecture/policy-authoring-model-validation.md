@@ -203,7 +203,7 @@ The extension type is shared — any gate can call `authorize_extension<GateAuth
 
 (Updated 2026-03-02 after turret support confirmed in world-contracts v0.0.14.)
 
-Turret extensions follow the same `extension: Option<TypeName>` and `authorize_extension<Auth>` + `swap_or_fill` pattern as Gate. Confirmed in `turret.move` (678 lines). Key difference: turret extensions control **targeting priority**, not allow/deny permit issuance. The extension function `get_target_priority_list` has a fixed 4-argument signature (`turret`, `character`, `candidates_bcs`, `receipt`) and cannot access external objects or DFs (no `uid()` accessor on Turret). Default targeting: tribe-based filtering with aggressor priority boost. See [turret-contract-surface.md](turret-contract-surface.md) for full details.
+Turret extensions follow the same `extension: Option<TypeName>` and `authorize_extension<Auth>` + `swap_or_fill` pattern as Gate. Confirmed in `turret.move` (678 lines). Key difference: turret extensions control **targeting priority**, not allow/deny permit issuance. The extension function `get_target_priority_list` has a fixed 4-argument signature (`turret`, `character`, `candidates_bcs`, `receipt`) and cannot access external objects or DFs (no `uid()` accessor on Turret). Default targeting: tribe-based filtering with aggressor priority boost. CivilizationControl turret architecture: posture.move (PostureKey DF, set_posture), turret_bouncer.move (BouncerAuth witness, commercial targeting), turret_defense.move (DefenseAuth witness, defense targeting). Extension swap (BouncerAuth ↔ DefenseAuth), not online/offline toggle.
 
 ---
 
@@ -260,7 +260,7 @@ These items are architecturally sound but unexercised. Validate on Day-1:
 | V2 | `OwnerCap<Gate>` can be used as auth in extension config functions | Add `&OwnerCap<Gate>` param to a config-update function, verify `owner_cap_id` match | LOW — standard capability pattern |
 | V3 | Single PTB: `authorize_extension` + `set_rule` in one transaction | Construct PTB with both calls sequenced | LOW — standard PTB composition |
 | V4 | Config DFs are readable from TypeScript SDK for UI display | Query object DFs via `@mysten/sui` SDK `getDynamicFields()` | LOW — documented SDK feature |
-| V5 | Turret extension field exists and follows same pattern | Read `turret.move` for `extension: Option<TypeName>` | **VERIFIED** -- turret.move (678 lines) confirms `extension: Option<TypeName>` + `authorize_extension<Auth>`. See turret-contract-surface.md. (Updated 2026-03-02.) |
+| V5 | Turret extension field exists and follows same pattern | Read `turret.move` for `extension: Option<TypeName>` | **VERIFIED** -- turret.move (678 lines) confirms `extension: Option<TypeName>` + `authorize_extension<Auth>`. CC modules: posture.move, turret_bouncer.move, turret_defense.move. (Updated 2026-03-17.) |
 
 ---
 

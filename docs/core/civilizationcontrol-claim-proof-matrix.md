@@ -6,7 +6,7 @@
 > Sources: shortlist-viability-validation-report.md, gate-lifecycle-runbook.md, gatecontrol-feasibility-report.md, tradepost-cross-address-ptb-validation.md, zk-gatepass-feasibility-report.md, civcontrol-independent-audit.md
 > Last updated: 2026-02-24 (environment model to be confirmed March 11)
 
-> **Currency note:** The demo narrative uses **EVE** as the on-chain denomination (e.g., "5 EVE toll"). Sandbox validation artifacts in this matrix were captured using **SUI** (the native devnet coin). Submission-grade evidence will use the EVE denomination on the hackathon test server. **Lux** (10,000 Lux = 1 EVE) is the player-facing display denomination — dual-display (EVE + Lux) is valid in dashboard contexts.
+> **Currency note:** The demo narrative uses **Lux** as the primary player-facing display denomination and **EVE** as the secondary on-chain denomination (e.g., "500 Lux toll · 5 EVE"). Conversion: 100 Lux = 1 EVE. Sandbox validation artifacts in this matrix were captured using **SUI** (the native devnet coin). Submission-grade evidence will use the Lux/EVE denomination on the hackathon test server.
 
 ---
 

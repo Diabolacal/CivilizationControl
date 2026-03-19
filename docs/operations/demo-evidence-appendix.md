@@ -151,7 +151,7 @@
 
 ### Beat 6 — Defense Mode (1:36–2:06) ★
 
-**What the beat shows:** Operator sees threat intel (turret proximity detection in Signal Feed — sourced from `PriorityListUpdatedEvent` with `BehaviourChangeReason::ENTERED`), clicks "Defense Mode" — single PTB changes posture, locks gates, brings turrets online. Infrastructure-wide state change in one transaction. This is the demo climax (30 seconds).
+**What the beat shows:** Operator sees threat intel (turret proximity detection in Signal Feed — sourced from `PriorityListUpdatedEvent` with `BehaviourChangeReason::ENTERED`), clicks "Defense Mode" — single PTB changes posture, locks gates, swaps turret extensions to DefenseAuth. Infrastructure-wide state change in one transaction. This is the demo climax (30 seconds).
 
 **Evidence artifacts:**
 
@@ -161,7 +161,7 @@
 |---|---|
 | **Script** | `sandbox/posture-switch-validation/ts/src/posture-switch.ts` (Strategy A — single PTB) |
 | **Command** | `cd sandbox/posture-switch-validation/ts && npx tsx src/posture-switch.ts` |
-| **Expected Output** | Single tx digest containing: `set_posture` + `set_tribe_config` + `clear_toll_config` + N × (borrow OwnerCap<Turret> → `turret::online` → return OwnerCap). `PostureChangedEvent`: BUSINESS→DEFENSE. N × `StatusChangedEvent` (turret ONLINE). |
+| **Expected Output** | Single tx digest containing: `set_posture` + `set_tribe_config` + `clear_toll_config` + N × (borrow OwnerCap<Turret> → `authorize_extension<DefenseAuth>` → return OwnerCap). `PostureChangedEvent`: BUSINESS→DEFENSE. N × `DefenseTargetingEvent` (turret posture swap). |
 | **Prior evidence** | Validated on localnet: BUSINESS→DEFENSE and DEFENSE→BUSINESS both pass. ~2.3s end-to-end (~250ms on-chain). See `docs/sandbox/posture-switch-localnet-validation.md`. |
 | **Capture Method** | Terminal output showing single tx digest. Before/after: `sui client object` on each turret (OFFLINE→ONLINE) and gate (tribe filter changed / toll cleared). |
 | **Script exists?** | YES — TS script validated on localnet. Shell equivalent TBD for submission chain. |
@@ -171,7 +171,7 @@
 | Field | Value |
 |---|---|
 | **Command** | `sui client object $TURRET_ID --json` (run before and after posture switch) |
-| **Expected Output** | Before: `is_online: false`. After: `is_online: true`. |
+| **Expected Output** | Before: BouncerAuth extension (commercial). After: DefenseAuth extension (defense). |
 | **Capture Method** | Terminal output diff or explorer screenshot |
 
 **(c) Signal Feed cascade (UI):**
@@ -179,10 +179,10 @@
 | Field | Value |
 |---|---|
 | **Script** | N/A — UI event display |
-| **Expected Output** | Signal Feed floods with: "Posture: Defense Mode", "Turret Alpha: ONLINE", "Turret Bravo: ONLINE", gate status updates |
+| **Expected Output** | Signal Feed floods with: "Posture: Defense Mode", "Turret Alpha: Defense Posture", "Turret Bravo: Defense Posture", gate status updates |
 | **Capture Method** | Screen recording of the Command Overview transforming |
 
-**Gap:** TS script exists for localnet. **TODO — Shell-based rehearsal script for submission chain** (same PTB, different object IDs). The PTB composition pattern is validated; only target objects change. **Preconditions:** ≥1 turret anchored + offline, connected to online/fueled NetworkNode. Gates in "Open for Business" (tribe+toll). OwnerCap<Turret> accessible via character borrow. Energy reservation available.
+**Gap:** TS script exists for localnet. **TODO — Shell-based rehearsal script for submission chain** (same PTB, different object IDs). The PTB composition pattern is validated; only target objects change. **Preconditions:** ≥1 turret anchored + with BouncerAuth (commercial posture), connected to online/fueled NetworkNode. Gates in "Open for Business" (tribe+toll). OwnerCap<Turret> accessible via character borrow. Energy reservation available.
 
 ---
 
@@ -216,7 +216,7 @@
 |---|---|
 | **Script** | N/A — UI screenshot/recording |
 | **Command** | Navigate to Command Overview in running frontend |
-| **Expected Output** | Aggregate revenue total (toll + trade), structure count badge, posture: Defense Mode, turrets: ONLINE, Signal Feed with deny + toll + trade + posture events |
+| **Expected Output** | Aggregate revenue total (toll + trade), structure count badge, posture: Defense Mode, turrets: Defense Posture, Signal Feed with deny + toll + trade + posture events |
 | **Capture Method** | Screen recording of the fully populated Command Overview |
 | **Script exists?** | N/A — UI-only beat, no rehearsal script needed |
 

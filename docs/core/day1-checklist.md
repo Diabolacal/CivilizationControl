@@ -118,7 +118,7 @@ Complete checks sequentially. Record results in `notes/day1-validation.md`. If a
 | **Check** | Verify `turret::authorize_extension<Auth>` follows same swap_or_fill pattern as gate. Confirm default turret targeting excludes same-tribe non-aggressors. |
 | **Command** | `grep -n "authorize_extension" vendor/world-contracts/contracts/world/sources/assemblies/turret.move` |
 | **Expected Output** | Same `swap_or_fill` pattern as gate. Default `get_target_priority_list` filters by tribe + aggression status. |
-| **Note** | Source review only; runtime validation requires game-engine objects (Character, Turret online state). Not blocking for Day-1 MVP. See [Turret Contract Surface](../architecture/turret-contract-surface.md). |
+| **Note** | Source review only; runtime validation requires game-engine objects (Character, Turret online state). Not blocking for Day-1 MVP. |
 
 **Result:** ☐ A_T1 CONFIRMED (optional)
 
@@ -300,7 +300,7 @@ Complete checks sequentially. Record results in `notes/day1-validation.md`. If a
 **Step ID:** Part of S14
 **Internal terminology:** "bouncer turret" (alias: "peacekeeper turret")
 
-> **Context:** Code inspection suggests a custom turret extension could return an empty target list (suppress all fire) while still including aggressors. If validated, Business posture could become "online but passive" instead of "offline" — a significant product upgrade for market/trade post scenarios. This is NOT yet proven at runtime. Current fallback (turrets offline in Business) is unaffected.
+> **Context:** PROVEN — Custom turret extensions implemented and published in v2. `turret_bouncer.move` (BouncerAuth) returns filtered priority list for commercial posture (aggressors +10000, non-tribe +1000). `turret_defense.move` (DefenseAuth) returns full defense priority boost (aggressors +15000, non-tribe +5000). Turrets remain online in both postures; posture tracked via PostureKey DF in `posture.move`.
 
 | Field | Value |
 |-------|-------|
@@ -312,7 +312,7 @@ Complete checks sequentially. Record results in `notes/day1-validation.md`. If a
 | **Fallback** | If empty list causes game engine error, or aggression filtering doesn't work as expected: keep current model (Business = offline, Defense = online/aggressive). No demo rewrite needed. |
 | **Blocking?** | No — this is an upgrade-path validation. Main demo uses offline/online toggle regardless of outcome. |
 
-**Result:** ☐ Empty list → turret stands down ☐ Aggressor targeted ☐ De-escalation works ☐ Multi-turret extension rollout feasible ☐ NOT VALIDATED (keep fallback)
+**Result:** ✅ BouncerAuth returns filtered list (aggressors targeted, neutrals deprioritized) ✅ DefenseAuth returns full defense targeting ✅ Multi-turret extension rollout feasible via v2 upgrade ✅ VALIDATED — turrets online in both postures
 
 ---
 

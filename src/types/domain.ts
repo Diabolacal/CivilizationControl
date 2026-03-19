@@ -1,0 +1,265 @@
+/**
+ * Core domain types for CivilizationControl.
+ *
+ * Models the proven on-chain ownership chain:
+ *   wallet → PlayerProfile → Character → OwnerCaps → shared assemblies
+ *
+ * Network nodes are the primary grouping unit.
+ * Structures inherit location from their parent network node.
+ */
+
+/** Sui object address (0x-prefixed hex string). */
+export type ObjectId = string;
+
+/** Sui transaction digest. */
+export type TxDigest = string;
+
+/** Structure types matching on-chain assembly categories. */
+export type StructureType = "gate" | "storage_unit" | "turret" | "network_node";
+
+/** Operational status derived from on-chain state. */
+export type StructureStatus = "online" | "warning" | "offline" | "neutral";
+
+/** Player profile resolved from wallet connection. */
+export interface PlayerProfile {
+  objectId: ObjectId;
+  characterId: ObjectId;
+  characterName: string;
+  tribeId: number;
+}
+
+/** An OwnerCap discovered on a Character object. */
+export interface OwnerCapInfo {
+  ownerCapId: ObjectId;
+  authorizedObjectId: ObjectId;
+  structureType: StructureType;
+}
+
+/** A resolved on-chain structure (gate, SSU, turret, or network node). */
+export interface Structure {
+  objectId: ObjectId;
+  ownerCapId: ObjectId;
+  type: StructureType;
+  name: string;
+  status: StructureStatus;
+  /** Parent network node ID — undefined for network nodes themselves. */
+  networkNodeId?: ObjectId;
+  /** Fuel state for network nodes. */
+  fuel?: FuelState;
+  /**
+   * Extension authorization status:
+   * - "authorized" — extension matches the current CC package witness type
+   * - "stale" — an extension exists but from a different (old) package
+   * - "none" — no extension registered
+   */
+  extensionStatus: "authorized" | "stale" | "none";
+}
+
+/** Fuel state read from on-chain Fuel struct. */
+export interface FuelState {
+  /** Number of fuel units currently loaded. */
+  quantity: number;
+  /** Maximum volume capacity (unit_volume × max_units). */
+  maxCapacity: number;
+  /** Base burn rate in milliseconds per 1 fuel unit (at 100% efficiency). */
+  burnRateMs: number;
+  /** Whether fuel is actively being consumed. */
+  isBurning: boolean;
+  /** Fuel item type ID — used to resolve name and efficiency. */
+  typeId?: number;
+  /** Volume per fuel unit — used to compute max unit count from maxCapacity. */
+  unitVolume?: number;
+}
+
+/** A network node with its grouped child structures. */
+export interface NetworkNodeGroup {
+  node: Structure;
+  gates: Structure[];
+  storageUnits: Structure[];
+  turrets: Structure[];
+  /** Manually assigned solar system for onboarding/location. */
+  solarSystemId?: number;
+}
+
+/** Item type from the World API catalog (bundled at build time). */
+export interface ItemType {
+  typeId: number;
+  name: string;
+  description: string;
+  mass: number;
+  volume: number;
+  portionSize: number;
+  groupName: string;
+  groupId: number;
+  categoryName: string;
+  categoryId: number;
+}
+
+/** Solar system from the World API catalog. */
+export interface SolarSystem {
+  solarSystemId: number;
+  solarSystemName: string;
+  constellationId: number;
+  regionId: number;
+  /** Raw API coordinates (not transformed). */
+  location: { x: number; y: number; z: number };
+}
+
+/** Tribe from the World API catalog. */
+export interface Tribe {
+  tribeId: number;
+  name: string;
+  nameShort: string;
+}
+
+/**
+ * Coordinate transform for rendering.
+ * Raw World API: (x, y, z)
+ * Render space:  (x, z, -y) per Scetrov coordinate-system reference.
+ */
+export interface RenderCoordinate {
+  x: number;
+  y: number;
+}
+
+/** Spatial pin: manual assignment of a solar system to a network node. */
+export interface SpatialPin {
+  networkNodeId: ObjectId;
+  solarSystemId: number;
+  solarSystemName: string;
+  /** Timestamp of assignment (ISO string). */
+  assignedAt: string;
+}
+
+/** Aggregate metrics for the command overview. */
+export interface NetworkMetrics {
+  totalStructures: number;
+  onlineCount: number;
+  gateCount: number;
+  storageUnitCount: number;
+  turretCount: number;
+  networkNodeCount: number;
+  enforcedDirectives: number;
+}
+
+// ─── Listing Types ───────────────────────────────────────
+
+/** A live marketplace listing (shared object from TradePost). */
+export interface Listing {
+  objectId: ObjectId;
+  storageUnitId: ObjectId;
+  seller: string;
+  itemTypeId: number;
+  quantity: number;
+  /** Price in EVE base units (divide by 10_000_000 for Lux). */
+  price: number;
+}
+
+// ─── Gate Policy Types ───────────────────────────────────
+
+/** On-chain tribe filter rule for a gate. */
+export interface TribeRule {
+  tribe: number;
+}
+
+/** On-chain coin toll rule for a gate. */
+export interface CoinTollRule {
+  /** Toll price in EVE base units (divide by 10_000_000 for Lux). */
+  price: number;
+  treasury: string;
+}
+
+/** Resolved policy state for a single gate from GateConfig dynamic fields. */
+export interface GatePolicy {
+  gateId: ObjectId;
+  tribeRule: TribeRule | null;
+  coinTollRule: CoinTollRule | null;
+}
+
+// ─── Signal Feed Types ───────────────────────────────────
+
+/** Event category for Signal Feed grouping. */
+export type SignalCategory = "governance" | "trade" | "transit" | "status";
+
+/** Visual variant for signal rendering. */
+export type SignalVariant = "revenue" | "blocked" | "neutral" | "info";
+
+/** Parsed on-chain event for the Signal Feed. */
+export interface SignalEvent {
+  /** Unique key: txDigest + eventSeq. */
+  id: string;
+  /** Transaction digest. */
+  txDigest: TxDigest;
+  /** Event sequence within the transaction. */
+  eventSeq: string;
+  /** ISO timestamp from chain. */
+  timestamp: string;
+  /** Short event type label for display. */
+  label: string;
+  /** Human-readable description. */
+  description: string;
+  /** Signal category. */
+  category: SignalCategory;
+  /** Visual variant. */
+  variant: SignalVariant;
+  /** Related object ID if applicable (gate, listing, etc.). */
+  relatedObjectId?: ObjectId;
+  /** Amount in EVE base units, if applicable (toll, trade). Divide by 10_000_000 for Lux. */
+  amount?: number;
+}
+
+// ─── Transaction Feedback Types ──────────────────────────
+
+/** Transaction execution status for mutation feedback. */
+export type TxStatus = "idle" | "pending" | "success" | "error";
+
+/** Result of a signed transaction. */
+export interface TxResult {
+  digest: string;
+}
+
+// ─── SSU Inventory Types ─────────────────────────────────
+
+/** A single item entry within an SSU inventory slot. */
+export interface InventoryEntry {
+  typeId: number;
+  itemId: number;
+  volume: number;
+  quantity: number;
+}
+
+/** An inventory slot (main, open, or per-player owned). */
+export interface InventorySlot {
+  key: ObjectId;
+  maxCapacity: number;
+  usedCapacity: number;
+  items: InventoryEntry[];
+}
+
+// ─── Posture Types ───────────────────────────────────────
+
+/** Network-wide operational posture. */
+export type PostureMode = "commercial" | "defense";
+
+/** Posture state resolved from on-chain GateConfig dynamic field. */
+export interface PostureState {
+  mode: PostureMode;
+}
+
+/** Info needed per-turret for posture switch PTB. */
+export interface TurretSwitchTarget {
+  turretId: ObjectId;
+  ownerCapId: ObjectId;
+}
+
+/** Info needed per-gate for batch extension authorization. */
+export interface GateAuthTarget {
+  gateId: ObjectId;
+  ownerCapId: ObjectId;
+}
+
+/** Info needed per-SSU for batch extension authorization. */
+export interface SsuAuthTarget {
+  ssuId: ObjectId;
+  ownerCapId: ObjectId;
+}
