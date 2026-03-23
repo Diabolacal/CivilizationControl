@@ -20,7 +20,8 @@ import {
   buildTransitProofWithTollTx,
 } from "@/lib/transitProofTx";
 import { fetchEveCoinObjects, selectEveCoin } from "@/lib/currency";
-import type { ObjectId, GatePolicy, TxStatus, TxResult } from "@/types/domain";
+import { useCharacterId } from "@/hooks/useCharacter";
+import type { ObjectId, TxStatus, TxResult } from "@/types/domain";
 
 /** Query the linked destination gate for a given gate. */
 export function useLinkedGate(gateId: ObjectId | undefined) {
@@ -37,6 +38,7 @@ export function useTransitProofAction() {
   const dAppKit = useDAppKit();
   const { walletAddress } = useConnection();
   const queryClient = useQueryClient();
+  const characterId = useCharacterId();
 
   const [status, setStatus] = useState<TxStatus>("idle");
   const [result, setResult] = useState<TxResult | null>(null);
@@ -46,28 +48,30 @@ export function useTransitProofAction() {
     async (
       sourceGateId: ObjectId,
       destinationGateId: ObjectId,
-      policy: GatePolicy | null,
+      effectiveToll: number,
     ) => {
+      if (!characterId) throw new Error("Character not resolved yet \u2014 please wait");
       setStatus("pending");
       setError(null);
       setResult(null);
 
       try {
         let tx;
-        if (policy?.coinTollRule) {
+        if (effectiveToll > 0) {
           if (!walletAddress) throw new Error("Wallet not connected");
           const eveCoins = await fetchEveCoinObjects(walletAddress);
-          const selected = selectEveCoin(eveCoins, policy.coinTollRule.price);
+          const selected = selectEveCoin(eveCoins, effectiveToll);
           if (!selected) throw new Error("Insufficient EVE balance for toll");
 
           tx = buildTransitProofWithTollTx({
             sourceGateId,
             destinationGateId,
             eveCoinId: selected.coinObjectId,
-            tollPrice: policy.coinTollRule.price,
+            tollPrice: effectiveToll,
+            characterId,
           });
         } else {
-          tx = buildTransitProofFreeTx({ sourceGateId, destinationGateId });
+          tx = buildTransitProofFreeTx({ sourceGateId, destinationGateId, characterId });
         }
 
         const res = await dAppKit.signAndExecuteTransaction({ transaction: tx });
@@ -86,7 +90,7 @@ export function useTransitProofAction() {
         setStatus("error");
       }
     },
-    [dAppKit, walletAddress, queryClient],
+    [dAppKit, walletAddress, queryClient, characterId],
   );
 
   const reset = useCallback(() => {
@@ -99,12 +103,12 @@ export function useTransitProofAction() {
 }
 
 function parseTransitError(raw: string): string {
-  if (raw.includes("ETribeNotAllowed"))
-    return "Character tribe does not match the gate tribe rule — set a matching rule first.";
+  if (raw.includes("EAccessDenied"))
+    return "Character tribe is denied access by the active policy preset.";
   if (raw.includes("EInsufficientToll"))
     return "EVE payment is less than the required toll.";
-  if (raw.includes("ECoinTollNotSet"))
-    return "Cannot use toll-free path when a coin toll is configured.";
+  if (raw.includes("ETollRequired"))
+    return "A toll is required for this route but was not provided.";
   if (raw.includes("EExtensionNotAuthorized"))
     return "Both gates must have GateAuth extension authorized.";
   return raw;

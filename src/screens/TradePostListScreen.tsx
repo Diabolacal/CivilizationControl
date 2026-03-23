@@ -14,14 +14,14 @@ import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { TradePostGlyph } from "@/components/topology/Glyphs";
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
 import { useStructurePower } from "@/hooks/useStructurePower";
+import { shortId } from "@/lib/formatAddress";
+import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, SsuAuthTarget } from "@/types/domain";
 
 interface TradePostListScreenProps {
   structures: Structure[];
   isLoading: boolean;
 }
-
-const short = (id: string) => `${id.slice(0, 6)}…${id.slice(-4)}`;
 
 export function TradePostListScreen({ structures, isLoading }: TradePostListScreenProps) {
   const posts = structures.filter((s) => s.type === "storage_unit");
@@ -168,12 +168,12 @@ export function TradePostListScreen({ structures, isLoading }: TradePostListScre
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">TradePost</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Status</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Extension</th>
-                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Object ID</th>
+                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Location</th>
               </tr>
             </thead>
             <tbody>
               {posts.map((post) => (
-                <PostRow key={post.objectId} post={post} />
+                <PostRow key={post.objectId} post={post} structures={structures} />
               ))}
             </tbody>
           </table>
@@ -183,7 +183,12 @@ export function TradePostListScreen({ structures, isLoading }: TradePostListScre
   );
 }
 
-function PostRow({ post }: { post: Structure }) {
+function PostRow({ post, structures }: { post: Structure; structures: Structure[] }) {
+  const parentNode = post.networkNodeId
+    ? structures.find((s) => s.objectId === post.networkNodeId && s.type === "network_node")
+    : undefined;
+  const pin = parentNode ? getSpatialPin(parentNode.objectId) : undefined;
+
   return (
     <tr className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors">
       <td className="py-3 px-4">
@@ -211,9 +216,13 @@ function PostRow({ post }: { post: Structure }) {
         )}
       </td>
       <td className="py-3 px-4">
-        <span className="text-[11px] font-mono text-muted-foreground" title={post.objectId}>
-          {short(post.objectId)}
-        </span>
+        {pin ? (
+          <span className="text-[11px] text-muted-foreground">{pin.solarSystemName}</span>
+        ) : (
+          <span className="text-[11px] font-mono text-muted-foreground/50" title={post.objectId}>
+            {shortId(post.objectId)}
+          </span>
+        )}
       </td>
     </tr>
   );

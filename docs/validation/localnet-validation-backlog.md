@@ -67,7 +67,7 @@
 |----|-------|:---:|:---:|
 | PS-01 | Single PTB switches posture (BUSINESS ↔ DEFENSE) | YES | YES (localnet, TS scripts) |
 | PS-02 | Gate DF mutations + turret toggles compose in one tx | YES | YES (localnet) |
-| PS-03 | PostureChangedEvent + StatusChangedEvent emitted | YES | YES (localnet) |
+| PS-03 | PostureChangedEvent + ExtensionAuthorizedEvent emitted | YES | YES (localnet) |
 | PS-04 | OwnerCap borrow/return hot-potato composes for multiple turrets | YES | YES (localnet) |
 | PS-05 | Fuel/energy prerequisite chain works (efficiency → fuel → NWN online → turret online) | MEDIUM | YES (localnet) |
 | PS-06 | Turret state guards abort if already in target state | LOW | YES (source analysis) |
@@ -298,7 +298,7 @@
 **Pass criteria:**
 - `suix_queryEvents` returns events by type
 - Transaction digest query returns events with full field structure
-- `JumpEvent`, `StatusChangedEvent`, `PostureChangedEvent` all queryable
+- `JumpEvent`, `ExtensionAuthorizedEvent`, `PostureChangedEvent` all queryable
 
 **Estimated time:** 30 min (piggyback on Priority 1 or 5)
 **Impact:** MEDIUM — Signal Feed is a demo surface

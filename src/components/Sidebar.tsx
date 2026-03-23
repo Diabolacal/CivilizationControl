@@ -10,6 +10,7 @@ import { useState } from "react";
 import { Link, useLocation } from "react-router";
 import { ChevronDown, ChevronRight, Activity, Settings } from "lucide-react";
 import { StatusDot, type StatusType } from "@/components/StatusDot";
+import { getSpatialPin } from "@/lib/spatialPins";
 import {
   NetworkNodeGlyph,
   GateGlyph,
@@ -92,8 +93,8 @@ export function Sidebar({ structures = [], isConnected = false, isLoading = fals
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
   >({
-    gates: true,
-    tradeposts: true,
+    gates: false,
+    tradeposts: false,
     turrets: false,
     nodes: false,
   });
@@ -121,7 +122,7 @@ export function Sidebar({ structures = [], isConnected = false, isLoading = fals
                 className={`flex items-center gap-3 px-3 py-2 rounded-sm transition-colors border-l-2 ${
                   isActive
                     ? "bg-primary/10 text-primary font-medium border-primary"
-                    : "border-transparent text-[var(--sidebar-foreground)] hover:bg-[var(--sidebar-accent)]/50"
+                    : "border-transparent text-muted-foreground hover:bg-[var(--sidebar-accent)]/50 hover:text-[var(--sidebar-foreground)]"
                 }`}
               >
                 {item.icon}
@@ -215,7 +216,7 @@ function StructureSection({
     <div>
       <button
         onClick={onToggle}
-        className="flex items-center justify-between w-full px-3 py-1.5 hover:bg-[var(--sidebar-accent)]/50 rounded transition-colors text-[var(--sidebar-foreground)] group"
+        className="flex items-center justify-between w-full px-3 py-1.5 hover:bg-[var(--sidebar-accent)]/50 rounded transition-colors text-muted-foreground group"
       >
         <span className="flex items-center gap-2 text-xs font-medium group-hover:text-primary transition-colors">
           {icon}
@@ -229,18 +230,35 @@ function StructureSection({
       </button>
       {expanded && (
         <div className="mt-1 space-y-0.5">
-          {items.map((structure) => (
-            <Link
-              key={structure.objectId}
-              to={structurePath(structure)}
-              className="flex items-center gap-2 px-3 py-1.5 pl-6 hover:bg-[var(--sidebar-accent)]/50 rounded transition-colors"
-            >
-              <StatusDot status={structureStatus(structure)} size="sm" />
-              <span className="text-sm truncate text-muted-foreground hover:text-foreground transition-colors">
-                {structure.name}
-              </span>
-            </Link>
-          ))}
+          {items.map((structure) => {
+            const locationId = structure.type === "network_node"
+              ? structure.objectId
+              : structure.networkNodeId;
+            const pin = locationId ? getSpatialPin(locationId) : undefined;
+            return (
+              <Link
+                key={structure.objectId}
+                to={structurePath(structure)}
+                className="flex items-center gap-2 px-3 py-1.5 pl-6 hover:bg-[var(--sidebar-accent)]/50 rounded transition-colors"
+              >
+                <StatusDot status={structureStatus(structure)} size="sm" />
+                <div className="flex flex-col min-w-0">
+                  <span className="text-sm truncate text-muted-foreground hover:text-foreground transition-colors">
+                    {(() => {
+                      const m = structure.name.match(/^(.+?)\s+([0-9a-f]{8})$/);
+                      if (!m) return structure.name;
+                      return <>{m[1]} <span className="text-muted-foreground/40 font-mono text-[10px]">{m[2]}</span></>;
+                    })()}
+                  </span>
+                  {pin && (
+                    <span className="text-[10px] truncate text-muted-foreground/50">
+                      {pin.solarSystemName}
+                    </span>
+                  )}
+                </div>
+              </Link>
+            );
+          })}
           {items.length === 0 && (
             <p className="px-6 py-1.5 text-[11px] text-muted-foreground/50">
               None discovered

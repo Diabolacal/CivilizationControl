@@ -18,8 +18,8 @@
  */
 
 import { useMemo } from "react";
-import { Network, ShieldAlert, Store } from "lucide-react";
-import type { NetworkNodeGroup, SpatialPin } from "@/types/domain";
+import { Network } from "lucide-react";
+import type { NetworkNodeGroup, SpatialPin, Structure } from "@/types/domain";
 import { usePostureState } from "@/hooks/usePosture";
 import { getSolarSystemById } from "@/lib/solarSystemCatalog";
 import { solarSystemToRender, normalizeCoords } from "@/lib/coordinates";
@@ -29,11 +29,14 @@ import {
   TradePostGlyph,
   TurretGlyph,
 } from "@/components/topology/Glyphs";
+import { PostureControl } from "@/components/PostureControl";
 
 
 interface StrategicMapPanelProps {
   nodeGroups: NetworkNodeGroup[];
   pins: SpatialPin[];
+  structures: Structure[];
+  isConnected: boolean;
 }
 
 /** Place nodes in the SVG viewport. */
@@ -115,14 +118,22 @@ function childOffset(
 type Posture = "commercial" | "defensive";
 
 const MAP_WIDTH = 900;
-const MAP_HEIGHT = 360;
+const MAP_HEIGHT = 440;
 const CHILD_RADIUS = 55;
 
 export function StrategicMapPanel({
   nodeGroups,
   pins,
+  structures,
+  isConnected,
 }: StrategicMapPanelProps) {
-  const { data: onChainPosture } = usePostureState();
+  const firstGateId = useMemo(() => {
+    for (const group of nodeGroups) {
+      if (group.gates.length > 0) return group.gates[0].objectId;
+    }
+    return undefined;
+  }, [nodeGroups]);
+  const { data: onChainPosture } = usePostureState(firstGateId);
   const posture: Posture = onChainPosture === "defense" ? "defensive" : "commercial";
 
   const pinMap = useMemo(
@@ -135,10 +146,48 @@ export function StrategicMapPanel({
     [nodeGroups, pins],
   );
 
+  // Compute real gate-to-gate edge positions from linkedGateId data
+  const gateEdges = useMemo(() => {
+    // Map each gate to its rendered position based on parent node + radial offset
+    const gatePositionMap = new Map<string, { x: number; y: number }>();
+    for (const pos of positions) {
+      const orderedChildren = [
+        ...pos.group.gates,
+        ...pos.group.storageUnits,
+        ...pos.group.turrets.slice(0, pos.group.turrets.length > 3 ? 1 : pos.group.turrets.length),
+      ];
+      const total = orderedChildren.length;
+      // Gates are first in the ordering
+      for (let i = 0; i < pos.group.gates.length; i++) {
+        const { dx, dy } = childOffset(i, total, CHILD_RADIUS);
+        gatePositionMap.set(pos.group.gates[i].objectId, {
+          x: pos.x + dx,
+          y: pos.y + dy,
+        });
+      }
+    }
+
+    // Collect deduplicated edge pairs
+    const seen = new Set<string>();
+    const edges: Array<{ x1: number; y1: number; x2: number; y2: number }> = [];
+    for (const s of structures) {
+      if (s.type !== "gate" || !s.linkedGateId) continue;
+      const key = [s.objectId, s.linkedGateId].sort().join(":");
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const from = gatePositionMap.get(s.objectId);
+      const to = gatePositionMap.get(s.linkedGateId);
+      if (from && to) {
+        edges.push({ x1: from.x, y1: from.y, x2: to.x, y2: to.y });
+      }
+    }
+    return edges;
+  }, [positions, structures]);
+
   return (
     <div className="w-full bg-[var(--card)] border border-border rounded overflow-hidden flex flex-col relative">
       {/* Header */}
-      <div className="px-5 py-3.5 border-b border-border/50 flex items-center justify-between bg-muted/5 z-10 relative">
+      <div className="px-5 py-4 border-b border-border/50 flex items-center justify-between bg-muted/5 z-10 relative">
         <div className="flex items-center gap-3">
           <Network className="w-4 h-4 text-primary opacity-80" />
           <div>
@@ -146,33 +195,19 @@ export function StrategicMapPanel({
               Strategic Network
             </h2>
             <p className="text-[11px] text-muted-foreground">
-              Infrastructure Topology
+              Infrastructure Posture &amp; Topology Control
             </p>
           </div>
         </div>
-        <div className="flex items-center gap-3">
-          {/* Posture indicator (reflects on-chain state) */}
-          <div className="flex items-center border border-border rounded overflow-hidden">
-            <PostureIndicator
-              active={posture === "commercial"}
-              label="Commercial"
-              icon={<Store className="w-3 h-3" />}
-            />
-            <PostureIndicator
-              active={posture === "defensive"}
-              label="Defensive"
-              icon={<ShieldAlert className="w-3 h-3" />}
-            />
-          </div>
-          <div className="text-[11px] font-mono text-muted-foreground border-l border-border/50 pl-3">
-            {nodeGroups.length} node{nodeGroups.length !== 1 ? "s" : ""}
-          </div>
+        <div className="flex items-center">
+          {/* Posture mode selector (integrated — Figma-style chip tabs) */}
+          <PostureControl nodeGroups={nodeGroups} isConnected={isConnected} inline />
         </div>
       </div>
 
       {/* Canvas (SVG + HTML overlay) */}
       <div
-        className="relative bg-[var(--topo-background)]"
+        className="relative bg-[var(--topo-background)] pb-3"
         style={{ height: MAP_HEIGHT }}
       >
         {/* Grid background — 4% per doctrine (governance schematic, not star map) */}
@@ -187,7 +222,7 @@ export function StrategicMapPanel({
 
         {/* Defense mode overlay — always rendered, opacity-transitioned on confirmed state */}
         <div
-          className="absolute inset-0 bg-destructive/5 pointer-events-none z-[1] transition-opacity duration-[800ms] ease-in-out"
+          className="absolute inset-0 bg-destructive/3 pointer-events-none z-[1] transition-opacity duration-[800ms] ease-in-out"
           style={{ opacity: posture === "defensive" ? 1 : 0 }}
         />
 
@@ -196,29 +231,20 @@ export function StrategicMapPanel({
           className="absolute inset-0 w-full h-full"
           preserveAspectRatio="xMidYMid meet"
         >
-          {/* Link lines between spatially-positioned nodes only */}
-          {(() => {
-            const pinned = positions.filter((p) => p.pinned);
-            return pinned.length > 1
-              ? pinned.map((pos, i) => {
-                  if (i === 0) return null;
-                  const prev = pinned[i - 1];
-                  return (
-                    <line
-                      key={`link-${i}`}
-                      x1={prev.x}
-                      y1={prev.y}
-                      x2={pos.x}
-                      y2={pos.y}
-                      stroke="var(--topo-link-idle)"
-                      strokeWidth="1.5"
-                      strokeDasharray="6 4"
-                      opacity="0.35"
-                    />
-                  );
-                })
-              : null;
-          })()}
+          {/* Gate-to-gate topology edges */}
+          {gateEdges.map((edge, i) => (
+            <line
+              key={`gate-edge-${i}`}
+              x1={edge.x1}
+              y1={edge.y1}
+              x2={edge.x2}
+              y2={edge.y2}
+              stroke="var(--topo-link-healthy)"
+              strokeWidth="1.5"
+              strokeDasharray="6 4"
+              opacity="0.45"
+            />
+          ))}
 
           {/* Unassigned row separator line */}
           {positions.some((p) => p.pinned) &&
@@ -275,30 +301,6 @@ export function StrategicMapPanel({
   );
 }
 
-/** Posture indicator badge (read-only, reflects on-chain state) */
-function PostureIndicator({
-  active,
-  label,
-  icon,
-}: {
-  active: boolean;
-  label: string;
-  icon: React.ReactNode;
-}) {
-  return (
-    <div
-      className={`flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium tracking-wide transition-colors duration-[800ms] ease-in-out ${
-        active
-          ? "bg-primary/10 text-primary border-primary/20"
-          : "text-muted-foreground/40"
-      }`}
-    >
-      {icon}
-      {label}
-    </div>
-  );
-}
-
 /**
  * HTML overlay label card for a node — positioned absolutely using
  * percentage coordinates that match the SVG viewBox.
@@ -330,6 +332,13 @@ function NodeOverlayLabel({
     group.gates.length + group.storageUnits.length + group.turrets.length;
   const pin = pinMap.get(group.node.objectId);
 
+  // Split fallback names: "Network Node 9285364e" → label="Network Node" hex="9285364e"
+  const fallbackPattern = /^(.+?)\s+([0-9a-f]{8})$/;
+  const nameMatch = group.node.name.match(fallbackPattern);
+  const isFallbackName = !!nameMatch;
+  const nameLabel = nameMatch ? nameMatch[1] : group.node.name;
+  const nameHex = nameMatch ? nameMatch[2] : null;
+
   const borderColor =
     posture === "defensive"
       ? "border-amber-500/30"
@@ -349,11 +358,17 @@ function NodeOverlayLabel({
         className={`bg-background/80 backdrop-blur-sm border ${borderColor} rounded px-2.5 py-1.5 whitespace-nowrap transition-colors duration-[800ms] ease-in-out`}
       >
         <div className="text-[10px] font-semibold tracking-wide text-foreground leading-none mb-0.5">
-          {group.node.name}
+          {pin ? pin.solarSystemName : nameLabel}
+          {!pin && nameHex && (
+            <span className="text-muted-foreground/50 font-mono font-normal ml-1 text-[9px]">{nameHex}</span>
+          )}
         </div>
         {pin && (
           <div className="text-[9px] text-muted-foreground leading-none mb-0.5">
-            {pin.solarSystemName}
+            {isFallbackName ? nameLabel : group.node.name}
+            {isFallbackName && nameHex && (
+              <span className="text-muted-foreground/40 font-mono ml-1">{nameHex}</span>
+            )}
           </div>
         )}
         <div className="text-[9px] font-mono text-muted-foreground leading-none">

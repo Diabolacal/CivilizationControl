@@ -20,23 +20,28 @@ fun begin(): ts::Scenario {
     ts::begin(SELLER)
 }
 
-fun setup(scenario: &mut ts::Scenario) {
-    ts::next_tx(scenario, SELLER);
-    trade_post::init_for_testing(scenario.ctx());
-}
-
 // === Listing Creation Tests ===
 
 #[test]
 fun create_listing_sets_fields() {
     let mut scenario = begin();
-    setup(&mut scenario);
 
     ts::next_tx(&mut scenario, SELLER);
     {
-        // Verify module initialized by taking admin cap
-        let _admin_cap = ts::take_from_sender<trade_post::TradePostAdminCap>(&scenario);
-        ts::return_to_sender(&scenario, _admin_cap);
+        let listing = trade_post::create_listing_for_testing(
+            object::id_from_address(SSU_ID_ADDR),
+            42,
+            10,
+            1000,
+            scenario.ctx(),
+        );
+
+        assert!(trade_post::listing_seller(&listing) == SELLER);
+        assert!(trade_post::listing_item_type_id(&listing) == 42);
+        assert!(trade_post::listing_quantity(&listing) == 10);
+        assert!(trade_post::listing_price(&listing) == 1000);
+
+        trade_post::cancel_listing(listing, scenario.ctx());
     };
 
     scenario.end();
@@ -45,7 +50,6 @@ fun create_listing_sets_fields() {
 #[test]
 fun cancel_listing_by_seller_succeeds() {
     let mut scenario = begin();
-    setup(&mut scenario);
 
     // Simulate a listing (construct directly via test helper approach)
     ts::next_tx(&mut scenario, SELLER);
@@ -75,7 +79,6 @@ fun cancel_listing_by_seller_succeeds() {
 #[test, expected_failure(abort_code = trade_post::ENotSeller)]
 fun cancel_listing_by_non_seller_aborts() {
     let mut scenario = begin();
-    setup(&mut scenario);
 
     // Seller creates listing
     ts::next_tx(&mut scenario, SELLER);
@@ -103,7 +106,6 @@ fun cancel_listing_by_non_seller_aborts() {
 #[test, expected_failure(abort_code = trade_post::EQuantityZero)]
 fun create_listing_zero_quantity_aborts() {
     let mut scenario = begin();
-    setup(&mut scenario);
 
     ts::next_tx(&mut scenario, SELLER);
     {
@@ -123,7 +125,6 @@ fun create_listing_zero_quantity_aborts() {
 #[test, expected_failure(abort_code = trade_post::EPriceZero)]
 fun create_listing_zero_price_aborts() {
     let mut scenario = begin();
-    setup(&mut scenario);
 
     ts::next_tx(&mut scenario, SELLER);
     {
@@ -143,7 +144,6 @@ fun create_listing_zero_price_aborts() {
 #[test, expected_failure(abort_code = trade_post::EInsufficientPayment)]
 fun buy_with_insufficient_payment_aborts() {
     let mut scenario = begin();
-    setup(&mut scenario);
 
     ts::next_tx(&mut scenario, BUYER);
     {
@@ -174,7 +174,6 @@ fun buy_with_insufficient_payment_aborts() {
 #[test]
 fun buy_payment_validation_passes_with_exact_amount() {
     let mut scenario = begin();
-    setup(&mut scenario);
 
     ts::next_tx(&mut scenario, BUYER);
     {
@@ -204,7 +203,6 @@ fun buy_payment_validation_passes_with_exact_amount() {
 #[test]
 fun buy_payment_validation_passes_with_overpayment() {
     let mut scenario = begin();
-    setup(&mut scenario);
 
     ts::next_tx(&mut scenario, BUYER);
     {
@@ -234,7 +232,6 @@ fun buy_payment_validation_passes_with_overpayment() {
 #[test]
 fun view_functions_return_correct_values() {
     let mut scenario = begin();
-    setup(&mut scenario);
 
     ts::next_tx(&mut scenario, SELLER);
     {
@@ -253,20 +250,6 @@ fun view_functions_return_correct_values() {
         assert!(trade_post::listing_price(&listing) == 5000);
 
         trade_post::cancel_listing(listing, scenario.ctx());
-    };
-
-    scenario.end();
-}
-
-#[test]
-fun init_creates_admin_cap() {
-    let mut scenario = begin();
-    setup(&mut scenario);
-
-    ts::next_tx(&mut scenario, SELLER);
-    {
-        let admin_cap = ts::take_from_sender<trade_post::TradePostAdminCap>(&scenario);
-        ts::return_to_sender(&scenario, admin_cap);
     };
 
     scenario.end();

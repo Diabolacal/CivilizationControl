@@ -11,13 +11,15 @@ import { useConnection } from "@evefrontier/dapp-kit";
 import { buildBuyListingTx } from "@/lib/tradePostTx";
 import { fetchEveCoinObjects, selectEveCoin } from "@/lib/currency";
 import { useInvalidateListings } from "@/hooks/useListings";
-import { CHARACTER_ID } from "@/constants";
+import { useCharacterId } from "@/hooks/useCharacter";
+import { fetchPlayerProfile } from "@/lib/suiReader";
 import type { ObjectId, TxStatus, TxResult } from "@/types/domain";
 
 export function useBuyListing(storageUnitId: ObjectId) {
   const dAppKit = useDAppKit();
   const { walletAddress } = useConnection();
   const invalidate = useInvalidateListings();
+  const contextCharacterId = useCharacterId();
 
   const [status, setStatus] = useState<TxStatus>("idle");
   const [result, setResult] = useState<TxResult | null>(null);
@@ -36,6 +38,16 @@ export function useBuyListing(storageUnitId: ObjectId) {
       setResult(null);
 
       try {
+        // Resolve character: prefer context (operator shell), fall back to wallet discovery
+        let resolvedCharacterId = contextCharacterId;
+        if (!resolvedCharacterId) {
+          const profile = await fetchPlayerProfile(walletAddress);
+          resolvedCharacterId = profile?.characterId ?? null;
+        }
+        if (!resolvedCharacterId) {
+          throw new Error("No EVE Frontier character found for this wallet.");
+        }
+
         // Discover EVE coins in the buyer's wallet
         const eveCoins = await fetchEveCoinObjects(walletAddress);
         const selected = selectEveCoin(eveCoins, price);
@@ -45,7 +57,7 @@ export function useBuyListing(storageUnitId: ObjectId) {
 
         const tx = buildBuyListingTx(
           storageUnitId,
-          CHARACTER_ID,
+          resolvedCharacterId,
           listingId,
           price,
           walletAddress,

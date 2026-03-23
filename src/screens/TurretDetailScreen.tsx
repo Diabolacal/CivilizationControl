@@ -8,8 +8,10 @@
 import { useParams, Link } from "react-router";
 import { ArrowLeft } from "lucide-react";
 import { StructureDetailHeader } from "@/components/StructureDetailHeader";
+import { NodeContextBanner } from "@/components/NodeContextBanner";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { useStructurePower } from "@/hooks/useStructurePower";
+import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure } from "@/types/domain";
 
 interface TurretDetailScreenProps {
@@ -41,10 +43,21 @@ export function TurretDetailScreen({ structures, isLoading }: TurretDetailScreen
     );
   }
 
+  const solarSystemName = turret.networkNodeId
+    ? (() => {
+        const parentNode = structures.find(
+          (s) => s.objectId === turret.networkNodeId && s.type === "network_node",
+        );
+        const pin = parentNode ? getSpatialPin(parentNode.objectId) : undefined;
+        return pin?.solarSystemName;
+      })()
+    : undefined;
+
   return (
     <div className="space-y-6">
       <BackLink />
-      <StructureDetailHeader structure={turret} />
+      <StructureDetailHeader structure={turret} solarSystemName={solarSystemName} />
+      <NodeContextBanner structure={turret} structures={structures} />
       <PowerControlSection turret={turret} />
       <ExtensionSection turret={turret} />
     </div>
@@ -131,7 +144,7 @@ function ExtensionSection({ turret }: { turret: Structure }) {
           <p className="text-[11px] text-muted-foreground mb-1">Extension</p>
           <p className="font-mono text-foreground">
             {turret.extensionStatus === "authorized"
-              ? "BouncerAuth (CivilizationControl)"
+              ? "CC Extension Active"
               : turret.extensionStatus === "stale"
                 ? "Stale — old package"
                 : "None"}

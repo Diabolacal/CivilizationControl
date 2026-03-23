@@ -14,6 +14,7 @@ This is **not** package-level or network-wide. Each assembly is frozen individua
 Once frozen on an assembly:
 - No new extensions can be authorized
 - No extension swaps (the current extension is locked permanently)
+- No extension revocation (`revoke_extension_authorization` also blocked — v0.0.19)
 - Only the world package's internal `remove_frozen_marker_if_present` (called during unanchor/destroy) can undo it
 
 ## Why this matters for CivilizationControl

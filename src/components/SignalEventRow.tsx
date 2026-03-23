@@ -45,20 +45,20 @@ export function SignalEventRow({ signal }: { signal: SignalEvent }) {
 
   return (
     <div
-      className={`flex items-center gap-4 px-4 py-3.5 hover:bg-muted/10 transition-colors border-l-2 ${borderClass}`}
+      className={`flex items-center gap-5 px-4 py-3.5 hover:bg-muted/10 transition-colors border-l-2 ${borderClass}`}
     >
       <div className={`${cat.color} shrink-0`}>
         <Icon className="w-4 h-4" />
       </div>
-      <span className="text-[11px] font-mono text-muted-foreground w-14 shrink-0">
+      <span className="text-[11px] font-mono text-muted-foreground w-16 shrink-0">
         {formatTime(signal.timestamp)}
       </span>
       <span
-        className={`text-[10px] font-mono uppercase tracking-wider w-8 shrink-0 ${cat.color}`}
+        className={`text-[10px] font-mono uppercase tracking-wider w-12 shrink-0 ${cat.color}`}
       >
         {cat.label}
       </span>
-      <span className="text-sm font-medium text-foreground w-36 shrink-0 truncate">
+      <span className="text-sm font-medium text-foreground w-44 shrink-0 truncate">
         {signal.label}
       </span>
       <span className="text-sm text-muted-foreground truncate flex-1">

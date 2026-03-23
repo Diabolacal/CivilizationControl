@@ -70,6 +70,8 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 | [core/validation.md](core/validation.md) | **Validation procedures** — build gates, runtime expectations, proof moment validation |
 | [core/memory.md](core/memory.md) | **Working memory template** — structured sprint tracking, proof moment evidence |
 | [core/hackathon-repo-conventions.md](core/hackathon-repo-conventions.md) | **Repo conventions** — git workflow, file discipline, naming, judge legibility |
+| [core/demo-readiness-tranches.md](core/demo-readiness-tranches.md) | **Demo readiness tranches** — live capabilities, UI gaps, contract gaps, prioritized build order |
+| [core/gate-policy-v2-design.md](core/gate-policy-v2-design.md) | **Gate policy v2 design** — multi-tribe presets, posture-aware enforcement, upgrade plan |
 | [core/CARRY_FORWARD_INDEX.md](core/CARRY_FORWARD_INDEX.md) | **Carry-forward index** — definitive file list |
 
 ## Architecture
@@ -121,6 +123,7 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 | [ux/civilizationcontrol-ux-architecture-spec.md](ux/civilizationcontrol-ux-architecture-spec.md) | UX architecture — screen hierarchy, rule composer, MVP vs stretch |
 | [ux/svg-topology-layer-spec.md](ux/svg-topology-layer-spec.md) | SVG topology layer — symbol grammar, state system, color doctrine |
 | [ux/svg-asset-audit.md](ux/svg-asset-audit.md) | SVG asset audit — 19 primitives checked against spec |
+| [ux/ui-polish-reference-brief.md](ux/ui-polish-reference-brief.md) | UI polish reference — hierarchy, sizing, noise reduction rules for demo capture |
 
 ## PTB Pattern Library
 

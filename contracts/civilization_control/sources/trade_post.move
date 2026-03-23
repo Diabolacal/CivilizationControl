@@ -45,11 +45,6 @@ const EPriceZero: vector<u8> = b"Listing price must be greater than zero";
 
 // === Structs ===
 
-/// Admin capability for TradePost configuration. Created during `init`.
-public struct TradePostAdminCap has key, store {
-    id: UID,
-}
-
 /// Typed witness for SSU extension registration.
 /// Only this package can instantiate it via `trade_auth()`.
 public struct TradeAuth has drop {}
@@ -94,13 +89,6 @@ public struct ListingCancelledEvent has copy, drop {
     listing_id: ID,
     seller: address,
     item_type_id: u64,
-}
-
-// === Init ===
-
-fun init(ctx: &mut TxContext) {
-    let admin_cap = TradePostAdminCap { id: object::new(ctx) };
-    transfer::transfer(admin_cap, ctx.sender());
 }
 
 // === Package-internal witness mint ===
@@ -275,11 +263,6 @@ public fun listing_price(listing: &Listing): u64 {
 }
 
 // === Test Helpers ===
-
-#[test_only]
-public fun init_for_testing(ctx: &mut TxContext) {
-    init(ctx);
-}
 
 /// Create a listing without a real StorageUnit reference.
 /// Allows unit testing listing lifecycle and validation independently

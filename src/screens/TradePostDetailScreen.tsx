@@ -8,10 +8,12 @@
  */
 
 import { useParams, Link } from "react-router";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Check, Copy } from "lucide-react";
+import { useCallback, useState } from "react";
 import { useConnection } from "@evefrontier/dapp-kit";
 import { useQueryClient } from "@tanstack/react-query";
 import { StructureDetailHeader } from "@/components/StructureDetailHeader";
+import { NodeContextBanner } from "@/components/NodeContextBanner";
 import { ListingCard } from "@/components/ListingCard";
 import { CreateListingForm } from "@/components/CreateListingForm";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
@@ -23,6 +25,7 @@ import { useCreateListing } from "@/hooks/useCreateListing";
 import { useCancelListing } from "@/hooks/useCancelListing";
 import { useSsuInventory } from "@/hooks/useSsuInventory";
 import { useStructurePower } from "@/hooks/useStructurePower";
+import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure } from "@/types/domain";
 
 interface TradePostDetailScreenProps {
@@ -54,10 +57,22 @@ export function TradePostDetailScreen({ structures, isLoading }: TradePostDetail
     );
   }
 
+  const solarSystemName = post.networkNodeId
+    ? (() => {
+        const parentNode = structures.find(
+          (s) => s.objectId === post.networkNodeId && s.type === "network_node",
+        );
+        const pin = parentNode ? getSpatialPin(parentNode.objectId) : undefined;
+        return pin?.solarSystemName;
+      })()
+    : undefined;
+
   return (
     <div className="space-y-6">
       <BackLink />
-      <StructureDetailHeader structure={post} />
+      <StructureDetailHeader structure={post} solarSystemName={solarSystemName} />
+      <NodeContextBanner structure={post} structures={structures} />
+      <InGameDAppUrlSection post={post} />
       <PowerControlSection post={post} />
       <MarketplaceSection post={post} />
       <ExtensionSection post={post} />
@@ -251,6 +266,45 @@ function MarketplaceSection({ post }: { post: Structure }) {
         )}
       </section>
     </div>
+  );
+}
+
+function InGameDAppUrlSection({ post }: { post: Structure }) {
+  const [copied, setCopied] = useState(false);
+  const dappUrl = `${window.location.origin}/ssu/${post.objectId}`;
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(dappUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [dappUrl]);
+
+  return (
+    <section className="border border-border rounded p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">In-Game DApp URL</h2>
+        <p className="text-[11px] font-mono text-muted-foreground">Operator Setup</p>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Paste this into the SSU's custom DApp URL field in-game. Players who interact with this commerce post will see the marketplace.
+      </p>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 rounded border border-border bg-background px-3 py-2 font-mono text-[11px] text-foreground truncate select-all" title={dappUrl}>
+          {dappUrl}
+        </div>
+        <button
+          onClick={handleCopy}
+          className="shrink-0 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+        >
+          {copied ? (
+            <span className="inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Copied</span>
+          ) : (
+            <span className="inline-flex items-center gap-1"><Copy className="w-3.5 h-3.5" /> Copy</span>
+          )}
+        </button>
+      </div>
+    </section>
   );
 }
 

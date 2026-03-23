@@ -4,6 +4,499 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-03-23 – UI: Command Overview polish pass (hierarchy + 1440p fit)
+- Goal: Calm the Command Overview page — improve hierarchy, reduce visual noise, ensure no page scrollbar at 1440p demo capture.
+- Files: Dashboard.tsx, Sidebar.tsx, App.tsx, StrategicMapPanel.tsx, theme.css + new docs/ux/ui-polish-reference-brief.md
+- Diff: ~30 LoC changed across 5 source files, 1 new doc
+- Risk: low (layout/styling only, no logic or contract changes)
+- Changes: (A) sidebar sections collapsed by default, (B) main padding reduced py-8→py-6 + narrower gaps, (C) telemetry preview capped at 6 items with .slice(), (D) attention alerts compacted to single-line rows + reduced empty-state padding, (E) topology canvas 360→400px, (F) grid opacity halved 0.04→0.02 + background darkened + defensive overlay reduced 5%→3%
+- Gates: typecheck ✅ build ✅
+- Follow-ups: Apply similar polish to Gate Detail, TradePost Detail, and Signal Feed screens in future passes.
+
+## 2026-03-23 – Docs: Demo evidence framing correction (beat-sheet-driven sync)
+- Goal: Align all demo/rehearsal docs to two corrected truths established in the beat sheet: (1) hostile denial is NOT observable in the operator's Signal Feed — evidence must be post-prod inset from hostile wallet, (2) turret engagement is NOT dashboard telemetry — evidence is world footage, CC proves doctrine via ExtensionAuthorizedEvent only.
+- Principle: CC claims command over infrastructure, not omniscient visibility. Two honest framing techniques: post-prod inset (Beat 4) and world footage (Beat 6).
+- Files: civilizationcontrol-demo-beat-sheet.md, civilizationcontrol-claim-proof-matrix.md, demo-readiness-tranches.md, operator-validation-checklist.md, demo-evidence-appendix.md, localnet-validation-backlog.md
+- Diff: ~50 lines changed across 6 files (targeted wording fixes, no structural changes)
+- Risk: low (documentation only, no code or contract changes)
+- Gates: N/A (documentation)
+- Follow-ups: Canonical beat sheet (`docs/core/civilizationcontrol-demo-beat-sheet.md`) is source of truth for all demo framing decisions.
+
+---
+
+## 2026-03-23 – Fix: Posture DF read uses wrong package ID (type-origin bug)
+- Goal: Posture switch tx succeeds on-chain (DFs show mode=1 DEFENSE) but UI always displays "Commercial / Bouncer" — `fetchPosture` silently returns the default. Third instance of the type-origin class of bug.
+- Root cause: `fetchPosture` in suiReader.ts queried `getDynamicFieldObject` with type `{CC_PACKAGE_ID}::posture::PostureKey` (v4). On-chain, `PostureKey` was first defined in v1, so its type origin is `{CC_ORIGINAL_PACKAGE_ID}::posture::PostureKey`. The v4-addressed query never matches, catch block returns `"commercial"` always.
+- Fix: Changed DF key type from `CC_PACKAGE_ID` to `CC_ORIGINAL_PACKAGE_ID` on line 531 of suiReader.ts. Also updated blocker label in useOperatorReadiness.ts and improved comment in constants.ts.
+- Files: suiReader.ts, useOperatorReadiness.ts, constants.ts
+- Diff: +8 / −4
+- Risk: low (frontend read-path only, no contract changes)
+- Gates: typecheck ✅ build ✅
+- Follow-ups: Live validation — switch posture, confirm UI reflects "Defense" immediately after tx. Turret rows should show "Defense" label.
+
+---
+
+## 2026-03-23 – Fix: Turret stale-detection type-origin mismatch
+- Goal: After successful turret rebind, turrets still showed "STALE — REBIND" and posture switching remained blocked. Root cause: `resolveExtensionAuth` whitelist checked prefix against `CC_ORIGINAL_PACKAGE_ID` (v1, `0xf2f1e8ea...`) and `CC_PACKAGE_ID` (v4, `0xeffb45b2...`), but `turret::CommercialAuth` and `turret::DefenseAuth` were first defined in v3 (`0xb3fd08b7...`). On Sui, type origins anchor to the version where a type was first introduced — not the original package or latest upgrade. So the on-chain TypeName after rebind was `b3fd08b7...::turret::CommercialAuth`, matching neither prefix.
+- Fix: Switched `resolveExtensionAuth` from prefix+suffix matching to suffix-only matching (`.endsWith()`). Suffix matching is safe because only our package can mint auth witnesses to register them as extensions. Also updated stale blocker label from legacy "BouncerAuth" to "CC doctrine".
+- Files: suiReader.ts, useOperatorReadiness.ts
+- Diff: +6 / −8
+- Risk: low (frontend read-path logic only, no contract changes)
+- Gates: typecheck ✅ build ✅
+- Follow-ups: Live validation — rebind turrets, confirm "CC ACTIVE" appears immediately, confirm posture switch is unblocked.
+
+---
+
+## 2026-03-23 – Fix: Idempotent posture switch + v4 contract upgrade
+- Goal: Posture switch failed with `EAlreadyInPosture` when any gate was already in the target posture. The PTB builder sends `set_posture` for ALL gates without filtering; if even one was already at the target, the entire transaction aborted.
+- Fix: Made `set_posture` idempotent — replaced `assert!(old != mode, EAlreadyInPosture)` with early return `if (old == mode) return;`. Also added early return for first-time commercial (default, no-op). Removed `EAlreadyInPosture` error constant. Removed stale error handling from frontend `parseMoveAbort`.
+- Files: posture.move, usePosture.ts, constants.ts, Published.toml
+- Artifacts: CC_PACKAGE_ID v4 → `0xeffb45b2b2e5419e05fc863ff25d2a593d55edb6e9e68c7e10ecef07c0b6aaed`, tx=`3sr3pVcA2Yi7x78THP69PHTAmtYNM3fqUQaaabLDzizm`
+- Diff: +7 / −9
+- Risk: medium (Move contract logic change, minimal surface)
+- Gates: Move build ✅ Move test ✅ (26/26) typecheck ✅ build ✅
+- Deploy: https://feature-ui-polish-sdp8.civilizationcontrol.pages.dev
+- Follow-ups: Live validation — switch posture back and forth on both operator wallets, confirm no abort.
+
+---
+
+## 2026-03-22 – Fix: Turret stale-detection + rebind UX
+- Goal: Turrets were not showing as stale/unbound after v3 upgrade — operator had no signal to rebind doctrine. Stale detection used blacklist approach that could miss edge cases; authorize button was conditional and not prominent enough; authorization always hardcoded CommercialAuth ignoring current posture.
+- Fix: (1) Switched `resolveExtensionAuth` to whitelist approach — only exact `::turret::CommercialAuth`, `::turret::DefenseAuth`, `::gate_control::GateAuth` return "authorized"; all other extensions return "stale". (2) Added prominent amber "Turret Doctrine Rebind Required" banner with inline "Rebind Doctrine (N)" button when any turret is unbound/stale. (3) Made `authorizeTurrets` posture-aware — uses `DefenseAuth` in defense mode, `CommercialAuth` in commercial. (4) Updated per-row tags: "CC ACTIVE" / "STALE — REBIND" / "UNBOUND".
+- Files: suiReader.ts, useAuthorizeExtension.ts, TurretListScreen.tsx
+- Diff: ~30 changed
+- Risk: medium (frontend-only, no contract changes)
+- Gates: typecheck ✅ build ✅
+- Follow-ups: Live validation — confirm rebind banner appears, rebind succeeds, turrets show CC ACTIVE after.
+
+---
+
+## 2026-03-23 – Fix: Turret module name mismatch + v3 upgrade
+- Goal: Fix root cause of turrets ignoring CC doctrine. Game engine hardcodes `moduleName = "turret"` when resolving extensions (see `vendor/world-contracts/ts-scripts/turret/get-priority-list.ts:109`). CC's modules were named `turret_bouncer` / `turret_defense` — the game could never find them. Turrets were using the game's default targeting (shoot non-tribe), not CC code.
+- Fix: Created a unified `turret.move` module (correct name for engine resolution) with `CommercialAuth` / `DefenseAuth` auth witnesses and dual-mode dispatch. Reads stored TypeName to determine doctrine. Upgraded to v3 on Utopia.
+- Operator action required: Re-authorize all turrets via "Authorize All" (or posture switch) in the CC app. Old `turret_bouncer::BouncerAuth` TypeNames are now detected as "stale" to prompt this.
+- Files: turret.move (new), postureSwitchTx.ts, useAuthorizeExtension.ts, suiReader.ts, eventParser.ts, constants.ts, Published.toml
+- Artifacts: CC_PACKAGE_ID v3 → `0xb3fd08b7b3a1d2d964c6fc0952955f0ad7a796a6bb174a934522a818a0cc93e7`, tx=`2HuJmaTRXg5y5hNCEQpH4YyEkPu5HV862ap2HBySdQqH`
+- Diff: ~170 added, ~20 removed
+- Risk: high (Move contract + publish + frontend PTB changes)
+- Gates: Move build ✅ Move test ✅ (26/26) typecheck ✅
+- Follow-ups: Live validation — re-authorize turrets, fly neutral outsider to gate, confirm not targeted in commercial mode.
+
+---
+
+## 2026-03-23 – TurretResponseEvent + Contract v2 Upgrade
+- Goal: Add a CC-specific `TurretResponseEvent` (turret_id, doctrine, candidate/engaged/aggressor counts, top_target_id) emitted when turrets engage targets. Upgrade contract once on Utopia (doctrine fix + event in single publish).
+- Design: Created shared `turret_events.move` module with `public(package)` emitter. Both `turret_bouncer.move` and `turret_defense.move` emit conditionally (only when engaged > 0). Frontend parser wired with doctrine-aware descriptions.
+- Persistence caveat: Game engine calls `get_target_priority_list` via devInspect (read-only) — events emitted during devInspect are NOT persisted on-chain. Event is structurally correct but won't appear in `queryEvents` under current game engine architecture. Added anyway for testing/future-proofing.
+- Publish: Upgrade via `sui client upgrade` — preserves all configs (GateConfig, extension auth, presets, treasury). No re-authorization needed.
+- Files: turret_events.move (new), turret_bouncer.move, turret_defense.move, eventParser.ts, constants.ts, Published.toml
+- Artifacts: CC_PACKAGE_ID → `0x009419a8ba36423a20ba983f0efe3aae6cdf251a10be98820761ada9e962b62e`, CC_ORIGINAL_PACKAGE_ID unchanged, version=2, tx=`DdyEoGPt5WFAHfvGF7KJhqHqnWGd96yoWRqo9XbMcBm9`
+- Diff: ~80 added, ~10 removed
+- Risk: high (Move contract + publish)
+- Gates: Move build ✅ Move test ✅ (26/26) typecheck ✅
+
+---
+
+## 2026-03-23 – Turret Doctrine Correction: Bouncer → Passive Until Aggression
+- Goal: Correct turret_bouncer.move (BouncerAuth) from active non-tribe targeting (+1000) to passive-until-aggression (exclude all non-aggressors). CC's commercial posture should welcome neutral visitors, not shoot them.
+- Root cause: Prior implementation mirrored the world-contracts default turret behavior (target non-tribe at low priority). The world default is a generic tribe-perimeter, but CC's product intent is a commerce-friendly zone where only aggressors are engaged.
+- Change: turret_bouncer.move now excludes ALL non-aggressors (regardless of tribe). Only aggressors are targeted at +10000. Removed NON_TRIBE_BOOST constant. turret_defense.move unchanged behaviorally (dead-code branch removed, doc comments updated).
+- Files: contracts/civilization_control/sources/turret_bouncer.move, contracts/civilization_control/sources/turret_defense.move, src/components/PostureControl.tsx, src/lib/eventParser.ts, 8+ docs
+- Diff: ~15 added, ~20 removed code; ~40 added, ~40 removed docs
+- Risk: high (Move contract behavior change — requires republish)
+- Gates: Move build ✅ Move test ✅ (26/26) typecheck ✅ build ✅
+- Follow-ups: Republish contract on Utopia. Live validation: verify empty return list (no aggressors in range) doesn't cause game engine issues. Fallback: turrets offline in commercial if passive mode fails.
+
+---
+
+## 2026-03-22 – Fix: Signal Feed Scope Leak + Turret Doctrine Semantics + Missing Turret Signal
+- Goal: Fix three issues from real second-operator testing: (A) Signal Feed showed events from another operator's infrastructure, (B) Turret "Bouncer" mode unexpectedly engaged a non-tribe visitor, (C) No turret engagement signal appeared in CC.
+- Root causes:
+  - (A) `fetchRecentEvents()` used `MoveModule` filter returning ALL events globally — zero ownership scoping.
+  - (B) Both BouncerAuth and DefenseAuth target non-tribe visitors in range. "Bouncer" = tribe bouncer (let friendlies through, target strangers at +1000 priority). This is correct behavior per design.
+  - (C) No on-chain "turret fired/engaged" event exists. The game engine calls `get_target_priority_list` via devInspect (read-only) — events emitted during devInspect are not persisted to the chain event store.
+- Fix (A): Added `ownedObjectIds` + `walletAddress` params to `useSignalFeed`. Events are client-side filtered: keep only events where `relatedObjectId ∈ ownedIds` OR `sender === walletAddress`. Also fixed missing `relatedIdField` on `TREASURY_SET` and `POSTURE_CHANGED`, and changed trade event `relatedIdField` from `listing_id` to `storage_unit_id` (structure ID).
+- Fix (B): Behavior is correct per spec — no code change needed. Labels remain canonical "Bouncer" per product docs.
+- Fix (C): No code fix needed — the event doesn't exist on-chain. Updated claim-proof-matrix, demo-beat-sheet, and operator-validation-checklist to reflect reality. Downgraded turret engagement from "provable via Signal Feed" to "observable in game client only."
+- Files: src/hooks/useSignalFeed.ts, src/lib/eventParser.ts, src/types/domain.ts, src/screens/ActivityFeedScreen.tsx, src/screens/Dashboard.tsx, docs/decision-log.md, docs/core/civilizationcontrol-claim-proof-matrix.md, docs/core/civilizationcontrol-demo-beat-sheet.md, docs/operations/operator-validation-checklist.md
+- Diff: ~80 added, ~60 removed code; ~40 added, ~30 removed docs
+- Risk: medium
+- Gates: typecheck ✅ build ✅
+- Follow-ups: None. Turret targeting events remain in the parser for completeness but are expected to never appear in practice.
+
+---
+
+## 2026-03-22 – Fix: Multi-Operator Action Path (Hardcoded CHARACTER_ID)
+- Goal: Fix critical bug where second-operator actions failed with ESenderCannotAccessCharacter because all PTB builders used a hardcoded CHARACTER_ID constant (first operator's character) instead of dynamically resolving the connected wallet's character.
+- Root cause: Read path (structure discovery) correctly resolved character per wallet via fetchPlayerProfile(walletAddress). Write path (all admin mutations) imported a static CHARACTER_ID from constants.ts, causing borrow_owner_cap to fail when sender ≠ character owner.
+- Files: src/hooks/useCharacter.ts (new), src/App.tsx, src/lib/gatePolicyTx.ts, src/lib/postureSwitchTx.ts, src/lib/transitProofTx.ts, src/lib/structurePowerTx.ts, src/hooks/useAuthorizeExtension.ts, src/hooks/useGatePolicyMutation.ts, src/hooks/usePosture.ts, src/hooks/useTransitProof.ts, src/hooks/useStructurePower.ts, src/hooks/useBuyListing.ts
+- Diff: ~80 added, ~60 removed across 12 files (1 new)
+- Risk: high (all operator action paths)
+- Gates: typecheck ✅ build ✅
+- Operator-visible change: Character is now resolved dynamically per wallet. No configuration needed — any Utopia player with structures can operate them. CHARACTER_ID constant retained only for AuthHarness debug display.
+- Follow-ups: None — inherently wallet-scoped via TanStack Query cache keyed on walletAddress.
+
+---
+
+## 2026-03-24 – Demo Closure: SSU Marketplace Page + Turret Event Capture
+- Goal: Close demo gaps — player-facing SSU marketplace page, turret doctrine change events in Signal Feed, in-game DApp URL for SSUs, demo doc alignment
+- Files: src/screens/SsuMarketplacePage.tsx (new), src/hooks/useResolveSsuId.ts (new), src/App.tsx, src/screens/TradePostDetailScreen.tsx, src/lib/eventParser.ts, src/lib/suiReader.ts, docs/core/civilizationcontrol-demo-beat-sheet.md, docs/core/civilizationcontrol-claim-proof-matrix.md
+- Diff: +372/-21 across 8 files (2 new)
+- Risk: low
+- Gates: typecheck ✅ build ✅
+- Follow-ups: Capture Utopia testnet tx digests for claim-proof matrix [TBD-digest] entries
+
+---
+
+## 2026-03-22 – Batch Preset Deployment Workflow
+- Goal: Enable "author once, apply to many gates" for policy presets
+- Files: src/lib/gatePolicyTx.ts, src/hooks/useGatePolicyMutation.ts, src/components/PolicyPresetEditor.tsx, src/screens/GateDetailScreen.tsx, src/types/domain.ts
+- Diff: ~180 added LoC across 5 files
+- Risk: medium
+- Gates: typecheck ✅ build ✅
+- Follow-ups: None — completes Gate Policy v2 operator workflow
+
+---
+
+## 2026-03-23 – Authority Model Refactor: AdminCap → OwnerCap<Gate>
+- Goal: Replace centralized AdminCap (package-deployer-owned singleton) with decentralized OwnerCap<Gate> (per-structure, operator-owned) authority model. Any player who owns a gate now manages it — no admin-cap transfer needed.
+- Files: **Contracts** — `config.move`, `gate_control.move`, `posture.move`, `trade_post.move`, `gate_control_tests.move`, `trade_post_tests.move`. **Frontend** — `constants.ts`, `gatePolicyTx.ts`, `postureSwitchTx.ts`, `suiReader.ts`, `usePosture.ts`, `useGatePolicyMutation.ts`, `useGatePermit.ts`, `useOperatorReadiness.ts`, `PostureControl.tsx`, `GateDetailScreen.tsx`, `GateListScreen.tsx`, `TurretListScreen.tsx`, `StrategicMapPanel.tsx`, `domain.ts`. **Deleted** — `useAdminCapOwner.ts`.
+- Diff: ~600 LoC across 20 files (1 deleted)
+- Risk: high (core authority model + Move contracts + full frontend data layer)
+- Gates: typecheck ✅ build ✅ move build ✅ move test ✅ (26/26 pass, incl. 3 wrong-owner + 1 multi-operator isolation test)
+- Key changes: (1) AdminCap struct removed from config.move, (2) all gate_control + posture admin fns take &OwnerCap<Gate> + assert access::is_authorized(), (3) treasury and posture are now per-gate (keyed by gate_id), (4) TradePostAdminCap removed, (5) frontend uses borrow/return OwnerCap<Gate> PTB pattern (same as extension auth), (6) AdminCap mismatch blocker UI removed, (7) useAdminCapOwner hook deleted.
+- Follow-ups: Fresh publish required (breaking contract changes). Update CC_PACKAGE_ID + CC_ORIGINAL_PACKAGE_ID + GATE_CONFIG_ID after publish.
+
+---
+
+## 2026-03-22 – AdminCap Ownership Blocker Fix
+- Goal: Diagnose and fix "AdminCap owned by a different wallet" blocker in Gate Directive UI
+- Files: `src/screens/GateDetailScreen.tsx`
+- Diff: ~20 LoC replaced (mismatch block made actionable)
+- Risk: low (UI copy/layout only, no logic change to ownership check)
+- Gates: typecheck ✅ build ✅
+- Root cause: AdminCap is owned by the CLI publish wallet (`0xacff13b…54b1`), but the browser connects via EVE Vault (different wallet address). This is expected cross-wallet behavior, not a bug — the operator uses two different wallets (Sui CLI vs EVE Vault) without realizing they have different addresses.
+- Fix: Replaced opaque error with diagnostic panel showing both addresses (AdminCap owner + connected wallet), a copyable `sui client transfer` CLI command, and a "Retry ownership check" button. The safety check is preserved — only the UX of the mismatch state was improved.
+- Post-publish operator step: After `sui client publish`, run `sui client transfer --to <EVE_VAULT_ADDRESS> --object-id <ADMIN_CAP_ID>` to move the AdminCap to the browser wallet.
+- Follow-ups: None — this is a one-time post-publish step.
+
+---
+
+## 2026-03-22 – Gate Policy v2a Implementation Tranche
+- Goal: Implement full v2a preset-based gate policy model end-to-end (contract → frontend → deploy)
+- Files: `contracts/civilization_control/sources/config.move` (new), `gate_control.move` (rewrite), `posture.move` (import fix), `tests/gate_control_tests.move` (rewrite), `src/lib/suiReader.ts`, `src/lib/gatePolicyTx.ts`, `src/lib/eventParser.ts`, `src/lib/policyResolver.ts` (new), `src/hooks/useGatePolicy.ts`, `src/hooks/useGatePolicyMutation.ts`, `src/hooks/useGatePermit.ts`, `src/hooks/useTransitProof.ts`, `src/types/domain.ts`, `src/components/PolicyPresetEditor.tsx` (new), `src/components/TreasuryEditor.tsx` (new), `src/screens/GateDetailScreen.tsx`, `src/screens/GatePermitPage.tsx`, `src/constants.ts`
+- Diff: ~1200 LoC added/replaced across 18 files, 2 v1 components deleted
+- Risk: high (core Move contract + frontend data layer + UI)
+- Gates: typecheck ✅ build ✅ move build ✅ move test ✅ (24 tests pass)
+- Key decisions:
+  - Extracted `config.move` module (GateConfig, AdminCap) to break circular gate_control↔posture dependency
+  - Fresh publish (not upgrade) due to structural module changes; new package ID `0x53cc62c6...`
+  - Global treasury on GateConfig (not per-gate) — simpler PTB, single address for all toll payouts
+  - Max 20 entries per preset enforced on-chain
+  - PolicyPresetEditor component replaces TribeRuleEditor + CoinTollEditor with posture-tabbed preset composer
+- Artifacts:
+  - PackageID: `0x53cc62c6ca8bcb741400aa9ba80f4d43e79002a59ce3f4869034dfb4fd2ce63d`
+  - GateConfig: `0x9e40aba6a8313784dc5756fb826b425ce825cc928b156519bffb71cc43e784b1`
+  - AdminCap: `0xdf1938869b21796e750014bf1007f6ae74f5aefbcb0b598ffbcb0b1c96de38e0`
+  - Tx Digest: `924M2zmLY6db3siKBEfPpWr7h6zqgqxQwdf2cEFnghn5`
+- Follow-ups: Cloudflare Pages preview deploy, demo smoke test, v2b (subscriptions) deferred
+
+---
+
+## 2026-03-22 – Submodule Refresh (world-contracts v0.0.19→v0.0.21, builder-docs)
+- Goal: Sync vendor submodules to latest upstream; audit jump permit improvements and package ID changes for Gate Policy v2 impact
+- Files: `vendor/*` (submodule pointers), `docs/decision-log.md`, `docs/core/gate-policy-v2-design.md`, `docs/core/demo-readiness-tranches.md`
+- Diff: submodule pointer updates + ~30 LoC doc addenda
+- Risk: low (documentation and submodule pointers only, no code changes)
+- Gates: N/A (no code changes)
+- Submodule changes:
+  - **world-contracts:** `0642c7b` (v0.0.19) → `f761a7f` (v0.0.21). Two commits: `feat(gate): jump permit improvements (#140)` (v0.0.20) + `build: add the upgraded package ids (#141)` (v0.0.21). World package upgraded v1→v2 on Utopia (`published-at` = `0x07e6b8...`, `original-id` = `0xd12a70...` unchanged).
+  - **builder-documentation:** `07364c4` → `1f73170`. 11 commits. New pages: `tools/world-upgrades.md` (upgrade sync guide), `tools/resources.md` (canonical package IDs). EveVault image updates.
+  - **builder-scaffold:** `8072eac` → `ebc321a`. 1 commit. ZkLogin + dapp dependency bumps.
+  - **evevault:** `8f184c5` → `3a6e63c`. 6 commits. Wallet request queue, auth improvements, sponsored tx handler, v0.0.6 tag.
+- Key findings:
+  - **`gate::issue_jump_permit_with_id<Auth>()`** — new function returns permit `ID` + emits `JumpPermitIssuedEvent`. CC v2a should use this.
+  - **`JumpPermitIssuedEvent`** — new event with full permit metadata (jump_permit_id, route_hash, extension_type, expiry). Available for signal feed in v2a.
+  - **`gate::issue_jump_permit()`** — unchanged signature, refactored to internal helper. Current CC on-chain contract unaffected.
+  - **`assert_gate_extension_matches<Auth>()`** — new internal helper. No external API change.
+  - **`assert_jump_permit_extension_authorization<Auth>()`** — new internal helper for both-gate validation. Cleaner code, same behavior.
+  - **No breaking changes** to current CC gate permit flow. CC v1 compiled against world v1 remains functional.
+  - **EVE assets package unchanged** (still v1, `0xf0446b...`).
+  - **Treasury semantics clarified** in design doc — global treasury = operator-controlled payout address, direct transfer, no escrow.
+- Follow-ups: None blocking. v2a contract implementation can proceed with `issue_jump_permit_with_id`.
+
+---
+
+## 2026-03-22 – Gate Policy v2 Design Confirmed
+- Goal: Finalize gate-policy-v2 contract design with all operator decisions confirmed; capture "author once, apply to many gates" UX requirement
+- Files: `docs/core/gate-policy-v2-design.md` (EDIT), `docs/core/demo-readiness-tranches.md` (EDIT), `docs/decision-log.md` (EDIT)
+- Diff: ~60 LoC edited
+- Risk: low (documentation only, no code changes)
+- Gates: N/A (no code changes)
+- Decisions (all 6 open questions resolved):
+  - **v2a/v2b split confirmed.** v2a = policy richness + posture presets (demo-critical). v2b = subscription permits (deferred).
+  - **Abort on missing preset confirmed.** If no `PolicyPreset` DF exists for active mode + gate, `request_jump_permit` aborts. Frontend validates preset completeness.
+  - **Fresh publish confirmed.** No deprecated stubs. Clean package with re-authorization.
+  - **One global treasury** on `GateConfig` (sufficient for demo). Not per-preset.
+  - **Cap at 20 entries** per preset (gas safety, enforced on-chain).
+  - **Fixed 2 posture modes** (Commercial / Defensive) for demo.
+  - **Author-once workflow (NEW).** Operator authors a policy template in UI, selects target gates, frontend generates a single PTB with N × `set_policy_preset` calls. On-chain: per-gate storage. UX: batch deploy.
+- Follow-ups: Contract implementation (v2a) can begin. Defense Mode visual tranche can proceed in parallel.
+
+---
+
+## 2026-03-22 – Demo Readiness Audit + Gate Policy v2 Design Kickoff
+- Goal: Systematic audit of map, signal feed, posture, gate policy, and attention markers to establish demo truth; design richer gate policy contract to close the biggest product-model gap
+- Files: `docs/core/demo-readiness-tranches.md` (NEW), `docs/core/gate-policy-v2-design.md` (NEW), `docs/README.md` (EDIT), `docs/decision-log.md` (EDIT)
+- Diff: +380 LoC added
+- Risk: low (documentation and design only, no code changes)
+- Gates: N/A (no code changes)
+- Decisions:
+  - **Gate policy richness is the primary contract gap.** Current model (1 tribe + 1 flat toll per gate) cannot express the operator's intended commercial or defensive policy scenarios. Next major tranche is contract-design / contract-upgrade before more UI polish.
+  - **v2a/v2b scope split proposed.** v2a = policy richness + posture presets (demo-critical). v2b = subscription permits (deferred).
+  - **Recommended data model: vector-in-preset.** `PolicyPresetKey { gate_id, mode }` → `PolicyPreset { entries, default_access, default_toll, treasury }`. Posture switch flips active mode; permit issuance reads dynamically. No batch gate rewrite in PTB.
+  - **Fresh publish likely required.** Old DF types (`TribeRuleKey`, `CoinTollKey`) replaced; maintaining stubs is messier than fresh publish + re-authorization.
+  - **Defense Mode visual tranche (UI) can proceed in parallel** with contract design — ~20 lines to make gate glyphs + link colors respond to posture.
+- Follow-ups: Operator confirmation on 6 open questions in gate-policy-v2-design.md before contract implementation begins.
+
+---
+
+## 2026-03-21 – Gate Detail: In-Game DApp URL + Probe Cleanup
+- Goal: Expose copyable per-gate in-game URL on gate detail page; remove abandoned probe/debug pages
+- Files: `src/screens/GateDetailScreen.tsx` (EDIT), `src/main.tsx` (EDIT), `src/screens/ProbePage.tsx` (DELETE), `src/screens/DeepProbePage.tsx` (DELETE), `src/screens/BridgeProbePage.tsx` (DELETE), `src/screens/bridge-probe/` (DELETE)
+- Diff: +40 LoC added, ~1540 LoC removed
+- Risk: low (UI addition + dead code removal, no contract changes)
+- Gates: typecheck ✅ build ✅
+- Decisions:
+  - **Bridge-context path abandoned** for hackathon purposes. Source audit confirmed all 5 bridge globals (`eveFrontierRpcRequest`, `_eveFrontierRpcRequest`, `callWallet`, `ccpPython`, `__pythonCall`) are undocumented game-client internals with zero source/docs/types in any vendor repo.
+  - **Operator setup model:** Gate detail page now shows an "In-Game DApp URL" section with a one-click copy button. URL format: `https://<origin>/gate/<gateObjectId>`. Operator pastes this into the gate's custom DApp URL field in-game.
+  - **Probe routes removed:** `/probe`, `/probe/deep`, `/probe/bridge` deleted from app surface. Probe code was diagnostic-only with no reuse value.
+- Follow-ups: None required for hackathon scope.
+
+---
+
+## 2026-03-22 – Bridge Probe: In-Game CEF Bridge Discovery
+- Goal: Probe undocumented in-game browser globals to determine if assembly context can be discovered without URL-embedded object IDs
+- Files: `src/screens/BridgeProbePage.tsx` (NEW), `src/main.tsx` (EDIT)
+- Diff: +320 LoC added, ~2 LoC edited
+- Risk: low (read-only probe page, no contract changes, code-split standalone)
+- Gates: typecheck ✅ build ✅ deploy ✅
+- Decisions:
+  - **Discovery from /probe/deep:** Game client injects 5 undocumented globals: `eveFrontierRpcRequest`, `_eveFrontierRpcRequest`, `callWallet`, `ccpPython`, `__pythonCall`. URL query params are NOT appended to custom dApp URLs.
+  - **Previous audit invalidated:** 2026-03-21 audit concluded "no JS globals injected" — this is now proven wrong. Bridge functions exist but remain undocumented in vendor code and builder docs.
+  - **Wallet Standard confirmed in-game:** Game registers "EVE Frontier Client Wallet" via standard CustomEvent protocol. Wallet identity IS available.
+  - **ccpPython most promising for assembly context:** Follows CCP's EVE Online CCPEVE pattern (Python bridge exposing session.characterId, solarSystemId, etc.).
+  - **Zero references in workspace:** None of these globals appear anywhere in vendor/world-contracts, @evefrontier/dapp-kit, or builder-documentation.
+- Follow-ups: Run bridge probe in-game to test actual responses. If context found, update `/gate` to use bridge instead of URL params.
+
+---
+
+## 2026-03-21 – Gate Permit: /gate Query-Context Resolution
+- Goal: Make `/gate` the preferred builder setup path by resolving gate identity from in-game query params instead of requiring per-gate URLs
+- Files: `src/lib/objectResolver.ts` (NEW), `src/hooks/useResolveGateId.ts` (NEW), `src/screens/GatePermitPage.tsx` (EDIT), `src/App.tsx` (EDIT)
+- Diff: +60 LoC added, ~15 LoC edited
+- Risk: medium (new resolution logic, no contract changes)
+- Gates: typecheck ✅ build ✅
+- Decisions:
+  - **Preferred setup:** Operator configures all gates with URL `/gate`. Game client appends `?itemId=<inGameId>&tenant=utopia`. Page derives the Sui object ID via deterministic BCS + blake2b derivation (same algorithm as @evefrontier/dapp-kit SmartObjectProvider).
+  - **Fallback:** `/gate/:gateId` still works for debug/manual access with a direct Sui object ID.
+  - **Resolution:** Pure client-side derivation using `deriveObjectID` from `@mysten/sui/utils` and hardcoded ObjectRegistry address (`0xc2b9...dc57`). Zero RPC calls — derivation is pure math.
+  - **Verified:** Roundtrip test confirmed `itemId=1000000015746 + tenant=utopia` derives to known gate `0xf130...1b68`.
+  - **No env vars required:** Uses `WORLD_PACKAGE_ID` from constants.ts directly, avoiding dependency on `VITE_EVE_WORLD_PACKAGE_ID`.
+
+---
+
+## 2026-03-21 – Gate Permit URL Model Audit
+- Goal: Determine whether the in-game browser auto-injects gate context or requires URL-encoded identity
+- Files: (no code changed — audit only)
+- Diff: 0 LoC
+- Risk: low (documentation)
+- Gates: N/A
+- Decisions:
+  - **Confirmed:** The in-game browser does NOT inject assembly context via JS globals, postMessage, or window properties. URL is the sole context source.
+  - **Standard dapp-kit model:** Game client appends `?itemId=<inGameId>&tenant=<env>` to the assembly's configured DApp URL. `SmartObjectProvider` reads these params and resolves itemId → Sui object ID via `ObjectRegistry` DF.
+  - **CivilizationControl model:** We embed the Sui object ID directly in the URL path (`/gate/:gateId`). This is simpler (no itemId→objectId resolution), requires one `update_metadata_url` call per gate.
+  - **MVP recommendation: KEEP `/gate/:gateId`.** The operator configures the URL once per gate. The player presses F in-game, the browser opens the URL, and the page loads with the correct gate context. Players never see or type an object ID.
+  - **Future option:** Accept `?itemId=&tenant=` as a secondary input path (standard dapp-kit compatibility). Not needed for MVP.
+
+---
+
+## 2026-03-21 – Player-Facing Gate Permit Page
+- Goal: Build a standalone /gate/:gateId page where players acquire JumpPermits in the in-game browser
+- Files: `src/hooks/useAutoConnect.ts` (NEW), `src/lib/gatePermitTx.ts` (NEW), `src/hooks/useGatePermit.ts` (NEW), `src/screens/GatePermitPage.tsx` (NEW), `src/App.tsx` (EDIT)
+- Diff: +240 LoC added, ~10 LoC restructured in App.tsx
+- Risk: medium (new route + PTB builders, no contract changes)
+- Gates: typecheck ✅ build ✅
+- Decisions:
+  - Route `/gate/:gateId` renders standalone (no operator sidebar/header) — it's a player utility, not a dashboard screen.
+  - `useAutoConnect` hook auto-connects "EVE Frontier Client Wallet" on first visit (VaultProvider only handles reconnect from localStorage).
+  - PTB builders parameterized with `characterId` (unlike operator self-test which hardcodes CHARACTER_ID).
+  - App.tsx split into top-level `App()` (BrowserRouter + route split) and `OperatorShell()` (sidebar/header + operator routes).
+  - Supports both free and toll permit paths. Tribe mismatch shown as blocked with explanation.
+
+---
+
+## 2026-03-21 – Gate Jump Failure Diagnosis: Extension Persists After Rule Removal
+- Goal: Diagnose why a linked, online gate pair produces "failed to jump" in-game
+- Files: (no code changed — diagnosis only; docs updated)
+- Diff: 0 LoC (investigation)
+- Risk: high (live gate traversal blocked)
+- Gates: N/A (investigation)
+- Decisions:
+  - **Root cause:** Removing tribe rules and coin tolls from GateConfig does NOT deregister the `gate_control::GateAuth` extension from the Gate object. The extension field lives on the Gate shared object independently. With `gate.extension = Some(GateAuth)`, the default `gate::jump()` aborts with `EExtensionNotAuthorized` (code 4). No JumpPermit existed for the character, so `jump_with_permit()` was also unusable.
+  - **UX blind spot:** CivilizationControl's UI allows removing all rules but does not make it obvious that the extension registration still blocks default jumps. "All rules removed" ≠ "gate is open."
+  - **Fix:** Call `gate::revoke_extension_authorization()` on both source and destination gates to clear the extension slot. This restores default `jump()` behavior.
+  - **Follow-up:** Add an "Extension Status" indicator to gate management UI that distinguishes "authorized + no rules" from "no extension." Consider adding a "Revoke Extension" action button to the gate detail screen.
+
+---
+
+## 2026-03-21 – Strategic Network Control Strip Visual Refinement
+- Goal: Match Figma-intent for posture mode selector chips, make "Save Preset" text-visible, remove "6 nodes" clutter
+- Files: `src/components/PostureControl.tsx`, `src/components/topology/StrategicMapPanel.tsx`
+- Diff: ~15 LoC changed across 2 files
+- Risk: low (UI-only, styling refinements)
+- Gates: typecheck ✅ build ✅
+- Decisions:
+  - Chip icons sized `w-3.5 h-3.5`, gap `gap-2` to match Figma spec
+  - Save Preset upgraded from icon-only disabled to visible "Save Preset" text label (still placeholder)
+  - Removed "6 nodes" counter from control strip — duplicate information
+  - Header padding adjusted to `py-4` per Figma
+  - Divider margin `mx-2` per Figma
+
+---
+
+## 2026-03-21 – Command Overview Refinement: Mode Selector Tabs + Hex Demotion
+- Goal: Replace loud orange CTA posture button with calm Figma-style mode selector chips; demote raw hex IDs to secondary treatment on overview surfaces
+- Files: `src/components/PostureControl.tsx`, `src/components/topology/StrategicMapPanel.tsx`, `src/components/Sidebar.tsx`
+- Diff: ~+50 LoC added, ~20 LoC removed across 3 files
+- Risk: low (UI-only, no contract/state/PTB changes)
+- Gates: typecheck ✅ build ✅
+- Decisions:
+  - PostureControl inline variant now renders Commercial/Defensive chip tabs (translucent active state, ghost inactive) matching Figma mock, replacing filled CTA button
+  - Added Save Preset ghost placeholder (disabled, Settings2 icon) after vertical divider
+  - Posture state label ("Commercial" / "Defense Mode") promoted to Strategic Network header title area (left-aligned)
+  - Header subtitle updated to "Infrastructure Posture & Topology Control"
+  - NodeOverlayLabel: hex suffix from fallback names now demoted to muted/mono secondary text
+  - Sidebar structure entries: same hex demotion treatment
+- Follow-ups: Save Preset feature implementation; consider renaming structures on-chain
+
+---
+
+## 2026-03-21 – UI Polish Fix: Posture Dedup, Summary-Surface Labels, Map Label Hierarchy
+- Goal: Eliminate duplicate posture controls in Strategic Network; promote solar system context on sidebar + map labels; enforce Name → Solar System → Short ID hierarchy on summary surfaces
+- Files: `src/components/PostureControl.tsx`, `src/components/topology/StrategicMapPanel.tsx`, `src/components/Sidebar.tsx`
+- Diff: ~+70 LoC added, ~40 LoC removed across 3 files
+- Risk: low (UI-only, no contract/state/PTB changes)
+- Gates: typecheck ✅ build ✅
+- Decisions:
+  - Removed `PostureIndicator` read-only badges from Strategic Network header — was redundant with PostureControl
+  - Removed separate PostureControl compact strip below header — was a second stacked posture display
+  - Added PostureControl `inline` variant: state dot + label + action button rendered directly in header row
+  - Result: single integrated posture control surface, no duplication
+  - Sidebar structure entries now show solar system name (from spatial pin) as secondary text below structure name
+  - Map node overlay labels: solar system promoted to primary label when pinned, node name becomes secondary
+  - Raw IDs intentionally kept on detail screens for operator matching
+- Follow-ups: None
+
+---
+
+## 2026-03-18 – UI Polish: Posture Integration, Solar System Context, Location Columns
+- Goal: Integrate PostureControl into Strategic Network panel; surface solar system context on all list/detail screens; replace raw Object IDs with meaningful Location columns; extract shared utilities (formatAddress, NodeContextBanner)
+- Files: `src/lib/formatAddress.ts` (NEW), `src/components/NodeContextBanner.tsx` (NEW), `src/components/PostureControl.tsx`, `src/components/topology/StrategicMapPanel.tsx`, `src/components/StructureDetailHeader.tsx`, `src/screens/Dashboard.tsx`, `src/screens/GateDetailScreen.tsx`, `src/screens/TradePostDetailScreen.tsx`, `src/screens/TurretDetailScreen.tsx`, `src/screens/NetworkNodeDetailScreen.tsx`, `src/screens/GateListScreen.tsx`, `src/screens/TradePostListScreen.tsx`, `src/screens/TurretListScreen.tsx`, `src/screens/NetworkNodeListScreen.tsx`
+- Diff: ~+180 LoC added, ~100 LoC removed across 14 files (2 new, 12 modified)
+- Risk: low (UI-only, no contract/state/PTB changes)
+- Gates: typecheck ✅ build ✅
+- Decisions:
+  - PostureControl integrated into StrategicMapPanel via `compact` prop — removed standalone card from Dashboard
+  - Display hierarchy rule: Name (from Metadata.name) → Solar System (from spatial pin) → Short ID (fallback)
+  - List screen "Object ID" columns → "Location" columns showing solar system or dimmed shortId
+  - NodeContextBanner extracted from GateDetailScreen as shared component, added to TradePost + Turret detail screens
+  - Solar system resolved via `getSpatialPin()` on parent network node — no prop drilling needed
+- Follow-ups: None — coherent visual polish tranche, no behavioral changes
+
+---
+
+## 2026-03-21 – world-contracts Submodule Refresh to v0.0.19
+- Goal: Update vendor/world-contracts from v0.0.18+1 (8e2e97b) to v0.0.19 (0642c7b) and audit impact.
+- Files: vendor/world-contracts (submodule pointer), decision-log.md, assumption-registry, gate-lifecycle-runbook, extension-freeze-safety-guide
+- Diff: submodule pointer update + doc callouts (~30 LoC)
+- Risk: low (no code changes; submodule is read-only dependency; Move build + 21 tests pass)
+- Upstream delta: 1 commit (feat: qol functions #137), +1001/-57 lines
+- Key v0.0.19 additions:
+  - `revoke_extension_authorization` on Gate, Turret, SSU (new — previously no deauthorize existed)
+  - `delete_jump_permit` and `delete_jump_permit_with_auth` (permit cleanup)
+  - `route_hash()` public view function on Gate
+  - `receive_owner_cap` promoted from `public(package)` to `public`
+  - `turret.metadata()` promoted from `#[test_only]` to `public`
+  - `turret.extension()` (non-aborting) alongside existing `extension_type()` (aborting)
+  - `hp_ratio()`, `shield_ratio()`, `armor_ratio()` on TargetCandidate
+  - `ExtensionRevokedEvent` on Gate, Turret, SSU
+  - `id()` view functions on 15+ shared objects/structs
+  - Extension freeze updated docs: revocation also blocked after freeze
+  - New tests: gate, storage_unit, turret test suites (241+128+82 lines)
+  - New scripts: delete-jump-permit.ts, delete-jump-permit-extension.ts
+- Impact on CivilizationControl: **No breaking changes. No code adoption required.**
+  - ADOPT NOW: None (refresh + doc corrections only)
+  - DOCUMENT FOR LATER: `revoke_extension_authorization` (enables "clear extension" UI), `ExtensionRevokedEvent` (signal feed), `delete_jump_permit` (stale permit cleanup), `hp/shield/armor_ratio` (richer targeting)
+  - IGNORE FOR HACKATHON: `receive_owner_cap` visibility change (we use `borrow_owner_cap`), `id()` view functions (we use `object::id()`)
+- Gates: Move build ✅ Move tests (21/21) ✅
+- Follow-ups: Consider adopting `revoke_extension_authorization` and `ExtensionRevokedEvent` in future extension management UI.
+
+---
+
+## 2026-03-19 – Regression Fix: Spatial Orientation + @theme inline + NodeLocationPanel
+- Goal: Fix two operator-reported regressions from UI Polish Tranche 1 and a latent CSS infrastructure defect.
+- Files: theme.css, App.tsx
+- Diff: ~70 LoC added
+- Risk: low (restoration of previously-working capability + CSS infrastructure fix)
+- Root causes:
+  - **Sidebar active state not orange:** The `@theme inline` block that bridges CSS variables (`--primary`, `--foreground`, `--muted-foreground`, etc.) to Tailwind v4 utility classes (`text-primary`, `bg-primary/10`, `border-primary`, `text-foreground`, `text-muted-foreground`) was never present in the project's theme.css. The Figma Make export had it; the project copy did not. This means ALL theme-variable-based Tailwind utilities were silently generating no CSS. Compiled CSS jumped from 36KB → 43KB after the fix — ~7KB of previously-missing utility rules.
+  - **Spatial orientation lost:** NodeLocationPanel (the only UI for creating/editing solar system → network node assignments) was removed from Dashboard in Tranche 1. No replacement surface was created. Spatial pins in localStorage were preserved but operators could no longer create or modify them.
+- Fixes:
+  - **Added `@theme inline` block** to src/styles/theme.css — bridges all 30+ CSS variables to Tailwind v4 color/radius utilities. This fixes not just the sidebar but every `text-primary`, `text-foreground`, `text-muted-foreground`, `bg-primary/*`, `border-primary`, `bg-muted`, `text-destructive` usage across the entire codebase.
+  - **Moved NodeLocationPanel** to the Configuration page (`/settings` route). Previously a placeholder — now a real surface with spatial assignment capability. Dashboard remains clean; spatial pin creation is accessible via Configuration nav item.
+- Required product behaviors established:
+  - Approximate spatial orientation on the Strategic Network Map is a **required product behavior**, not optional polish.
+  - Solar-system-per-network-node context is a **required retained capability**.
+  - Sidebar active route emphasis must visibly render as orange per design tokens.
+  - The `@theme inline` block is mandatory CSS infrastructure — do not remove.
+- Gates: typecheck ✅ build ✅
+- Follow-ups: None — spatial pin CRUD is restored, sidebar is now correctly orange.
+
+---
+
+## 2026-03-19 – UI Polish Tranche 1: Demo Readability Pass
+- Goal: Tighten the Command Overview for the 3-Second Check and eliminate placeholder scaffolding before demo.
+- Files: Dashboard.tsx, App.tsx, Sidebar.tsx, PostureControl.tsx, Header.tsx, GateDetailScreen.tsx
+- Diff: ~120 LoC changed
+- Risk: low
+- Decisions:
+  - **Removed NodeLocationPanel** from Dashboard (setup-only tool, not demo-relevant, pushed below fold).
+  - **Sidebar dimming:** inactive nav items changed to `text-muted-foreground` so active state pops more.
+  - **PostureControl surface:** `bg-zinc-900/60` → `bg-[var(--card)]` for consistent card tokens.
+  - **Header brand:** `font-semibold` → `font-medium` per Figma Pass 5.
+  - **Revenue cold-start:** "—" → "0", "Revenue from tolls and trades" → "Awaiting toll and trade events".
+  - **Grid Status subtitle:** static "Online / Deployed" → computed "All operational" / "N structures offline".
+  - **Signal empty state:** governance-voiced copy replacing generic SaaS text.
+  - **Attention Required:** replaced 2 static placeholders (fuel/extension audit) with computed alerts from real data (offline count, extension gaps). Shows "All clear" when no issues.
+  - **Gate Detail:** added "Powered by [NodeName]" banner with node status + fuel context. Gates don't own fuel — this shows truthful attribution to parent network node.
+- Gates: typecheck ✅ build ✅
+- Follow-ups: NodeLocationPanel may move to Network Nodes page if needed.
+
+---
+
+## 2026-03-19 – Dashboard Foundation Tranche Merged to Master
+- Goal: Close the `feature/dashboard-foundation` branch. Squash merge all work into `master` and open `feature/ui-polish` for the next tranche.
+- Decisions:
+  - **Squash merged** 204 files (+20,909/−600 LoC) into a single commit on `master` (8a1030f).
+  - **Feature scope:** asset discovery, gate/turret/SSU/network-node detail screens, posture switch, trade post (seller + buyer), signal feed (8 event types), transit proof builder, topology map, fuel runtime gauges, denomination correction, admin ownership checks, tribe catalog, operator validation checklist, 800ms posture confirmation transitions.
+  - **New branch** `feature/ui-polish` created from merged `master` for the next tranche.
+  - **No UI polish implementation started** — branch is clean, ready for work.
+- Files: entire src/, contracts/, docs/ trees (see commit for full diff)
+- Diff: +20,909 / −600 LoC (squash of 10 feature-branch commits)
+- Risk: low (merge of already-verified code)
+- Gates: typecheck ✅ build ✅ preview-deploy ✅
+
 ## 2026-03-19 – Posture Visual Confirmation Flow + Extension Event Decision
 - Goal: Make posture switch visuals update on confirmed chain state rather than appearing as an instant local toggle. Assess whether world-level extension events should be surfaced in Signal Feed.
 - Decisions:

@@ -1,79 +1,158 @@
 /**
- * Gate policy PTB builders.
+ * Gate policy PTB builders — operator-owned authority model.
  *
- * Constructs Programmable Transaction Blocks for gate rule mutations.
- * All mutations require the GateControl AdminCap (owned by the operator wallet).
+ * Constructs Programmable Transaction Blocks for gate policy mutations.
+ * All mutations require OwnerCap<Gate> — borrowed from the operator's
+ * Character via the borrow/return pattern.
  *
  * Move signatures:
- *   set_tribe_rule(config: &mut GateConfig, _: &AdminCap, gate_id: ID, tribe: u32)
- *   remove_tribe_rule(config: &mut GateConfig, _: &AdminCap, gate_id: ID)
- *   set_coin_toll(config: &mut GateConfig, _: &AdminCap, gate_id: ID, price: u64, treasury: address)
- *   remove_coin_toll(config: &mut GateConfig, _: &AdminCap, gate_id: ID)
+ *   set_policy_preset(config, owner_cap, gate_id, mode, tribes[], accesses[], tolls[], default_access, default_toll)
+ *   remove_policy_preset(config, owner_cap, gate_id, mode)
+ *   set_treasury(config, owner_cap, gate_id, treasury_address)
  */
 
 import { Transaction } from "@mysten/sui/transactions";
 import {
   CC_PACKAGE_ID,
+  WORLD_PACKAGE_ID,
   GATE_CONFIG_ID,
-  GATE_ADMIN_CAP_ID,
 } from "@/constants";
-import type { ObjectId } from "@/types/domain";
+import type { ObjectId, TribePolicyEntry, GatePolicyTarget } from "@/types/domain";
 
-export function buildSetTribeRuleTx(gateId: ObjectId, tribe: number): Transaction {
-  const tx = new Transaction();
-  tx.moveCall({
-    target: `${CC_PACKAGE_ID}::gate_control::set_tribe_rule`,
-    arguments: [
-      tx.object(GATE_CONFIG_ID),
-      tx.object(GATE_ADMIN_CAP_ID),
-      tx.pure.id(gateId),
-      tx.pure.u32(tribe),
-    ],
+const GATE_TYPE = `${WORLD_PACKAGE_ID}::gate::Gate`;
+
+function borrowOwnerCap(tx: Transaction, characterId: string, ownerCapId: string) {
+  return tx.moveCall({
+    target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
+    typeArguments: [GATE_TYPE],
+    arguments: [tx.object(characterId), tx.object(ownerCapId)],
   });
-  return tx;
 }
 
-export function buildRemoveTribeRuleTx(gateId: ObjectId): Transaction {
-  const tx = new Transaction();
+function returnOwnerCap(
+  tx: Transaction,
+  characterId: string,
+  cap: ReturnType<typeof borrowOwnerCap>[0],
+  receipt: ReturnType<typeof borrowOwnerCap>[1],
+) {
   tx.moveCall({
-    target: `${CC_PACKAGE_ID}::gate_control::remove_tribe_rule`,
-    arguments: [
-      tx.object(GATE_CONFIG_ID),
-      tx.object(GATE_ADMIN_CAP_ID),
-      tx.pure.id(gateId),
-    ],
+    target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
+    typeArguments: [GATE_TYPE],
+    arguments: [tx.object(characterId), cap, receipt],
   });
-  return tx;
 }
 
-export function buildSetCoinTollTx(
+export function buildSetPolicyPresetTx(
   gateId: ObjectId,
-  price: number,
-  treasury: string,
+  mode: number,
+  entries: TribePolicyEntry[],
+  defaultAccess: boolean,
+  defaultToll: number,
+  ownerCapId: string,
+  characterId: string,
 ): Transaction {
   const tx = new Transaction();
+  const [cap, receipt] = borrowOwnerCap(tx, characterId, ownerCapId);
   tx.moveCall({
-    target: `${CC_PACKAGE_ID}::gate_control::set_coin_toll`,
+    target: `${CC_PACKAGE_ID}::gate_control::set_policy_preset`,
     arguments: [
       tx.object(GATE_CONFIG_ID),
-      tx.object(GATE_ADMIN_CAP_ID),
+      cap,
       tx.pure.id(gateId),
-      tx.pure.u64(BigInt(price)),
+      tx.pure.u8(mode),
+      tx.pure("vector<u32>", entries.map((e) => e.tribe)),
+      tx.pure("vector<bool>", entries.map((e) => e.access)),
+      tx.pure("vector<u64>", entries.map((e) => BigInt(e.toll))),
+      tx.pure.bool(defaultAccess),
+      tx.pure.u64(BigInt(defaultToll)),
+    ],
+  });
+  returnOwnerCap(tx, characterId, cap, receipt);
+  return tx;
+}
+
+export function buildRemovePolicyPresetTx(
+  gateId: ObjectId,
+  mode: number,
+  ownerCapId: string,
+  characterId: string,
+): Transaction {
+  const tx = new Transaction();
+  const [cap, receipt] = borrowOwnerCap(tx, characterId, ownerCapId);
+  tx.moveCall({
+    target: `${CC_PACKAGE_ID}::gate_control::remove_policy_preset`,
+    arguments: [
+      tx.object(GATE_CONFIG_ID),
+      cap,
+      tx.pure.id(gateId),
+      tx.pure.u8(mode),
+    ],
+  });
+  returnOwnerCap(tx, characterId, cap, receipt);
+  return tx;
+}
+
+export function buildSetTreasuryTx(
+  gateId: ObjectId,
+  treasury: string,
+  ownerCapId: string,
+  characterId: string,
+): Transaction {
+  const tx = new Transaction();
+  const [cap, receipt] = borrowOwnerCap(tx, characterId, ownerCapId);
+  tx.moveCall({
+    target: `${CC_PACKAGE_ID}::gate_control::set_treasury`,
+    arguments: [
+      tx.object(GATE_CONFIG_ID),
+      cap,
+      tx.pure.id(gateId),
       tx.pure.address(treasury),
     ],
   });
+  returnOwnerCap(tx, characterId, cap, receipt);
   return tx;
 }
 
-export function buildRemoveCoinTollTx(gateId: ObjectId): Transaction {
+/**
+ * Build a single PTB that deploys the same policy preset to multiple gates.
+ *
+ * Iterates over targets, borrowing/returning OwnerCap<Gate> per gate.
+ * Each gate gets its own set_policy_preset call with identical preset data.
+ * Sui PTB command limit (1000) accommodates ~300 gates (3 commands each).
+ */
+export function buildBatchSetPolicyPresetTx(
+  targets: GatePolicyTarget[],
+  mode: number,
+  entries: TribePolicyEntry[],
+  defaultAccess: boolean,
+  defaultToll: number,
+  characterId: string,
+): Transaction {
   const tx = new Transaction();
-  tx.moveCall({
-    target: `${CC_PACKAGE_ID}::gate_control::remove_coin_toll`,
-    arguments: [
-      tx.object(GATE_CONFIG_ID),
-      tx.object(GATE_ADMIN_CAP_ID),
-      tx.pure.id(gateId),
-    ],
-  });
+
+  const tribes = entries.map((e) => e.tribe);
+  const accesses = entries.map((e) => e.access);
+  const tolls = entries.map((e) => BigInt(e.toll));
+  const defToll = BigInt(defaultToll);
+
+  for (const target of targets) {
+    const [cap, receipt] = borrowOwnerCap(tx, characterId, target.ownerCapId);
+    tx.moveCall({
+      target: `${CC_PACKAGE_ID}::gate_control::set_policy_preset`,
+      arguments: [
+        tx.object(GATE_CONFIG_ID),
+        cap,
+        tx.pure.id(target.gateId),
+        tx.pure.u8(mode),
+        tx.pure("vector<u32>", tribes),
+        tx.pure("vector<bool>", accesses),
+        tx.pure("vector<u64>", tolls),
+        tx.pure.bool(defaultAccess),
+        tx.pure.u64(defToll),
+      ],
+    });
+    returnOwnerCap(tx, characterId, cap, receipt);
+  }
+
   return tx;
 }

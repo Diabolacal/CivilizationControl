@@ -1,10 +1,12 @@
 /// TurretBouncer — commercial-posture turret extension for CivilizationControl.
 ///
-/// Mirrors default turret targeting behavior (tribe-friendly bouncer):
-/// same-tribe non-aggressors are excluded, aggressors are prioritized.
-/// Emits `BouncerTargetingEvent` for Signal Feed observability — the
-/// default world-module `PriorityListUpdatedEvent` only fires on the
-/// un-extended path, so we emit our own.
+/// Passive-until-aggression doctrine: turrets stand down for all neutral
+/// traffic (same-tribe AND non-tribe) and engage ONLY aggressors. This
+/// keeps commercial zones safe for visiting traders while still defending
+/// against hostile action.
+///
+/// Emits `BouncerTargetingEvent` for diagnostic observability, plus
+/// `TurretResponseEvent` (from turret_events) when aggressors are engaged.
 ///
 /// Activated by `turret::authorize_extension<BouncerAuth>(turret, cap)`.
 /// Deactivated by swapping to `turret_defense::DefenseAuth` on posture change.
@@ -17,11 +19,11 @@ use world::{
         Self, Turret, OnlineReceipt,
     },
 };
+use civilization_control::turret_events;
 
 // === Constants ===
 
 const AGGRESSOR_BOOST: u64 = 10_000;
-const NON_TRIBE_BOOST: u64 = 1_000;
 
 // === Errors ===
 
@@ -44,45 +46,47 @@ public struct BouncerTargetingEvent has copy, drop {
 
 // === Extension Entry Point ===
 
-/// Bouncer-mode targeting: tribe-friendly, aggressor-focused.
-/// Same-tribe non-aggressors → excluded.
-/// Aggressors → high priority. Non-tribal visitors → medium priority.
-/// Uses is_aggressor + character_tribe (BehaviourChangeReason is
-/// module-private in world::turret and inaccessible from extensions).
+/// Bouncer-mode targeting: passive until aggression.
+/// Non-aggressors (any tribe) → excluded (stand down).
+/// Aggressors (any tribe) → targeted at boosted priority.
+/// Uses is_aggressor only — tribe membership is irrelevant for engagement.
+/// BehaviourChangeReason is module-private in world::turret and inaccessible.
 public fun get_target_priority_list(
     turret: &Turret,
-    owner_character: &Character,
+    _owner_character: &Character,
     target_candidate_list: vector<u8>,
     receipt: OnlineReceipt,
 ): vector<u8> {
     assert!(receipt.turret_id() == object::id(turret), EInvalidReceipt);
 
     let candidates = turret::unpack_candidate_list(target_candidate_list);
-    let owner_tribe = owner_character.tribe();
     let mut result = vector::empty<turret::ReturnTargetPriorityList>();
     let mut engaged = 0u64;
+    let mut aggressor_count = 0u64;
+    let mut top_target_id = 0u64;
+    let mut top_priority = 0u64;
 
     let mut i = 0;
     let len = candidates.length();
     while (i < len) {
         let c = &candidates[i];
-        let tribe = c.character_tribe();
         let is_agg = c.is_aggressor();
         let weight = c.priority_weight();
 
-        // Same tribe, not aggressor → exclude (protect friendlies)
-        if (tribe == owner_tribe && !is_agg) {
+        if (is_agg) { aggressor_count = aggressor_count + 1 };
+
+        // Non-aggressor (any tribe) → excluded (passive toward all neutral traffic)
+        if (!is_agg) {
             i = i + 1;
             continue
         };
 
-        let priority = if (is_agg) {
-            weight + AGGRESSOR_BOOST
-        } else if (tribe != owner_tribe) {
-            weight + NON_TRIBE_BOOST
-        } else {
-            // Same-tribe aggressor — engage but no extra boost
-            weight
+        // Only aggressors reach here — engage at boosted priority
+        let priority = weight + AGGRESSOR_BOOST;
+
+        if (priority > top_priority) {
+            top_priority = priority;
+            top_target_id = c.item_id();
         };
 
         result.push_back(
@@ -101,6 +105,18 @@ public fun get_target_priority_list(
         candidate_count: len,
         engaged_count: engaged,
     });
+
+    // Emit shared response event only when aggressors are actually engaged
+    if (engaged > 0) {
+        turret_events::emit_response(
+            object::id(turret),
+            turret_events::doctrine_commercial(),
+            len,
+            engaged,
+            aggressor_count,
+            top_target_id,
+        );
+    };
 
     bytes
 }

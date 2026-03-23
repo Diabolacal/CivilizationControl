@@ -166,6 +166,8 @@ NOTES:
 
 ## 4. Rule Configuration (Dynamic Fields)
 
+> **Note (2026-03-22):** The AdminCap-based PTB patterns below are from v1/v2 and are now superseded. The current v3 authority model uses `OwnerCap<Gate>` with borrow/return from Character. See `src/lib/gatePolicyTx.ts` for current PTB builders.
+
 Configure gate/SSU extension rules via dynamic fields on ExtensionConfig.
 
 ```
@@ -232,7 +234,7 @@ NOTES:
 | Capability | Abilities | Ownership | Access Pattern | Notes |
 |-----------|-----------|-----------|----------------|-------|
 | OwnerCap | `key, store` | Owned (by structure owner) | Borrow → Use → Return (hot-potato while borrowed) | Must return in same PTB |
-| AdminCap | `key, store` | Owned (by extension publisher) | Pass directly as argument | No borrow/return needed |
+| ~~AdminCap~~ | ~~`key, store`~~ | ~~Owned (by extension publisher)~~ | ~~Pass directly as argument~~ | **Removed in v3** — replaced by OwnerCap<Gate> with `access::is_authorized` |
 | AdminACL | `key` | Shared | Pass as shared object input | Consensus path; auth checked inside function |
 | Extension witness (GateAuth) | `drop` | Ephemeral (minted per-call) | Mint via x_auth() → pass to gated function → auto-dropped | public(package) mint only |
 

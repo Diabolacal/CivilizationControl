@@ -136,7 +136,7 @@ Cross-address PTB item transfer risk is **mitigated**. The typed witness extensi
 The full deployment sequence from world-contracts init to a working jump/trade was mapped:
 
 1. Publish world package → GovernorCap created
-2. Create AdminCap, register server address, add sponsor to AdminACL
+2. Register server address, add sponsor to AdminACL
 3. Configure fuel type + energy config
 4. Create Characters (with tribe IDs)
 5. Anchor NetworkNode → fuel → online
@@ -371,7 +371,7 @@ Verify these on hackathon day. If any break, reassess the corresponding module.
 
 ### Hour 3: CivControl TradePost Module (2–3 hours) — ✅ COMPLETE (2026-03-12)
 
-> **Path note:** Uses `contracts/civilization_control/` (same package as GateControl). `TradePostAdminCap` is separate from GateControl's `AdminCap`. Listings are composable shared objects via `share_listing()`.
+> **Path note:** Uses `contracts/civilization_control/` (same package as GateControl). Listings are composable shared objects via `share_listing()`. (Note: Both AdminCaps removed in v3 authority refactor — authority now via `OwnerCap<Gate>`.)
 
 - [x] Add TradePost sources to `contracts/civilization_control/` (same package)
 - [x] Define `TradeAuth has drop {}` witness struct — `public(package)` mint per convention
@@ -432,7 +432,7 @@ Verify these on hackathon day. If any break, reassess the corresponding module.
 - [x] Activity feed screen (real event-driven Signal Feed with 8 CC event types, category filters, 30s polling)
 - [x] Governance vocabulary applied (CivilizationControl narrative voice)
 - [ ] Fetch structure coordinates from `LocationRegistry` via `get_location(registry, assembly_id)` — **DEFERRED:** using manual spatial pins instead; LocationRegistry chain-read is a future enhancement
-- [ ] Gate policy builder: toggle tribe rule, set toll price, freeze extension config — **COMPLETE (2026-03-16):** TribeRuleEditor + CoinTollEditor wired to live GateConfig DF reads + PTB mutation via AdminCap. Transaction feedback (pending/success/error) integrated. Remaining: freeze extension config toggle, batch posture preset.
+- [ ] Gate policy builder: toggle tribe rule, set toll price, freeze extension config — **COMPLETE (2026-03-16):** TribeRuleEditor + CoinTollEditor wired to live GateConfig DF reads + PTB mutation via OwnerCap<Gate>. Transaction feedback (pending/success/error) integrated. Remaining: freeze extension config toggle, batch posture preset.
 - [x] TradePost browser: list items, one-click buy — **COMPLETE (2026-03-16):** ListingCard + useListings (queryEvents→multiGetObjects) + useBuyListing (PTB: splitCoins + buy + transferObjects)
 - [x] TradePost seller-side: create listing + cancel listing — **COMPLETE (2026-03-17):** CreateListingForm rewritten with SSU inventory browser (InventoryBrowser component) + item-type catalog (390 types, build-time bundled via scripts/fetch-types.mjs). Manual type-ID entry demoted to advanced fallback toggle. ListingCard + Signal Feed show resolved item names. Unknown types degrade to "Unknown Type #N".
 - [x] Event feed: poll for all 8 CC events (TribeCheckPassed, TollCollected, TribeRuleSet, CoinTollSet, RuleRemoved, ListingCreated, ListingPurchased, ListingCancelled) — **COMPLETE (2026-03-16):** MoveModule query polling, eventParser, useSignalFeed hook, SignalEventRow, category filters, dashboard integration

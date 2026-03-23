@@ -43,7 +43,7 @@ A **browser-only governance command layer** for EVE Frontier tribe leaders. Two 
 | **TradePost** | SSU-backed storefronts with cross-address atomic buy settlement using `Coin<EVE>` | `storage_unit.move`: `authorize_extension`, `withdraw_item<Auth>`, `deposit_item<Auth>` |
 | **Posture System** | Two custom turret extensions (`BouncerAuth`, `DefenseAuth`) swapped via posture mode. Extension-swap targeting, not power toggle. | `posture.move`: `set_posture`; `turret_bouncer.move`: `BouncerAuth`; `turret_defense.move`: `DefenseAuth`; `turret.move`: `authorize_extension` |
 
-> **Note:** CivilizationControl implements two custom turret extensions: `turret_bouncer` (BouncerAuth, commercial targeting — aggressors +10000, non-tribe +1000) and `turret_defense` (DefenseAuth, defense targeting — aggressors +15000, non-tribe +5000). Posture switching swaps which extension is authorized via a single PTB. Turrets remain online in both modes; no power toggle is used. Turret state is orchestrated alongside gate policy via **Posture Presets** (Open for Business / Defense Mode).
+> **Note:** CivilizationControl implements two custom turret extensions: `turret_bouncer` (BouncerAuth, commercial — passive until aggression, only aggressors targeted at +10000) and `turret_defense` (DefenseAuth, defense — non-tribe hostile at +5000, aggressors +15000). Posture switching swaps which extension is authorized via a single PTB. Turrets remain online in both modes; no power toggle is used. In commercial mode, turrets stand down for all neutral traffic (aggressors-only engagement). Turret state is orchestrated alongside gate policy via **Posture Presets** (Open for Business / Defense Mode).
 
 **Architecture model:** Publish-once, configure-via-data. One extension package is published by the CivControl team. Players configure pre-built rule types via PTBs that write dynamic fields to a shared `ExtensionConfig` object. No end user writes Move code.
 
@@ -106,10 +106,10 @@ Every chain write the app performs, with exact Move targets:
 
 | Operation | Move Call | Auth Required | Notes |
 |-----------|----------|---------------|-------|
-| Set tribe filter | `civcontrol::gate_rules::set_tribe_rule(&mut Config, gate_id, tribe_id)` | OwnerCap<Gate> | Dynamic field write |
-| Set coin toll | `civcontrol::gate_rules::set_coin_toll(&mut Config, gate_id, price, treasury)` | OwnerCap<Gate> | Dynamic field write — price in EVE base units |
-| Set subscription tier | `civcontrol::gate_rules::set_subscription_tier(&mut Config, gate_id, price, duration_ms)` | OwnerCap<Gate> | Dynamic field write — price in EVE base units |
-| Remove rule | `civcontrol::gate_rules::remove_*(&mut Config, gate_id)` | OwnerCap<Gate> | Dynamic field remove |
+| Set policy preset | `civcontrol::gate_control::set_policy_preset(&mut GateConfig, &OwnerCap<Gate>, gate_id, mode, entries, default_access, default_toll)` | OwnerCap<Gate> | Per-gate, per-mode preset — tribe entries + default fallback |
+| Remove policy preset | `civcontrol::gate_control::remove_policy_preset(&mut GateConfig, &OwnerCap<Gate>, gate_id, mode)` | OwnerCap<Gate> | Dynamic field remove |
+| Set treasury | `civcontrol::gate_control::set_treasury(&mut GateConfig, &OwnerCap<Gate>, gate_id, treasury_address)` | OwnerCap<Gate> | Per-gate treasury address for toll payouts |
+| Set posture | `civcontrol::posture::set_posture(&mut GateConfig, &OwnerCap<Gate>, gate_id, mode)` | OwnerCap<Gate> | Flips active posture mode — gate enforcement changes immediately |
 
 #### Phase: Gate Jump (player-initiated)
 
@@ -176,9 +176,10 @@ Single published package: `civcontrol`
 contracts/civilization_control/
 ├── Move.toml              # Depends on world-contracts World package
 └── sources/
-    ├── gate_control.move     # GateConfig + AdminCap + GateAuth + tribe/toll rules
-    ├── trade_post.move       # Listing + buy + cancel + TradeAuth
+    ├── config.move           # GateConfig shared object + GateAuth/TradeAuth witnesses
+    ├── gate_control.move     # Policy preset CRUD + permit issuance
     ├── posture.move          # PostureKey DF + set_posture + PostureChangedEvent
+    ├── trade_post.move       # Listing + buy + cancel + TradeAuth
     ├── turret_bouncer.move   # BouncerAuth witness (commercial targeting)
     └── turret_defense.move   # DefenseAuth witness (defense targeting)
 ```
@@ -187,8 +188,7 @@ contracts/civilization_control/
 
 | Type | Abilities | Purpose |
 |------|-----------|---------|
-| `CivControlConfig` | `key` | Shared object — UID hosts dynamic field rules |
-| `AdminCap` | `key, store` | Created at init, gates global config operations |
+| `GateConfig` | `key` | Shared object — UID hosts dynamic field rules (per-gate presets, treasury, posture) |
 | `GateAuth` | `drop` | Package-internal typed witness for gate extension |
 | `TradeAuth` | `drop` | Package-internal typed witness for SSU extension |
 | `TribeRuleKey` | `copy, drop, store` | DF key: `{ gate_id: ID }` |

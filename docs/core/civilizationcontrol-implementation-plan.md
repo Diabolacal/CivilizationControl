@@ -257,9 +257,9 @@ Per UX spec §10: implement connection states (Not Connected, Connecting, Connec
 **Status:** CONFIRMED  
 **Effort:** 1 hour  
 **Dependencies:** S02, S04  
-**Description:** Create the CivilizationControl Move extension package following builder-scaffold patterns. Define the core types: `GateAuth has drop {}` witness, `TradeAuth has drop {}` witness, `CivControlConfig` shared object with UID for dynamic fields, `AdminCap` for global admin operations. Write `init()` function that creates the shared config and transfers AdminCap to publisher.
+**Description:** Create the CivilizationControl Move extension package following builder-scaffold patterns. Define the core types: `GateAuth has drop {}` witness, `TradeAuth has drop {}` witness, `GateConfig` shared object with UID for dynamic fields. Write `init()` function that creates the shared GateConfig.
 
-> **Note:** `AdminCap` follows the builder-scaffold pattern for future global admin operations (e.g., emergency config migration, fee parameter changes). MVP rule configuration uses `OwnerCap<Gate>` for per-gate self-service. AdminCap is reserved — no MVP function requires it.
+> **Note (v3 update):** `AdminCap` was removed in the v3 authority refactor. All admin operations use `OwnerCap<Gate>` for per-gate self-service via `world::access::is_authorized()`.
 
 References: `vendor/builder-scaffold/move-contracts/smart_gate_extension/sources/config.move` (ExtensionConfig + AdminCap + XAuth + DF helpers). *(Renamed from `smart_gate/` in scaffold v3c65b22, 2026-03-10.)*
 
@@ -273,8 +273,8 @@ References: `vendor/builder-scaffold/move-contracts/smart_gate_extension/sources
 
 **Definition of Done:**
 - `sui move build` succeeds with no errors
-- Package defines `GateAuth`, `TradeAuth`, `CivControlConfig`, `AdminCap`
-- `init()` creates shared config + transfers AdminCap
+- Package defines `GateAuth`, `TradeAuth`, `GateConfig`
+- `init()` creates shared GateConfig
 - Package depends on world-contracts `world` package (correct dependency path)
 - Module naming follows `civcontrol::config`
 
@@ -298,7 +298,6 @@ On local devnet: may need `[environments]` section in Move.toml with chain ID.
 - Package published successfully (tx digest recorded)
 - Package ID recorded
 - `CivControlConfig` shared object ID recorded
-- `AdminCap` owned by publisher address
 - `sui client object <config_id>` returns valid shared object
 
 ---
@@ -477,8 +476,8 @@ Steps:
 
 **Move modules (implemented):**
 - `posture.move` — PostureKey DF on GateConfig → PostureState { mode: u8 } (0 = COMMERCIAL, 1 = DEFENSE). PostureChangedEvent emitted.
-- `turret_bouncer.move` — BouncerAuth witness. Commercial targeting: aggressors +10000, non-tribe +1000. Emits BouncerTargetingEvent.
-- `turret_defense.move` — DefenseAuth witness. Defense targeting: aggressors +15000, non-tribe +5000. Emits DefenseTargetingEvent.
+- `turret_bouncer.move` — BouncerAuth witness. Commercial targeting: passive until aggression — all non-aggressors excluded, aggressors +10000. Emits BouncerTargetingEvent.
+- `turret_defense.move` — DefenseAuth witness. Defense targeting: aggressors +15000, non-tribe +5000 (hostile by default). Emits DefenseTargetingEvent.
 - `gate_control.move` — Added public(package) config_uid/config_uid_mut accessors for posture DF access.
 
 **PTB composition (implemented):**

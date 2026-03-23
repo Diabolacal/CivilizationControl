@@ -13,18 +13,23 @@ import { useParams, Link } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { StructureDetailHeader } from "@/components/StructureDetailHeader";
-import { TribeRuleEditor } from "@/components/TribeRuleEditor";
-import { CoinTollEditor } from "@/components/CoinTollEditor";
+import { NodeContextBanner } from "@/components/NodeContextBanner";
+import { PolicyPresetEditor } from "@/components/PolicyPresetEditor";
+import { TreasuryEditor } from "@/components/TreasuryEditor";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { useGatePolicy } from "@/hooks/useGatePolicy";
-import { useGatePolicyMutation } from "@/hooks/useGatePolicyMutation";
+import { useGatePolicyMutation, useBatchPresetMutation } from "@/hooks/useGatePolicyMutation";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
-import { useAdminCapOwner } from "@/hooks/useAdminCapOwner";
 import { useLinkedGate, useTransitProofAction } from "@/hooks/useTransitProof";
+import { usePostureState } from "@/hooks/usePosture";
 import { useConnection } from "@evefrontier/dapp-kit";
 import { formatLux } from "@/lib/currency";
-import type { Structure } from "@/types/domain";
+import { resolveEffectivePolicy } from "@/lib/policyResolver";
+import { getSpatialPin } from "@/lib/spatialPins";
+import { Copy, Check } from "lucide-react";
+import { useState, useCallback, useMemo } from "react";
+import type { Structure, GatePolicyTarget } from "@/types/domain";
 
 interface GateDetailScreenProps {
   structures: Structure[];
@@ -55,12 +60,25 @@ export function GateDetailScreen({ structures, isLoading }: GateDetailScreenProp
     );
   }
 
+  const solarSystemName = gate.networkNodeId
+    ? (() => {
+        const parentNode = structures.find(
+          (s) => s.objectId === gate.networkNodeId && s.type === "network_node",
+        );
+        const pin = parentNode ? getSpatialPin(parentNode.objectId) : undefined;
+        return pin?.solarSystemName;
+      })()
+    : undefined;
+
   return (
     <div className="space-y-6">
       <BackLink />
-      <StructureDetailHeader structure={gate} />
+      <StructureDetailHeader structure={gate} solarSystemName={solarSystemName} />
+      <NodeContextBanner structure={gate} structures={structures} />
+      <InGameDAppUrlSection gate={gate} />
+      <TopologyLinkSection gate={gate} structures={structures} />
       <PowerControlSection gate={gate} />
-      <PolicyComposerSection gate={gate} />
+      <PolicyComposerSection gate={gate} structures={structures} />
       <TransitProofSection gate={gate} />
       <ExtensionSection gate={gate} />
     </div>
@@ -79,11 +97,111 @@ function BackLink() {
   );
 }
 
-function PolicyComposerSection({ gate }: { gate: Structure }) {
+function InGameDAppUrlSection({ gate }: { gate: Structure }) {
+  const [copied, setCopied] = useState(false);
+  const dappUrl = `${window.location.origin}/gate/${gate.objectId}`;
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(dappUrl).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [dappUrl]);
+
+  return (
+    <section className="border border-border rounded p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">In-Game DApp URL</h2>
+        <p className="text-[11px] font-mono text-muted-foreground">Operator Setup</p>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Paste this into the gate's custom DApp URL field in-game. Players who interact with this gate will see the permit page.
+      </p>
+      <div className="flex items-center gap-2">
+        <div className="flex-1 rounded border border-border bg-background px-3 py-2 font-mono text-[11px] text-foreground truncate select-all" title={dappUrl}>
+          {dappUrl}
+        </div>
+        <button
+          onClick={handleCopy}
+          className="shrink-0 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+        >
+          {copied ? (
+            <span className="inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Copied</span>
+          ) : (
+            <span className="inline-flex items-center gap-1"><Copy className="w-3.5 h-3.5" /> Copy URL</span>
+          )}
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function TopologyLinkSection({ gate, structures }: { gate: Structure; structures: Structure[] }) {
+  const linkedGate = gate.linkedGateId
+    ? structures.find((s) => s.objectId === gate.linkedGateId)
+    : undefined;
+
+  return (
+    <section className="border border-border rounded p-5 space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-sm font-semibold text-foreground">Topology Link</h2>
+        <p className="text-[11px] font-mono text-muted-foreground">Gate ↔ Gate</p>
+      </div>
+      {gate.linkedGateId ? (
+        <div className="grid grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-[11px] text-muted-foreground mb-1">Destination Gate</p>
+            {linkedGate ? (
+              <Link
+                to={`/gates/${linkedGate.objectId}`}
+                className="font-medium text-foreground hover:text-primary transition-colors"
+              >
+                {linkedGate.name}
+              </Link>
+            ) : (
+              <p className="font-mono text-[11px] text-foreground" title={gate.linkedGateId}>
+                {gate.linkedGateId.slice(0, 10)}…{gate.linkedGateId.slice(-6)}
+              </p>
+            )}
+          </div>
+          <div>
+            <p className="text-[11px] text-muted-foreground mb-1">Link Status</p>
+            <p className="text-foreground">
+              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[hsl(175,45%,50%)] mr-1.5 align-middle" />
+              Linked
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="border border-dashed border-border/50 rounded py-4 flex flex-col items-center gap-1">
+          <p className="text-xs text-muted-foreground/60">Not linked</p>
+          <p className="text-[11px] text-muted-foreground/40">
+            Gate must be linked to a destination in-game before transit is possible
+          </p>
+        </div>
+      )}
+    </section>
+  );
+}
+
+function PolicyComposerSection({ gate, structures }: { gate: Structure; structures: Structure[] }) {
   const { policy, isLoading: policyLoading } = useGatePolicy(gate.objectId);
-  const mutation = useGatePolicyMutation(gate.objectId);
+  const mutation = useGatePolicyMutation(gate.objectId, gate.ownerCapId);
+  const batch = useBatchPresetMutation();
   const { walletAddress } = useConnection();
-  const { data: adminCapOwner } = useAdminCapOwner();
+
+  const batchTargets: GatePolicyTarget[] = useMemo(
+    () =>
+      structures
+        .filter(
+          (s) =>
+            s.type === "gate" &&
+            s.objectId !== gate.objectId &&
+            s.extensionStatus === "authorized",
+        )
+        .map((s) => ({ gateId: s.objectId, ownerCapId: s.ownerCapId, gateName: s.name })),
+    [structures, gate.objectId],
+  );
 
   if (gate.extensionStatus !== "authorized") {
     const isStale = gate.extensionStatus === "stale";
@@ -107,30 +225,6 @@ function PolicyComposerSection({ gate }: { gate: Structure }) {
     );
   }
 
-  const adminCapMismatch =
-    adminCapOwner != null &&
-    walletAddress != null &&
-    adminCapOwner.toLowerCase() !== walletAddress.toLowerCase();
-
-  if (adminCapMismatch) {
-    return (
-      <section className="border border-border rounded p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Gate Directive</h2>
-          <p className="text-[11px] font-mono text-muted-foreground">Policy Configuration</p>
-        </div>
-        <div className="border border-dashed border-red-500/30 rounded py-8 flex flex-col items-center gap-2">
-          <p className="text-sm text-red-400/80">
-            AdminCap owned by a different wallet
-          </p>
-          <p className="text-[11px] text-muted-foreground/40">
-            Transfer the GateControl AdminCap to this wallet before configuring policies
-          </p>
-        </div>
-      </section>
-    );
-  }
-
   return (
     <section className="border border-border rounded p-5 space-y-4">
       <div className="flex items-center justify-between">
@@ -147,21 +241,35 @@ function PolicyComposerSection({ gate }: { gate: Structure }) {
         pendingLabel="Deploying directive…"
       />
 
-      <TribeRuleEditor
-        currentRule={policy?.tribeRule ?? null}
+      {(batch.status === "success" || batch.status === "error") && (
+        <TxFeedbackBanner
+          status={batch.status}
+          result={batch.result}
+          error={batch.error}
+          onDismiss={batch.reset}
+          successLabel="Preset deployed to all target gates"
+          pendingLabel="Deploying preset to gates…"
+        />
+      )}
+
+      <PolicyPresetEditor
+        commercialPreset={policy?.commercialPreset ?? null}
+        defensePreset={policy?.defensePreset ?? null}
         isLoading={policyLoading}
         txStatus={mutation.status}
-        onSet={mutation.setTribeRule}
-        onRemove={mutation.removeTribeRule}
+        onSetPreset={mutation.setPreset}
+        onRemovePreset={mutation.removePreset}
+        batchTargets={batchTargets}
+        batchTxStatus={batch.status}
+        onBatchApply={batch.deployPreset}
       />
 
-      <CoinTollEditor
-        currentRule={policy?.coinTollRule ?? null}
+      <TreasuryEditor
+        currentTreasury={policy?.treasury ?? null}
         isLoading={policyLoading}
         txStatus={mutation.status}
-        defaultTreasury={walletAddress ?? undefined}
-        onSet={mutation.setCoinToll}
-        onRemove={mutation.removeCoinToll}
+        defaultAddress={walletAddress ?? undefined}
+        onSet={mutation.setTreasury}
       />
     </section>
   );
@@ -290,18 +398,18 @@ function ExtensionSection({ gate }: { gate: Structure }) {
 function TransitProofSection({ gate }: { gate: Structure }) {
   const { data: linkedGateId, isLoading: linkedLoading } = useLinkedGate(gate.objectId);
   const { policy } = useGatePolicy(gate.objectId);
+  const { data: posture } = usePostureState(gate.objectId);
   const { status, result, error, execute, reset } = useTransitProofAction();
 
   if (gate.extensionStatus !== "authorized") return null;
 
-  const hasToll = !!policy?.coinTollRule;
-  const tollLabel = hasToll
-    ? `(${formatLux(policy!.coinTollRule!.price)} Lux toll)`
-    : "";
+  const activePosture = posture ?? "commercial";
+  const resolved = resolveEffectivePolicy(policy, activePosture, 0);
+  const tollLabel = resolved.toll > 0 ? `(${formatLux(resolved.toll)} Lux toll)` : "";
 
   const handleExecute = () => {
     if (!linkedGateId) return;
-    execute(gate.objectId, linkedGateId, policy);
+    execute(gate.objectId, linkedGateId, resolved.toll);
   };
 
   return (
@@ -345,14 +453,12 @@ function TransitProofSection({ gate }: { gate: Structure }) {
         <div className="text-[11px] text-muted-foreground">
           <span className="text-muted-foreground/60">Destination: </span>
           <span className="font-mono">{linkedGateId.slice(0, 10)}…{linkedGateId.slice(-6)}</span>
-          {policy?.tribeRule && (
+          <span className="ml-3 text-muted-foreground/60">
+            Mode: {activePosture}
+          </span>
+          {resolved.toll > 0 && (
             <span className="ml-3 text-muted-foreground/60">
-              Tribe rule: {policy.tribeRule.tribe}
-            </span>
-          )}
-          {hasToll && (
-            <span className="ml-3 text-muted-foreground/60">
-              Toll: {formatLux(policy!.coinTollRule!.price)} Lux
+              Toll: {formatLux(resolved.toll)} Lux
             </span>
           )}
         </div>

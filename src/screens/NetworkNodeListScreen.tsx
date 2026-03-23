@@ -15,6 +15,8 @@ import { NetworkNodeGlyph } from "@/components/topology/Glyphs";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import { fuelTypeLabel, getFuelEfficiency, computeRuntimeMs, formatRuntime } from "@/lib/fuelRuntime";
+import { shortId } from "@/lib/formatAddress";
+import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, NetworkNodeGroup } from "@/types/domain";
 
 interface NetworkNodeListScreenProps {
@@ -22,8 +24,6 @@ interface NetworkNodeListScreenProps {
   nodeGroups: NetworkNodeGroup[];
   isLoading: boolean;
 }
-
-const short = (id: string) => `${id.slice(0, 6)}…${id.slice(-4)}`;
 
 export function NetworkNodeListScreen({ structures, nodeGroups, isLoading }: NetworkNodeListScreenProps) {
   const nodes = structures.filter((s) => s.type === "network_node");
@@ -106,7 +106,7 @@ export function NetworkNodeListScreen({ structures, nodeGroups, isLoading }: Net
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Status</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Fuel</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Attached</th>
-                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Object ID</th>
+                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Location</th>
               </tr>
             </thead>
             <tbody>
@@ -198,9 +198,16 @@ function NodeRow({ node, group }: { node: Structure; group?: NetworkNodeGroup })
         <TagChip label={`${attachedCount} structures`} variant="default" size="sm" />
       </td>
       <td className="py-3 px-4">
-        <span className="text-[11px] font-mono text-muted-foreground" title={node.objectId}>
-          {short(node.objectId)}
-        </span>
+        {(() => {
+          const pin = getSpatialPin(node.objectId);
+          return pin ? (
+            <span className="text-[11px] text-muted-foreground">{pin.solarSystemName}</span>
+          ) : (
+            <span className="text-[11px] font-mono text-muted-foreground/50" title={node.objectId}>
+              {shortId(node.objectId)}
+            </span>
+          );
+        })()}
       </td>
     </tr>
   );

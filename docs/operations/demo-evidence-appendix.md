@@ -57,9 +57,9 @@
 | **Expected Output** | Command Overview UI fully rendered with operator's structures |
 | **Capture Method** | Screen recording of the running web application |
 | **Package ID overlay** | From world publish: `sandbox/validation/publish_world.sh` output or submission chain publish |
-| **Script exists?** | NO — **frontend application not yet built** |
+| **Script exists?** | NO — **PARTIALLY RESOLVED**: Frontend application now has the PolicyPresetEditor UI for deploying policy presets. CLI script gap remains for raw-terminal rehearsal. |
 
-**Gap:** TODO — Frontend application required. This is the primary hackathon deliverable, not a rehearsal script gap. The Package ID to overlay comes from the world-contracts publish step (scripted).
+**Gap:** ~~TODO — Frontend application required.~~ **RESOLVED** — Frontend application is built and deployed. The Command Overview, Signal Feed, PolicyPresetEditor, PostureControl, and SsuMarketplacePage are operational on the preview deployment.
 
 ---
 
@@ -94,22 +94,22 @@
 
 ### Beat 4 — Denial (1:00–1:18)
 
-**What the beat shows:** Wrong-tribe pilot attempts jump → blocked → MoveAbort with ETribeMismatch → Signal Feed shows denied event.
+**What the beat shows:** Operator’s active policy is visible in CC. Wrong-tribe pilot attempts jump → MoveAbort → hostile’s transaction fails. Evidence is a post-production inset from the hostile’s wallet — the operator’s Signal Feed does NOT show denial (MoveAbort reverts all events, including any that might have been emitted).
 
 | Field | Value |
 |---|---|
 | **Script** | **NONE — TODO** |
 | **Command (expected)** | `sui client ptb --move-call $WORLD_PKG::gate::jump --args $CHARACTER_B $GATE_A @$SPONSOR_BYTES --gas-budget 50000000` (PLAYER_B with wrong tribe, no permit → abort) |
-| **Expected Output** | `MoveAbort` in `(extension_module::tribe_permit, 0)` = ETribeMismatch. Failed tx recorded on-chain. |
+| **Expected Output** | `MoveAbort` in `(gate_control, EAccessDenied)`. Failed tx exists only in the hostile wallet’s RPC response — NOT recorded on-chain as a persisted event. |
 | **Prior evidence** | Claim-proof matrix references devnet checkpoint ~6500 (sandbox). Digest: `[TBD-digest]` for submission. |
-| **Capture Method** | Terminal error output showing `MoveAbort` + abort code. Explorer view of failed tx if available. |
+| **Capture Method** | Pre-capture from hostile wallet: terminal error showing `MoveAbort` + abort code, or Sui explorer view of failed tx. Shown in demo as a post-production inset/proof card. |
 | **Script exists?** | NO |
 
 **Gap: TODO — Hostile denial rehearsal script required.** Must:
 1. Use a second address (PLAYER_B) with a tribe that doesn't match the gate's tribe filter.
 2. Attempt `gate::jump` (without permit) or `gate::jump_with_permit` with a wrong-tribe permit.
 3. Capture the `MoveAbort` code and failed tx digest.
-4. Pattern: similar to `step13.sh` but with PLAYER_B who fails the tribe check.
+4. Pattern: similar to `step13.sh` but with PLAYER_B who fails the access check.
 
 ---
 
@@ -151,7 +151,9 @@
 
 ### Beat 6 — Defense Mode (1:36–2:06) ★
 
-**What the beat shows:** Operator sees threat intel (turret proximity detection in Signal Feed — sourced from `PriorityListUpdatedEvent` with `BehaviourChangeReason::ENTERED`), clicks "Defense Mode" — single PTB changes posture, locks gates, swaps turret extensions to DefenseAuth. Infrastructure-wide state change in one transaction. This is the demo climax (30 seconds).
+**What the beat shows:** In-world threat cue (outsider approaches gate perimeter) → operator switches posture in CC → single PTB changes posture + swaps turret extensions to DefenseAuth → infrastructure-wide state change in one transaction → world footage shows outsider entering turret range, turret engages. This is the demo climax (30 seconds).
+
+> **Evidence framing:** CC proves doctrine authorization via `PostureChangedEvent` + `ExtensionAuthorizedEvent` (both persisted on-chain). Turret engagement is shown as world footage, not as dashboard telemetry — the game engine calls `get_target_priority_list` via devInspect (read-only simulation), so targeting events are NOT persisted.
 
 **Evidence artifacts:**
 
@@ -161,7 +163,7 @@
 |---|---|
 | **Script** | `sandbox/posture-switch-validation/ts/src/posture-switch.ts` (Strategy A — single PTB) |
 | **Command** | `cd sandbox/posture-switch-validation/ts && npx tsx src/posture-switch.ts` |
-| **Expected Output** | Single tx digest containing: `set_posture` + `set_tribe_config` + `clear_toll_config` + N × (borrow OwnerCap<Turret> → `authorize_extension<DefenseAuth>` → return OwnerCap). `PostureChangedEvent`: BUSINESS→DEFENSE. N × `DefenseTargetingEvent` (turret posture swap). |
+| **Expected Output** | Single tx digest containing: `set_posture` + N × (borrow OwnerCap<Turret> → `authorize_extension<DefenseAuth>` → return OwnerCap). `PostureChangedEvent`: COMMERCIAL→DEFENSE. N × `ExtensionAuthorizedEvent` (turret doctrine swap). |
 | **Prior evidence** | Validated on localnet: BUSINESS→DEFENSE and DEFENSE→BUSINESS both pass. ~2.3s end-to-end (~250ms on-chain). See `docs/sandbox/posture-switch-localnet-validation.md`. |
 | **Capture Method** | Terminal output showing single tx digest. Before/after: `sui client object` on each turret (OFFLINE→ONLINE) and gate (tribe filter changed / toll cleared). |
 | **Script exists?** | YES — TS script validated on localnet. Shell equivalent TBD for submission chain. |
@@ -171,7 +173,7 @@
 | Field | Value |
 |---|---|
 | **Command** | `sui client object $TURRET_ID --json` (run before and after posture switch) |
-| **Expected Output** | Before: BouncerAuth extension (commercial). After: DefenseAuth extension (defense). |
+| **Expected Output** | Before: CommercialAuth extension (commercial). After: DefenseAuth extension (defense). |
 | **Capture Method** | Terminal output diff or explorer screenshot |
 
 **(c) Signal Feed cascade (UI):**
@@ -182,7 +184,7 @@
 | **Expected Output** | Signal Feed floods with: "Posture: Defense Mode", "Turret Alpha: Defense Posture", "Turret Bravo: Defense Posture", gate status updates |
 | **Capture Method** | Screen recording of the Command Overview transforming |
 
-**Gap:** TS script exists for localnet. **TODO — Shell-based rehearsal script for submission chain** (same PTB, different object IDs). The PTB composition pattern is validated; only target objects change. **Preconditions:** ≥1 turret anchored + with BouncerAuth (commercial posture), connected to online/fueled NetworkNode. Gates in "Open for Business" (tribe+toll). OwnerCap<Turret> accessible via character borrow. Energy reservation available.
+**Gap:** TS script exists for localnet. **TODO — Shell-based rehearsal script for submission chain** (same PTB, different object IDs). The PTB composition pattern is validated; only target objects change. **Preconditions:** ≥1 turret anchored + with CommercialAuth (commercial posture), connected to online/fueled NetworkNode. Gates in "Open for Business" (tribe+toll). OwnerCap<Turret> accessible via character borrow. Energy reservation available.
 
 ---
 
@@ -194,7 +196,7 @@
 |---|---|
 | **Script** | `sandbox/validation/ssu_trade_test.sh` (459 lines — full SSU-backed trade lifecycle) |
 | **Command** | `cd sandbox/validation && bash ssu_trade_test.sh` |
-| **Expected Output** | 6+ tx digests: publish, setup_storefront, authorize_ext, stock_item, list_item, buy. Events: `ListingCreatedEvent`, `TradeSettledEvent` (CC custom). Balance deltas for buyer and seller. |
+| **Expected Output** | 6+ tx digests: publish, setup_storefront, authorize_ext, stock_item, list_item, buy. Events: `ListingCreatedEvent`, `ListingPurchasedEvent` (CC custom). Balance deltas for buyer and seller. |
 | **Prior evidence** | Full results in `sandbox/validation/ssu_trade_results.txt` (167 lines). Key digests: Publish `49KABHpbQJ1sDmkHvYdUTr9S8JWgjpgwu152Nmz1Qg7z`, Buy `42Uc2VqSGuHx9rYqBRNFJ3gUhgDpGmY76mjtVDM6usvw`. Seller +5 EVE, Buyer −5 EVE confirmed. |
 | **Capture Method** | Terminal output from script run. Explorer tx view for buy digest. Balance comparison: `sui client gas $SELLER` / `sui client gas $BUYER` before and after. |
 | **Script exists?** | YES — fully scripted with prior evidence |
@@ -216,7 +218,7 @@
 |---|---|
 | **Script** | N/A — UI screenshot/recording |
 | **Command** | Navigate to Command Overview in running frontend |
-| **Expected Output** | Aggregate revenue total (toll + trade), structure count badge, posture: Defense Mode, turrets: Defense Posture, Signal Feed with deny + toll + trade + posture events |
+| **Expected Output** | Aggregate revenue total (toll + trade), structure count badge, posture: Defense Mode, turrets: Defense Posture, Signal Feed with policy + toll + trade + posture events |
 | **Capture Method** | Screen recording of the fully populated Command Overview |
 | **Script exists?** | N/A — UI-only beat, no rehearsal script needed |
 

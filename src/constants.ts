@@ -4,23 +4,22 @@ export const WORLD_PACKAGE_ID =
   "0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75";
 
 export const CC_PACKAGE_ID =
-  "0x0f2846d52cdd9c52ec9ced3f0378032718a7ccda013b36d0f6796fcf1bee9adc";
+  "0xeffb45b2b2e5419e05fc863ff25d2a593d55edb6e9e68c7e10ecef07c0b6aaed";
 
 /**
  * Original (v1) package address — used for type-based queries (DF keys,
  * event type strings, queryEvents MoveModule filter).  On Sui, struct types
- * are always anchored to the original-id even after package upgrades.
+ * are always anchored to the package version where they were FIRST DEFINED.
+ * Types from v1 (GateAuth, PostureKey, PostureState, PolicyPresetKey, etc.)
+ * use this address. Types introduced in later versions (e.g., CommercialAuth
+ * in v3) use their respective defining package — see type_origin_table.
  */
 export const CC_ORIGINAL_PACKAGE_ID =
-  "0x0f2846d52cdd9c52ec9ced3f0378032718a7ccda013b36d0f6796fcf1bee9adc";
+  "0xf2f1e8ea4467977c90fbd17d9d54a717f3c2ef58e034ed9e5af29e17f075d22f";
 
-/** Shared GateConfig object — hosts per-gate rule dynamic fields. */
+/** Shared GateConfig object — hosts per-gate policy preset dynamic fields. */
 export const GATE_CONFIG_ID =
-  "0x81e3ef33f489a049df27f5464a3c25dd865991d4e5e9d70a58413feab29d8d4f";
-
-/** GateControl AdminCap — required for policy mutations. */
-export const GATE_ADMIN_CAP_ID =
-  "0xeba584423e82098457628c43295ef25a3e048b4cceaa486783e1ee841093f067";
+  "0x3695f8978ab8cc36b6ff3ebdf8b8882e2f4d73c5a9cce0918a04d0a6a29a3eee";
 
 export const CHARACTER_ID =
   "0x9162fb775028fb0ea0479d8e6187040403d1a7388b2abda3c19aab1539893110";

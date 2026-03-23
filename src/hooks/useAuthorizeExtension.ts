@@ -5,13 +5,13 @@ import {
   WORLD_PACKAGE_ID,
   CC_PACKAGE_ID,
   CC_ORIGINAL_PACKAGE_ID,
-  CHARACTER_ID,
   GATE_ID,
   GATE_OWNER_CAP_ID,
   SSU_ID,
   SSU_OWNER_CAP_ID,
 } from "../constants";
-import type { TurretSwitchTarget, GateAuthTarget, SsuAuthTarget } from "@/types/domain";
+import { useCharacterId } from "@/hooks/useCharacter";
+import type { TurretSwitchTarget, GateAuthTarget, SsuAuthTarget, PostureMode } from "@/types/domain";
 
 interface AuthResult {
   digest: string;
@@ -21,6 +21,7 @@ type AuthStatus = "idle" | "pending" | "success" | "error";
 
 export function useAuthorizeExtension() {
   const dAppKit = useDAppKit();
+  const characterId = useCharacterId();
 
   const [gateStatus, setGateStatus] = useState<AuthStatus>("idle");
   const [gateResult, setGateResult] = useState<AuthResult | null>(null);
@@ -31,6 +32,7 @@ export function useAuthorizeExtension() {
   const [ssuError, setSsuError] = useState<string | null>(null);
 
   const authorizeGate = useCallback(async () => {
+    if (!characterId) throw new Error("Character not resolved yet \u2014 please wait");
     setGateStatus("pending");
     setGateError(null);
     try {
@@ -41,7 +43,7 @@ export function useAuthorizeExtension() {
       const [ownerCap, receipt] = tx.moveCall({
         target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
         typeArguments: [`${WORLD_PACKAGE_ID}::gate::Gate`],
-        arguments: [tx.object(CHARACTER_ID), tx.object(GATE_OWNER_CAP_ID)],
+        arguments: [tx.object(characterId), tx.object(GATE_OWNER_CAP_ID)],
       });
 
       // 2. Authorize GateAuth extension on the gate
@@ -55,7 +57,7 @@ export function useAuthorizeExtension() {
       tx.moveCall({
         target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
         typeArguments: [`${WORLD_PACKAGE_ID}::gate::Gate`],
-        arguments: [tx.object(CHARACTER_ID), ownerCap, receipt],
+        arguments: [tx.object(characterId), ownerCap, receipt],
       });
 
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
@@ -70,11 +72,12 @@ export function useAuthorizeExtension() {
       setGateError(message);
       setGateStatus("error");
     }
-  }, [dAppKit]);
+  }, [dAppKit, characterId]);
 
   const authorizeGates = useCallback(
     async (targets: GateAuthTarget[]) => {
       if (targets.length === 0) return;
+      if (!characterId) throw new Error("Character not resolved yet \u2014 please wait");
       setGateStatus("pending");
       setGateError(null);
       try {
@@ -86,7 +89,7 @@ export function useAuthorizeExtension() {
           const [ownerCap, receipt] = tx.moveCall({
             target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
             typeArguments: [gateType],
-            arguments: [tx.object(CHARACTER_ID), tx.object(target.ownerCapId)],
+            arguments: [tx.object(characterId), tx.object(target.ownerCapId)],
           });
 
           tx.moveCall({
@@ -98,7 +101,7 @@ export function useAuthorizeExtension() {
           tx.moveCall({
             target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
             typeArguments: [gateType],
-            arguments: [tx.object(CHARACTER_ID), ownerCap, receipt],
+            arguments: [tx.object(characterId), ownerCap, receipt],
           });
         }
 
@@ -116,10 +119,11 @@ export function useAuthorizeExtension() {
         setGateStatus("error");
       }
     },
-    [dAppKit],
+    [dAppKit, characterId],
   );
 
   const authorizeSsu = useCallback(async () => {
+    if (!characterId) throw new Error("Character not resolved yet \u2014 please wait");
     setSsuStatus("pending");
     setSsuError(null);
     try {
@@ -129,7 +133,7 @@ export function useAuthorizeExtension() {
       const [ownerCap, receipt] = tx.moveCall({
         target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
         typeArguments: [`${WORLD_PACKAGE_ID}::storage_unit::StorageUnit`],
-        arguments: [tx.object(CHARACTER_ID), tx.object(SSU_OWNER_CAP_ID)],
+        arguments: [tx.object(characterId), tx.object(SSU_OWNER_CAP_ID)],
       });
 
       // 2. Authorize TradeAuth extension on the SSU
@@ -143,7 +147,7 @@ export function useAuthorizeExtension() {
       tx.moveCall({
         target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
         typeArguments: [`${WORLD_PACKAGE_ID}::storage_unit::StorageUnit`],
-        arguments: [tx.object(CHARACTER_ID), ownerCap, receipt],
+        arguments: [tx.object(characterId), ownerCap, receipt],
       });
 
       const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
@@ -158,11 +162,12 @@ export function useAuthorizeExtension() {
       setSsuError(message);
       setSsuStatus("error");
     }
-  }, [dAppKit]);
+  }, [dAppKit, characterId]);
 
   const authorizeSsus = useCallback(
     async (targets: SsuAuthTarget[]) => {
       if (targets.length === 0) return;
+      if (!characterId) throw new Error("Character not resolved yet \u2014 please wait");
       setSsuStatus("pending");
       setSsuError(null);
       try {
@@ -174,7 +179,7 @@ export function useAuthorizeExtension() {
           const [ownerCap, receipt] = tx.moveCall({
             target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
             typeArguments: [ssuType],
-            arguments: [tx.object(CHARACTER_ID), tx.object(target.ownerCapId)],
+            arguments: [tx.object(characterId), tx.object(target.ownerCapId)],
           });
 
           tx.moveCall({
@@ -186,7 +191,7 @@ export function useAuthorizeExtension() {
           tx.moveCall({
             target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
             typeArguments: [ssuType],
-            arguments: [tx.object(CHARACTER_ID), ownerCap, receipt],
+            arguments: [tx.object(characterId), ownerCap, receipt],
           });
         }
 
@@ -204,42 +209,44 @@ export function useAuthorizeExtension() {
         setSsuStatus("error");
       }
     },
-    [dAppKit],
+    [dAppKit, characterId],
   );
 
-  // ── Turret BouncerAuth batch authorization ──
+  // ── Turret doctrine batch authorization (posture-aware) ──
   const [turretStatus, setTurretStatus] = useState<AuthStatus>("idle");
   const [turretResult, setTurretResult] = useState<AuthResult | null>(null);
   const [turretError, setTurretError] = useState<string | null>(null);
 
   const authorizeTurrets = useCallback(
-    async (targets: TurretSwitchTarget[]) => {
+    async (targets: TurretSwitchTarget[], posture: PostureMode = "commercial") => {
       if (targets.length === 0) return;
+      if (!characterId) throw new Error("Character not resolved yet \u2014 please wait");
       setTurretStatus("pending");
       setTurretError(null);
       try {
         const tx = new Transaction();
         const turretType = `${WORLD_PACKAGE_ID}::turret::Turret`;
-        // BouncerAuth introduced in v2 — type origin is CC_PACKAGE_ID
-        const bouncerAuthType = `${CC_PACKAGE_ID}::turret_bouncer::BouncerAuth`;
+        const authType = posture === "defense"
+          ? `${CC_PACKAGE_ID}::turret::DefenseAuth`
+          : `${CC_PACKAGE_ID}::turret::CommercialAuth`;
 
         for (const target of targets) {
           const [ownerCap, receipt] = tx.moveCall({
             target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
             typeArguments: [turretType],
-            arguments: [tx.object(CHARACTER_ID), tx.object(target.ownerCapId)],
+            arguments: [tx.object(characterId), tx.object(target.ownerCapId)],
           });
 
           tx.moveCall({
             target: `${WORLD_PACKAGE_ID}::turret::authorize_extension`,
-            typeArguments: [bouncerAuthType],
+            typeArguments: [authType],
             arguments: [tx.object(target.turretId), ownerCap],
           });
 
           tx.moveCall({
             target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
             typeArguments: [turretType],
-            arguments: [tx.object(CHARACTER_ID), ownerCap, receipt],
+            arguments: [tx.object(characterId), ownerCap, receipt],
           });
         }
 
@@ -257,7 +264,7 @@ export function useAuthorizeExtension() {
         setTurretStatus("error");
       }
     },
-    [dAppKit],
+    [dAppKit, characterId],
   );
 
   return {

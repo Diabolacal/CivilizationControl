@@ -23,6 +23,7 @@ export function useAssetDiscovery() {
     enabled: !!walletAddress,
     staleTime: 30_000,
     refetchInterval: 60_000,
+    refetchOnWindowFocus: false,
   });
 
   const structures = query.data?.structures ?? [];
@@ -98,6 +99,7 @@ function computeMetrics(structures: Structure[]): NetworkMetrics {
     totalStructures: structures.length,
     onlineCount: structures.filter((s) => s.status === "online").length,
     gateCount: structures.filter((s) => s.type === "gate").length,
+    governedGateCount: structures.filter((s) => s.type === "gate" && s.extensionStatus === "authorized").length,
     storageUnitCount: structures.filter((s) => s.type === "storage_unit").length,
     turretCount: structures.filter((s) => s.type === "turret").length,
     networkNodeCount: structures.filter((s) => s.type === "network_node").length,

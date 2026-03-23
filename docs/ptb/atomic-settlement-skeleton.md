@@ -25,7 +25,7 @@ A contract-agnostic settlement skeleton using placeholders. This template demons
 | `FUNCTION` | Entry function name | Read from Move source; verify `public entry` or `public` visibility |
 | `TYPE_ARGS` | Generic type parameters (e.g., `<GateAuth>`, `<SUI>`) | Read from function signature |
 | `REQUIRED_OBJECTS` | Shared or owned objects the function expects | Read from function parameters + on-chain object state |
-| `CAP_OBJECTS` | Capability objects (OwnerCap, AdminCap, etc.) | Read from function parameters; apply borrow/return if needed |
+| `CAP_OBJECTS` | Capability objects (OwnerCap, etc.) | Read from function parameters; apply borrow/return if needed |
 | `AMOUNT_MIST` | Payment amount in MIST (u64) | Read from rule config (dynamic field on ExtensionConfig) |
 | `TREASURY_ADDRESS` | Destination for collected funds | Read from rule config or admin configuration |
 | `ADMIN_ACL_ID` | AdminACL shared object ID | Query on-chain; specific to the world deployment |

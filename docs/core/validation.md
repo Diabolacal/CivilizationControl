@@ -13,8 +13,10 @@
 
 > If conflicts exist, defer to the March-11 Reimplementation Checklist for execution decisions.
 
-> **PRE-HACKATHON PROVISIONAL PLAN**
-> Must be re-audited against live world contracts and documentation before March 11 execution.
+> **PRE-HACKATHON PROVISIONAL PLAN (partially stale)**
+> Written before implementation. Module names, struct names, and event names have evolved.
+> Authoritative references: operator-validation-checklist.md (rehearsal), demo-beat-sheet (recording), claim-proof-matrix (evidence).
+> Retained for validation pattern reference. Key renames: `gate_permit`→`gate_control`, `CivControlConfig`→`GateConfig`, `AdminCap`→removed (OwnerCap<Gate> via character borrow), `ETribeMismatch`→`EAccessDenied`, `TradeSettledEvent`→`ListingPurchasedEvent`.
 
 > **Purpose:** Defines how to verify each implementation step. Includes build, lint, runtime expectations, and deterministic proof moment validation.
 
@@ -26,15 +28,15 @@
 
 | Gate | Command | Expected | Frequency |
 |------|---------|----------|-----------|
-| Build | `sui move build --path contracts/civcontrol` | 0 errors, 0 warnings | After every Move source change |
-| Test | `sui move test --path contracts/civcontrol` | All tests pass | After every Move source change |
-| Publish (dry run) | `sui client publish --path contracts/civcontrol --dry-run` | Gas estimate returned, no errors | Before actual publish |
+| Build | `sui move build --path contracts/civilization_control` | 0 errors, 0 warnings | After every Move source change |
+| Test | `sui move test --path contracts/civilization_control` | All tests pass (26/26) | After every Move source change |
+| Publish (dry run) | `sui client publish --path contracts/civilization_control --dry-run` | Gas estimate returned, no errors | Before actual publish |
 
 **Abort codes to test for:**
 | Module | Code | Meaning | Test Method |
 |--------|------|---------|-------------|
-| `gate_permit` | 0 | ETribeMismatch | Wrong-tribe character calls `request_jump_permit` |
-| `gate_permit` | 1 | EInsufficientPayment | Payment less than toll price |
+| `gate_control` | 0 | EAccessDenied | Non-whitelisted character calls `request_jump_permit` |
+| `gate_control` | 1 | EInsufficientPayment | Payment less than default_toll price |
 | `trade_post` | 0 | EListingInactive | Buy on cancelled listing |
 | `trade_post` | 1 | EInsufficientFunds | Coin value < listing price |
 | `trade_post` | 2 | ESSUMismatch | Listing SSU ID ≠ passed SSU |
@@ -47,10 +49,9 @@ Before deploying contracts to mainnet (real assets at risk), all economic-critic
 
 | Module | Properties to Prove | Priority |
 |--------|---------------------|----------|
-| `gate_permit` | Toll payment atomicity, no-double-toll, rule evaluation completeness | P0 |
-| `courier_escrow` | Balance conservation, state machine correctness | P0 |
-| `trade_post` | Payment atomicity, no partial fills | P1 |
-| `gate_toll` | Arithmetic overflow safety, fee math correctness | P1 |
+| `gate_control` | Toll payment atomicity, no-double-toll, preset evaluation completeness | P0 |
+| `trade_post` | Payment atomicity, no partial fills, balance conservation | P0 |
+| `posture` | Posture state machine correctness | P1 |
 
 Specs will live in a separate `specs/` package using Sui Prover's `#[spec(prove)]` attribute and `target` mechanism (required until upstream integration lands). See [Sui Prover Guide](https://info.asymptotic.tech/sui-prover-guide) for specification patterns.
 
@@ -67,11 +68,11 @@ Specs will live in a separate `specs/` package using Sui Prover's `#[spec(prove)
 
 ```bash
 # Move
-sui move build --path contracts/civcontrol
-sui move test --path contracts/civcontrol
+sui move build --path contracts/civilization_control
+sui move test --path contracts/civilization_control
 
 # Frontend
-cd frontend
+cd .
 npm run typecheck
 npm run build
 ```
@@ -101,16 +102,16 @@ All four must pass. Any failure blocks commit.
 |------|-------------------|---------------|
 | S07 | `npm run dev` + `npm run build` | Dev server starts, build produces output |
 | S08 | Connect wallet in browser | Address displays, `useCurrentAccount()` non-null |
-| S09 | `sui move build` | 0 errors. `GateAuth`, `TradeAuth`, `CivControlConfig`, `AdminCap` exist |
+| S09 | `sui move build` | 0 errors. `GateAuth`, `TradeAuth`, `GateConfig`, `PolicyPreset` exist (OwnerCap<Gate> via character borrow — no AdminCap) |
 | S10 | `sui client object <config_id>` | Shared object returned with correct type |
 
 ### Phase 2: GateControl
 
 | Step | Verification Method | Pass Criteria |
 |------|-------------------|---------------|
-| S11 | `sui move test` — set_tribe_rule test | DF exists after set, gone after remove |
-| S12 | `sui move test` — set_coin_toll test | DF stores price_mist and treasury |
-| S13 | `sui move test` — request_jump_permit tests (3 scenarios) | Correct tribe+toll → permit. Wrong tribe → abort 0. Low payment → abort 1. |
+| S11 | `sui move test` — set_policy_preset test | PolicyPreset DF exists after set, gone after remove |
+| S12 | `sui move test` — policy preset with default_toll | Preset stores default_toll and entries |
+| S13 | `sui move test` — request_jump_permit tests (3 scenarios) | Whitelisted tribe+toll → permit. Non-whitelisted → abort EAccessDenied. Low payment → abort EInsufficientPayment. |
 | S14 | End-to-end on-chain: 3 test txs | JumpPermit issued+consumed, TollCollectedEvent emitted, MoveAbort on wrong tribe |
 | S15 | Browser renders gate list after wallet connect | At least 1 gate visible with correct status |
 | S16 | Gate detail page loads | All overview fields rendered from on-chain data |
@@ -179,19 +180,19 @@ The 5 non-negotiable proof moments must each produce verifiable on-chain evidenc
 
 | Aspect | Validation |
 |--------|-----------|
-| **What to capture** | Transaction digest from `set_tribe_rule` + `set_coin_toll` deployment |
+| **What to capture** | Transaction digest from `set_policy_preset` deployment |
 | **Verification command** | `sui client tx-block <DIGEST> --json` |
-| **Expected fields** | `status: "success"`, effects show DF creation on CivControlConfig |
-| **UI evidence** | Rule Composer shows "Policy deployed" + tx link |
+| **Expected fields** | `status: "success"`, effects show DF creation on GateConfig, `PolicyPresetSetEvent` emitted |
+| **UI evidence** | PolicyPresetEditor shows "Policy deployed" + tx link |
 
 ### Proof Moment 2: Hostile Denied
 
 | Aspect | Validation |
 |--------|-----------|
-| **What to capture** | Transaction digest from wrong-tribe `request_jump_permit` attempt |
+| **What to capture** | Transaction digest from non-whitelisted `request_jump_permit` attempt |
 | **Verification command** | `sui client tx-block <DIGEST> --json` |
-| **Expected fields** | `status: "failure"`, `error` contains abort code 0 (ETribeMismatch) from `civcontrol::gate_permit` |
-| **UI evidence** | Transaction feedback shows "Jump denied. Tribe mismatch." Signal Feed entry with red indicator. |
+| **Expected fields** | `status: "failure"`, `error` contains abort code EAccessDenied from `civilization_control::gate_control` |
+| **UI evidence** | Transaction feedback shows "Access Denied" in Signal Feed with red indicator. |
 
 ### Proof Moment 3: Ally Tolled
 
@@ -208,15 +209,15 @@ The 5 non-negotiable proof moments must each produce verifiable on-chain evidenc
 |--------|-----------|
 | **What to capture** | Transaction digest from `buy()` call |
 | **Verification command** | `sui client tx-block <DIGEST> --json` |
-| **Expected fields** | `status: "success"`, events include `TradeSettledEvent`, object changes show Item transferred to buyer, Coin transferred to seller, Listing.is_active = false |
-| **UI evidence** | Confirmation: "Trade settled. [Item] acquired for [X] SUI." Balance deltas visible for both buyer and seller. |
+| **Expected fields** | `status: "success"`, events include `ListingPurchasedEvent`, object changes show Item transferred to buyer, Coin transferred to seller, Listing.is_active = false |
+| **UI evidence** | Confirmation: "Trade completed. [Item] acquired for [X] SUI." Balance deltas visible for both buyer and seller. |
 
 ### Proof Moment 5: Revenue Visible
 
 | Aspect | Validation |
 |--------|-----------|
 | **What to capture** | Command Overview screenshot showing aggregated revenue from toll + trade events |
-| **Verification method** | Sum of `TollCollectedEvent.amount_mist` + `TradeSettledEvent.price_mist` from `suix_queryEvents` |
+| **Verification method** | Sum of `TollCollectedEvent.amount_mist` + `ListingPurchasedEvent.price_mist` from `suix_queryEvents` |
 | **Expected fields** | Total revenue ≥ (toll amount + trade price). Individual event entries visible in Signal Feed. |
 | **UI evidence** | Command Overview revenue card shows total. Signal Feed shows individual events. |
 
@@ -257,8 +258,8 @@ Final checklist before hackathon submission:
 | No pre-start commits | `git log --oneline --before="2026-03-11"` | 0 results |
 | Build passes | `npm run build` | Clean exit |
 | TypeScript clean | `npx tsc --noEmit` | 0 errors |
-| Move build passes | `sui move build --path contracts/civcontrol` | 0 errors |
-| Move tests pass | `sui move test --path contracts/civcontrol` | All pass |
+| Move build passes | `sui move build --path contracts/civilization_control` | 0 errors |
+| Move tests pass | `sui move test --path contracts/civilization_control` | All pass (26/26) |
 | Demo video accessible | Open video link in incognito browser | Video plays |
 | README has required sections | Manual review | Problem, solution, architecture, setup, video, package IDs |
 | Deepsurge registered | Check Deepsurge portal | Entry listed |

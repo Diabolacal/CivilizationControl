@@ -37,8 +37,6 @@ export interface OperatorReadiness {
 export function useOperatorReadiness(
   nodeGroups: NetworkNodeGroup[],
   isConnected: boolean,
-  adminCapOwner?: string | null,
-  walletAddress?: string | null,
 ): OperatorReadiness {
   return useMemo(() => {
     const blockers: ReadinessBlocker[] = [];
@@ -52,20 +50,6 @@ export function useOperatorReadiness(
       });
     }
 
-    // ── AdminCap ownership check ──
-    if (
-      isConnected &&
-      adminCapOwner != null &&
-      walletAddress != null &&
-      adminCapOwner.toLowerCase() !== walletAddress.toLowerCase()
-    ) {
-      blockers.push({
-        key: "admin-cap",
-        label: "GateControl AdminCap is owned by a different wallet — transfer it to this wallet before operating",
-        severity: "error",
-      });
-    }
-
     // ── Turret extension check ──
     const allTurrets = nodeGroups.flatMap((g) => g.turrets);
     const authorized = allTurrets.filter((t) => t.extensionStatus === "authorized").length;
@@ -74,7 +58,7 @@ export function useOperatorReadiness(
     if (unauthorized > 0) {
       blockers.push({
         key: "turret-ext",
-        label: `${unauthorized} turret${unauthorized > 1 ? "s" : ""} missing BouncerAuth extension — authorize before switching`,
+        label: `${unauthorized} turret${unauthorized > 1 ? "s" : ""} not bound to CC doctrine — rebind before switching`,
         severity: "warning",
         link: "/turrets",
       });
@@ -97,5 +81,5 @@ export function useOperatorReadiness(
       blockers,
       turrets: { total: allTurrets.length, authorized, unauthorized },
     };
-  }, [nodeGroups, isConnected, adminCapOwner, walletAddress]);
+  }, [nodeGroups, isConnected]);
 }

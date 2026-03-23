@@ -5,9 +5,11 @@
  * renders parsed SignalEvents with category filtering.
  */
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Radio } from "lucide-react";
+import { useConnection } from "@evefrontier/dapp-kit";
 import { useSignalFeed } from "@/hooks/useSignalFeed";
+import { useAssetDiscovery } from "@/hooks/useAssetDiscovery";
 import { SignalEventRow } from "@/components/SignalEventRow";
 import { SIGNAL_CATEGORIES } from "@/lib/eventParser";
 import type { SignalCategory } from "@/types/domain";
@@ -15,9 +17,17 @@ import { cn } from "@/lib/utils";
 
 export function ActivityFeedScreen() {
   const [activeCategory, setActiveCategory] = useState<SignalCategory | "all">("all");
+  const { walletAddress } = useConnection();
+  const { structures } = useAssetDiscovery();
+  const ownedObjectIds = useMemo(
+    () => structures.map((s) => s.objectId),
+    [structures],
+  );
   const { signals, isLoading, isError, refetch } = useSignalFeed({
     limit: 50,
     category: activeCategory,
+    ownedObjectIds,
+    walletAddress: walletAddress ?? null,
   });
 
   return (

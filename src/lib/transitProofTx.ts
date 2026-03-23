@@ -22,7 +22,7 @@
  */
 
 import { Transaction } from "@mysten/sui/transactions";
-import { CC_PACKAGE_ID, GATE_CONFIG_ID, CHARACTER_ID } from "@/constants";
+import { CC_PACKAGE_ID, GATE_CONFIG_ID } from "@/constants";
 import type { ObjectId } from "@/types/domain";
 
 const SUI_CLOCK = "0x6";
@@ -30,6 +30,7 @@ const SUI_CLOCK = "0x6";
 interface TransitProofParams {
   sourceGateId: ObjectId;
   destinationGateId: ObjectId;
+  characterId: ObjectId;
 }
 
 interface TransitProofWithTollParams extends TransitProofParams {
@@ -39,7 +40,7 @@ interface TransitProofWithTollParams extends TransitProofParams {
 
 /** Build PTB for toll-free transit proof (no coin toll configured). */
 export function buildTransitProofFreeTx(params: TransitProofParams): Transaction {
-  const { sourceGateId, destinationGateId } = params;
+  const { sourceGateId, destinationGateId, characterId } = params;
   const tx = new Transaction();
 
   tx.moveCall({
@@ -48,7 +49,7 @@ export function buildTransitProofFreeTx(params: TransitProofParams): Transaction
       tx.object(GATE_CONFIG_ID),
       tx.object(sourceGateId),
       tx.object(destinationGateId),
-      tx.object(CHARACTER_ID),
+      tx.object(characterId),
       tx.object(SUI_CLOCK),
     ],
   });
@@ -58,7 +59,7 @@ export function buildTransitProofFreeTx(params: TransitProofParams): Transaction
 
 /** Build PTB for transit proof with toll payment. */
 export function buildTransitProofWithTollTx(params: TransitProofWithTollParams): Transaction {
-  const { sourceGateId, destinationGateId, eveCoinId, tollPrice } = params;
+  const { sourceGateId, destinationGateId, eveCoinId, tollPrice, characterId } = params;
   const tx = new Transaction();
 
   // Split exact toll amount from the operator's EVE coin
@@ -70,7 +71,7 @@ export function buildTransitProofWithTollTx(params: TransitProofWithTollParams):
       tx.object(GATE_CONFIG_ID),
       tx.object(sourceGateId),
       tx.object(destinationGateId),
-      tx.object(CHARACTER_ID),
+      tx.object(characterId),
       payment,
       tx.object(SUI_CLOCK),
     ],

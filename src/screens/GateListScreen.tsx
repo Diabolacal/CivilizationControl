@@ -15,6 +15,8 @@ import { GateGlyph } from "@/components/topology/Glyphs";
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import { usePostureState } from "@/hooks/usePosture";
+import { shortId } from "@/lib/formatAddress";
+import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, GateAuthTarget } from "@/types/domain";
 
 interface GateListScreenProps {
@@ -22,12 +24,11 @@ interface GateListScreenProps {
   isLoading: boolean;
 }
 
-const short = (id: string) => `${id.slice(0, 6)}…${id.slice(-4)}`;
-
 export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
   const gates = structures.filter((s) => s.type === "gate");
   const queryClient = useQueryClient();
-  const { data: posture } = usePostureState();
+  const firstGateId = gates[0]?.objectId;
+  const { data: posture } = usePostureState(firstGateId);
   const isDefense = posture === "defense";
 
   const { authorizeGates, gateStatus, gateResult, gateError, resetGate } =
@@ -177,13 +178,14 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
               <tr className="border-b border-border bg-muted/20">
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Gate</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Status</th>
+                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Destination</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Extension</th>
-                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Object ID</th>
+                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Location</th>
               </tr>
             </thead>
             <tbody>
               {gates.map((gate) => (
-                <GateRow key={gate.objectId} gate={gate} />
+                <GateRow key={gate.objectId} gate={gate} structures={structures} />
               ))}
             </tbody>
           </table>
@@ -193,7 +195,16 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
   );
 }
 
-function GateRow({ gate }: { gate: Structure }) {
+function GateRow({ gate, structures }: { gate: Structure; structures: Structure[] }) {
+  const parentNode = gate.networkNodeId
+    ? structures.find((s) => s.objectId === gate.networkNodeId && s.type === "network_node")
+    : undefined;
+  const pin = parentNode ? getSpatialPin(parentNode.objectId) : undefined;
+
+  const linkedGate = gate.linkedGateId
+    ? structures.find((s) => s.objectId === gate.linkedGateId)
+    : undefined;
+
   return (
     <tr className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors">
       <td className="py-3 px-4">
@@ -212,6 +223,15 @@ function GateRow({ gate }: { gate: Structure }) {
         </div>
       </td>
       <td className="py-3 px-4">
+        {gate.linkedGateId ? (
+          <span className="text-[11px] text-muted-foreground" title={gate.linkedGateId}>
+            {linkedGate ? linkedGate.name : shortId(gate.linkedGateId)}
+          </span>
+        ) : (
+          <span className="text-[11px] text-muted-foreground/40">—</span>
+        )}
+      </td>
+      <td className="py-3 px-4">
         {gate.extensionStatus === "authorized" ? (
           <TagChip label="AUTHORIZED" variant="primary" size="sm" />
         ) : gate.extensionStatus === "stale" ? (
@@ -221,9 +241,13 @@ function GateRow({ gate }: { gate: Structure }) {
         )}
       </td>
       <td className="py-3 px-4">
-        <span className="text-[11px] font-mono text-muted-foreground" title={gate.objectId}>
-          {short(gate.objectId)}
-        </span>
+        {pin ? (
+          <span className="text-[11px] text-muted-foreground">{pin.solarSystemName}</span>
+        ) : (
+          <span className="text-[11px] font-mono text-muted-foreground/50" title={gate.objectId}>
+            {shortId(gate.objectId)}
+          </span>
+        )}
       </td>
     </tr>
   );

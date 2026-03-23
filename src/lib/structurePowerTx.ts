@@ -11,7 +11,6 @@
 import { Transaction } from "@mysten/sui/transactions";
 import {
   WORLD_PACKAGE_ID,
-  CHARACTER_ID,
   ENERGY_CONFIG_ID,
 } from "@/constants";
 import type { ObjectId, StructureType } from "@/types/domain";
@@ -35,6 +34,7 @@ interface AssemblyPowerParams {
   ownerCapId: ObjectId;
   networkNodeId: ObjectId;
   online: boolean;
+  characterId: string;
 }
 
 /**
@@ -42,7 +42,7 @@ interface AssemblyPowerParams {
  * Signature: module::online|offline(assembly, nwn, energy_config, owner_cap)
  */
 export function buildAssemblyPowerTx(params: AssemblyPowerParams): Transaction {
-  const { structureType, structureId, ownerCapId, networkNodeId, online } = params;
+  const { structureType, structureId, ownerCapId, networkNodeId, online, characterId } = params;
   const mapping = MODULE_MAP[structureType];
   if (!mapping) throw new Error(`Unsupported structure type: ${structureType}`);
 
@@ -51,7 +51,7 @@ export function buildAssemblyPowerTx(params: AssemblyPowerParams): Transaction {
   const [cap, receipt] = tx.moveCall({
     target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
     typeArguments: [mapping.typeStr],
-    arguments: [tx.object(CHARACTER_ID), tx.object(ownerCapId)],
+    arguments: [tx.object(characterId), tx.object(ownerCapId)],
   });
 
   tx.moveCall({
@@ -67,7 +67,7 @@ export function buildAssemblyPowerTx(params: AssemblyPowerParams): Transaction {
   tx.moveCall({
     target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
     typeArguments: [mapping.typeStr],
-    arguments: [tx.object(CHARACTER_ID), cap, receipt],
+    arguments: [tx.object(characterId), cap, receipt],
   });
 
   return tx;
@@ -85,6 +85,7 @@ interface BatchAssemblyPowerParams {
   structureType: StructureType;
   targets: BatchAssemblyTarget[];
   online: boolean;
+  characterId: string;
 }
 
 /**
@@ -92,7 +93,7 @@ interface BatchAssemblyPowerParams {
  * Each structure gets its own borrow → action → return cycle.
  */
 export function buildBatchAssemblyPowerTx(params: BatchAssemblyPowerParams): Transaction {
-  const { structureType, targets, online } = params;
+  const { structureType, targets, online, characterId } = params;
   const mapping = MODULE_MAP[structureType];
   if (!mapping) throw new Error(`Unsupported structure type: ${structureType}`);
 
@@ -102,7 +103,7 @@ export function buildBatchAssemblyPowerTx(params: BatchAssemblyPowerParams): Tra
     const [cap, receipt] = tx.moveCall({
       target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
       typeArguments: [mapping.typeStr],
-      arguments: [tx.object(CHARACTER_ID), tx.object(target.ownerCapId)],
+      arguments: [tx.object(characterId), tx.object(target.ownerCapId)],
     });
 
     tx.moveCall({
@@ -118,7 +119,7 @@ export function buildBatchAssemblyPowerTx(params: BatchAssemblyPowerParams): Tra
     tx.moveCall({
       target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
       typeArguments: [mapping.typeStr],
-      arguments: [tx.object(CHARACTER_ID), cap, receipt],
+      arguments: [tx.object(characterId), cap, receipt],
     });
   }
 
@@ -130,6 +131,7 @@ export function buildBatchAssemblyPowerTx(params: BatchAssemblyPowerParams): Tra
 interface NodeOnlineParams {
   nodeId: ObjectId;
   ownerCapId: ObjectId;
+  characterId: string;
 }
 
 /**
@@ -137,14 +139,14 @@ interface NodeOnlineParams {
  * Signature: network_node::online(nwn, owner_cap, clock)
  */
 export function buildNodeOnlineTx(params: NodeOnlineParams): Transaction {
-  const { nodeId, ownerCapId } = params;
+  const { nodeId, ownerCapId, characterId } = params;
   const tx = new Transaction();
   const nodeType = `${WORLD_PACKAGE_ID}::network_node::NetworkNode`;
 
   const [cap, receipt] = tx.moveCall({
     target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
     typeArguments: [nodeType],
-    arguments: [tx.object(CHARACTER_ID), tx.object(ownerCapId)],
+    arguments: [tx.object(characterId), tx.object(ownerCapId)],
   });
 
   tx.moveCall({
@@ -155,7 +157,7 @@ export function buildNodeOnlineTx(params: NodeOnlineParams): Transaction {
   tx.moveCall({
     target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
     typeArguments: [nodeType],
-    arguments: [tx.object(CHARACTER_ID), cap, receipt],
+    arguments: [tx.object(characterId), cap, receipt],
   });
 
   return tx;

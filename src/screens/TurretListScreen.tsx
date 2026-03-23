@@ -2,8 +2,8 @@
  * TurretListScreen — Overview of all turrets under governance.
  *
  * Displays turrets with status, extension state, posture mode, and
- * per-row + bulk power controls. Includes batch BouncerAuth
- * authorization for turrets that haven't been initialized yet.
+ * per-row + bulk power controls. Includes posture-aware doctrine
+ * rebinding for turrets that are unbound or stale after upgrade.
  */
 
 import { useCallback, useMemo } from "react";
@@ -16,6 +16,8 @@ import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { usePostureState } from "@/hooks/usePosture";
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
 import { useStructurePower } from "@/hooks/useStructurePower";
+import { shortId } from "@/lib/formatAddress";
+import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, PostureMode, TurretSwitchTarget } from "@/types/domain";
 
 interface TurretListScreenProps {
@@ -23,11 +25,10 @@ interface TurretListScreenProps {
   isLoading: boolean;
 }
 
-const short = (id: string) => `${id.slice(0, 6)}…${id.slice(-4)}`;
-
 export function TurretListScreen({ structures, isLoading }: TurretListScreenProps) {
   const turrets = structures.filter((s) => s.type === "turret");
-  const { data: posture } = usePostureState();
+  const firstGateId = structures.find((s) => s.type === "gate")?.objectId;
+  const { data: posture } = usePostureState(firstGateId);
   const currentPosture: PostureMode = posture ?? "commercial";
   const queryClient = useQueryClient();
 
@@ -55,10 +56,10 @@ export function TurretListScreen({ structures, isLoading }: TurretListScreenProp
   );
 
   const handleAuthorizeAll = useCallback(() => {
-    authorizeTurrets(unauthorizedTargets).then(() => {
+    authorizeTurrets(unauthorizedTargets, currentPosture).then(() => {
       queryClient.invalidateQueries({ queryKey: ["assetDiscovery"] });
     });
-  }, [authorizeTurrets, unauthorizedTargets, queryClient]);
+  }, [authorizeTurrets, unauthorizedTargets, currentPosture, queryClient]);
 
   const handleBulkOnline = useCallback(() => {
     power.toggleBatch({
@@ -92,24 +93,36 @@ export function TurretListScreen({ structures, isLoading }: TurretListScreenProp
             Turrets
           </h1>
           <p className="text-[11px] font-mono text-muted-foreground tracking-wide">
-            Perimeter Enforcement // {turrets.length} Enrolled
+            Bouncer Enforcement // {turrets.length} Enrolled
           </p>
         </div>
-        <div className="flex items-center gap-3">
-          {unauthorizedTargets.length > 0 && (
-            <button
-              onClick={handleAuthorizeAll}
-              disabled={turretStatus === "pending"}
-              className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-400 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {turretStatus === "pending"
-                ? "Authorizing…"
-                : `Authorize BouncerAuth (${unauthorizedTargets.length})`}
-            </button>
-          )}
-          <PostureBadge posture={currentPosture} />
-        </div>
+        <PostureBadge posture={currentPosture} />
       </div>
+
+      {/* Doctrine rebind banner — prominent when turrets need binding */}
+      {unauthorizedTargets.length > 0 && (
+        <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3 flex items-center gap-3">
+          <span className="text-amber-400 text-base">⚠</span>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-amber-300">
+              Turret Doctrine Rebind Required
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              {unauthorizedTargets.length} turret(s) not bound to current doctrine.
+              Unbound turrets use default world targeting (shoot all non-tribe).
+            </p>
+          </div>
+          <button
+            onClick={handleAuthorizeAll}
+            disabled={turretStatus === "pending"}
+            className="shrink-0 rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-xs font-medium text-amber-400 transition-colors hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {turretStatus === "pending"
+              ? "Binding…"
+              : `Rebind Doctrine (${unauthorizedTargets.length})`}
+          </button>
+        </div>
+      )}
 
       {/* Authorization feedback */}
       {(turretStatus === "success" || turretStatus === "error") && (
@@ -117,7 +130,7 @@ export function TurretListScreen({ structures, isLoading }: TurretListScreenProp
           status={turretStatus}
           result={turretResult}
           error={turretError ?? null}
-          successLabel={`BouncerAuth authorized on ${unauthorizedTargets.length} turret(s)`}
+          successLabel={`Doctrine bound on ${unauthorizedTargets.length} turret(s) — ${currentPosture === "defense" ? "Defense" : "Commercial"} mode`}
           onDismiss={resetTurret}
         />
       )}
@@ -174,12 +187,12 @@ export function TurretListScreen({ structures, isLoading }: TurretListScreenProp
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Status</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Posture Mode</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Extension</th>
-                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Object ID</th>
+                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Location</th>
               </tr>
             </thead>
             <tbody>
               {turrets.map((turret) => (
-                <TurretRow key={turret.objectId} turret={turret} posture={currentPosture} />
+                <TurretRow key={turret.objectId} turret={turret} posture={currentPosture} structures={structures} />
               ))}
             </tbody>
           </table>
@@ -189,9 +202,13 @@ export function TurretListScreen({ structures, isLoading }: TurretListScreenProp
   );
 }
 
-function TurretRow({ turret, posture }: { turret: Structure; posture: PostureMode }) {
+function TurretRow({ turret, posture, structures }: { turret: Structure; posture: PostureMode; structures: Structure[] }) {
   const modeLabel = posture === "defense" ? "Defense" : "Bouncer";
   const modeVariant = posture === "defense" ? "warning" : "primary";
+  const parentNode = turret.networkNodeId
+    ? structures.find((s) => s.objectId === turret.networkNodeId && s.type === "network_node")
+    : undefined;
+  const pin = parentNode ? getSpatialPin(parentNode.objectId) : undefined;
 
   return (
     <tr className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors">
@@ -215,17 +232,21 @@ function TurretRow({ turret, posture }: { turret: Structure; posture: PostureMod
       </td>
       <td className="py-3 px-4">
         {turret.extensionStatus === "authorized" ? (
-          <TagChip label="AUTHORIZED" variant="primary" size="sm" />
+          <TagChip label="CC ACTIVE" variant="primary" size="sm" />
         ) : turret.extensionStatus === "stale" ? (
-          <TagChip label="STALE — RE-AUTH" variant="warning" size="sm" />
+          <TagChip label="STALE — REBIND" variant="warning" size="sm" />
         ) : (
-          <TagChip label="NONE" variant="default" size="sm" />
+          <TagChip label="UNBOUND" variant="danger" size="sm" />
         )}
       </td>
       <td className="py-3 px-4">
-        <span className="text-[11px] font-mono text-muted-foreground" title={turret.objectId}>
-          {short(turret.objectId)}
-        </span>
+        {pin ? (
+          <span className="text-[11px] text-muted-foreground">{pin.solarSystemName}</span>
+        ) : (
+          <span className="text-[11px] font-mono text-muted-foreground/50" title={turret.objectId}>
+            {shortId(turret.objectId)}
+          </span>
+        )}
       </td>
     </tr>
   );

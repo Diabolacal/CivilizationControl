@@ -163,6 +163,7 @@ export async function fetchStructure(
   const status = resolveStatus(content);
   const name = resolveName(content, structureType, objectId);
   const networkNodeId = resolveNetworkNodeId(content);
+  const linkedGateId = structureType === "gate" ? resolveLinkedGateId(content) : undefined;
 
   return {
     objectId,
@@ -172,6 +173,7 @@ export async function fetchStructure(
     status,
     networkNodeId,
     fuel: resolveFuel(content),
+    linkedGateId,
     extensionStatus: resolveExtensionAuth(content),
   };
 }
@@ -218,58 +220,82 @@ export async function discoverAssets(walletAddress: string): Promise<{
 }
 
 /**
- * Fetch gate policy rules from GateConfig dynamic fields.
+ * Fetch gate policy presets from GateConfig dynamic fields.
  *
- * Reads TribeRuleKey{gate_id} and CoinTollKey{gate_id} DFs on the shared
- * GateConfig object. Returns null for rules that are not configured.
+ * Reads PolicyPresetKey{gate_id, mode} DFs for both posture modes (0=Commercial,
+ * 1=Defense) and the per-gate TreasuryKey{gate_id} on the shared GateConfig object.
  */
 export async function fetchGateRules(gateId: ObjectId): Promise<GatePolicy> {
   const client = getSuiClient();
-  const tribeRuleType = `${CC_ORIGINAL_PACKAGE_ID}::gate_control::TribeRuleKey`;
-  const coinTollType = `${CC_ORIGINAL_PACKAGE_ID}::gate_control::CoinTollKey`;
+  const presetKeyType = `${CC_ORIGINAL_PACKAGE_ID}::gate_control::PolicyPresetKey`;
+  const treasuryKeyType = `${CC_ORIGINAL_PACKAGE_ID}::gate_control::TreasuryKey`;
 
-  const [tribeResp, tollResp] = await Promise.allSettled([
+  const [commercialResp, defenseResp, treasuryResp] = await Promise.allSettled([
     client.getDynamicFieldObject({
       parentId: GATE_CONFIG_ID,
-      name: { type: tribeRuleType, value: { gate_id: gateId } },
+      name: { type: presetKeyType, value: { gate_id: gateId, mode: 0 } },
     }),
     client.getDynamicFieldObject({
       parentId: GATE_CONFIG_ID,
-      name: { type: coinTollType, value: { gate_id: gateId } },
+      name: { type: presetKeyType, value: { gate_id: gateId, mode: 1 } },
+    }),
+    client.getDynamicFieldObject({
+      parentId: GATE_CONFIG_ID,
+      name: {
+        type: treasuryKeyType,
+        value: { gate_id: gateId },
+      },
     }),
   ]);
 
-  let tribeRule: GatePolicy["tribeRule"] = null;
-  if (tribeResp.status === "fulfilled" && tribeResp.value?.data) {
-    const content = getObjectContent(tribeResp.value);
+  const commercialPreset = parsePresetResponse(commercialResp);
+  const defensePreset = parsePresetResponse(defenseResp);
+
+  let treasury: string | null = null;
+  if (treasuryResp.status === "fulfilled" && treasuryResp.value?.data) {
+    const content = getObjectContent(treasuryResp.value);
     if (content) {
-      // DF value is nested under `value` or `value.fields`
-      const val = content.value as Record<string, unknown> | undefined;
-      const fields = (val?.fields ?? val) as Record<string, unknown> | undefined;
-      const tribe = Number(fields?.tribe ?? val?.tribe ?? content.tribe ?? 0);
-      if (tribe > 0) {
-        tribeRule = { tribe };
-      }
+      const val = content.value as string | Record<string, unknown> | undefined;
+      treasury = typeof val === "string" ? val : String(val ?? "");
     }
   }
 
-  let coinTollRule: GatePolicy["coinTollRule"] = null;
-  if (tollResp.status === "fulfilled" && tollResp.value?.data) {
-    const content = getObjectContent(tollResp.value);
-    if (content) {
-      const val = content.value as Record<string, unknown> | undefined;
-      const fields = (val?.fields ?? val) as Record<string, unknown> | undefined;
-      const price = Number(fields?.price ?? val?.price ?? content.price ?? 0);
-      const treasury = String(
-        fields?.treasury ?? val?.treasury ?? content.treasury ?? "",
-      );
-      if (price > 0 || treasury) {
-        coinTollRule = { price, treasury };
-      }
-    }
-  }
+  return { gateId, commercialPreset, defensePreset, treasury };
+}
 
-  return { gateId, tribeRule, coinTollRule };
+/** Parse a PolicyPreset DF response into the domain type. */
+function parsePresetResponse(
+  resp: PromiseSettledResult<SuiObjectResponse>,
+): GatePolicy["commercialPreset"] {
+  if (resp.status !== "fulfilled" || !resp.value?.data) return null;
+  const content = getObjectContent(resp.value);
+  if (!content) return null;
+
+  const val = content.value as Record<string, unknown> | undefined;
+  const fields = (val?.fields ?? val) as Record<string, unknown> | undefined;
+  if (!fields) return null;
+
+  const rawEntries = (fields.entries ?? []) as Array<{
+    fields?: Record<string, unknown>;
+    tribe?: unknown;
+    access?: unknown;
+    toll?: unknown;
+  }>;
+
+  const entries = rawEntries.map((e) => {
+    const ef = e.fields ?? e;
+    return {
+      tribe: Number(ef.tribe ?? 0),
+      access: Boolean(ef.access ?? false),
+      toll: Number(ef.toll ?? 0),
+    };
+  });
+
+  return {
+    entries,
+    defaultAccess: Boolean(fields.default_access ?? false),
+    defaultToll: Number(fields.default_toll ?? 0),
+  };
 }
 
 /**
@@ -479,10 +505,15 @@ export async function fetchLinkedGateId(gateId: ObjectId): Promise<ObjectId | nu
   });
   const content = getObjectContent(response);
   if (!content) return null;
-  const linkedRaw = content.linked_gate_id as unknown;
-  if (!linkedRaw || typeof linkedRaw !== "object") return null;
-  const fields = (linkedRaw as Record<string, unknown>).fields as Record<string, unknown> | undefined;
-  return (fields?.id as string) ?? null;
+  const linkedRaw = content.linked_gate_id;
+  // Option<ID> serializes as plain string when Some, null when None
+  if (typeof linkedRaw === "string" && linkedRaw !== "") return linkedRaw;
+  // Legacy envelope shape { fields: { id: "0x..." } } (older Sui versions)
+  if (linkedRaw && typeof linkedRaw === "object") {
+    const fields = (linkedRaw as Record<string, unknown>).fields as Record<string, unknown> | undefined;
+    return (fields?.id as string) ?? null;
+  }
+  return null;
 }
 
 // ─── Event Queries ────────────────────────────────────────
@@ -491,14 +522,14 @@ export async function fetchLinkedGateId(gateId: ObjectId): Promise<ObjectId | nu
  * Fetch the current network posture from GateConfig dynamic field.
  * Returns "commercial" (default) or "defense".
  */
-export async function fetchPosture(): Promise<PostureMode> {
+export async function fetchPosture(gateId: string): Promise<PostureMode> {
   const client = getSuiClient();
   try {
     const response = await client.getDynamicFieldObject({
       parentId: GATE_CONFIG_ID,
       name: {
-        type: `${CC_PACKAGE_ID}::posture::PostureKey`,
-        value: { dummy_field: false },
+        type: `${CC_ORIGINAL_PACKAGE_ID}::posture::PostureKey`,
+        value: { gate_id: gateId },
       },
     });
     const content = getObjectContent(response);
@@ -526,7 +557,7 @@ export async function fetchRecentEvents(
 ): Promise<{ id: { txDigest: string; eventSeq: string }; type: string; parsedJson?: Record<string, unknown>; timestampMs?: string; sender?: string }[]> {
   const client = getSuiClient();
 
-  const [gateEvents, tradeEvents, postureEvents, bouncerEvents, defenseEvents] = await Promise.all([
+  const [gateEvents, tradeEvents, postureEvents, bouncerEvents, defenseEvents, turretExtEvents, turretEvents] = await Promise.all([
     client.queryEvents({
       query: { MoveModule: { package: CC_ORIGINAL_PACKAGE_ID, module: "gate_control" } },
       order: "descending",
@@ -543,12 +574,22 @@ export async function fetchRecentEvents(
       limit,
     }),
     client.queryEvents({
-      query: { MoveModule: { package: CC_PACKAGE_ID, module: "turret_bouncer" } },
+      query: { MoveModule: { package: CC_ORIGINAL_PACKAGE_ID, module: "turret_bouncer" } },
       order: "descending",
       limit,
     }),
     client.queryEvents({
-      query: { MoveModule: { package: CC_PACKAGE_ID, module: "turret_defense" } },
+      query: { MoveModule: { package: CC_ORIGINAL_PACKAGE_ID, module: "turret_defense" } },
+      order: "descending",
+      limit,
+    }),
+    client.queryEvents({
+      query: { MoveModule: { package: WORLD_PACKAGE_ID, module: "turret" } },
+      order: "descending",
+      limit,
+    }),
+    client.queryEvents({
+      query: { MoveModule: { package: CC_PACKAGE_ID, module: "turret" } },
       order: "descending",
       limit,
     }),
@@ -560,6 +601,8 @@ export async function fetchRecentEvents(
     ...postureEvents.data,
     ...bouncerEvents.data,
     ...defenseEvents.data,
+    ...turretExtEvents.data,
+    ...turretEvents.data,
   ] as {
     id: { txDigest: string; eventSeq: string };
     type: string;
@@ -575,26 +618,6 @@ export async function fetchRecentEvents(
   });
 
   return allEvents;
-}
-
-/**
- * Check who owns the GateControl AdminCap on-chain.
- * Returns the owner address or null if the object doesn't exist.
- */
-export async function fetchAdminCapOwner(adminCapId: string): Promise<string | null> {
-  const client = getSuiClient();
-  const response = await client.getObject({
-    id: adminCapId,
-    options: { showOwner: true },
-  });
-  if (!response.data?.owner) return null;
-  const owner = response.data.owner as
-    | { AddressOwner: string }
-    | { ObjectOwner: string }
-    | { Shared: unknown }
-    | string;
-  if (typeof owner === "object" && "AddressOwner" in owner) return owner.AddressOwner;
-  return null;
 }
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -702,6 +725,23 @@ function resolveNetworkNodeId(
   return undefined;
 }
 
+/** Resolve linked gate ID from on-chain Option<ID> field. */
+function resolveLinkedGateId(
+  content: Record<string, unknown> | null,
+): ObjectId | undefined {
+  if (!content) return undefined;
+  const raw = content.linked_gate_id;
+  // Option<ID> serializes as plain string when Some, null when None
+  if (typeof raw === "string" && raw !== "") return raw;
+  // Legacy envelope shape { fields: { id: "0x..." } }
+  if (raw && typeof raw === "object") {
+    const fields = (raw as Record<string, unknown>).fields as Record<string, unknown> | undefined;
+    const id = fields?.id as string | undefined;
+    if (id) return id;
+  }
+  return undefined;
+}
+
 /**
  * Resolve fuel state from on-chain Fuel structure.
  *
@@ -749,9 +789,12 @@ function resolveOptionU64(raw: unknown): number | undefined {
  * Resolve extension authorization from on-chain data.
  *
  * On-chain shape: { extension: { fields: { name: "pkg::module::Witness" } } }
- * where the name uses the defining (original) package ID without 0x prefix.
- * Returns "authorized" if the extension matches the current CC package,
- * "stale" if an extension exists from a different package, or "none".
+ * Uses suffix matching: only exact module::Type patterns from CC code are
+ * considered "authorized". The package prefix is not checked because turret
+ * auth types (CommercialAuth, DefenseAuth) were introduced in v3 and their
+ * type-origin package differs from both CC_ORIGINAL_PACKAGE_ID (v1) and
+ * CC_PACKAGE_ID (latest). Suffix matching is safe because only our package
+ * can mint these witness types to register them as extensions.
  */
 function resolveExtensionAuth(
   content: Record<string, unknown> | null,
@@ -769,10 +812,18 @@ function resolveExtensionAuth(
 
   if (!typeName) return "none";
 
-  // CC_ORIGINAL_PACKAGE_ID without 0x prefix — on-chain TypeName uses bare hex
-  const ccPrefix = CC_ORIGINAL_PACKAGE_ID.replace(/^0x/, "");
-  if (typeName.startsWith(ccPrefix)) return "authorized";
+  // Whitelist: only these module::Type suffixes from the current contract
+  // are valid. Legacy modules (turret_bouncer, turret_defense) and anything
+  // else are stale.
+  const VALID_AUTH_SUFFIXES = [
+    "::gate_control::GateAuth",
+    "::turret::CommercialAuth",
+    "::turret::DefenseAuth",
+  ];
 
-  // Extension exists but from a different (old) package
+  if (VALID_AUTH_SUFFIXES.some((s) => typeName.endsWith(s))) {
+    return "authorized";
+  }
+
   return "stale";
 }

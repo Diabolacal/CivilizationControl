@@ -300,7 +300,7 @@ Complete checks sequentially. Record results in `notes/day1-validation.md`. If a
 **Step ID:** Part of S14
 **Internal terminology:** "bouncer turret" (alias: "peacekeeper turret")
 
-> **Context:** PROVEN — Custom turret extensions implemented and published in v2. `turret_bouncer.move` (BouncerAuth) returns filtered priority list for commercial posture (aggressors +10000, non-tribe +1000). `turret_defense.move` (DefenseAuth) returns full defense priority boost (aggressors +15000, non-tribe +5000). Turrets remain online in both postures; posture tracked via PostureKey DF in `posture.move`.
+> **Context:** PROVEN — Custom turret extensions implemented and published in v2. `turret_bouncer.move` (BouncerAuth) is passive until aggression: all non-aggressors excluded, aggressors targeted at +10000. `turret_defense.move` (DefenseAuth) actively targets non-tribe at +5000, aggressors at +15000. Turrets remain online in both postures; posture tracked via PostureKey DF in `posture.move`.
 
 | Field | Value |
 |-------|-------|
@@ -312,7 +312,7 @@ Complete checks sequentially. Record results in `notes/day1-validation.md`. If a
 | **Fallback** | If empty list causes game engine error, or aggression filtering doesn't work as expected: keep current model (Business = offline, Defense = online/aggressive). No demo rewrite needed. |
 | **Blocking?** | No — this is an upgrade-path validation. Main demo uses offline/online toggle regardless of outcome. |
 
-**Result:** ✅ BouncerAuth returns filtered list (aggressors targeted, neutrals deprioritized) ✅ DefenseAuth returns full defense targeting ✅ Multi-turret extension rollout feasible via v2 upgrade ✅ VALIDATED — turrets online in both postures
+**Result:** ✅ BouncerAuth returns filtered list (only aggressors targeted, neutrals excluded) ✅ DefenseAuth returns full defense targeting ✅ Multi-turret extension rollout feasible via v2 upgrade ✅ VALIDATED — turrets online in both postures
 
 ---
 

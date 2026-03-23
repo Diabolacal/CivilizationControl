@@ -9,15 +9,16 @@ import { StatusDot } from "@/components/StatusDot";
 import { TagChip } from "@/components/TagChip";
 import { StructureGlyph } from "@/components/topology/Glyphs";
 import { fuelTypeLabel } from "@/lib/fuelRuntime";
+import { shortId } from "@/lib/formatAddress";
 import type { Structure } from "@/types/domain";
 
 interface StructureDetailHeaderProps {
   structure: Structure;
+  /** Solar system name inherited from parent node's spatial pin. */
+  solarSystemName?: string;
 }
 
-const short = (id: string) => `${id.slice(0, 6)}…${id.slice(-4)}`;
-
-export function StructureDetailHeader({ structure }: StructureDetailHeaderProps) {
+export function StructureDetailHeader({ structure, solarSystemName }: StructureDetailHeaderProps) {
   return (
     <div className="flex items-start gap-4 border-b border-border/50 pb-4">
       <div className="text-muted-foreground mt-0.5">
@@ -32,8 +33,13 @@ export function StructureDetailHeader({ structure }: StructureDetailHeaderProps)
         </div>
         <div className="flex items-center gap-3 flex-wrap">
           <span className="text-[11px] font-mono text-muted-foreground" title={structure.objectId}>
-            {short(structure.objectId)}
+            {shortId(structure.objectId)}
           </span>
+          {solarSystemName && (
+            <span className="text-[11px] text-muted-foreground/70">
+              {solarSystemName}
+            </span>
+          )}
           <TagChip
             label={structure.status === "online" ? "ONLINE" : structure.status === "offline" ? "OFFLINE" : "NEUTRAL"}
             variant={structure.status === "online" ? "success" : structure.status === "offline" ? "danger" : "default"}

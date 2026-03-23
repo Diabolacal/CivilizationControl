@@ -1,7 +1,7 @@
 /**
- * useGatePolicy — TanStack Query hook for fetching gate policy rules.
+ * useGatePolicy — TanStack Query hook for fetching gate policy presets.
  *
- * Reads TribeRule and CoinTollRule dynamic fields from the shared
+ * Reads PolicyPreset and TreasuryKey dynamic fields from the shared
  * GateConfig object for a specific gate.
  */
 

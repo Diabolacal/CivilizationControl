@@ -13,6 +13,7 @@ import { StatusDot } from "@/components/StatusDot";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import { fuelTypeLabel, getFuelEfficiency, computeRuntimeMs, formatRuntime } from "@/lib/fuelRuntime";
+import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, NetworkNodeGroup } from "@/types/domain";
 
 interface NetworkNodeDetailScreenProps {
@@ -45,10 +46,12 @@ export function NetworkNodeDetailScreen({ structures, nodeGroups, isLoading }: N
     );
   }
 
+  const pin = node ? getSpatialPin(node.objectId) : undefined;
+
   return (
     <div className="space-y-6">
       <BackLink />
-      <StructureDetailHeader structure={node} />
+      <StructureDetailHeader structure={node} solarSystemName={pin?.solarSystemName} />
       <PowerControlSection node={node} />
       {group && <AttachedStructuresSection group={group} />}
     </div>

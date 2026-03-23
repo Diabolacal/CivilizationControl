@@ -46,6 +46,8 @@ export interface Structure {
   networkNodeId?: ObjectId;
   /** Fuel state for network nodes. */
   fuel?: FuelState;
+  /** Linked destination gate ID — only present for linked gates. */
+  linkedGateId?: ObjectId;
   /**
    * Extension authorization status:
    * - "authorized" — extension matches the current CC package witness type
@@ -136,6 +138,7 @@ export interface NetworkMetrics {
   totalStructures: number;
   onlineCount: number;
   gateCount: number;
+  governedGateCount: number;
   storageUnitCount: number;
   turretCount: number;
   networkNodeCount: number;
@@ -155,25 +158,30 @@ export interface Listing {
   price: number;
 }
 
-// ─── Gate Policy Types ───────────────────────────────────
+// ─── Gate Policy Types (v2a — Preset Model) ─────────────
 
-/** On-chain tribe filter rule for a gate. */
-export interface TribeRule {
+/** A tribe-specific policy entry within a preset. */
+export interface TribePolicyEntry {
   tribe: number;
+  access: boolean;
+  toll: number;
 }
 
-/** On-chain coin toll rule for a gate. */
-export interface CoinTollRule {
-  /** Toll price in EVE base units (divide by 10_000_000 for Lux). */
-  price: number;
-  treasury: string;
+/** Full policy preset for a gate under one posture mode. */
+export interface PolicyPreset {
+  entries: TribePolicyEntry[];
+  defaultAccess: boolean;
+  /** Default toll in EVE base units (divide by 10_000_000 for Lux). */
+  defaultToll: number;
 }
 
 /** Resolved policy state for a single gate from GateConfig dynamic fields. */
 export interface GatePolicy {
   gateId: ObjectId;
-  tribeRule: TribeRule | null;
-  coinTollRule: CoinTollRule | null;
+  commercialPreset: PolicyPreset | null;
+  defensePreset: PolicyPreset | null;
+  /** Global treasury payout address from GateConfig (shared across gates). */
+  treasury: string | null;
 }
 
 // ─── Signal Feed Types ───────────────────────────────────
@@ -204,6 +212,10 @@ export interface SignalEvent {
   variant: SignalVariant;
   /** Related object ID if applicable (gate, listing, etc.). */
   relatedObjectId?: ObjectId;
+  /** Secondary related object ID (e.g. storage_unit_id on trade events). */
+  secondaryObjectId?: ObjectId;
+  /** Tx sender address. */
+  sender?: string;
   /** Amount in EVE base units, if applicable (toll, trade). Divide by 10_000_000 for Lux. */
   amount?: number;
 }
@@ -256,6 +268,19 @@ export interface TurretSwitchTarget {
 export interface GateAuthTarget {
   gateId: ObjectId;
   ownerCapId: ObjectId;
+}
+
+/** Info needed per-gate for posture switch PTB. */
+export interface GatePostureTarget {
+  gateId: ObjectId;
+  ownerCapId: ObjectId;
+}
+
+/** Info needed per-gate for batch preset deployment. */
+export interface GatePolicyTarget {
+  gateId: ObjectId;
+  ownerCapId: ObjectId;
+  gateName: string;
 }
 
 /** Info needed per-SSU for batch extension authorization. */

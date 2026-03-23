@@ -8,7 +8,7 @@ CivilizationControl gives tribe leaders a unified command surface over the struc
 
 | Module | Purpose |
 |--------|---------|
-| **GateControl** | Author policies (tribe filter + coin toll) on Smart Gates. Enforced on-chain via typed witness extension. Tribe autocomplete selector for policy authoring. |
+| **GateControl** | Author policy presets (tribe-specific access + per-tribe tolls + default fallback) on Smart Gates. Preset model with batch deployment — author once, apply to many gates. Posture-aware enforcement (Commercial vs Defensive presets). On-chain via typed witness extension. |
 | **TradePost** | SSU-backed storefronts with cross-address atomic buy settlement using `Coin<EVE>`. |
 | **Posture System** | Two custom turret extensions (commercial + defense targeting) swapped via posture presets. Single-PTB infrastructure-wide posture switch. |
 | **Direct Power Control** | Per-structure and bulk online/offline for gates, turrets, SSUs, and network nodes. All operations use OwnerCap-only auth (no sponsored transactions needed). |

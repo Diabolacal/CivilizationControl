@@ -2,18 +2,19 @@
  * Posture switch PTB builder.
  *
  * Constructs a single Programmable Transaction Block that atomically:
- *   1. Records the posture change on GateConfig (emits PostureChangedEvent)
- *   2. Swaps turret extensions (BouncerAuth ↔ DefenseAuth)
+ *   1. Records per-gate posture changes (emits PostureChangedEvent per gate)
+ *   2. Swaps turret extensions (CommercialAuth ↔ DefenseAuth)
  *
- * Gate toll configuration is intentionally NOT modified by posture switches.
- * Tolls are an independent operator concern managed through the gate policy
- * composer. This prevents silent overwrite of operator-configured toll values.
+ * Each gate posture change borrows OwnerCap<Gate> from the operator's
+ * Character. Gate toll configuration is intentionally NOT modified by
+ * posture switches — tolls are an independent operator concern managed
+ * through the gate policy composer.
  *
  * Move signatures used:
- *   posture::set_posture(config: &mut GateConfig, admin: &AdminCap, mode: u8)
- *   character::borrow_owner_cap<Turret>(character: &mut Character, cap_ticket: Receiving<OwnerCap<Turret>>)
+ *   posture::set_posture(config: &mut GateConfig, owner_cap: &OwnerCap<Gate>, gate_id: ID, mode: u8)
+ *   character::borrow_owner_cap<T>(character: &mut Character, cap_ticket: Receiving<OwnerCap<T>>)
  *   turret::authorize_extension<Auth>(turret: &mut Turret, cap: &OwnerCap<Turret>)
- *   character::return_owner_cap<Turret>(character: &Character, cap: OwnerCap<Turret>, receipt: ReturnOwnerCapReceipt)
+ *   character::return_owner_cap<T>(character: &Character, cap: OwnerCap<T>, receipt: ReturnOwnerCapReceipt)
  */
 
 import { Transaction } from "@mysten/sui/transactions";
@@ -21,10 +22,8 @@ import {
   CC_PACKAGE_ID,
   WORLD_PACKAGE_ID,
   GATE_CONFIG_ID,
-  GATE_ADMIN_CAP_ID,
-  CHARACTER_ID,
 } from "@/constants";
-import type { PostureMode, TurretSwitchTarget } from "@/types/domain";
+import type { PostureMode, TurretSwitchTarget, GatePostureTarget } from "@/types/domain";
 
 // On-chain posture constants (must match posture.move)
 const POSTURE_COMMERCIAL = 0;
@@ -33,38 +32,65 @@ const POSTURE_DEFENSE = 1;
 interface PostureSwitchParams {
   /** Target posture mode. */
   targetMode: PostureMode;
+  /** Gates to set posture on (requires OwnerCap<Gate>). */
+  gates: GatePostureTarget[];
   /** Turrets to swap extension on. */
   turrets: TurretSwitchTarget[];
+  /** The current wallet's Character object ID. */
+  characterId: string;
 }
 
 /**
  * Build a single PTB that switches the network's enforcement posture.
  *
- * Records posture change + swaps turret extensions.
+ * Records per-gate posture change + swaps turret extensions.
  * Gate toll configuration is NOT modified — tolls are an independent
  * operator concern managed via the gate policy composer.
  */
 export function buildPostureSwitchTx(params: PostureSwitchParams): Transaction {
-  const { targetMode, turrets } = params;
+  const { targetMode, gates, turrets, characterId } = params;
   const tx = new Transaction();
 
   const modeValue = targetMode === "defense" ? POSTURE_DEFENSE : POSTURE_COMMERCIAL;
 
-  // ─── 1. Record posture change (PostureChangedEvent) ───
-  tx.moveCall({
-    target: `${CC_PACKAGE_ID}::posture::set_posture`,
-    arguments: [
-      tx.object(GATE_CONFIG_ID),
-      tx.object(GATE_ADMIN_CAP_ID),
-      tx.pure.u8(modeValue),
-    ],
-  });
+  // ─── 1. Per-gate posture changes (PostureChangedEvent per gate) ───
+  const gateType = `${WORLD_PACKAGE_ID}::gate::Gate`;
+  for (const gate of gates) {
+    const [gateCap, gateReceipt] = tx.moveCall({
+      target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
+      typeArguments: [gateType],
+      arguments: [
+        tx.object(characterId),
+        tx.object(gate.ownerCapId),
+      ],
+    });
+
+    tx.moveCall({
+      target: `${CC_PACKAGE_ID}::posture::set_posture`,
+      arguments: [
+        tx.object(GATE_CONFIG_ID),
+        gateCap,
+        tx.pure.id(gate.gateId),
+        tx.pure.u8(modeValue),
+      ],
+    });
+
+    tx.moveCall({
+      target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
+      typeArguments: [gateType],
+      arguments: [
+        tx.object(characterId),
+        gateCap,
+        gateReceipt,
+      ],
+    });
+  }
 
   // ─── 2. Turret extension swaps ───
   const turretType = `${WORLD_PACKAGE_ID}::turret::Turret`;
   const authType = targetMode === "defense"
-    ? `${CC_PACKAGE_ID}::turret_defense::DefenseAuth`
-    : `${CC_PACKAGE_ID}::turret_bouncer::BouncerAuth`;
+    ? `${CC_PACKAGE_ID}::turret::DefenseAuth`
+    : `${CC_PACKAGE_ID}::turret::CommercialAuth`;
 
   for (const turret of turrets) {
     // Borrow OwnerCap<Turret> from Character via Receiving
@@ -72,7 +98,7 @@ export function buildPostureSwitchTx(params: PostureSwitchParams): Transaction {
       target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
       typeArguments: [turretType],
       arguments: [
-        tx.object(CHARACTER_ID),
+        tx.object(characterId),
         tx.object(turret.ownerCapId),
       ],
     });
@@ -92,7 +118,7 @@ export function buildPostureSwitchTx(params: PostureSwitchParams): Transaction {
       target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
       typeArguments: [turretType],
       arguments: [
-        tx.object(CHARACTER_ID),
+        tx.object(characterId),
         cap,
         receipt,
       ],

@@ -119,7 +119,7 @@ Owned objects skip consensus (fast path). Only the owner can use them in a trans
 Input declaration: owned object by ID + version + digest
 ```
 
-**CivilizationControl relevance:** AdminCap, OwnerCap (while borrowed), Coin<SUI>, JumpPermit (after issuance, before consumption).
+**CivilizationControl relevance:** OwnerCap (while borrowed), Coin<SUI>, JumpPermit (after issuance, before consumption).
 
 ### Mixed Transactions
 

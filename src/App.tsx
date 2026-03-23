@@ -14,6 +14,8 @@ import { Sidebar } from "@/components/Sidebar";
 import { Dashboard } from "@/screens/Dashboard";
 import { GateListScreen } from "@/screens/GateListScreen";
 import { GateDetailScreen } from "@/screens/GateDetailScreen";
+import { GatePermitPage } from "@/screens/GatePermitPage";
+import { SsuMarketplacePage } from "@/screens/SsuMarketplacePage";
 import { TradePostListScreen } from "@/screens/TradePostListScreen";
 import { TradePostDetailScreen } from "@/screens/TradePostDetailScreen";
 import { TurretListScreen } from "@/screens/TurretListScreen";
@@ -21,21 +23,41 @@ import { TurretDetailScreen } from "@/screens/TurretDetailScreen";
 import { NetworkNodeListScreen } from "@/screens/NetworkNodeListScreen";
 import { NetworkNodeDetailScreen } from "@/screens/NetworkNodeDetailScreen";
 import { ActivityFeedScreen } from "@/screens/ActivityFeedScreen";
+import { NodeLocationPanel } from "@/components/NodeLocationPanel";
 import { useAssetDiscovery } from "@/hooks/useAssetDiscovery";
 import { useSpatialPins } from "@/hooks/useSpatialPins";
+import { CharacterContext } from "@/hooks/useCharacter";
 
 export default function App() {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Player-facing standalone page (no sidebar/header) */}
+        <Route path="/gate/:gateId" element={<GatePermitPage />} />
+        <Route path="/gate" element={<GatePermitPage />} />
+        <Route path="/ssu/:ssuId" element={<SsuMarketplacePage />} />
+        <Route path="/ssu" element={<SsuMarketplacePage />} />
+        {/* Operator dashboard */}
+        <Route path="/*" element={<OperatorShell />} />
+      </Routes>
+    </BrowserRouter>
+  );
+}
+
+function OperatorShell() {
   const { profile, structures, nodeGroups, metrics, isLoading, isConnected } =
     useAssetDiscovery();
   const { pins, assignPin, removePin } = useSpatialPins();
 
+  const characterId = profile?.characterId ?? null;
+
   return (
+    <CharacterContext.Provider value={{ characterId }}>
     <div className="dark min-h-screen bg-background text-foreground">
-      <BrowserRouter>
-        <Header />
+        <Header characterName={profile?.characterName} />
         <Sidebar structures={structures} isConnected={isConnected} isLoading={isLoading} />
-        <main className="ml-64 mt-16 p-8 min-h-[calc(100vh-4rem)]">
-          <div className="max-w-[1600px] mx-auto">
+        <main className="ml-64 h-screen overflow-y-auto pt-[5.5rem] px-6 pb-6">
+          <div className="max-w-[1760px] mx-auto">
             <Routes>
               <Route
                 path="/"
@@ -44,11 +66,9 @@ export default function App() {
                     nodeGroups={nodeGroups}
                     metrics={metrics}
                     pins={pins}
+                    structures={structures}
                     isLoading={isLoading}
                     isConnected={isConnected}
-                    profile={profile}
-                    onAssignPin={assignPin}
-                    onRemovePin={removePin}
                   />
                 }
               />
@@ -107,39 +127,49 @@ export default function App() {
               <Route
                 path="/settings"
                 element={
-                  <PlaceholderScreen title="Configuration" subtitle="Operator preferences" />
+                  <ConfigurationScreen
+                    nodeGroups={nodeGroups}
+                    pins={pins}
+                    onAssignPin={assignPin}
+                    onRemovePin={removePin}
+                  />
                 }
               />
             </Routes>
           </div>
         </main>
-      </BrowserRouter>
     </div>
+    </CharacterContext.Provider>
   );
 }
 
-function PlaceholderScreen({
-  title,
-  subtitle,
+function ConfigurationScreen({
+  nodeGroups,
+  pins,
+  onAssignPin,
+  onRemovePin,
 }: {
-  title: string;
-  subtitle: string;
+  nodeGroups: import("@/types/domain").NetworkNodeGroup[];
+  pins: import("@/types/domain").SpatialPin[];
+  onAssignPin: (nodeId: string, systemId: number, systemName: string) => void;
+  onRemovePin: (nodeId: string) => void;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <div className="border-b border-border/50 pb-4">
         <h1 className="text-xl font-bold tracking-tight text-foreground mb-1">
-          {title}
+          Configuration
         </h1>
         <p className="text-[11px] font-mono text-muted-foreground tracking-wide">
-          {subtitle}
+          Operator Preferences // Spatial Assignment
         </p>
       </div>
-      <div className="border border-dashed border-border rounded py-16 flex items-center justify-center">
-        <p className="text-sm text-muted-foreground/50">
-          Implementation in next tranche
-        </p>
-      </div>
+      <NodeLocationPanel
+        nodeGroups={nodeGroups}
+        pins={pins}
+        onAssignPin={onAssignPin}
+        onRemovePin={onRemovePin}
+      />
     </div>
   );
 }

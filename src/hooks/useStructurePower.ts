@@ -13,6 +13,7 @@ import {
   buildBatchAssemblyPowerTx,
   buildNodeOnlineTx,
 } from "@/lib/structurePowerTx";
+import { useCharacterId } from "@/hooks/useCharacter";
 import type { ObjectId, StructureType, TxStatus, TxResult } from "@/types/domain";
 
 interface SinglePowerParams {
@@ -47,6 +48,7 @@ function friendlyError(raw: string): string {
 export function useStructurePower() {
   const dAppKit = useDAppKit();
   const queryClient = useQueryClient();
+  const characterId = useCharacterId();
 
   const [status, setStatus] = useState<TxStatus>("idle");
   const [result, setResult] = useState<TxResult | null>(null);
@@ -78,21 +80,27 @@ export function useStructurePower() {
   );
 
   const toggleSingle = useCallback(
-    (params: SinglePowerParams) =>
-      execute(() => buildAssemblyPowerTx(params)),
-    [execute],
+    (params: SinglePowerParams) => {
+      if (!characterId) throw new Error("Character not resolved yet — please wait");
+      return execute(() => buildAssemblyPowerTx({ ...params, characterId }));
+    },
+    [execute, characterId],
   );
 
   const toggleBatch = useCallback(
-    (params: BatchPowerParams) =>
-      execute(() => buildBatchAssemblyPowerTx(params)),
-    [execute],
+    (params: BatchPowerParams) => {
+      if (!characterId) throw new Error("Character not resolved yet — please wait");
+      return execute(() => buildBatchAssemblyPowerTx({ ...params, characterId }));
+    },
+    [execute, characterId],
   );
 
   const bringNodeOnline = useCallback(
-    (params: NodeOnlineParams) =>
-      execute(() => buildNodeOnlineTx(params)),
-    [execute],
+    (params: NodeOnlineParams) => {
+      if (!characterId) throw new Error("Character not resolved yet — please wait");
+      return execute(() => buildNodeOnlineTx({ ...params, characterId }));
+    },
+    [execute, characterId],
   );
 
   const reset = useCallback(() => {

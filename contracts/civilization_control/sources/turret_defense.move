@@ -1,9 +1,11 @@
 /// TurretDefense — defense-posture turret extension for CivilizationControl.
 ///
-/// Aggressively targets non-tribal entities. When activated, turrets shift
-/// from passive bouncer behavior to active territorial defense:
-/// all non-tribe targets receive a significant priority boost, and
-/// aggressors are prioritized at the highest level.
+/// Active territorial defense: all non-tribe targets are treated as hostile
+/// and engaged at elevated priority (+5000). Aggressors receive highest
+/// priority (+15000). Same-tribe non-aggressors are excluded.
+///
+/// Contrast with BouncerAuth (commercial posture): bouncer is passive
+/// toward ALL non-aggressors and only engages active threats.
 ///
 /// Activated by `turret::authorize_extension<DefenseAuth>(turret, cap)`.
 /// Swapped back to bouncer via `authorize_extension<BouncerAuth>` on posture
@@ -17,6 +19,7 @@ use world::{
         Self, Turret, OnlineReceipt,
     },
 };
+use civilization_control::turret_events;
 
 // === Constants ===
 
@@ -63,6 +66,9 @@ public fun get_target_priority_list(
     let owner_tribe = owner_character.tribe();
     let mut result = vector::empty<turret::ReturnTargetPriorityList>();
     let mut hostile_count = 0u64;
+    let mut aggressor_count = 0u64;
+    let mut top_target_id = 0u64;
+    let mut top_priority = 0u64;
 
     let mut i = 0;
     let len = candidates.length();
@@ -71,6 +77,8 @@ public fun get_target_priority_list(
         let tribe = c.character_tribe();
         let is_agg = c.is_aggressor();
         let weight = c.priority_weight();
+
+        if (is_agg) { aggressor_count = aggressor_count + 1 };
 
         // Same tribe, not aggressor → exclude (protect friendlies)
         if (tribe == owner_tribe && !is_agg) {
@@ -81,12 +89,14 @@ public fun get_target_priority_list(
         let priority = if (is_agg) {
             // Aggressors get highest priority regardless of tribe
             weight + AGGRESSOR_BOOST
-        } else if (tribe != owner_tribe) {
-            // Non-tribal presence → hostile in defense mode
-            weight + HOSTILE_BOOST
         } else {
-            // Same-tribe aggressor
-            weight + AGGRESSOR_BOOST
+            // Non-tribe non-aggressor — hostile in defense mode
+            weight + HOSTILE_BOOST
+        };
+
+        if (priority > top_priority) {
+            top_priority = priority;
+            top_target_id = c.item_id();
         };
 
         result.push_back(
@@ -105,6 +115,18 @@ public fun get_target_priority_list(
         candidate_count: len,
         hostile_count,
     });
+
+    // Emit shared response event only when targets are actually engaged
+    if (hostile_count > 0) {
+        turret_events::emit_response(
+            object::id(turret),
+            turret_events::doctrine_defense(),
+            len,
+            hostile_count,
+            aggressor_count,
+            top_target_id,
+        );
+    };
 
     bytes
 }

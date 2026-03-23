@@ -1,34 +1,40 @@
 /**
  * Event parser — transforms raw Sui chain events into UI-friendly SignalEvents.
  *
- * Supports all 8 CivilizationControl custom events:
- *   GateControl: TribeCheckPassedEvent, TollCollectedEvent, TribeRuleSetEvent,
- *                CoinTollSetEvent, RuleRemovedEvent
+ * Supports all CivilizationControl custom events (v2a):
+ *   GateControl: PolicyPresetSetEvent, PolicyPresetRemovedEvent,
+ *                TreasurySetEvent, TollCollectedEvent, PermitIssuedEvent
  *   TradePost:   ListingCreatedEvent, ListingPurchasedEvent, ListingCancelledEvent
+ *   Posture:     PostureChangedEvent
+ *   Turrets:     BouncerTargetingEvent, DefenseTargetingEvent, TurretResponseEvent
  */
 
-import { CC_PACKAGE_ID, CC_ORIGINAL_PACKAGE_ID } from "@/constants";
+import { CC_PACKAGE_ID, CC_ORIGINAL_PACKAGE_ID, WORLD_PACKAGE_ID } from "@/constants";
 import { resolveItemTypeName } from "@/lib/typeCatalog";
 import { formatLux } from "@/lib/currency";
 import type { SignalEvent, SignalCategory, SignalVariant } from "@/types/domain";
 
 /**
  * Fully-qualified on-chain event type strings.
- * v1 modules (gate_control, trade_post) use CC_ORIGINAL_PACKAGE_ID;
- * v2 modules (posture, turret_bouncer, turret_defense) use CC_PACKAGE_ID.
+ * Fresh v2a publish: CC_ORIGINAL_PACKAGE_ID = CC_PACKAGE_ID for all modules.
  */
 export const CC_EVENT_TYPES = {
-  TRIBE_CHECK_PASSED: `${CC_ORIGINAL_PACKAGE_ID}::gate_control::TribeCheckPassedEvent`,
+  PRESET_SET: `${CC_ORIGINAL_PACKAGE_ID}::gate_control::PolicyPresetSetEvent`,
+  PRESET_REMOVED: `${CC_ORIGINAL_PACKAGE_ID}::gate_control::PolicyPresetRemovedEvent`,
+  TREASURY_SET: `${CC_ORIGINAL_PACKAGE_ID}::gate_control::TreasurySetEvent`,
   TOLL_COLLECTED: `${CC_ORIGINAL_PACKAGE_ID}::gate_control::TollCollectedEvent`,
-  TRIBE_RULE_SET: `${CC_ORIGINAL_PACKAGE_ID}::gate_control::TribeRuleSetEvent`,
-  COIN_TOLL_SET: `${CC_ORIGINAL_PACKAGE_ID}::gate_control::CoinTollSetEvent`,
-  RULE_REMOVED: `${CC_ORIGINAL_PACKAGE_ID}::gate_control::RuleRemovedEvent`,
+  PERMIT_ISSUED: `${CC_ORIGINAL_PACKAGE_ID}::gate_control::PermitIssuedEvent`,
   LISTING_CREATED: `${CC_ORIGINAL_PACKAGE_ID}::trade_post::ListingCreatedEvent`,
   LISTING_PURCHASED: `${CC_ORIGINAL_PACKAGE_ID}::trade_post::ListingPurchasedEvent`,
   LISTING_CANCELLED: `${CC_ORIGINAL_PACKAGE_ID}::trade_post::ListingCancelledEvent`,
   POSTURE_CHANGED: `${CC_PACKAGE_ID}::posture::PostureChangedEvent`,
-  BOUNCER_TARGETING: `${CC_PACKAGE_ID}::turret_bouncer::BouncerTargetingEvent`,
-  DEFENSE_TARGETING: `${CC_PACKAGE_ID}::turret_defense::DefenseTargetingEvent`,
+  BOUNCER_TARGETING: `${CC_ORIGINAL_PACKAGE_ID}::turret_bouncer::BouncerTargetingEvent`,
+  DEFENSE_TARGETING: `${CC_ORIGINAL_PACKAGE_ID}::turret_defense::DefenseTargetingEvent`,
+  TURRET_RESPONSE: `${CC_ORIGINAL_PACKAGE_ID}::turret_events::TurretResponseEvent`,
+  TURRET_TARGETING: `${CC_PACKAGE_ID}::turret::TurretTargetingEvent`,
+  // World-level turret events (emitted by world::turret module on extension changes)
+  TURRET_EXT_AUTHORIZED: `${WORLD_PACKAGE_ID}::turret::ExtensionAuthorizedEvent`,
+  TURRET_EXT_REVOKED: `${WORLD_PACKAGE_ID}::turret::ExtensionRevokedEvent`,
 } as const;
 
 /** Shape of a raw event from SuiClient.queryEvents data array. */
@@ -46,14 +52,40 @@ interface EventDescriptor {
   category: SignalCategory;
   variant: SignalVariant;
   relatedIdField?: string;
+  secondaryIdField?: string;
   amountField?: string;
 }
 
 const EVENT_MAP: Record<string, EventDescriptor> = {
-  [CC_EVENT_TYPES.TRIBE_CHECK_PASSED]: {
-    label: "Transit Authorized",
-    describe: (j) => `Tribe ${j.tribe_id ?? "?"} cleared gate passage`,
-    category: "transit",
+  [CC_EVENT_TYPES.PRESET_SET]: {
+    label: "Policy Preset Set",
+    describe: (j) => {
+      const modes = ["Commercial", "Defense"];
+      const modeName = modes[Number(j.mode ?? 0)] ?? "Unknown";
+      return `${modeName} preset applied (${j.entry_count ?? 0} entries)`;
+    },
+    category: "governance",
+    variant: "neutral",
+    relatedIdField: "gate_id",
+  },
+  [CC_EVENT_TYPES.PRESET_REMOVED]: {
+    label: "Policy Preset Removed",
+    describe: (j) => {
+      const modes = ["Commercial", "Defense"];
+      const modeName = modes[Number(j.mode ?? 0)] ?? "Unknown";
+      return `${modeName} preset removed`;
+    },
+    category: "governance",
+    variant: "info",
+    relatedIdField: "gate_id",
+  },
+  [CC_EVENT_TYPES.TREASURY_SET]: {
+    label: "Treasury Updated",
+    describe: (j) => {
+      const addr = String(j.treasury ?? "").slice(0, 10);
+      return `Treasury set to ${addr}…`;
+    },
+    category: "governance",
     variant: "neutral",
     relatedIdField: "gate_id",
   },
@@ -65,26 +97,17 @@ const EVENT_MAP: Record<string, EventDescriptor> = {
     relatedIdField: "gate_id",
     amountField: "amount",
   },
-  [CC_EVENT_TYPES.TRIBE_RULE_SET]: {
-    label: "Tribe Rule Set",
-    describe: (j) => `Tribe ${j.tribe ?? "?"} filter applied to gate`,
-    category: "governance",
+  [CC_EVENT_TYPES.PERMIT_ISSUED]: {
+    label: "Transit Authorized",
+    describe: (j) => {
+      const modes = ["Commercial", "Defense"];
+      const modeName = modes[Number(j.mode ?? 0)] ?? "?";
+      return `Tribe ${j.tribe_id ?? "?"} cleared (${modeName}), toll ${formatLux(Number(j.toll ?? 0))} Lux`;
+    },
+    category: "transit",
     variant: "neutral",
     relatedIdField: "gate_id",
-  },
-  [CC_EVENT_TYPES.COIN_TOLL_SET]: {
-    label: "Coin Toll Set",
-    describe: (j) => `Toll set to ${formatLux(Number(j.price ?? 0))} Lux`,
-    category: "governance",
-    variant: "neutral",
-    relatedIdField: "gate_id",
-  },
-  [CC_EVENT_TYPES.RULE_REMOVED]: {
-    label: "Rule Removed",
-    describe: (j) => `${j.rule_type ?? "Rule"} removed from gate`,
-    category: "governance",
-    variant: "info",
-    relatedIdField: "gate_id",
+    amountField: "toll",
   },
   [CC_EVENT_TYPES.LISTING_CREATED]: {
     label: "Listing Created",
@@ -94,7 +117,8 @@ const EVENT_MAP: Record<string, EventDescriptor> = {
     },
     category: "trade",
     variant: "neutral",
-    relatedIdField: "listing_id",
+    relatedIdField: "storage_unit_id",
+    secondaryIdField: "listing_id",
     amountField: "price",
   },
   [CC_EVENT_TYPES.LISTING_PURCHASED]: {
@@ -105,7 +129,8 @@ const EVENT_MAP: Record<string, EventDescriptor> = {
     },
     category: "trade",
     variant: "revenue",
-    relatedIdField: "listing_id",
+    relatedIdField: "storage_unit_id",
+    secondaryIdField: "listing_id",
     amountField: "price",
   },
   [CC_EVENT_TYPES.LISTING_CANCELLED]: {
@@ -113,7 +138,8 @@ const EVENT_MAP: Record<string, EventDescriptor> = {
     describe: () => "Listing withdrawn by seller",
     category: "trade",
     variant: "info",
-    relatedIdField: "listing_id",
+    relatedIdField: "storage_unit_id",
+    secondaryIdField: "listing_id",
   },
   [CC_EVENT_TYPES.POSTURE_CHANGED]: {
     label: "Posture Changed",
@@ -125,11 +151,12 @@ const EVENT_MAP: Record<string, EventDescriptor> = {
     },
     category: "governance",
     variant: "neutral",
+    relatedIdField: "gate_id",
   },
   [CC_EVENT_TYPES.BOUNCER_TARGETING]: {
     label: "Bouncer Targeting",
     describe: (j) =>
-      `${j.engaged_count ?? 0} of ${j.candidate_count ?? 0} targets engaged`,
+      `${j.engaged_count ?? 0} aggressors of ${j.candidate_count ?? 0} candidates engaged`,
     category: "status",
     variant: "info",
     relatedIdField: "turret_id",
@@ -141,6 +168,57 @@ const EVENT_MAP: Record<string, EventDescriptor> = {
     category: "status",
     variant: "blocked",
     relatedIdField: "turret_id",
+  },
+  [CC_EVENT_TYPES.TURRET_RESPONSE]: {
+    label: "Turret Response",
+    describe: (j) => {
+      const doctrine = Number(j.doctrine ?? 0) === 0 ? "Commercial" : "Defense";
+      const engaged = Number(j.engaged_count ?? 0);
+      const aggr = Number(j.aggressor_count ?? 0);
+      const topId = j.top_target_id && String(j.top_target_id) !== "0" ? ` — target ${j.top_target_id}` : "";
+      return `${doctrine} — ${engaged} engaged${aggr > 0 ? `, ${aggr} aggressors` : ""}${topId}`;
+    },
+    category: "status",
+    variant: "blocked",
+    relatedIdField: "turret_id",
+  },
+  [CC_EVENT_TYPES.TURRET_TARGETING]: {
+    label: "Turret Targeting",
+    describe: (j) => {
+      const doctrine = Number(j.doctrine ?? 0) === 0 ? "Commercial" : "Defense";
+      const engaged = Number(j.engaged_count ?? 0);
+      return `${doctrine} — ${engaged} of ${j.candidate_count ?? 0} engaged`;
+    },
+    category: "status",
+    variant: "info",
+    relatedIdField: "turret_id",
+  },
+  [CC_EVENT_TYPES.TURRET_EXT_AUTHORIZED]: {
+    label: "Turret Doctrine Set",
+    describe: (j) => {
+      const rawExt = j.extension_type;
+      const extType = typeof rawExt === "object" && rawExt !== null && "name" in rawExt
+        ? String((rawExt as Record<string, unknown>).name)
+        : String(rawExt ?? "");
+      const shortName = extType.includes("CommercialAuth")
+        ? "Commercial"
+        : extType.includes("BouncerAuth")
+          ? "Bouncer"
+          : extType.includes("DefenseAuth")
+            ? "Defense"
+            : extType.split("::").pop() ?? "Unknown";
+      return `Turret extension set to ${shortName}`;
+    },
+    category: "governance",
+    variant: "neutral",
+    relatedIdField: "assembly_id",
+  },
+  [CC_EVENT_TYPES.TURRET_EXT_REVOKED]: {
+    label: "Turret Doctrine Revoked",
+    describe: () => "Turret extension authorization revoked",
+    category: "governance",
+    variant: "info",
+    relatedIdField: "assembly_id",
   },
 };
 
@@ -166,6 +244,10 @@ export function parseChainEvent(raw: RawSuiEvent): SignalEvent | null {
     relatedObjectId: descriptor.relatedIdField
       ? String(json[descriptor.relatedIdField] ?? "")
       : undefined,
+    secondaryObjectId: descriptor.secondaryIdField
+      ? String(json[descriptor.secondaryIdField] ?? "")
+      : undefined,
+    sender: raw.sender,
     amount: descriptor.amountField
       ? Number(json[descriptor.amountField] ?? 0)
       : undefined,
