@@ -557,14 +557,14 @@ export async function fetchRecentEvents(
 ): Promise<{ id: { txDigest: string; eventSeq: string }; type: string; parsedJson?: Record<string, unknown>; timestampMs?: string; sender?: string }[]> {
   const client = getSuiClient();
 
-  const [gateEvents, tradeEvents, postureEvents, bouncerEvents, defenseEvents, turretExtEvents, turretEvents] = await Promise.all([
+  const [gateEvents, tradeEvents, postureEvents, bouncerEvents, defenseEvents, turretExtEvents, turretEvents, worldGateEvents, worldSsuEvents] = await Promise.all([
     client.queryEvents({
-      query: { MoveModule: { package: CC_ORIGINAL_PACKAGE_ID, module: "gate_control" } },
+      query: { MoveModule: { package: CC_PACKAGE_ID, module: "gate_control" } },
       order: "descending",
       limit,
     }),
     client.queryEvents({
-      query: { MoveModule: { package: CC_ORIGINAL_PACKAGE_ID, module: "trade_post" } },
+      query: { MoveModule: { package: CC_PACKAGE_ID, module: "trade_post" } },
       order: "descending",
       limit,
     }),
@@ -574,12 +574,12 @@ export async function fetchRecentEvents(
       limit,
     }),
     client.queryEvents({
-      query: { MoveModule: { package: CC_ORIGINAL_PACKAGE_ID, module: "turret_bouncer" } },
+      query: { MoveModule: { package: CC_PACKAGE_ID, module: "turret_bouncer" } },
       order: "descending",
       limit,
     }),
     client.queryEvents({
-      query: { MoveModule: { package: CC_ORIGINAL_PACKAGE_ID, module: "turret_defense" } },
+      query: { MoveModule: { package: CC_PACKAGE_ID, module: "turret_defense" } },
       order: "descending",
       limit,
     }),
@@ -593,7 +593,34 @@ export async function fetchRecentEvents(
       order: "descending",
       limit,
     }),
+    // World-level gate events: StatusChangedEvent for gate power on/off
+    client.queryEvents({
+      query: { MoveModule: { package: WORLD_PACKAGE_ID, module: "gate" } },
+      order: "descending",
+      limit,
+    }),
+    // World-level SSU events: StatusChangedEvent for trade post power on/off
+    client.queryEvents({
+      query: { MoveModule: { package: WORLD_PACKAGE_ID, module: "storage_unit" } },
+      order: "descending",
+      limit,
+    }),
   ]);
+
+  // Tag StatusChangedEvent events with assembly type based on source module.
+  // Events have the same type string regardless of assembly; the MoveModule query
+  // determines which assembly's entry-point emitted the event.
+  const STATUS_TYPE_SUFFIX = "::status::StatusChangedEvent";
+  const tagAssemblyType = (events: typeof gateEvents.data, assemblyType: string) => {
+    for (const e of events) {
+      if (e.type?.endsWith(STATUS_TYPE_SUFFIX) && e.parsedJson) {
+        (e.parsedJson as Record<string, unknown>)._assemblyType = assemblyType;
+      }
+    }
+  };
+  tagAssemblyType(worldGateEvents.data, "gate");
+  tagAssemblyType(turretExtEvents.data, "turret");
+  tagAssemblyType(worldSsuEvents.data, "storage_unit");
 
   const allEvents = [
     ...gateEvents.data,
@@ -603,6 +630,8 @@ export async function fetchRecentEvents(
     ...defenseEvents.data,
     ...turretExtEvents.data,
     ...turretEvents.data,
+    ...worldGateEvents.data,
+    ...worldSsuEvents.data,
   ] as {
     id: { txDigest: string; eventSeq: string };
     type: string;

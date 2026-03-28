@@ -16,7 +16,7 @@ import type { SignalEvent, SignalCategory, SignalVariant } from "@/types/domain"
 
 /**
  * Fully-qualified on-chain event type strings.
- * Fresh v2a publish: CC_ORIGINAL_PACKAGE_ID = CC_PACKAGE_ID for all modules.
+ * Uses CC_ORIGINAL_PACKAGE_ID for types defined in v1 (type-origin anchoring).
  */
 export const CC_EVENT_TYPES = {
   PRESET_SET: `${CC_ORIGINAL_PACKAGE_ID}::gate_control::PolicyPresetSetEvent`,
@@ -27,7 +27,7 @@ export const CC_EVENT_TYPES = {
   LISTING_CREATED: `${CC_ORIGINAL_PACKAGE_ID}::trade_post::ListingCreatedEvent`,
   LISTING_PURCHASED: `${CC_ORIGINAL_PACKAGE_ID}::trade_post::ListingPurchasedEvent`,
   LISTING_CANCELLED: `${CC_ORIGINAL_PACKAGE_ID}::trade_post::ListingCancelledEvent`,
-  POSTURE_CHANGED: `${CC_PACKAGE_ID}::posture::PostureChangedEvent`,
+  POSTURE_CHANGED: `${CC_ORIGINAL_PACKAGE_ID}::posture::PostureChangedEvent`,
   BOUNCER_TARGETING: `${CC_ORIGINAL_PACKAGE_ID}::turret_bouncer::BouncerTargetingEvent`,
   DEFENSE_TARGETING: `${CC_ORIGINAL_PACKAGE_ID}::turret_defense::DefenseTargetingEvent`,
   TURRET_RESPONSE: `${CC_ORIGINAL_PACKAGE_ID}::turret_events::TurretResponseEvent`,
@@ -35,6 +35,8 @@ export const CC_EVENT_TYPES = {
   // World-level turret events (emitted by world::turret module on extension changes)
   TURRET_EXT_AUTHORIZED: `${WORLD_PACKAGE_ID}::turret::ExtensionAuthorizedEvent`,
   TURRET_EXT_REVOKED: `${WORLD_PACKAGE_ID}::turret::ExtensionRevokedEvent`,
+  // World-level status events (emitted via gate::online / gate::offline)
+  STATUS_CHANGED: `${WORLD_PACKAGE_ID}::status::StatusChangedEvent`,
 } as const;
 
 /** Shape of a raw event from SuiClient.queryEvents data array. */
@@ -48,6 +50,8 @@ export interface RawSuiEvent {
 
 interface EventDescriptor {
   label: string;
+  /** Override label dynamically based on event data (e.g., directional status labels). */
+  dynamicLabel?: (json: Record<string, unknown>) => string | null;
   describe: (json: Record<string, unknown>) => string;
   category: SignalCategory;
   variant: SignalVariant;
@@ -58,11 +62,11 @@ interface EventDescriptor {
 
 const EVENT_MAP: Record<string, EventDescriptor> = {
   [CC_EVENT_TYPES.PRESET_SET]: {
-    label: "Policy Preset Set",
+    label: "Gate Directive Updated",
     describe: (j) => {
       const modes = ["Commercial", "Defense"];
       const modeName = modes[Number(j.mode ?? 0)] ?? "Unknown";
-      return `${modeName} preset applied (${j.entry_count ?? 0} entries)`;
+      return `${modeName} directive updated`;
     },
     category: "governance",
     variant: "neutral",
@@ -220,6 +224,26 @@ const EVENT_MAP: Record<string, EventDescriptor> = {
     variant: "info",
     relatedIdField: "assembly_id",
   },
+  [CC_EVENT_TYPES.STATUS_CHANGED]: {
+    label: "Power Changed",
+    dynamicLabel: (j) => {
+      const action = (j.action as { variant?: string })?.variant ?? "";
+      const assemblyName = resolveAssemblyName(j);
+      if (action === "ONLINE") return `${assemblyName} Brought Online`;
+      if (action === "OFFLINE") return `${assemblyName} Taken Offline`;
+      return null; // skip ANCHORED/UNANCHORED
+    },
+    describe: (j) => {
+      const action = (j.action as { variant?: string })?.variant ?? "";
+      const assemblyName = resolveAssemblyName(j).toLowerCase();
+      if (action === "ONLINE") return `${assemblyName} brought online`;
+      if (action === "OFFLINE") return `${assemblyName} taken offline`;
+      return `${assemblyName} status: ${action.toLowerCase()}`;
+    },
+    category: "status",
+    variant: "neutral",
+    relatedIdField: "assembly_id",
+  },
 };
 
 /** Parse a single raw Sui event into a SignalEvent. Returns null if unrecognized. */
@@ -228,6 +252,13 @@ export function parseChainEvent(raw: RawSuiEvent): SignalEvent | null {
   if (!descriptor) return null;
 
   const json = (raw.parsedJson ?? {}) as Record<string, unknown>;
+
+  // Dynamic label override — null return means skip this event
+  const label = descriptor.dynamicLabel
+    ? descriptor.dynamicLabel(json)
+    : descriptor.label;
+  if (label === null) return null;
+
   const timestamp = raw.timestampMs
     ? new Date(Number(raw.timestampMs)).toISOString()
     : new Date().toISOString();
@@ -237,7 +268,7 @@ export function parseChainEvent(raw: RawSuiEvent): SignalEvent | null {
     txDigest: raw.id.txDigest,
     eventSeq: raw.id.eventSeq,
     timestamp,
-    label: descriptor.label,
+    label,
     description: descriptor.describe(json),
     category: descriptor.category,
     variant: descriptor.variant,
@@ -262,6 +293,16 @@ export function parseChainEvents(rawEvents: RawSuiEvent[]): SignalEvent[] {
     if (signal) signals.push(signal);
   }
   return signals.sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+}
+
+// ─── Helpers ─────────────────────────────────────────────
+
+/** Resolve operator-facing assembly name from StatusChangedEvent _assemblyType tag. */
+function resolveAssemblyName(json: Record<string, unknown>): string {
+  const t = String(json._assemblyType ?? "gate");
+  if (t === "turret") return "Turret";
+  if (t === "storage_unit") return "Trade Post";
+  return "Gate";
 }
 
 /** Category metadata for filter UI. */

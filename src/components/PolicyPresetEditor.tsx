@@ -11,7 +11,7 @@ import { useState, useCallback } from "react";
 import { TagChip } from "@/components/TagChip";
 import { TribePicker } from "@/components/TribePicker";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
-import { baseUnitsToEve, eveToBaseUnits, LUX_PER_EVE } from "@/lib/currency";
+import { baseUnitsToLux, luxToBaseUnits, formatLux, formatEve } from "@/lib/currency";
 import type { PolicyPreset, TxStatus, Tribe, PostureMode, GatePolicyTarget } from "@/types/domain";
 
 interface PolicyPresetEditorProps {
@@ -44,7 +44,7 @@ interface DraftEntry {
   tribe: number;
   tribeName: string;
   access: boolean;
-  tollEve: string;
+  tollLux: string;
 }
 
 const MODE_LABELS: Record<PostureMode, string> = {
@@ -150,7 +150,7 @@ function PresetTabContent({
   const [isEditing, setIsEditing] = useState(false);
   const [entries, setEntries] = useState<DraftEntry[]>([]);
   const [defaultAccess, setDefaultAccess] = useState(true);
-  const [defaultTollEve, setDefaultTollEve] = useState("");
+  const [defaultTollLux, setDefaultTollLux] = useState("");
 
   const loadFromPreset = useCallback((p: PolicyPreset) => {
     setEntries(
@@ -158,11 +158,11 @@ function PresetTabContent({
         tribe: e.tribe,
         tribeName: `Tribe #${e.tribe}`,
         access: e.access,
-        tollEve: baseUnitsToEve(e.toll).toString(),
+        tollLux: baseUnitsToLux(e.toll).toString(),
       })),
     );
     setDefaultAccess(p.defaultAccess);
-    setDefaultTollEve(baseUnitsToEve(p.defaultToll).toString());
+    setDefaultTollLux(baseUnitsToLux(p.defaultToll).toString());
   }, []);
 
   function handleEdit() {
@@ -170,7 +170,7 @@ function PresetTabContent({
     else {
       setEntries([]);
       setDefaultAccess(true);
-      setDefaultTollEve("");
+      setDefaultTollLux("");
     }
     setIsEditing(true);
   }
@@ -184,7 +184,7 @@ function PresetTabContent({
     if (entries.some((e) => e.tribe === tribe.tribeId)) return;
     setEntries((prev) => [
       ...prev,
-      { tribe: tribe.tribeId, tribeName: tribe.name, access: true, tollEve: "0" },
+      { tribe: tribe.tribeId, tribeName: tribe.name, access: true, tollLux: "0" },
     ]);
   }
 
@@ -200,7 +200,7 @@ function PresetTabContent({
 
   function handleTollChange(tribe: number, value: string) {
     setEntries((prev) =>
-      prev.map((e) => (e.tribe === tribe ? { ...e, tollEve: value } : e)),
+      prev.map((e) => (e.tribe === tribe ? { ...e, tollLux: value } : e)),
     );
   }
 
@@ -208,9 +208,9 @@ function PresetTabContent({
     const mapped = entries.map((e) => ({
       tribe: e.tribe,
       access: e.access,
-      toll: eveToBaseUnits(parseFloat(e.tollEve) || 0),
+      toll: luxToBaseUnits(parseFloat(e.tollLux) || 0),
     }));
-    const defToll = eveToBaseUnits(parseFloat(defaultTollEve) || 0);
+    const defToll = luxToBaseUnits(parseFloat(defaultTollLux) || 0);
     onSet(modeNumber, mapped, defaultAccess, defToll);
     setIsEditing(false);
   }
@@ -270,11 +270,11 @@ function PresetTabContent({
     );
   }
 
-  // Editing state
-  const luxEquivalent = (() => {
-    const eve = parseFloat(defaultTollEve);
-    if (!Number.isFinite(eve) || eve < 0) return null;
-    return (eve * LUX_PER_EVE).toLocaleString(undefined, { maximumFractionDigits: 2 });
+  // Editing state — derive EVE equivalent from Lux input
+  const eveEquivalent = (() => {
+    const lux = parseFloat(defaultTollLux);
+    if (!Number.isFinite(lux) || lux < 0) return null;
+    return (lux / 100).toLocaleString(undefined, { maximumFractionDigits: 4 });
   })();
 
   return (
@@ -306,8 +306,8 @@ function PresetTabContent({
               type="number"
               min="0"
               step="any"
-              placeholder="Toll (EVE)"
-              value={entry.tollEve}
+              placeholder="Toll (Lux)"
+              value={entry.tollLux}
               onChange={(e) => handleTollChange(entry.tribe, e.target.value)}
               className="w-24 bg-background border border-border rounded px-2 py-0.5 text-[11px] font-mono text-foreground"
             />
@@ -344,13 +344,13 @@ function PresetTabContent({
             type="number"
             min="0"
             step="any"
-            placeholder="Default toll (EVE)"
-            value={defaultTollEve}
-            onChange={(e) => setDefaultTollEve(e.target.value)}
+            placeholder="Default toll (Lux)"
+            value={defaultTollLux}
+            onChange={(e) => setDefaultTollLux(e.target.value)}
             className="w-32 bg-background border border-border rounded px-2 py-1 text-xs font-mono text-foreground"
           />
-          {luxEquivalent != null && (
-            <span className="text-[11px] text-muted-foreground/60">≈ {luxEquivalent} Lux</span>
+          {eveEquivalent != null && (
+            <span className="text-[11px] text-muted-foreground/60">≈ {eveEquivalent} EVE</span>
           )}
         </div>
       </div>
@@ -397,7 +397,8 @@ function PresetSummary({ preset }: { preset: PolicyPreset }) {
               />
               {e.toll > 0 && (
                 <span className="text-muted-foreground">
-                  {baseUnitsToEve(e.toll).toLocaleString(undefined, { maximumFractionDigits: 4 })} EVE
+                  {formatLux(e.toll)} Lux
+                  <span className="ml-1 text-muted-foreground/60">({formatEve(e.toll)} EVE)</span>
                 </span>
               )}
             </div>
@@ -413,7 +414,8 @@ function PresetSummary({ preset }: { preset: PolicyPreset }) {
         />
         {preset.defaultToll > 0 && (
           <span className="font-mono">
-            {baseUnitsToEve(preset.defaultToll).toLocaleString(undefined, { maximumFractionDigits: 4 })} EVE toll
+            {formatLux(preset.defaultToll)} Lux toll
+            <span className="ml-1 text-muted-foreground/60">({formatEve(preset.defaultToll)} EVE)</span>
           </span>
         )}
       </div>

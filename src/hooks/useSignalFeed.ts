@@ -9,14 +9,17 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useCallback, useMemo } from "react";
 import { fetchRecentEvents } from "@/lib/suiReader";
 import { parseChainEvents } from "@/lib/eventParser";
+import { foldPostureSignals } from "@/lib/signalFolder";
 import type { RawSuiEvent } from "@/lib/eventParser";
 import type { SignalCategory, SignalEvent } from "@/types/domain";
 
 const SIGNAL_FEED_KEY = "signalFeed";
 const POLL_INTERVAL_MS = 30_000;
+/** Fixed per-module fetch limit — shared by all consumers for cache consistency. */
+const FETCH_LIMIT = 50;
 
 interface UseSignalFeedOptions {
-  /** Max events per module to fetch. Default: 25. */
+  /** @deprecated Ignored — fetch limit is fixed internally for cache consistency. */
   limit?: number;
   /** Filter by category. Default: all. */
   category?: SignalCategory | "all";
@@ -29,7 +32,7 @@ interface UseSignalFeedOptions {
 }
 
 export function useSignalFeed(options: UseSignalFeedOptions = {}) {
-  const { limit = 25, category = "all", polling = true, ownedObjectIds, walletAddress } = options;
+  const { category = "all", polling = true, ownedObjectIds, walletAddress } = options;
 
   const ownedSet = useMemo(
     () => (ownedObjectIds ? new Set(ownedObjectIds) : null),
@@ -37,10 +40,11 @@ export function useSignalFeed(options: UseSignalFeedOptions = {}) {
   );
 
   const { data, isLoading, isError, error, refetch } = useQuery<SignalEvent[]>({
-    queryKey: [SIGNAL_FEED_KEY, limit],
+    queryKey: [SIGNAL_FEED_KEY],
     queryFn: async () => {
-      const rawEvents = await fetchRecentEvents(limit);
-      return parseChainEvents(rawEvents as RawSuiEvent[]);
+      const rawEvents = await fetchRecentEvents(FETCH_LIMIT);
+      const parsed = parseChainEvents(rawEvents as RawSuiEvent[]);
+      return foldPostureSignals(parsed);
     },
     staleTime: 15_000,
     refetchInterval: polling ? POLL_INTERVAL_MS : false,

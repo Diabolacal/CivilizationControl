@@ -24,11 +24,11 @@ import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
 import { useLinkedGate, useTransitProofAction } from "@/hooks/useTransitProof";
 import { usePostureState } from "@/hooks/usePosture";
 import { useConnection } from "@evefrontier/dapp-kit";
-import { formatLux } from "@/lib/currency";
+import { formatLux, formatEve } from "@/lib/currency";
 import { resolveEffectivePolicy } from "@/lib/policyResolver";
 import { getSpatialPin } from "@/lib/spatialPins";
 import { Copy, Check } from "lucide-react";
-import { useState, useCallback, useMemo } from "react";
+import { useState, useCallback, useMemo, useRef } from "react";
 import type { Structure, GatePolicyTarget } from "@/types/domain";
 
 interface GateDetailScreenProps {
@@ -307,6 +307,7 @@ function PowerControlSection({ gate }: { gate: Structure }) {
   const power = useStructurePower();
   const isOnline = gate.status === "online";
   const hasNetworkNode = !!gate.networkNodeId;
+  const lastActionLabel = useRef("Gate power state updated");
 
   if (!hasNetworkNode) {
     return (
@@ -320,6 +321,7 @@ function PowerControlSection({ gate }: { gate: Structure }) {
   }
 
   const handleToggle = () => {
+    lastActionLabel.current = isOnline ? "Gate taken offline" : "Gate brought online";
     power.toggleSingle({
       structureType: "gate",
       structureId: gate.objectId,
@@ -354,7 +356,7 @@ function PowerControlSection({ gate }: { gate: Structure }) {
           status={power.status}
           result={power.result}
           error={power.error}
-          successLabel={isOnline ? "Gate taken offline" : "Gate brought online"}
+          successLabel={lastActionLabel.current}
           onDismiss={power.reset}
         />
       )}
@@ -436,7 +438,7 @@ function TransitProofSection({ gate }: { gate: Structure }) {
 
   const activePosture = posture ?? "commercial";
   const resolved = resolveEffectivePolicy(policy, activePosture, 0);
-  const tollLabel = resolved.toll > 0 ? `(${formatLux(resolved.toll)} Lux toll)` : "";
+  const tollLabel = resolved.toll > 0 ? `(${formatLux(resolved.toll)} Lux / ${formatEve(resolved.toll)} EVE)` : "";
 
   const handleExecute = () => {
     if (!linkedGateId) return;
@@ -489,7 +491,7 @@ function TransitProofSection({ gate }: { gate: Structure }) {
           </span>
           {resolved.toll > 0 && (
             <span className="ml-3 text-muted-foreground/60">
-              Toll: {formatLux(resolved.toll)} Lux
+              Toll: {formatLux(resolved.toll)} Lux ({formatEve(resolved.toll)} EVE)
             </span>
           )}
         </div>

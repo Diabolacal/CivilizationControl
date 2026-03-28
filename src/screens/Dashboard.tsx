@@ -20,12 +20,15 @@ import {
   Power,
   DollarSign,
   AlertTriangle,
+  Flame,
 } from "lucide-react";
 import { useConnection } from "@evefrontier/dapp-kit";
 import { MetricCard } from "@/components/MetricCard";
 import { StrategicMapPanel } from "@/components/topology/StrategicMapPanel";
 import { SignalEventRow } from "@/components/SignalEventRow";
 import { useSignalFeed } from "@/hooks/useSignalFeed";
+import { formatLux, formatEve } from "@/lib/currency";
+import { computeRuntimeMs, getFuelEfficiency, formatRuntime } from "@/lib/fuelRuntime";
 import type { NetworkNodeGroup, NetworkMetrics, SpatialPin, Structure } from "@/types/domain";
 
 interface DashboardProps {
@@ -58,7 +61,9 @@ export function Dashboard({
   });
   const revenueSignals = recentSignals.filter((s) => s.variant === "revenue");
   const totalRevenueBaseUnits = revenueSignals.reduce((sum, s) => sum + (s.amount ?? 0), 0);
-  const totalRevenueLux = totalRevenueBaseUnits / 10_000_000;
+  const totalRevenueLuxStr = formatLux(totalRevenueBaseUnits);
+  const totalRevenueEveStr = formatEve(totalRevenueBaseUnits);
+  const hasRevenue = totalRevenueBaseUnits > 0;
 
   return (
     <div>
@@ -80,11 +85,11 @@ export function Dashboard({
         <div className="col-span-2">
           <MetricCard
             title="Gross Network Yield (24h)"
-            value={totalRevenueLux > 0 ? totalRevenueLux.toLocaleString(undefined, { maximumFractionDigits: 2 }) : "0"}
+            value={hasRevenue ? totalRevenueLuxStr : "0"}
             variant="hero"
             unit="Lux"
             icon={<DollarSign className="w-4 h-4" />}
-            secondaryLabel={totalRevenueLux > 0 ? `${revenueSignals.length} revenue event${revenueSignals.length !== 1 ? "s" : ""}` : "Awaiting toll and trade events"}
+            secondaryLabel={hasRevenue ? `${totalRevenueEveStr} EVE • ${revenueSignals.length} revenue event${revenueSignals.length !== 1 ? "s" : ""}` : "Awaiting toll and trade events"}
           />
         </div>
         <MetricCard
@@ -195,6 +200,36 @@ function AttentionAlerts({ metrics, structures }: { metrics: NetworkMetrics; str
       issue: `${noExtCount} structure${noExtCount !== 1 ? "s" : ""} without authorized extension`,
       severity: "warning",
       to: "/gates",
+    });
+  }
+
+  // Low-fuel: network nodes with < 24h runtime remaining
+  const LOW_RUNTIME_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
+  const nodes = structures.filter((s) => s.type === "network_node" && s.fuel?.isBurning);
+  const lowFuelNodes = nodes.filter((s) => {
+    const fuel = s.fuel!;
+    const eff = getFuelEfficiency(fuel.typeId);
+    if (eff === undefined) return false;
+    const runtimeMs = computeRuntimeMs(fuel.quantity, fuel.burnRateMs, eff);
+    return runtimeMs !== undefined && runtimeMs < LOW_RUNTIME_THRESHOLD_MS;
+  });
+
+  if (lowFuelNodes.length > 0) {
+    // Show shortest runtime for urgency context
+    const shortestMs = lowFuelNodes.reduce((min, s) => {
+      const fuel = s.fuel!;
+      const eff = getFuelEfficiency(fuel.typeId);
+      if (eff === undefined) return min;
+      const rt = computeRuntimeMs(fuel.quantity, fuel.burnRateMs, eff) ?? Infinity;
+      return rt < min ? rt : min;
+    }, Infinity);
+
+    alerts.push({
+      icon: <Flame className="w-3.5 h-3.5" />,
+      name: "Low Fuel",
+      issue: `${lowFuelNodes.length} node${lowFuelNodes.length !== 1 ? "s" : ""} under 24h — shortest ${formatRuntime(shortestMs)}`,
+      severity: "warning",
+      to: "/nodes",
     });
   }
 

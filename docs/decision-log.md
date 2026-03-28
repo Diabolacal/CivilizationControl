@@ -4,6 +4,14 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-03-28 – Fix: Assembly-aware power telemetry, banner fixes, directive wording, low-fuel alert
+- Goal: Fix 5 live operator-reported telemetry/copy bugs and add low-fuel attention alert.
+- Fixes: (1) Single-gate directive wording: "Policy Preset Set" → "Gate Directive Updated" / "Commercial directive updated". (2) Turret power banner reversed: added useRef pattern (same fix as gate). (3) Trade post power banner reversed + "TradePost" → "Trade post": added useRef pattern. (4) Power telemetry labels hardcoded as "Gate": StatusChangedEvents now tagged with `_assemblyType` based on MoveModule query source → "Gate/Turret/Trade Post Brought Online/Taken Offline". (5) SSU power events not fetched: added world::storage_unit MoveModule query (9th parallel query). (6) Low-fuel attention alert: network nodes with <24h runtime show in Attention Required.
+- Files: src/lib/eventParser.ts, src/lib/signalFolder.ts, src/lib/suiReader.ts, src/screens/TurretDetailScreen.tsx, src/screens/TradePostDetailScreen.tsx, src/screens/Dashboard.tsx
+- Diff: +84 −13
+- Risk: low (copy/label changes + client-side derived alert)
+- Gates: typecheck ✅ build ✅
+
 ## 2026-03-23 – Feat: Wire CivilizationControl to live shared sponsor worker
 - Goal: Connect CC's sponsorship frontend to the deployed multi-app sponsor worker at flappy-frontier-sponsor.michael-davis-home.workers.dev. Fix two integration bugs found during wiring.
 - Fixes: (1) Sponsor worker expects POST /sponsor — CC was posting to root URL. Added /sponsor path derivation. (2) Worker has no SPONSOR_API_KEY set (auth open, CORS-protected). CC required API key to enable sponsorship. Made API key optional — sponsorship activates with VITE_SPONSOR_URL alone.

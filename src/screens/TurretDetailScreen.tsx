@@ -7,6 +7,7 @@
 
 import { useParams, Link } from "react-router";
 import { ArrowLeft } from "lucide-react";
+import { useRef } from "react";
 import { StructureDetailHeader } from "@/components/StructureDetailHeader";
 import { NodeContextBanner } from "@/components/NodeContextBanner";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
@@ -80,6 +81,7 @@ function PowerControlSection({ turret }: { turret: Structure }) {
   const power = useStructurePower();
   const isOnline = turret.status === "online";
   const hasNetworkNode = !!turret.networkNodeId;
+  const lastActionLabel = useRef("Turret power state updated");
 
   if (!hasNetworkNode) {
     return (
@@ -93,6 +95,7 @@ function PowerControlSection({ turret }: { turret: Structure }) {
   }
 
   const handleToggle = () => {
+    lastActionLabel.current = isOnline ? "Turret taken offline" : "Turret brought online";
     power.toggleSingle({
       structureType: "turret",
       structureId: turret.objectId,
@@ -127,7 +130,7 @@ function PowerControlSection({ turret }: { turret: Structure }) {
           status={power.status}
           result={power.result}
           error={power.error}
-          successLabel={isOnline ? "Turret taken offline" : "Turret brought online"}
+          successLabel={lastActionLabel.current}
           onDismiss={power.reset}
         />
       )}

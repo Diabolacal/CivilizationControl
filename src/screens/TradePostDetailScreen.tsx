@@ -9,7 +9,7 @@
 
 import { useParams, Link } from "react-router";
 import { ArrowLeft, Check, Copy } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useRef } from "react";
 import { useConnection } from "@evefrontier/dapp-kit";
 import { useQueryClient } from "@tanstack/react-query";
 import { StructureDetailHeader } from "@/components/StructureDetailHeader";
@@ -96,6 +96,7 @@ function PowerControlSection({ post }: { post: Structure }) {
   const power = useStructurePower();
   const isOnline = post.status === "online";
   const hasNetworkNode = !!post.networkNodeId;
+  const lastActionLabel = useRef("Trade post power state updated");
 
   if (!hasNetworkNode) {
     return (
@@ -109,6 +110,7 @@ function PowerControlSection({ post }: { post: Structure }) {
   }
 
   const handleToggle = () => {
+    lastActionLabel.current = isOnline ? "Trade post taken offline" : "Trade post brought online";
     power.toggleSingle({
       structureType: "storage_unit",
       structureId: post.objectId,
@@ -143,7 +145,7 @@ function PowerControlSection({ post }: { post: Structure }) {
           status={power.status}
           result={power.result}
           error={power.error}
-          successLabel={isOnline ? "TradePost taken offline" : "TradePost brought online"}
+          successLabel={lastActionLabel.current}
           onDismiss={power.reset}
         />
       )}

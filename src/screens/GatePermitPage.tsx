@@ -14,7 +14,7 @@ import { useAutoConnect } from "@/hooks/useAutoConnect";
 import { useResolveGateId } from "@/hooks/useResolveGateId";
 import { useGateData, usePermitAction } from "@/hooks/useGatePermit";
 import { resolveTribeName } from "@/lib/tribeCatalog";
-import { formatLux } from "@/lib/currency";
+import { formatLux, formatEve } from "@/lib/currency";
 import { shortId } from "@/lib/formatAddress";
 
 type Stage = "init" | "resolve" | "wallet" | "loading" | "ready" | "error";
@@ -165,7 +165,7 @@ export function GatePermitPage() {
         {gate.effectiveToll > 0 && (
           <PolicyRow
             label="Transit toll"
-            value={`${formatLux(gate.effectiveToll)} Lux`}
+            value={`${formatLux(gate.effectiveToll)} Lux (${formatEve(gate.effectiveToll)} EVE)`}
           />
         )}
         <PolicyRow
@@ -205,7 +205,7 @@ export function GatePermitPage() {
             {permit.status === "pending"
               ? "Requesting…"
               : gate.effectiveToll > 0
-                ? `Pay ${formatLux(gate.effectiveToll)} Lux & Acquire Permit`
+                ? `Pay ${formatLux(gate.effectiveToll)} Lux (${formatEve(gate.effectiveToll)} EVE) — Acquire Permit`
                 : "Acquire Transit Permit"}
           </button>
           {permit.error && (
