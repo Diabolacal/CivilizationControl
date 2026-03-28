@@ -45,7 +45,7 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
   );
 
   const handleAuthorizeAll = useCallback(() => {
-    authorizeGates(unauthorizedTargets).then(() => {
+    authorizeGates(unauthorizedTargets, window.location.origin).then(() => {
       queryClient.invalidateQueries({ queryKey: ["assetDiscovery"] });
     });
   }, [authorizeGates, unauthorizedTargets, queryClient]);

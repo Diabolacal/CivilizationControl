@@ -7,13 +7,13 @@
 
 import { useCallback, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useDAppKit } from "@mysten/dapp-kit-react";
 import {
   buildAssemblyPowerTx,
   buildBatchAssemblyPowerTx,
   buildNodeOnlineTx,
 } from "@/lib/structurePowerTx";
 import { useCharacterId } from "@/hooks/useCharacter";
+import { useSponsoredExecution } from "@/hooks/useSponsoredExecution";
 import type { ObjectId, StructureType, TxStatus, TxResult } from "@/types/domain";
 
 interface SinglePowerParams {
@@ -46,7 +46,7 @@ function friendlyError(raw: string): string {
 }
 
 export function useStructurePower() {
-  const dAppKit = useDAppKit();
+  const executeTx = useSponsoredExecution();
   const queryClient = useQueryClient();
   const characterId = useCharacterId();
 
@@ -61,13 +61,8 @@ export function useStructurePower() {
       setResult(null);
       try {
         const tx = buildTx();
-        const res = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-        const txData =
-          res.$kind === "Transaction" ? res.Transaction : res.FailedTransaction;
-        if (!txData || res.$kind === "FailedTransaction") {
-          throw new Error("Transaction failed on-chain");
-        }
-        setResult({ digest: txData.digest });
+        const { digest } = await executeTx(tx);
+        setResult({ digest });
         setStatus("success");
         queryClient.invalidateQueries({ queryKey: ["assetDiscovery"] });
       } catch (err: unknown) {
@@ -76,7 +71,7 @@ export function useStructurePower() {
         setStatus("error");
       }
     },
-    [dAppKit, queryClient],
+    [executeTx, queryClient],
   );
 
   const toggleSingle = useCallback(

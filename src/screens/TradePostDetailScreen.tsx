@@ -271,6 +271,9 @@ function MarketplaceSection({ post }: { post: Structure }) {
 
 function InGameDAppUrlSection({ post }: { post: Structure }) {
   const [copied, setCopied] = useState(false);
+  const { setSsuDappUrl, ssuStatus, ssuResult, ssuError, resetSsu } =
+    useAuthorizeExtension();
+  const queryClient = useQueryClient();
   const dappUrl = `${window.location.origin}/ssu/${post.objectId}`;
 
   const handleCopy = useCallback(() => {
@@ -280,6 +283,15 @@ function InGameDAppUrlSection({ post }: { post: Structure }) {
     });
   }, [dappUrl]);
 
+  const handleSetOnChain = useCallback(() => {
+    setSsuDappUrl(
+      [{ ssuId: post.objectId, ownerCapId: post.ownerCapId }],
+      window.location.origin,
+    ).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["assetDiscovery"] });
+    });
+  }, [setSsuDappUrl, post.objectId, post.ownerCapId, queryClient]);
+
   return (
     <section className="border border-border rounded p-5 space-y-3">
       <div className="flex items-center justify-between">
@@ -287,20 +299,36 @@ function InGameDAppUrlSection({ post }: { post: Structure }) {
         <p className="text-[11px] font-mono text-muted-foreground">Operator Setup</p>
       </div>
       <p className="text-xs text-muted-foreground">
-        Paste this into the SSU's custom DApp URL field in-game. Players who interact with this commerce post will see the marketplace.
+        Set this URL on-chain so players who interact with this commerce post see the marketplace automatically.
       </p>
+      {(ssuStatus === "success" || ssuStatus === "error") && (
+        <TxFeedbackBanner
+          status={ssuStatus}
+          result={ssuResult}
+          error={ssuError}
+          successLabel="DApp URL set on-chain"
+          onDismiss={resetSsu}
+        />
+      )}
       <div className="flex items-center gap-2">
         <div className="flex-1 rounded border border-border bg-background px-3 py-2 font-mono text-[11px] text-foreground truncate select-all" title={dappUrl}>
           {dappUrl}
         </div>
         <button
+          onClick={handleSetOnChain}
+          disabled={ssuStatus === "pending"}
+          className="shrink-0 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {ssuStatus === "pending" ? "Setting…" : "Set On-Chain"}
+        </button>
+        <button
           onClick={handleCopy}
-          className="shrink-0 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+          className="shrink-0 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           {copied ? (
             <span className="inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Copied</span>
           ) : (
-            <span className="inline-flex items-center gap-1"><Copy className="w-3.5 h-3.5" /> Copy</span>
+            <span className="inline-flex items-center gap-1"><Copy className="w-3.5 h-3.5" /> Copy URL</span>
           )}
         </button>
       </div>
@@ -315,7 +343,10 @@ function ExtensionSection({ post }: { post: Structure }) {
   const needsAuth = post.extensionStatus !== "authorized";
 
   const handleReAuth = () => {
-    authorizeSsus([{ ssuId: post.objectId, ownerCapId: post.ownerCapId }]).then(() => {
+    authorizeSsus(
+      [{ ssuId: post.objectId, ownerCapId: post.ownerCapId }],
+      window.location.origin,
+    ).then(() => {
       queryClient.invalidateQueries({ queryKey: ["assetDiscovery"] });
     });
   };

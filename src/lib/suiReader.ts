@@ -817,6 +817,7 @@ function resolveExtensionAuth(
   // else are stale.
   const VALID_AUTH_SUFFIXES = [
     "::gate_control::GateAuth",
+    "::trade_post::TradeAuth",
     "::turret::CommercialAuth",
     "::turret::DefenseAuth",
   ];

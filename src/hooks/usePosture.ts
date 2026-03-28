@@ -8,10 +8,10 @@
 
 import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useDAppKit } from "@mysten/dapp-kit-react";
 import { fetchPosture } from "@/lib/suiReader";
 import { buildPostureSwitchTx } from "@/lib/postureSwitchTx";
 import { useCharacterId } from "@/hooks/useCharacter";
+import { useSponsoredExecution } from "@/hooks/useSponsoredExecution";
 import type {
   PostureMode,
   TxStatus,
@@ -42,7 +42,7 @@ interface SwitchPostureParams {
 
 /** Hook to execute a posture switch transaction. */
 export function usePostureSwitch() {
-  const dAppKit = useDAppKit();
+  const executeTx = useSponsoredExecution();
   const queryClient = useQueryClient();
   const characterId = useCharacterId();
 
@@ -63,13 +63,8 @@ export function usePostureSwitch() {
           turrets: params.turrets,
           characterId,
         });
-        const res = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-        const txData =
-          res.$kind === "Transaction" ? res.Transaction : res.FailedTransaction;
-        if (!txData || res.$kind === "FailedTransaction") {
-          throw new Error("Posture switch transaction failed on-chain");
-        }
-        setResult({ digest: txData.digest });
+        const { digest } = await executeTx(tx);
+        setResult({ digest });
         setStatus("success");
         // Invalidate posture + signal feed + asset caches
         queryClient.invalidateQueries({ queryKey: ["posture"] });
@@ -82,7 +77,7 @@ export function usePostureSwitch() {
         setStatus("error");
       }
     },
-    [dAppKit, queryClient, characterId],
+    [executeTx, queryClient, characterId],
   );
 
   const reset = useCallback(() => {

@@ -99,6 +99,9 @@ function BackLink() {
 
 function InGameDAppUrlSection({ gate }: { gate: Structure }) {
   const [copied, setCopied] = useState(false);
+  const { setGateDappUrl, gateStatus, gateResult, gateError, resetGate } =
+    useAuthorizeExtension();
+  const queryClient = useQueryClient();
   const dappUrl = `${window.location.origin}/gate/${gate.objectId}`;
 
   const handleCopy = useCallback(() => {
@@ -108,6 +111,15 @@ function InGameDAppUrlSection({ gate }: { gate: Structure }) {
     });
   }, [dappUrl]);
 
+  const handleSetOnChain = useCallback(() => {
+    setGateDappUrl(
+      [{ gateId: gate.objectId, ownerCapId: gate.ownerCapId }],
+      window.location.origin,
+    ).then(() => {
+      queryClient.invalidateQueries({ queryKey: ["assetDiscovery"] });
+    });
+  }, [setGateDappUrl, gate.objectId, gate.ownerCapId, queryClient]);
+
   return (
     <section className="border border-border rounded p-5 space-y-3">
       <div className="flex items-center justify-between">
@@ -115,15 +127,31 @@ function InGameDAppUrlSection({ gate }: { gate: Structure }) {
         <p className="text-[11px] font-mono text-muted-foreground">Operator Setup</p>
       </div>
       <p className="text-xs text-muted-foreground">
-        Paste this into the gate's custom DApp URL field in-game. Players who interact with this gate will see the permit page.
+        Set this URL on-chain so players who interact with this gate see the permit page automatically.
       </p>
+      {(gateStatus === "success" || gateStatus === "error") && (
+        <TxFeedbackBanner
+          status={gateStatus}
+          result={gateResult}
+          error={gateError ?? null}
+          successLabel="DApp URL set on-chain"
+          onDismiss={resetGate}
+        />
+      )}
       <div className="flex items-center gap-2">
         <div className="flex-1 rounded border border-border bg-background px-3 py-2 font-mono text-[11px] text-foreground truncate select-all" title={dappUrl}>
           {dappUrl}
         </div>
         <button
+          onClick={handleSetOnChain}
+          disabled={gateStatus === "pending"}
+          className="shrink-0 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {gateStatus === "pending" ? "Setting…" : "Set On-Chain"}
+        </button>
+        <button
           onClick={handleCopy}
-          className="shrink-0 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20"
+          className="shrink-0 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
         >
           {copied ? (
             <span className="inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Copied</span>
@@ -341,7 +369,10 @@ function ExtensionSection({ gate }: { gate: Structure }) {
   const needsAuth = gate.extensionStatus !== "authorized";
 
   const handleReAuth = () => {
-    authorizeGates([{ gateId: gate.objectId, ownerCapId: gate.ownerCapId }]).then(() => {
+    authorizeGates(
+      [{ gateId: gate.objectId, ownerCapId: gate.ownerCapId }],
+      window.location.origin,
+    ).then(() => {
       queryClient.invalidateQueries({ queryKey: ["assetDiscovery"] });
     });
   };

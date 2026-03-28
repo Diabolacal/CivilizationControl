@@ -39,7 +39,7 @@ export function TradePostListScreen({ structures, isLoading }: TradePostListScre
   );
 
   const handleAuthorizeAll = useCallback(() => {
-    authorizeSsus(unauthorizedSsus).then(() => {
+    authorizeSsus(unauthorizedSsus, window.location.origin).then(() => {
       queryClient.invalidateQueries({ queryKey: ["assetDiscovery"] });
     });
   }, [authorizeSsus, unauthorizedSsus, queryClient]);

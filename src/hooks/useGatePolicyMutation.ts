@@ -7,7 +7,6 @@
  */
 
 import { useCallback, useState } from "react";
-import { useDAppKit } from "@mysten/dapp-kit-react";
 import {
   buildSetPolicyPresetTx,
   buildRemovePolicyPresetTx,
@@ -16,10 +15,11 @@ import {
 } from "@/lib/gatePolicyTx";
 import { useInvalidateGatePolicy } from "@/hooks/useGatePolicy";
 import { useCharacterId } from "@/hooks/useCharacter";
+import { useSponsoredExecution } from "@/hooks/useSponsoredExecution";
 import type { ObjectId, TxStatus, TxResult, TribePolicyEntry, GatePolicyTarget } from "@/types/domain";
 
 export function useGatePolicyMutation(gateId: ObjectId, ownerCapId: string) {
-  const dAppKit = useDAppKit();
+  const executeTx = useSponsoredExecution();
   const invalidate = useInvalidateGatePolicy();
   const characterId = useCharacterId();
 
@@ -34,13 +34,8 @@ export function useGatePolicyMutation(gateId: ObjectId, ownerCapId: string) {
       setResult(null);
       try {
         const tx = buildTx();
-        const res = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-        const txData =
-          res.$kind === "Transaction" ? res.Transaction : res.FailedTransaction;
-        if (!txData || res.$kind === "FailedTransaction") {
-          throw new Error("Transaction failed on-chain");
-        }
-        setResult({ digest: txData.digest });
+        const { digest } = await executeTx(tx);
+        setResult({ digest });
         setStatus("success");
         invalidate(gateId);
       } catch (err: unknown) {
@@ -49,7 +44,7 @@ export function useGatePolicyMutation(gateId: ObjectId, ownerCapId: string) {
         setStatus("error");
       }
     },
-    [dAppKit, gateId, invalidate],
+    [executeTx, gateId, invalidate],
   );
 
   const setPreset = useCallback(
@@ -100,7 +95,7 @@ export function useGatePolicyMutation(gateId: ObjectId, ownerCapId: string) {
  * Invalidates policy cache for all affected gates on success.
  */
 export function useBatchPresetMutation() {
-  const dAppKit = useDAppKit();
+  const executeTx = useSponsoredExecution();
   const invalidate = useInvalidateGatePolicy();
   const characterId = useCharacterId();
 
@@ -123,13 +118,8 @@ export function useBatchPresetMutation() {
       setResult(null);
       try {
         const tx = buildBatchSetPolicyPresetTx(targets, mode, entries, defaultAccess, defaultToll, characterId);
-        const res = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-        const txData =
-          res.$kind === "Transaction" ? res.Transaction : res.FailedTransaction;
-        if (!txData || res.$kind === "FailedTransaction") {
-          throw new Error("Transaction failed on-chain");
-        }
-        setResult({ digest: txData.digest });
+        const { digest } = await executeTx(tx);
+        setResult({ digest });
         setStatus("success");
         for (const target of targets) {
           invalidate(target.gateId);
@@ -140,7 +130,7 @@ export function useBatchPresetMutation() {
         setStatus("error");
       }
     },
-    [dAppKit, invalidate, characterId],
+    [executeTx, invalidate, characterId],
   );
 
   const reset = useCallback(() => {

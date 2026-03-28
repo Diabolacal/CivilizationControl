@@ -1,6 +1,6 @@
 import { useCallback, useState } from "react";
-import { useDAppKit } from "@mysten/dapp-kit-react";
 import { Transaction } from "@mysten/sui/transactions";
+import { useSponsoredExecution } from "@/hooks/useSponsoredExecution";
 import {
   WORLD_PACKAGE_ID,
   CC_PACKAGE_ID,
@@ -20,7 +20,7 @@ interface AuthResult {
 type AuthStatus = "idle" | "pending" | "success" | "error";
 
 export function useAuthorizeExtension() {
-  const dAppKit = useDAppKit();
+  const executeTx = useSponsoredExecution();
   const characterId = useCharacterId();
 
   const [gateStatus, setGateStatus] = useState<AuthStatus>("idle");
@@ -60,22 +60,18 @@ export function useAuthorizeExtension() {
         arguments: [tx.object(characterId), ownerCap, receipt],
       });
 
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-      const txData = result.$kind === "Transaction" ? result.Transaction : result.FailedTransaction;
-      if (!txData || result.$kind === "FailedTransaction") {
-        throw new Error("Transaction failed on-chain");
-      }
-      setGateResult({ digest: txData.digest });
+      const { digest } = await executeTx(tx);
+      setGateResult({ digest });
       setGateStatus("success");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setGateError(message);
       setGateStatus("error");
     }
-  }, [dAppKit, characterId]);
+  }, [executeTx, characterId]);
 
   const authorizeGates = useCallback(
-    async (targets: GateAuthTarget[]) => {
+    async (targets: GateAuthTarget[], dappBaseUrl?: string) => {
       if (targets.length === 0) return;
       if (!characterId) throw new Error("Character not resolved yet \u2014 please wait");
       setGateStatus("pending");
@@ -98,6 +94,18 @@ export function useAuthorizeExtension() {
             arguments: [tx.object(target.gateId), ownerCap],
           });
 
+          // Set the in-game DApp URL so players see the permit page automatically
+          if (dappBaseUrl) {
+            tx.moveCall({
+              target: `${WORLD_PACKAGE_ID}::gate::update_metadata_url`,
+              arguments: [
+                tx.object(target.gateId),
+                ownerCap,
+                tx.pure.string(`${dappBaseUrl}/gate/${target.gateId}`),
+              ],
+            });
+          }
+
           tx.moveCall({
             target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
             typeArguments: [gateType],
@@ -105,13 +113,8 @@ export function useAuthorizeExtension() {
           });
         }
 
-        const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-        const txData =
-          result.$kind === "Transaction" ? result.Transaction : result.FailedTransaction;
-        if (!txData || result.$kind === "FailedTransaction") {
-          throw new Error("Gate authorization transaction failed on-chain");
-        }
-        setGateResult({ digest: txData.digest });
+        const { digest } = await executeTx(tx);
+        setGateResult({ digest });
         setGateStatus("success");
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -119,7 +122,7 @@ export function useAuthorizeExtension() {
         setGateStatus("error");
       }
     },
-    [dAppKit, characterId],
+    [executeTx, characterId],
   );
 
   const authorizeSsu = useCallback(async () => {
@@ -150,22 +153,18 @@ export function useAuthorizeExtension() {
         arguments: [tx.object(characterId), ownerCap, receipt],
       });
 
-      const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-      const txData = result.$kind === "Transaction" ? result.Transaction : result.FailedTransaction;
-      if (!txData || result.$kind === "FailedTransaction") {
-        throw new Error("Transaction failed on-chain");
-      }
-      setSsuResult({ digest: txData.digest });
+      const { digest } = await executeTx(tx);
+      setSsuResult({ digest });
       setSsuStatus("success");
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       setSsuError(message);
       setSsuStatus("error");
     }
-  }, [dAppKit, characterId]);
+  }, [executeTx, characterId]);
 
   const authorizeSsus = useCallback(
-    async (targets: SsuAuthTarget[]) => {
+    async (targets: SsuAuthTarget[], dappBaseUrl?: string) => {
       if (targets.length === 0) return;
       if (!characterId) throw new Error("Character not resolved yet \u2014 please wait");
       setSsuStatus("pending");
@@ -188,6 +187,18 @@ export function useAuthorizeExtension() {
             arguments: [tx.object(target.ssuId), ownerCap],
           });
 
+          // Set the in-game DApp URL so players see the marketplace automatically
+          if (dappBaseUrl) {
+            tx.moveCall({
+              target: `${WORLD_PACKAGE_ID}::storage_unit::update_metadata_url`,
+              arguments: [
+                tx.object(target.ssuId),
+                ownerCap,
+                tx.pure.string(`${dappBaseUrl}/ssu/${target.ssuId}`),
+              ],
+            });
+          }
+
           tx.moveCall({
             target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
             typeArguments: [ssuType],
@@ -195,13 +206,8 @@ export function useAuthorizeExtension() {
           });
         }
 
-        const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-        const txData =
-          result.$kind === "Transaction" ? result.Transaction : result.FailedTransaction;
-        if (!txData || result.$kind === "FailedTransaction") {
-          throw new Error("SSU authorization transaction failed on-chain");
-        }
-        setSsuResult({ digest: txData.digest });
+        const { digest } = await executeTx(tx);
+        setSsuResult({ digest });
         setSsuStatus("success");
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -209,7 +215,52 @@ export function useAuthorizeExtension() {
         setSsuStatus("error");
       }
     },
-    [dAppKit, characterId],
+    [executeTx, characterId],
+  );
+
+  const setSsuDappUrl = useCallback(
+    async (targets: SsuAuthTarget[], dappBaseUrl: string) => {
+      if (targets.length === 0) return;
+      if (!characterId) throw new Error("Character not resolved yet \u2014 please wait");
+      setSsuStatus("pending");
+      setSsuError(null);
+      try {
+        const tx = new Transaction();
+        const ssuType = `${WORLD_PACKAGE_ID}::storage_unit::StorageUnit`;
+
+        for (const target of targets) {
+          const [ownerCap, receipt] = tx.moveCall({
+            target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
+            typeArguments: [ssuType],
+            arguments: [tx.object(characterId), tx.object(target.ownerCapId)],
+          });
+
+          tx.moveCall({
+            target: `${WORLD_PACKAGE_ID}::storage_unit::update_metadata_url`,
+            arguments: [
+              tx.object(target.ssuId),
+              ownerCap,
+              tx.pure.string(`${dappBaseUrl}/ssu/${target.ssuId}`),
+            ],
+          });
+
+          tx.moveCall({
+            target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
+            typeArguments: [ssuType],
+            arguments: [tx.object(characterId), ownerCap, receipt],
+          });
+        }
+
+        const { digest } = await executeTx(tx);
+        setSsuResult({ digest });
+        setSsuStatus("success");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        setSsuError(message);
+        setSsuStatus("error");
+      }
+    },
+    [executeTx, characterId],
   );
 
   // ── Turret doctrine batch authorization (posture-aware) ──
@@ -250,13 +301,8 @@ export function useAuthorizeExtension() {
           });
         }
 
-        const result = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-        const txData =
-          result.$kind === "Transaction" ? result.Transaction : result.FailedTransaction;
-        if (!txData || result.$kind === "FailedTransaction") {
-          throw new Error("Turret authorization transaction failed on-chain");
-        }
-        setTurretResult({ digest: txData.digest });
+        const { digest } = await executeTx(tx);
+        setTurretResult({ digest });
         setTurretStatus("success");
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -264,12 +310,58 @@ export function useAuthorizeExtension() {
         setTurretStatus("error");
       }
     },
-    [dAppKit, characterId],
+    [executeTx, characterId],
+  );
+
+  const setGateDappUrl = useCallback(
+    async (targets: GateAuthTarget[], dappBaseUrl: string) => {
+      if (targets.length === 0) return;
+      if (!characterId) throw new Error("Character not resolved yet \u2014 please wait");
+      setGateStatus("pending");
+      setGateError(null);
+      try {
+        const tx = new Transaction();
+        const gateType = `${WORLD_PACKAGE_ID}::gate::Gate`;
+
+        for (const target of targets) {
+          const [ownerCap, receipt] = tx.moveCall({
+            target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
+            typeArguments: [gateType],
+            arguments: [tx.object(characterId), tx.object(target.ownerCapId)],
+          });
+
+          tx.moveCall({
+            target: `${WORLD_PACKAGE_ID}::gate::update_metadata_url`,
+            arguments: [
+              tx.object(target.gateId),
+              ownerCap,
+              tx.pure.string(`${dappBaseUrl}/gate/${target.gateId}`),
+            ],
+          });
+
+          tx.moveCall({
+            target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
+            typeArguments: [gateType],
+            arguments: [tx.object(characterId), ownerCap, receipt],
+          });
+        }
+
+        const { digest } = await executeTx(tx);
+        setGateResult({ digest });
+        setGateStatus("success");
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        setGateError(message);
+        setGateStatus("error");
+      }
+    },
+    [executeTx, characterId],
   );
 
   return {
     authorizeGate,
     authorizeGates,
+    setGateDappUrl,
     gateStatus,
     gateResult,
     gateError,
@@ -280,6 +372,7 @@ export function useAuthorizeExtension() {
     }, []),
     authorizeSsu,
     authorizeSsus,
+    setSsuDappUrl,
     ssuStatus,
     ssuResult,
     ssuError,

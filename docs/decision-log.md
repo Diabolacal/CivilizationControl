@@ -4,6 +4,57 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-03-23 – Feat: Wire CivilizationControl to live shared sponsor worker
+- Goal: Connect CC's sponsorship frontend to the deployed multi-app sponsor worker at flappy-frontier-sponsor.michael-davis-home.workers.dev. Fix two integration bugs found during wiring.
+- Fixes: (1) Sponsor worker expects POST /sponsor — CC was posting to root URL. Added /sponsor path derivation. (2) Worker has no SPONSOR_API_KEY set (auth open, CORS-protected). CC required API key to enable sponsorship. Made API key optional — sponsorship activates with VITE_SPONSOR_URL alone.
+- Files modified: src/lib/sponsorship.ts
+- Files created: .env.example
+- Config: Added VITE_SPONSOR_URL to .env (gitignored)
+- Diff: ~10 LoC changed in sponsorship.ts, .env.example created
+- Risk: low (client-side env + fetch URL fix; fallback unchanged)
+- Gates: typecheck ✅ build ✅ preview deployed ✅
+- Preview: https://feat-sponsored-governance.civilizationcontrol.pages.dev
+- Follow-ups: (1) Set SPONSOR_API_KEY on worker if auth hardening desired. (2) Commit sponsorship files to feature branch.
+
+## 2026-03-23 – Feat: Sponsored transaction frontend integration
+- Goal: Add gas sponsorship support so governance operations are gas-free for the tribe leader. Transparent fallback: when no sponsor is configured, standard wallet-pays-gas flow continues.
+- Files created: src/lib/sponsorship.ts (sponsor API client), src/hooks/useSponsoredExecution.ts (unified execution hook)
+- Files modified: src/hooks/useAuthorizeExtension.ts, src/hooks/useGatePolicyMutation.ts, src/hooks/usePosture.ts, src/hooks/useStructurePower.ts
+- Diff: +151 LoC added (2 new), -95 LoC removed / +42 LoC added (4 modified) = net +98 LoC
+- Risk: medium (new execution path, but graceful fallback to existing behavior when env vars absent)
+- Architecture: `useSponsoredExecution()` hook wraps dAppKit. If `VITE_SPONSOR_URL` + `VITE_SPONSOR_API_KEY` env vars set → builds TransactionKind only → POST to sponsor worker → player signs sponsored TX → execute with dual signatures. If not configured or sponsor unreachable → standard signAndExecuteTransaction.
+- NOT wired (by design): useGatePermit, useBuyListing, useCreateListing, useCancelListing, useTransitProof — these involve value transfer (splitCoins from GasCoin) and must NOT be sponsored.
+- Gates: typecheck ✅ build ✅
+- Follow-ups: (1) Deploy a CC sponsor worker (separate from FF). (2) Set VITE_SPONSOR_URL + VITE_SPONSOR_API_KEY env vars. (3) Worker must allowlist both WORLD_PACKAGE_ID and CC_PACKAGE_ID targets, block GasCoin manipulation, enforce origin checking.
+
+## 2026-03-23 – Fix: TradeAuth missing from VALID_AUTH_SUFFIXES (SSU always shows stale)
+- Goal: SSU/Trade Post extension status always showed "stale" even after successful re-authorization — blocking listing creation and showing misleading STALE badge.
+- Root cause: `resolveExtensionAuth()` in suiReader.ts uses suffix matching against `VALID_AUTH_SUFFIXES`. The list contained `::gate_control::GateAuth`, `::turret::CommercialAuth`, `::turret::DefenseAuth` — but NOT `::trade_post::TradeAuth`. Every SSU with a valid TradeAuth extension fell through to the `"stale"` return.
+- Fix: Added `"::trade_post::TradeAuth"` to `VALID_AUTH_SUFFIXES` (1 line).
+- Files: src/lib/suiReader.ts
+- Diff: +1 LoC
+- Risk: low (read-path only, no PTB or contract change)
+- Gates: typecheck ✅ build ✅
+- Follow-ups: None. The re-auth PTB was already correct — `authorizeSsus()` uses `CC_ORIGINAL_PACKAGE_ID::trade_post::TradeAuth` which matches the v1 type-origin.
+
+## 2026-03-23 – Feat: SSU auto DApp URL + metadata URL capability audit
+- Goal: Extend on-chain DApp URL setting from gates to SSUs/Trade Posts. Audit turret and other assembly metadata capabilities.
+- Files: src/hooks/useAuthorizeExtension.ts, src/screens/TradePostDetailScreen.tsx, src/screens/TradePostListScreen.tsx
+- Diff: ~80 LoC added across 3 files
+- Risk: medium (new PTB calls to storage_unit::update_metadata_url)
+- Changes:
+  - `authorizeSsus()` now accepts optional `dappBaseUrl` — when provided, adds `storage_unit::update_metadata_url` MoveCall per SSU in the same PTB
+  - New `setSsuDappUrl()` standalone function for already-authorized SSUs
+  - TradePostDetailScreen: InGameDAppUrlSection upgraded from copy-only to "Set On-Chain" (primary) + "Copy URL" (secondary) + TxFeedbackBanner
+  - TradePostDetailScreen: ExtensionSection re-auth now passes `window.location.origin` to auto-set DApp URL
+  - TradePostListScreen: batch "Authorize All" passes `window.location.origin`
+- Audit findings:
+  - **Turrets**: `turret::update_metadata_url` exists (L367) but no player interaction surface reads turret metadata URLs. Players don't press F on turrets to open a DApp. Recommendation: do not implement.
+  - **Other gate capabilities**: `freeze_extension_config` (permanent, irreversible lock), `update_metadata_name/description`, `link/unlink_gates` (requires AdminACL, not operator-callable), `delete_jump_permit/delete_jump_permit_with_auth`. None needed for hackathon scope.
+  - **Other SSU capabilities**: `freeze_extension_config` (same permanent lock), `update_metadata_name/description`, `revoke_extension_authorization`. None needed for hackathon scope.
+- Gates: typecheck ✅ build ✅
+- Follow-ups: If CCP adds turret interaction DApp surface, revisit turret metadata URL support.
+
 ## 2026-03-23 – UI: Command Overview polish pass (hierarchy + 1440p fit)
 - Goal: Calm the Command Overview page — improve hierarchy, reduce visual noise, ensure no page scrollbar at 1440p demo capture.
 - Files: Dashboard.tsx, Sidebar.tsx, App.tsx, StrategicMapPanel.tsx, theme.css + new docs/ux/ui-polish-reference-brief.md
