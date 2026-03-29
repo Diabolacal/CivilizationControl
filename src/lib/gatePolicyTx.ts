@@ -156,3 +156,33 @@ export function buildBatchSetPolicyPresetTx(
 
   return tx;
 }
+
+/**
+ * Build a single PTB that sets the same treasury address on multiple gates.
+ *
+ * Same borrow/return pattern as batch preset. Idempotent — overwrites
+ * any existing treasury DF. ~300 gates per PTB (3 commands each).
+ */
+export function buildBatchSetTreasuryTx(
+  targets: GatePolicyTarget[],
+  treasury: string,
+  characterId: string,
+): Transaction {
+  const tx = new Transaction();
+
+  for (const target of targets) {
+    const [cap, receipt] = borrowOwnerCap(tx, characterId, target.ownerCapId);
+    tx.moveCall({
+      target: `${CC_PACKAGE_ID}::gate_control::set_treasury`,
+      arguments: [
+        tx.object(GATE_CONFIG_ID),
+        cap,
+        tx.pure.id(target.gateId),
+        tx.pure.address(treasury),
+      ],
+    });
+    returnOwnerCap(tx, characterId, cap, receipt);
+  }
+
+  return tx;
+}

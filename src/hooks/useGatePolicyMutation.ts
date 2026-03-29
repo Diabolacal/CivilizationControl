@@ -12,6 +12,7 @@ import {
   buildRemovePolicyPresetTx,
   buildSetTreasuryTx,
   buildBatchSetPolicyPresetTx,
+  buildBatchSetTreasuryTx,
 } from "@/lib/gatePolicyTx";
 import { useInvalidateGatePolicy } from "@/hooks/useGatePolicy";
 import { useCharacterId } from "@/hooks/useCharacter";
@@ -140,4 +141,52 @@ export function useBatchPresetMutation() {
   }, []);
 
   return { status, result, error, deployPreset, reset };
+}
+
+/**
+ * useBatchTreasuryMutation — Sign-and-execute hook for setting treasury
+ * address on multiple owned gates in a single PTB.
+ *
+ * Invalidates policy cache for all affected gates on success.
+ */
+export function useBatchTreasuryMutation() {
+  const executeTx = useSponsoredExecution();
+  const invalidate = useInvalidateGatePolicy();
+  const characterId = useCharacterId();
+
+  const [status, setStatus] = useState<TxStatus>("idle");
+  const [result, setResult] = useState<TxResult | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const setTreasuryBatch = useCallback(
+    async (targets: GatePolicyTarget[], treasury: string) => {
+      if (targets.length === 0) return;
+      if (!characterId) throw new Error("Character not resolved yet — please wait");
+      setStatus("pending");
+      setError(null);
+      setResult(null);
+      try {
+        const tx = buildBatchSetTreasuryTx(targets, treasury, characterId);
+        const { digest } = await executeTx(tx);
+        setResult({ digest });
+        setStatus("success");
+        for (const target of targets) {
+          invalidate(target.gateId);
+        }
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(message);
+        setStatus("error");
+      }
+    },
+    [executeTx, invalidate, characterId],
+  );
+
+  const reset = useCallback(() => {
+    setStatus("idle");
+    setResult(null);
+    setError(null);
+  }, []);
+
+  return { status, result, error, setTreasuryBatch, reset };
 }

@@ -23,14 +23,17 @@ import type {
 /**
  * Hook to read the current posture for a specific gate.
  * When gateId is undefined, the query is disabled and returns 'commercial'.
+ *
+ * Pass `aggressiveRefetch: true` during posture transitions to poll
+ * every 4 seconds instead of the normal 30-second interval.
  */
-export function usePostureState(gateId?: string) {
+export function usePostureState(gateId?: string, aggressiveRefetch = false) {
   return useQuery({
     queryKey: ["posture", gateId],
     queryFn: () => fetchPosture(gateId!),
     enabled: !!gateId,
-    staleTime: 15_000,
-    refetchInterval: 30_000,
+    staleTime: aggressiveRefetch ? 2_000 : 15_000,
+    refetchInterval: aggressiveRefetch ? 4_000 : 30_000,
   });
 }
 

@@ -7,6 +7,7 @@
 
 import { Shield, ArrowRightLeft, Radio, AlertTriangle } from "lucide-react";
 import { formatLux } from "@/lib/currency";
+import { DigestHoverLink } from "@/components/DigestHoverLink";
 import type { SignalEvent, SignalCategory } from "@/types/domain";
 
 const CATEGORY_CONFIG: Record<SignalCategory, { icon: typeof Shield; color: string; label: string }> = {
@@ -70,15 +71,12 @@ export function SignalEventRow({ signal }: { signal: SignalEvent }) {
         </span>
       )}
       {signal.txDigest && (
-        <a
-          href={`https://suiscan.xyz/testnet/tx/${signal.txDigest}`}
-          target="_blank"
-          rel="noopener noreferrer"
+        <DigestHoverLink
+          digest={signal.txDigest}
           className="text-[10px] font-mono text-muted-foreground/50 hover:text-primary transition-colors shrink-0"
-          title={signal.txDigest}
         >
           {truncateId(signal.txDigest)}
-        </a>
+        </DigestHoverLink>
       )}
     </div>
   );

@@ -8,6 +8,7 @@
 import { useCallback, useMemo } from "react";
 import { Link } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
+import { useConnection } from "@evefrontier/dapp-kit";
 import { StatusDot } from "@/components/StatusDot";
 import { TagChip } from "@/components/TagChip";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
@@ -15,6 +16,7 @@ import { GateGlyph } from "@/components/topology/Glyphs";
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import { usePostureState } from "@/hooks/usePosture";
+import { useBatchTreasuryMutation } from "@/hooks/useGatePolicyMutation";
 import { shortId } from "@/lib/formatAddress";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, GateAuthTarget } from "@/types/domain";
@@ -27,6 +29,7 @@ interface GateListScreenProps {
 export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
   const gates = structures.filter((s) => s.type === "gate");
   const queryClient = useQueryClient();
+  const { walletAddress } = useConnection();
   const firstGateId = gates[0]?.objectId;
   const { data: posture } = usePostureState(firstGateId);
   const isDefense = posture === "defense";
@@ -83,6 +86,18 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
       online: false,
     });
   }, [power, onlineGates]);
+
+  const treasuryBatch = useBatchTreasuryMutation();
+
+  const allGateTargets = useMemo(
+    () => gates.map((g) => ({ gateId: g.objectId, ownerCapId: g.ownerCapId, gateName: g.name })),
+    [gates],
+  );
+
+  const handleBulkTreasury = useCallback(() => {
+    if (!walletAddress || allGateTargets.length === 0) return;
+    treasuryBatch.setTreasuryBatch(allGateTargets, walletAddress);
+  }, [treasuryBatch, allGateTargets, walletAddress]);
 
   return (
     <div className="space-y-6">
@@ -164,6 +179,32 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
           error={power.error}
           successLabel="Gate power state updated"
           onDismiss={power.reset}
+        />
+      )}
+
+      {/* Bulk treasury setup */}
+      {gates.length > 0 && walletAddress && (
+        <div className="flex items-center gap-3">
+          <button
+            onClick={handleBulkTreasury}
+            disabled={treasuryBatch.status === "pending"}
+            className="rounded-md border border-emerald-500/30 bg-emerald-500/10 px-3 py-1.5 text-xs font-medium text-emerald-400 transition-colors hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {treasuryBatch.status === "pending"
+              ? "Setting…"
+              : `Set Treasury — All Gates (${allGateTargets.length})`}
+          </button>
+        </div>
+      )}
+
+      {/* Treasury batch feedback */}
+      {(treasuryBatch.status === "success" || treasuryBatch.status === "error") && (
+        <TxFeedbackBanner
+          status={treasuryBatch.status}
+          result={treasuryBatch.result}
+          error={treasuryBatch.error}
+          successLabel={`Treasury set on ${allGateTargets.length} gate(s)`}
+          onDismiss={treasuryBatch.reset}
         />
       )}
 

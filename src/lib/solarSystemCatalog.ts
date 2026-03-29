@@ -67,6 +67,11 @@ export function isCatalogLoaded(): boolean {
   return true;
 }
 
+/** Return the full catalog array synchronously. */
+export function getSolarSystemCatalog(): SolarSystem[] {
+  return catalog;
+}
+
 /** Total count of systems in the catalog. */
 export function getCatalogSize(): number {
   return catalog.length;

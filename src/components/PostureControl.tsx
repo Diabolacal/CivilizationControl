@@ -9,7 +9,7 @@
  * UX follows command infrastructure doctrine: calm authority, not settings.
  */
 
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import { ShieldAlert, Store, Settings2 } from "lucide-react";
 import { usePostureState, usePostureSwitch } from "@/hooks/usePosture";
@@ -40,13 +40,32 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline }: Pos
     return undefined;
   }, [nodeGroups]);
 
-  const { data: currentPosture, isLoading: postureLoading, isFetching: postureRefetching } = usePostureState(firstGateId);
+  // Transition lifecycle: pendingTarget is set on click, cleared when
+  // read-path confirms the new posture or on error/timeout.
+  const [pendingTarget, setPendingTarget] = useState<PostureMode | null>(null);
+  const isTransitioning = pendingTarget !== null;
+
+  const { data: currentPosture, isLoading: postureLoading, isFetching: postureRefetching } = usePostureState(firstGateId, isTransitioning);
   const { status, result, error, switchPosture, reset } = usePostureSwitch();
   const readiness = useOperatorReadiness(nodeGroups, isConnected);
 
   const posture: PostureMode = currentPosture ?? "commercial";
   const isDefense = posture === "defense";
   const isConfirming = status === "success" && postureRefetching;
+
+  // Clear pendingTarget when read-path confirms the transition completed
+  useEffect(() => {
+    if (pendingTarget && currentPosture === pendingTarget) {
+      setPendingTarget(null);
+    }
+  }, [pendingTarget, currentPosture]);
+
+  // Clear pendingTarget on error so controls re-enable
+  useEffect(() => {
+    if (status === "error") {
+      setPendingTarget(null);
+    }
+  }, [status]);
 
   // Capture the target mode at mutation time so the success banner
   // doesn't flip after cache invalidation changes isDefense.
@@ -81,6 +100,7 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline }: Pos
   const handleSwitch = useCallback(() => {
     const targetMode: PostureMode = isDefense ? "commercial" : "defense";
     lastTargetRef.current = targetMode;
+    setPendingTarget(targetMode);
     switchPosture({
       targetMode,
       gates: gateTargets,
@@ -89,14 +109,18 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline }: Pos
   }, [isDefense, gateTargets, turrets, switchPosture]);
 
   const isPending = status === "pending";
-  // Prevent same-posture spam: also disable if already in the target posture
-  const isDisabled = isPending || postureLoading || !readiness.isReady;
+  // Prevent clicks while transitioning (PTB executing, awaiting confirmation, or read-path catching up)
+  const isDisabled = isPending || isTransitioning || postureLoading || !readiness.isReady;
 
   const stateLabel = postureLoading
     ? "Resolving\u2026"
-    : isConfirming
-      ? "Confirming\u2026"
-      : isDefense ? "Defense Mode" : "Open for Business";
+    : isTransitioning
+      ? isPending
+        ? "Executing\u2026"
+        : "Transitioning\u2026"
+      : isConfirming
+        ? "Confirming\u2026"
+        : isDefense ? "Defense Mode" : "Open for Business";
 
   const actionButton = (
     <button
@@ -108,8 +132,8 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline }: Pos
           : "bg-amber-600 text-white hover:bg-amber-500 disabled:bg-amber-800"
       } disabled:cursor-not-allowed disabled:opacity-50`}
     >
-      {isPending
-        ? "Executing…"
+      {isTransitioning
+        ? "Applying\u2026"
         : isDefense
           ? "Stand Down"
           : "Defense Mode"}
@@ -157,10 +181,13 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline }: Pos
     </>
   );
 
-  // Inline mode-selector variant: Commercial / Defensive chip tabs + Save Preset placeholder.
+  // Inline mode-selector variant: Commercial / Defensive chip tabs + transition indicator.
   if (inline) {
-    const commercialActive = !isDefense && !postureLoading;
-    const defensiveActive = isDefense && !postureLoading;
+    const commercialActive = !isDefense && !postureLoading && !isTransitioning;
+    const defensiveActive = isDefense && !postureLoading && !isTransitioning;
+    // During transition, show the pending target as the "active-becoming" chip
+    const pendingCommercial = isTransitioning && pendingTarget === "commercial";
+    const pendingDefensive = isTransitioning && pendingTarget === "defense";
 
     const chipBase =
       "flex items-center gap-2 rounded px-3 py-1.5 font-medium transition-colors duration-[800ms] ease-in-out border cursor-pointer disabled:cursor-not-allowed";
@@ -168,8 +195,21 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline }: Pos
       "text-xs text-primary bg-primary/10 border-primary/20";
     const activeDefensive =
       "text-xs text-destructive bg-destructive/10 border-destructive/20";
+    const pendingChip =
+      "text-xs text-muted-foreground bg-muted/10 border-border/40 animate-pulse";
     const inactive =
       "text-[11px] tracking-wide text-muted-foreground hover:text-foreground border-transparent disabled:opacity-50";
+
+    const commercialChipClass = commercialActive
+      ? activeCommercial
+      : pendingCommercial
+        ? pendingChip
+        : inactive;
+    const defensiveChipClass = defensiveActive
+      ? activeDefensive
+      : pendingDefensive
+        ? pendingChip
+        : inactive;
 
     return (
       <>
@@ -178,30 +218,43 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline }: Pos
           <button
             onClick={isDefense ? handleSwitch : undefined}
             disabled={isDisabled || commercialActive}
-            className={`${chipBase} ${commercialActive ? activeCommercial : inactive}`}
+            className={`${chipBase} ${commercialChipClass}`}
           >
             <Store className="w-3.5 h-3.5" />
-            {isPending && !isDefense ? "Switching…" : "Commercial"}
+            {pendingCommercial ? "Applying\u2026" : "Commercial"}
           </button>
           <button
             onClick={!isDefense ? handleSwitch : undefined}
             disabled={isDisabled || defensiveActive}
-            className={`${chipBase} ${defensiveActive ? activeDefensive : inactive}`}
+            className={`${chipBase} ${defensiveChipClass}`}
           >
             <ShieldAlert className="w-3.5 h-3.5" />
-            {isPending && isDefense ? "Switching…" : "Defensive"}
+            {pendingDefensive ? "Applying\u2026" : "Defensive"}
           </button>
         </div>
+        {/* Transition status indicator */}
+        {isTransitioning && (
+          <>
+            <div className="w-px h-4 bg-border/50 mx-1" />
+            <span className="text-[10px] tracking-wide text-muted-foreground animate-pulse">
+              {isPending ? "Awaiting wallet\u2026" : "Confirming on-chain\u2026"}
+            </span>
+          </>
+        )}
         {/* Save Preset placeholder (ghost — not wired yet) */}
-        <div className="w-px h-4 bg-border/50 mx-2" />
-        <button
-          disabled
-          className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium tracking-wide rounded text-muted-foreground/60 border border-transparent cursor-not-allowed"
-          title="Save Preset — coming soon"
-        >
-          <Settings2 className="w-3 h-3" />
-          Save Preset
-        </button>
+        {!isTransitioning && (
+          <>
+            <div className="w-px h-4 bg-border/50 mx-2" />
+            <button
+              disabled
+              className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium tracking-wide rounded text-muted-foreground/60 border border-transparent cursor-not-allowed"
+              title="Save Preset — coming soon"
+            >
+              <Settings2 className="w-3 h-3" />
+              Save Preset
+            </button>
+          </>
+        )}
       </>
     );
   }
@@ -214,7 +267,9 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline }: Pos
           <div className={compact ? "flex items-center gap-2" : "mt-1 flex items-center gap-2"}>
             <span
               className={`inline-block h-2.5 w-2.5 rounded-full transition-colors duration-[800ms] ease-in-out ${
-                isDefense ? "bg-amber-500" : "bg-teal-500"
+                isTransitioning
+                  ? "bg-zinc-400 animate-pulse"
+                  : isDefense ? "bg-amber-500" : "bg-teal-500"
               }`}
             />
             <span className={compact ? "text-sm font-semibold text-zinc-100" : "text-lg font-semibold text-zinc-100"}>

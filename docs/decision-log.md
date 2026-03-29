@@ -4,6 +4,13 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-03-29 – Feat: Transaction proof hover card on digest links
+- Goal: Replace browser-default title tooltip on transaction digests with an in-app proof summary card. Lazy-fetches tx details from Sui JSON-RPC on ~500ms hover, caches by digest. Shows status, type, digest, checkpoint, timestamp, gas. Click still opens SuiScan.
+- Files: src/components/DigestHoverLink.tsx (new), src/components/TxProofCard.tsx (new), src/hooks/useTxDetails.ts (new), src/lib/txDetails.ts (new), src/components/SignalEventRow.tsx (modified)
+- Diff: +347 −6
+- Risk: low (UI-only, no contract or state changes)
+- Gates: typecheck ✅ build ✅
+
 ## 2026-03-28 – Fix: Assembly-aware power telemetry, banner fixes, directive wording, low-fuel alert
 - Goal: Fix 5 live operator-reported telemetry/copy bugs and add low-fuel attention alert.
 - Fixes: (1) Single-gate directive wording: "Policy Preset Set" → "Gate Directive Updated" / "Commercial directive updated". (2) Turret power banner reversed: added useRef pattern (same fix as gate). (3) Trade post power banner reversed + "TradePost" → "Trade post": added useRef pattern. (4) Power telemetry labels hardcoded as "Gate": StatusChangedEvents now tagged with `_assemblyType` based on MoveModule query source → "Gate/Turret/Trade Post Brought Online/Taken Offline". (5) SSU power events not fetched: added world::storage_unit MoveModule query (9th parallel query). (6) Low-fuel attention alert: network nodes with <24h runtime show in Attention Required.

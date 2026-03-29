@@ -286,8 +286,10 @@ function TreasurySetupSection({ gate }: { gate: Structure }) {
   const mutation = useGatePolicyMutation(gate.objectId, gate.ownerCapId);
   const { walletAddress } = useConnection();
 
+  const treasurySubtitle = policy?.treasury ? "Configured" : "Not configured";
+
   return (
-    <CollapsibleSection title="Treasury" subtitle={policy?.treasury ? "Configured" : "Not set"}>
+    <CollapsibleSection title="Treasury" subtitle={treasurySubtitle}>
       <TreasuryEditor
         currentTreasury={policy?.treasury ?? null}
         isLoading={isLoading}

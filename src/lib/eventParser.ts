@@ -11,6 +11,7 @@
 
 import { CC_PACKAGE_ID, CC_ORIGINAL_PACKAGE_ID, WORLD_PACKAGE_ID } from "@/constants";
 import { resolveItemTypeName } from "@/lib/typeCatalog";
+import { resolveTribeName } from "@/lib/tribeCatalog";
 import { formatLux } from "@/lib/currency";
 import type { SignalEvent, SignalCategory, SignalVariant } from "@/types/domain";
 
@@ -106,7 +107,8 @@ const EVENT_MAP: Record<string, EventDescriptor> = {
     describe: (j) => {
       const modes = ["Commercial", "Defense"];
       const modeName = modes[Number(j.mode ?? 0)] ?? "?";
-      return `Tribe ${j.tribe_id ?? "?"} cleared (${modeName}), toll ${formatLux(Number(j.toll ?? 0))} Lux`;
+      const tribeName = j.tribe_id != null ? resolveTribeName(Number(j.tribe_id)) : "Unknown";
+      return `${tribeName} cleared (${modeName}), toll ${formatLux(Number(j.toll ?? 0))} Lux`;
     },
     category: "transit",
     variant: "neutral",

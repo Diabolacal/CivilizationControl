@@ -114,7 +114,7 @@ export function Dashboard({
 
       {/* Strategic Network — Topology + Posture Command (integrated) */}
       <div className="mt-5">
-        <StrategicMapPanel nodeGroups={nodeGroups} pins={pins} structures={structures} isConnected={isConnected} />
+        <StrategicMapPanel nodeGroups={nodeGroups} pins={pins} structures={structures} isConnected={isConnected} signals={recentSignals} />
       </div>
 
       {/* Lower section: Recent Signals + Attention Required */}
