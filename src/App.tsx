@@ -26,6 +26,7 @@ import { ActivityFeedScreen } from "@/screens/ActivityFeedScreen";
 import { NodeLocationPanel } from "@/components/NodeLocationPanel";
 import { useAssetDiscovery } from "@/hooks/useAssetDiscovery";
 import { useSpatialPins } from "@/hooks/useSpatialPins";
+import { useTribesRefresh } from "@/hooks/useTribesRefresh";
 import { CharacterContext } from "@/hooks/useCharacter";
 
 export default function App() {
@@ -48,6 +49,7 @@ function OperatorShell() {
   const { profile, structures, nodeGroups, metrics, isLoading, isConnected } =
     useAssetDiscovery();
   const { pins, assignPin, removePin } = useSpatialPins();
+  useTribesRefresh();
 
   const characterId = profile?.characterId ?? null;
 

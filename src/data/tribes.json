@@ -1,23 +1,38 @@
 [
   {
-    "tribeId": 98000435,
-    "name": "Aventurer's Guild Tribe",
-    "nameShort": "AGT"
+    "tribeId": 1000044,
+    "name": "NPC Corp 1000044",
+    "nameShort": "SAK"
   },
   {
-    "tribeId": 98000436,
-    "name": "Baker Street Boys",
-    "nameShort": "221B"
+    "tribeId": 1000045,
+    "name": "NPC Corp 1000045",
+    "nameShort": "STI"
   },
   {
-    "tribeId": 98000432,
-    "name": "Beyond Galaxy",
-    "nameShort": "BYD"
+    "tribeId": 1000094,
+    "name": "NPC Corp 1000094",
+    "nameShort": "TSS"
   },
   {
-    "tribeId": 98000429,
-    "name": "Clan Auralis",
-    "nameShort": "FR"
+    "tribeId": 1000115,
+    "name": "NPC Corp 1000115",
+    "nameShort": "UC"
+  },
+  {
+    "tribeId": 1000125,
+    "name": "NPC Corp 1000125",
+    "nameShort": "CONCO"
+  },
+  {
+    "tribeId": 1000132,
+    "name": "NPC Corp 1000132",
+    "nameShort": "SCC"
+  },
+  {
+    "tribeId": 1000159,
+    "name": "NPC Corp 1000159",
+    "nameShort": "SAN"
   },
   {
     "tribeId": 1000167,
@@ -25,78 +40,58 @@
     "nameShort": "CO86"
   },
   {
-    "tribeId": 98000433,
-    "name": "Conflict Curators",
-    "nameShort": "PLZ"
+    "tribeId": 1000168,
+    "name": "NPC Corp 1000168",
+    "nameShort": "C037"
   },
   {
-    "tribeId": 98000421,
-    "name": "ExoTech Industrial",
-    "nameShort": "EXTI"
+    "tribeId": 1000169,
+    "name": "NPC Corp 1000169",
+    "nameShort": "CAS"
   },
   {
-    "tribeId": 98000420,
-    "name": "Game Masters",
-    "nameShort": "GMS"
+    "tribeId": 1000170,
+    "name": "NPC Corp 1000170",
+    "nameShort": "C008"
   },
   {
-    "tribeId": 98000439,
-    "name": "Japan Gaming Guild",
-    "nameShort": "JGG"
+    "tribeId": 1000171,
+    "name": "NPC Corp 1000171",
+    "nameShort": "RUN"
   },
   {
-    "tribeId": 98000423,
-    "name": "PEACEFUL TRADE EMPIRE",
-    "nameShort": "PEACE"
+    "tribeId": 1000172,
+    "name": "NPC Corp 1000172",
+    "nameShort": "PTS"
   },
   {
-    "tribeId": 98000418,
-    "name": "Pegasus Cartel",
-    "nameShort": "PGCL"
+    "tribeId": 98000001,
+    "name": "Reality Anchor",
+    "nameShort": "RAW"
   },
   {
-    "tribeId": 98000428,
-    "name": "Rift Riders",
-    "nameShort": "RR"
+    "tribeId": 98000007,
+    "name": "reeds Corporation",
+    "nameShort": "REEDS"
   },
   {
-    "tribeId": 98000422,
-    "name": "SILVER",
-    "nameShort": "SLV"
-  },
-  {
-    "tribeId": 98000442,
-    "name": "SVETOGRAD",
-    "nameShort": "SVET"
-  },
-  {
-    "tribeId": 98000437,
-    "name": "The Saints",
-    "nameShort": "SAINT"
-  },
-  {
-    "tribeId": 98000440,
-    "name": "Titan's Hold of Avarice",
-    "nameShort": "TITAN"
-  },
-  {
-    "tribeId": 98000431,
-    "name": "Wandering Order of the Last Frontier",
-    "nameShort": "WOLF"
-  },
-  {
-    "tribeId": 98000430,
-    "name": "WARTIME RELOADED",
-    "nameShort": "WAAAR"
-  },
-  {
-    "tribeId": 98000427,
+    "tribeId": 98000008,
     "name": "Wartime Republic of War",
     "nameShort": "WAR"
   },
   {
-    "tribeId": 98000434,
-    "name": "Yield Guild Games",
-    "nameShort": "YGG"
+    "tribeId": 98000009,
+    "name": "Peaceful Trade Empire",
+    "nameShort": "PEACE"
+  },
+  {
+    "tribeId": 98000010,
+    "name": "Static Conclave",
+    "nameShort": "SCON"
+  },
+  {
+    "tribeId": 98000011,
+    "name": "BIBA CORP",
+    "nameShort": "BIBA"
   }
 ]

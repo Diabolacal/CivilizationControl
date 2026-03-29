@@ -8,8 +8,8 @@
  */
 
 import { useState, useCallback } from "react";
-import { TagChip } from "@/components/TagChip";
 import { TribePicker } from "@/components/TribePicker";
+import { resolveTribeName } from "@/lib/tribeCatalog";
 import { X, ChevronDown, ChevronUp } from "lucide-react";
 import { baseUnitsToLux, luxToBaseUnits, formatLux, formatEve } from "@/lib/currency";
 import type { PolicyPreset, TxStatus, Tribe, PostureMode, GatePolicyTarget } from "@/types/domain";
@@ -89,7 +89,6 @@ export function PolicyPresetEditor({
       <div className="flex border-b border-border/50">
         {(["commercial", "defense"] as PostureMode[]).map((mode) => {
           const isActive = activeTab === mode;
-          const hasPreset = mode === "commercial" ? commercialPreset != null : defensePreset != null;
           return (
             <button
               key={mode}
@@ -102,7 +101,6 @@ export function PolicyPresetEditor({
             >
               <span className="flex items-center justify-center gap-2">
                 {MODE_LABELS[mode]}
-                {hasPreset && <TagChip label="SET" variant="success" size="sm" />}
               </span>
             </button>
           );
@@ -156,7 +154,7 @@ function PresetTabContent({
     setEntries(
       p.entries.map((e) => ({
         tribe: e.tribe,
-        tribeName: `Tribe #${e.tribe}`,
+        tribeName: resolveTribeName(e.tribe),
         access: e.access,
         tollLux: baseUnitsToLux(e.toll).toString(),
       })),
@@ -284,17 +282,22 @@ function PresetTabContent({
         <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
           Tribe Entries ({entries.length}/20)
         </p>
-        {entries.map((entry) => (
+        {entries.map((entry) => {
+          const luxVal = parseFloat(entry.tollLux);
+          const eveStr = Number.isFinite(luxVal) && luxVal > 0
+            ? (luxVal / 100).toLocaleString(undefined, { maximumFractionDigits: 4 })
+            : null;
+          return (
           <div
             key={entry.tribe}
             className="flex items-center gap-2 bg-muted/10 rounded px-3 py-1.5"
           >
-            <span className="text-xs font-mono text-foreground flex-1 truncate">
-              {entry.tribeName} ({entry.tribe})
+            <span className="text-xs text-foreground flex-1 truncate" title={`Tribe #${entry.tribe}`}>
+              {entry.tribeName}
             </span>
             <button
               onClick={() => handleToggleAccess(entry.tribe)}
-              className={`text-[11px] px-2 py-0.5 rounded font-medium ${
+              className={`text-[11px] w-14 text-center py-0.5 rounded font-medium ${
                 entry.access
                   ? "bg-green-500/10 text-green-400 border border-green-500/20"
                   : "bg-red-500/10 text-red-400 border border-red-500/20"
@@ -306,11 +309,13 @@ function PresetTabContent({
               type="number"
               min="0"
               step="any"
-              placeholder="Toll (Lux)"
+              placeholder="0"
               value={entry.tollLux}
               onChange={(e) => handleTollChange(entry.tribe, e.target.value)}
-              className="w-24 bg-background border border-border rounded px-2 py-0.5 text-[11px] font-mono text-foreground"
+              className="w-20 bg-background border border-border rounded px-2 py-0.5 text-[11px] font-mono text-foreground text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
             />
+            <span className="text-[10px] text-muted-foreground/50 w-7">Lux</span>
+            <span className="text-[10px] text-muted-foreground/40 w-16 text-right">{eveStr ? `${eveStr} EVE` : ""}</span>
             <button
               onClick={() => handleRemoveEntry(entry.tribe)}
               className="text-muted-foreground hover:text-red-400 transition-colors"
@@ -318,21 +323,20 @@ function PresetTabContent({
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-        ))}
+          );
+        })}
         {entries.length < 20 && (
           <TribePicker onSelect={handleAddTribe} placeholder="Add tribe…" />
         )}
       </div>
 
       {/* Default fallback */}
-      <div className="border-t border-border/50 pt-3 space-y-2">
-        <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
-          Default Policy (all other tribes)
-        </p>
-        <div className="flex items-center gap-3">
+      <div className="border-t border-border/50 pt-3">
+        <div className="flex items-center gap-2 bg-muted/10 rounded px-3 py-1.5">
+          <span className="text-xs text-muted-foreground italic flex-1">All other tribes</span>
           <button
             onClick={() => setDefaultAccess(!defaultAccess)}
-            className={`text-[11px] px-3 py-1 rounded font-medium ${
+            className={`text-[11px] w-14 text-center py-0.5 rounded font-medium ${
               defaultAccess
                 ? "bg-green-500/10 text-green-400 border border-green-500/20"
                 : "bg-red-500/10 text-red-400 border border-red-500/20"
@@ -344,14 +348,14 @@ function PresetTabContent({
             type="number"
             min="0"
             step="any"
-            placeholder="Default toll (Lux)"
+            placeholder="0"
             value={defaultTollLux}
             onChange={(e) => setDefaultTollLux(e.target.value)}
-            className="w-32 bg-background border border-border rounded px-2 py-1 text-xs font-mono text-foreground"
+            className="w-20 bg-background border border-border rounded px-2 py-0.5 text-[11px] font-mono text-foreground text-right [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
-          {eveEquivalent != null && (
-            <span className="text-[11px] text-muted-foreground/60">≈ {eveEquivalent} EVE</span>
-          )}
+          <span className="text-[10px] text-muted-foreground/50 w-7">Lux</span>
+          <span className="text-[10px] text-muted-foreground/40 w-16 text-right">{eveEquivalent != null ? `${eveEquivalent} EVE` : ""}</span>
+          <span className="w-3.5 shrink-0" />
         </div>
       </div>
 
@@ -378,46 +382,38 @@ function PresetTabContent({
 
 function PresetSummary({ preset }: { preset: PolicyPreset }) {
   return (
-    <div className="space-y-2">
-      {preset.entries.length > 0 && (
-        <div className="space-y-1">
-          <p className="text-[11px] text-muted-foreground font-medium uppercase tracking-wider">
-            Tribe Rules ({preset.entries.length})
-          </p>
-          {preset.entries.map((e) => (
-            <div
-              key={e.tribe}
-              className="flex items-center gap-2 text-xs font-mono text-foreground bg-muted/10 rounded px-3 py-1"
-            >
-              <span className="flex-1">Tribe #{e.tribe}</span>
-              <TagChip
-                label={e.access ? "ALLOW" : "DENY"}
-                variant={e.access ? "success" : "danger"}
-                size="sm"
-              />
-              {e.toll > 0 && (
-                <span className="text-muted-foreground">
-                  {formatLux(e.toll)} Lux
-                  <span className="ml-1 text-muted-foreground/60">({formatEve(e.toll)} EVE)</span>
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      )}
-      <div className="flex items-center gap-3 text-xs text-muted-foreground bg-muted/10 rounded px-3 py-2">
-        <span className="font-medium">Default:</span>
-        <TagChip
-          label={preset.defaultAccess ? "ALLOW" : "DENY"}
-          variant={preset.defaultAccess ? "success" : "danger"}
-          size="sm"
-        />
-        {preset.defaultToll > 0 && (
-          <span className="font-mono">
-            {formatLux(preset.defaultToll)} Lux toll
-            <span className="ml-1 text-muted-foreground/60">({formatEve(preset.defaultToll)} EVE)</span>
+    <div className="space-y-1">
+      {preset.entries.map((e) => (
+        <div
+          key={e.tribe}
+          className="flex items-center gap-3 text-xs bg-muted/10 rounded px-3 py-1.5"
+        >
+          <span className="flex-1 text-foreground truncate" title={`Tribe #${e.tribe}`}>
+            {resolveTribeName(e.tribe)}
           </span>
-        )}
+          <span className={`w-12 text-center text-[11px] font-medium ${e.access ? "text-green-400" : "text-red-400"}`}>
+            {e.access ? "Allow" : "Deny"}
+          </span>
+          <span className="w-20 text-right font-mono text-foreground">
+            {e.toll > 0 ? `${formatLux(e.toll)} Lux` : "—"}
+          </span>
+          <span className="w-16 text-right text-[10px] text-muted-foreground/50">
+            {e.toll > 0 ? `${formatEve(e.toll)} EVE` : ""}
+          </span>
+        </div>
+      ))}
+      {/* Default policy row — same alignment as tribe rows */}
+      <div className="flex items-center gap-3 text-xs bg-muted/5 rounded px-3 py-1.5 border-t border-border/30 mt-1">
+        <span className="flex-1 text-muted-foreground italic">All other tribes</span>
+        <span className={`w-12 text-center text-[11px] font-medium ${preset.defaultAccess ? "text-green-400" : "text-red-400"}`}>
+          {preset.defaultAccess ? "Allow" : "Deny"}
+        </span>
+        <span className="w-20 text-right font-mono text-foreground">
+          {preset.defaultToll > 0 ? `${formatLux(preset.defaultToll)} Lux` : "—"}
+        </span>
+        <span className="w-16 text-right text-[10px] text-muted-foreground/50">
+          {preset.defaultToll > 0 ? `${formatEve(preset.defaultToll)} EVE` : ""}
+        </span>
       </div>
     </div>
   );

@@ -1,10 +1,9 @@
 /**
  * TradePostDetailScreen — Individual trade post governance view.
  *
- * Shows SSU status, extension configuration, live marketplace listings,
- * seller-side listing creation, buy flow, and cancel flow.
- * Governance vocabulary: "Commerce Post", "Marketplace",
- * "Trade Extension" per narrative spec.
+ * Hierarchy: identity + power control → commerce surfaces → setup.
+ * Setup utilities (DApp URL, extension authority) are collapsed.
+ * Infrastructure context and passive metadata are excluded from this surface.
  */
 
 import { useParams, Link } from "react-router";
@@ -13,11 +12,10 @@ import { useCallback, useState, useRef } from "react";
 import { useConnection } from "@evefrontier/dapp-kit";
 import { useQueryClient } from "@tanstack/react-query";
 import { StructureDetailHeader } from "@/components/StructureDetailHeader";
-import { NodeContextBanner } from "@/components/NodeContextBanner";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { ListingCard } from "@/components/ListingCard";
 import { CreateListingForm } from "@/components/CreateListingForm";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
-import { TagChip } from "@/components/TagChip";
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
 import { useListings } from "@/hooks/useListings";
 import { useBuyListing } from "@/hooks/useBuyListing";
@@ -35,6 +33,8 @@ interface TradePostDetailScreenProps {
 
 export function TradePostDetailScreen({ structures, isLoading }: TradePostDetailScreenProps) {
   const { id } = useParams<{ id: string }>();
+  const power = useStructurePower();
+  const lastPowerLabel = useRef("Trade post power state updated");
   const post = structures.find((s) => s.objectId === id && s.type === "storage_unit");
 
   if (isLoading) {
@@ -67,15 +67,63 @@ export function TradePostDetailScreen({ structures, isLoading }: TradePostDetail
       })()
     : undefined;
 
+  const isOnline = post.status === "online";
+  const hasNetworkNode = !!post.networkNodeId;
+
+  const handlePowerToggle = () => {
+    lastPowerLabel.current = isOnline ? "Trade post taken offline" : "Trade post brought online";
+    power.toggleSingle({
+      structureType: "storage_unit",
+      structureId: post.objectId,
+      ownerCapId: post.ownerCapId,
+      networkNodeId: post.networkNodeId!,
+      online: !isOnline,
+    });
+  };
+
+  const powerControl = hasNetworkNode ? (
+    <div className="flex items-center gap-2 shrink-0">
+      <span className={`text-[10px] uppercase tracking-wider ${isOnline ? "text-teal-500/50" : "text-muted-foreground/40"}`}>
+        {isOnline ? "Online" : "Offline"}
+      </span>
+      <button
+        onClick={handlePowerToggle}
+        disabled={power.status === "pending"}
+        className={`rounded px-2.5 py-1 text-[10px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+          isOnline
+            ? "border border-red-500/20 text-red-400/70 hover:bg-red-500/10"
+            : "border border-teal-500/20 text-teal-400/70 hover:bg-teal-500/10"
+        }`}
+      >
+        {power.status === "pending" ? "\u2026" : isOnline ? "Power Off" : "Power On"}
+      </button>
+    </div>
+  ) : null;
+
   return (
     <div className="space-y-6">
       <BackLink />
-      <StructureDetailHeader structure={post} solarSystemName={solarSystemName} />
-      <NodeContextBanner structure={post} structures={structures} />
-      <InGameDAppUrlSection post={post} />
-      <PowerControlSection post={post} />
+      <StructureDetailHeader structure={post} solarSystemName={solarSystemName} headerRight={powerControl} />
+
+      {(power.status === "success" || power.status === "error") && (
+        <TxFeedbackBanner
+          status={power.status}
+          result={power.result}
+          error={power.error}
+          successLabel={lastPowerLabel.current}
+          onDismiss={power.reset}
+        />
+      )}
+
+      {/* Commerce — primary surface */}
       <MarketplaceSection post={post} />
-      <ExtensionSection post={post} />
+
+      {/* Setup — secondary configuration */}
+      <div className="space-y-2 pt-2">
+        <p className="text-[10px] font-semibold text-muted-foreground/40 uppercase tracking-widest px-1">Setup</p>
+        <InGameDAppUrlSection post={post} />
+        <ExtensionSection post={post} />
+      </div>
     </div>
   );
 }
@@ -92,67 +140,6 @@ function BackLink() {
   );
 }
 
-function PowerControlSection({ post }: { post: Structure }) {
-  const power = useStructurePower();
-  const isOnline = post.status === "online";
-  const hasNetworkNode = !!post.networkNodeId;
-  const lastActionLabel = useRef("Trade post power state updated");
-
-  if (!hasNetworkNode) {
-    return (
-      <section className="border border-border rounded p-5 space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Power State</h2>
-        <p className="text-xs text-muted-foreground">
-          No network node linked — cannot control power state from web.
-        </p>
-      </section>
-    );
-  }
-
-  const handleToggle = () => {
-    lastActionLabel.current = isOnline ? "Trade post taken offline" : "Trade post brought online";
-    power.toggleSingle({
-      structureType: "storage_unit",
-      structureId: post.objectId,
-      ownerCapId: post.ownerCapId,
-      networkNodeId: post.networkNodeId!,
-      online: !isOnline,
-    });
-  };
-
-  return (
-    <section className="border border-border rounded p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Power State</h2>
-        <button
-          onClick={handleToggle}
-          disabled={power.status === "pending"}
-          className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-            isOnline
-              ? "border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20"
-              : "border border-teal-500/30 bg-teal-500/10 text-teal-400 hover:bg-teal-500/20"
-          }`}
-        >
-          {power.status === "pending"
-            ? "Executing…"
-            : isOnline
-              ? "Take Offline"
-              : "Bring Online"}
-        </button>
-      </div>
-      {(power.status === "success" || power.status === "error") && (
-        <TxFeedbackBanner
-          status={power.status}
-          result={power.result}
-          error={power.error}
-          successLabel={lastActionLabel.current}
-          onDismiss={power.reset}
-        />
-      )}
-    </section>
-  );
-}
-
 function MarketplaceSection({ post }: { post: Structure }) {
   const { walletAddress } = useConnection();
   const { listings, isLoading: listingsLoading } = useListings(post.objectId);
@@ -165,10 +152,7 @@ function MarketplaceSection({ post }: { post: Structure }) {
     const isStale = post.extensionStatus === "stale";
     return (
       <section className="border border-border rounded p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Marketplace</h2>
-          <p className="text-[11px] font-mono text-muted-foreground">Listings</p>
-        </div>
+        <h2 className="text-sm font-semibold text-foreground">Marketplace</h2>
         <div className="border border-dashed border-border/50 rounded py-8 flex flex-col items-center gap-2">
           <p className="text-sm text-muted-foreground/60">
             {isStale ? "Extension bound to old package" : "Extension not authorized"}
@@ -187,10 +171,7 @@ function MarketplaceSection({ post }: { post: Structure }) {
     <div className="space-y-6">
       {/* Create Listing section */}
       <section className="border border-border rounded p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Create Listing</h2>
-          <p className="text-[11px] font-mono text-muted-foreground">Seller</p>
-        </div>
+        <h2 className="text-sm font-semibold text-foreground">Create Listing</h2>
 
         <TxFeedbackBanner
           status={createMutation.status}
@@ -213,9 +194,9 @@ function MarketplaceSection({ post }: { post: Structure }) {
       <section className="border border-border rounded p-5 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-foreground">Marketplace</h2>
-          <p className="text-[11px] font-mono text-muted-foreground">
+          <span className="text-[11px] text-muted-foreground/60">
             {listingsLoading ? "Loading…" : `${listings.length} listing${listings.length !== 1 ? "s" : ""}`}
-          </p>
+          </span>
         </div>
 
         <TxFeedbackBanner
@@ -295,46 +276,44 @@ function InGameDAppUrlSection({ post }: { post: Structure }) {
   }, [setSsuDappUrl, post.objectId, post.ownerCapId, queryClient]);
 
   return (
-    <section className="border border-border rounded p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">In-Game DApp URL</h2>
-        <p className="text-[11px] font-mono text-muted-foreground">Operator Setup</p>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Set this URL on-chain so players who interact with this commerce post see the marketplace automatically.
-      </p>
-      {(ssuStatus === "success" || ssuStatus === "error") && (
-        <TxFeedbackBanner
-          status={ssuStatus}
-          result={ssuResult}
-          error={ssuError}
-          successLabel="DApp URL set on-chain"
-          onDismiss={resetSsu}
-        />
-      )}
-      <div className="flex items-center gap-2">
-        <div className="flex-1 rounded border border-border bg-background px-3 py-2 font-mono text-[11px] text-foreground truncate select-all" title={dappUrl}>
-          {dappUrl}
+    <CollapsibleSection title="In-Game DApp URL" subtitle="Set once per post">
+      <div className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Set this URL on-chain so players see the marketplace when interacting with this post.
+        </p>
+        {(ssuStatus === "success" || ssuStatus === "error") && (
+          <TxFeedbackBanner
+            status={ssuStatus}
+            result={ssuResult}
+            error={ssuError}
+            successLabel="DApp URL set on-chain"
+            onDismiss={resetSsu}
+          />
+        )}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 rounded border border-border bg-background px-3 py-2 font-mono text-[11px] text-foreground truncate select-all" title={dappUrl}>
+            {dappUrl}
+          </div>
+          <button
+            onClick={handleSetOnChain}
+            disabled={ssuStatus === "pending"}
+            className="shrink-0 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {ssuStatus === "pending" ? "Setting…" : "Set On-Chain"}
+          </button>
+          <button
+            onClick={handleCopy}
+            className="shrink-0 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {copied ? (
+              <span className="inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Copied</span>
+            ) : (
+              <span className="inline-flex items-center gap-1"><Copy className="w-3.5 h-3.5" /> Copy URL</span>
+            )}
+          </button>
         </div>
-        <button
-          onClick={handleSetOnChain}
-          disabled={ssuStatus === "pending"}
-          className="shrink-0 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {ssuStatus === "pending" ? "Setting…" : "Set On-Chain"}
-        </button>
-        <button
-          onClick={handleCopy}
-          className="shrink-0 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          {copied ? (
-            <span className="inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Copied</span>
-          ) : (
-            <span className="inline-flex items-center gap-1"><Copy className="w-3.5 h-3.5" /> Copy URL</span>
-          )}
-        </button>
       </div>
-    </section>
+    </CollapsibleSection>
   );
 }
 
@@ -343,6 +322,12 @@ function ExtensionSection({ post }: { post: Structure }) {
     useAuthorizeExtension();
   const queryClient = useQueryClient();
   const needsAuth = post.extensionStatus !== "authorized";
+
+  const statusLabel = post.extensionStatus === "authorized"
+    ? "Active"
+    : post.extensionStatus === "stale"
+      ? "Needs re-authorization"
+      : "Not authorized";
 
   const handleReAuth = () => {
     authorizeSsus(
@@ -354,11 +339,17 @@ function ExtensionSection({ post }: { post: Structure }) {
   };
 
   return (
-    <section className="border border-border rounded p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">
-          Trade Extension
-        </h2>
+    <CollapsibleSection
+      title="Trade Extension"
+      subtitle={statusLabel}
+      defaultOpen={needsAuth}
+      headerRight={
+        needsAuth ? (
+          <span className="text-[10px] font-medium text-amber-400">Action needed</span>
+        ) : undefined
+      }
+    >
+      <div className="space-y-3">
         {needsAuth && (
           <button
             onClick={handleReAuth}
@@ -368,47 +359,38 @@ function ExtensionSection({ post }: { post: Structure }) {
             {ssuStatus === "pending"
               ? "Authorizing…"
               : post.extensionStatus === "stale"
-                ? "Re-authorize TradeAuth"
-                : "Authorize TradeAuth"}
+                ? "Re-authorize"
+                : "Authorize"}
           </button>
         )}
-      </div>
-      {(ssuStatus === "success" || ssuStatus === "error") && (
-        <TxFeedbackBanner
-          status={ssuStatus}
-          result={ssuResult}
-          error={ssuError}
-          successLabel="TradeAuth authorized"
-          onDismiss={resetSsu}
-        />
-      )}
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <p className="text-[11px] text-muted-foreground mb-1">Extension</p>
-          <p className="font-mono text-foreground">
-            {post.extensionStatus === "authorized"
-              ? "TradeAuth (CivilizationControl)"
-              : post.extensionStatus === "stale"
-                ? "Stale — old package"
-                : "None"}
-          </p>
-        </div>
-        <div>
-          <p className="text-[11px] text-muted-foreground mb-1">OwnerCap</p>
-          <p className="font-mono text-[11px] text-foreground truncate" title={post.ownerCapId}>
-            {post.ownerCapId.slice(0, 10)}…{post.ownerCapId.slice(-6)}
-          </p>
-        </div>
-      </div>
-      <div className="flex gap-2 pt-1">
-        {post.extensionStatus === "authorized" ? (
-          <TagChip label="TRADE ENABLED" variant="success" size="sm" />
-        ) : post.extensionStatus === "stale" ? (
-          <TagChip label="STALE — RE-AUTH" variant="warning" size="sm" />
-        ) : (
-          <TagChip label="NOT AUTHORIZED" variant="warning" size="sm" />
+        {(ssuStatus === "success" || ssuStatus === "error") && (
+          <TxFeedbackBanner
+            status={ssuStatus}
+            result={ssuResult}
+            error={ssuError}
+            successLabel="TradeAuth authorized"
+            onDismiss={resetSsu}
+          />
         )}
+        <div className="grid grid-cols-2 gap-4 text-xs">
+          <div>
+            <p className="text-[11px] text-muted-foreground mb-1">Control Module</p>
+            <p className="font-mono text-foreground">
+              {post.extensionStatus === "authorized"
+                ? "CivilizationControl"
+                : post.extensionStatus === "stale"
+                  ? "Stale — needs rebind"
+                  : "None"}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] text-muted-foreground mb-1">Owner Capability</p>
+            <p className="font-mono text-[11px] text-muted-foreground truncate" title={post.ownerCapId}>
+              {post.ownerCapId.slice(0, 10)}…{post.ownerCapId.slice(-6)}
+            </p>
+          </div>
+        </div>
       </div>
-    </section>
+    </CollapsibleSection>
   );
 }

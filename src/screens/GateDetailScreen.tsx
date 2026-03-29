@@ -1,19 +1,16 @@
 /**
  * GateDetailScreen — Individual gate governance view.
  *
- * Shows gate status, extension configuration, and the active policy
- * rules (tribe filter, coin toll) read from on-chain GateConfig
- * dynamic fields. Enables live policy authoring via the Rule Composer.
- *
- * Governance vocabulary: "Gate Directive", "Policy Configuration",
- * "Extension Authority" per narrative spec.
+ * Hierarchy: identity + power control → directive/policy → setup.
+ * Setup utilities (treasury, DApp URL, extension authority) are collapsed.
+ * Infrastructure context and topology are excluded from this surface.
  */
 
 import { useParams, Link } from "react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { ArrowLeft } from "lucide-react";
 import { StructureDetailHeader } from "@/components/StructureDetailHeader";
-import { NodeContextBanner } from "@/components/NodeContextBanner";
+import { CollapsibleSection } from "@/components/CollapsibleSection";
 import { PolicyPresetEditor } from "@/components/PolicyPresetEditor";
 import { TreasuryEditor } from "@/components/TreasuryEditor";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
@@ -21,11 +18,7 @@ import { useGatePolicy } from "@/hooks/useGatePolicy";
 import { useGatePolicyMutation, useBatchPresetMutation } from "@/hooks/useGatePolicyMutation";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
-import { useLinkedGate, useTransitProofAction } from "@/hooks/useTransitProof";
-import { usePostureState } from "@/hooks/usePosture";
 import { useConnection } from "@evefrontier/dapp-kit";
-import { formatLux, formatEve } from "@/lib/currency";
-import { resolveEffectivePolicy } from "@/lib/policyResolver";
 import { getSpatialPin } from "@/lib/spatialPins";
 import { Copy, Check } from "lucide-react";
 import { useState, useCallback, useMemo, useRef } from "react";
@@ -38,6 +31,8 @@ interface GateDetailScreenProps {
 
 export function GateDetailScreen({ structures, isLoading }: GateDetailScreenProps) {
   const { id } = useParams<{ id: string }>();
+  const power = useStructurePower();
+  const lastPowerLabel = useRef("Gate power state updated");
   const gate = structures.find((s) => s.objectId === id && s.type === "gate");
 
   if (isLoading) {
@@ -70,17 +65,64 @@ export function GateDetailScreen({ structures, isLoading }: GateDetailScreenProp
       })()
     : undefined;
 
+  const isOnline = gate.status === "online";
+  const hasNetworkNode = !!gate.networkNodeId;
+
+  const handlePowerToggle = () => {
+    lastPowerLabel.current = isOnline ? "Gate taken offline" : "Gate brought online";
+    power.toggleSingle({
+      structureType: "gate",
+      structureId: gate.objectId,
+      ownerCapId: gate.ownerCapId,
+      networkNodeId: gate.networkNodeId!,
+      online: !isOnline,
+    });
+  };
+
+  const powerControl = hasNetworkNode ? (
+    <div className="flex items-center gap-2 shrink-0">
+      <span className={`text-[10px] uppercase tracking-wider ${isOnline ? "text-teal-500/50" : "text-muted-foreground/40"}`}>
+        {isOnline ? "Online" : "Offline"}
+      </span>
+      <button
+        onClick={handlePowerToggle}
+        disabled={power.status === "pending"}
+        className={`rounded px-2.5 py-1 text-[10px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+          isOnline
+            ? "border border-red-500/20 text-red-400/70 hover:bg-red-500/10"
+            : "border border-teal-500/20 text-teal-400/70 hover:bg-teal-500/10"
+        }`}
+      >
+        {power.status === "pending" ? "\u2026" : isOnline ? "Power Off" : "Power On"}
+      </button>
+    </div>
+  ) : null;
+
   return (
     <div className="space-y-6">
       <BackLink />
-      <StructureDetailHeader structure={gate} solarSystemName={solarSystemName} />
-      <NodeContextBanner structure={gate} structures={structures} />
-      <InGameDAppUrlSection gate={gate} />
-      <TopologyLinkSection gate={gate} structures={structures} />
-      <PowerControlSection gate={gate} />
+      <StructureDetailHeader structure={gate} solarSystemName={solarSystemName} headerRight={powerControl} />
+
+      {(power.status === "success" || power.status === "error") && (
+        <TxFeedbackBanner
+          status={power.status}
+          result={power.result}
+          error={power.error}
+          successLabel={lastPowerLabel.current}
+          onDismiss={power.reset}
+        />
+      )}
+
+      {/* Gate Directive — primary surface */}
       <PolicyComposerSection gate={gate} structures={structures} />
-      <TransitProofSection gate={gate} />
-      <ExtensionSection gate={gate} />
+
+      {/* Setup — secondary configuration */}
+      <div className="space-y-2 pt-2">
+        <p className="text-[10px] font-semibold text-muted-foreground/40 uppercase tracking-widest px-1">Setup</p>
+        <TreasurySetupSection gate={gate} />
+        <InGameDAppUrlSection gate={gate} />
+        <ExtensionSection gate={gate} />
+      </div>
     </div>
   );
 }
@@ -121,94 +163,44 @@ function InGameDAppUrlSection({ gate }: { gate: Structure }) {
   }, [setGateDappUrl, gate.objectId, gate.ownerCapId, queryClient]);
 
   return (
-    <section className="border border-border rounded p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">In-Game DApp URL</h2>
-        <p className="text-[11px] font-mono text-muted-foreground">Operator Setup</p>
-      </div>
-      <p className="text-xs text-muted-foreground">
-        Set this URL on-chain so players who interact with this gate see the permit page automatically.
-      </p>
-      {(gateStatus === "success" || gateStatus === "error") && (
-        <TxFeedbackBanner
-          status={gateStatus}
-          result={gateResult}
-          error={gateError ?? null}
-          successLabel="DApp URL set on-chain"
-          onDismiss={resetGate}
-        />
-      )}
-      <div className="flex items-center gap-2">
-        <div className="flex-1 rounded border border-border bg-background px-3 py-2 font-mono text-[11px] text-foreground truncate select-all" title={dappUrl}>
-          {dappUrl}
-        </div>
-        <button
-          onClick={handleSetOnChain}
-          disabled={gateStatus === "pending"}
-          className="shrink-0 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {gateStatus === "pending" ? "Setting…" : "Set On-Chain"}
-        </button>
-        <button
-          onClick={handleCopy}
-          className="shrink-0 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
-        >
-          {copied ? (
-            <span className="inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Copied</span>
-          ) : (
-            <span className="inline-flex items-center gap-1"><Copy className="w-3.5 h-3.5" /> Copy URL</span>
-          )}
-        </button>
-      </div>
-    </section>
-  );
-}
-
-function TopologyLinkSection({ gate, structures }: { gate: Structure; structures: Structure[] }) {
-  const linkedGate = gate.linkedGateId
-    ? structures.find((s) => s.objectId === gate.linkedGateId)
-    : undefined;
-
-  return (
-    <section className="border border-border rounded p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Topology Link</h2>
-        <p className="text-[11px] font-mono text-muted-foreground">Gate ↔ Gate</p>
-      </div>
-      {gate.linkedGateId ? (
-        <div className="grid grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-[11px] text-muted-foreground mb-1">Destination Gate</p>
-            {linkedGate ? (
-              <Link
-                to={`/gates/${linkedGate.objectId}`}
-                className="font-medium text-foreground hover:text-primary transition-colors"
-              >
-                {linkedGate.name}
-              </Link>
+    <CollapsibleSection title="In-Game DApp URL" subtitle="Set once per gate">
+      <div className="space-y-3">
+        <p className="text-xs text-muted-foreground">
+          Set this URL on-chain so players see the permit page when interacting with this gate.
+        </p>
+        {(gateStatus === "success" || gateStatus === "error") && (
+          <TxFeedbackBanner
+            status={gateStatus}
+            result={gateResult}
+            error={gateError ?? null}
+            successLabel="DApp URL set on-chain"
+            onDismiss={resetGate}
+          />
+        )}
+        <div className="flex items-center gap-2">
+          <div className="flex-1 rounded border border-border bg-background px-3 py-2 font-mono text-[11px] text-foreground truncate select-all" title={dappUrl}>
+            {dappUrl}
+          </div>
+          <button
+            onClick={handleSetOnChain}
+            disabled={gateStatus === "pending"}
+            className="shrink-0 rounded-md border border-primary/30 bg-primary/10 px-3 py-2 text-xs font-medium text-primary transition-colors hover:bg-primary/20 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {gateStatus === "pending" ? "Setting…" : "Set On-Chain"}
+          </button>
+          <button
+            onClick={handleCopy}
+            className="shrink-0 rounded-md border border-border bg-background px-3 py-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground"
+          >
+            {copied ? (
+              <span className="inline-flex items-center gap-1"><Check className="w-3.5 h-3.5" /> Copied</span>
             ) : (
-              <p className="font-mono text-[11px] text-foreground" title={gate.linkedGateId}>
-                {gate.linkedGateId.slice(0, 10)}…{gate.linkedGateId.slice(-6)}
-              </p>
+              <span className="inline-flex items-center gap-1"><Copy className="w-3.5 h-3.5" /> Copy URL</span>
             )}
-          </div>
-          <div>
-            <p className="text-[11px] text-muted-foreground mb-1">Link Status</p>
-            <p className="text-foreground">
-              <span className="inline-block w-1.5 h-1.5 rounded-full bg-[hsl(175,45%,50%)] mr-1.5 align-middle" />
-              Linked
-            </p>
-          </div>
+          </button>
         </div>
-      ) : (
-        <div className="border border-dashed border-border/50 rounded py-4 flex flex-col items-center gap-1">
-          <p className="text-xs text-muted-foreground/60">Not linked</p>
-          <p className="text-[11px] text-muted-foreground/40">
-            Gate must be linked to a destination in-game before transit is possible
-          </p>
-        </div>
-      )}
-    </section>
+      </div>
+    </CollapsibleSection>
   );
 }
 
@@ -216,7 +208,6 @@ function PolicyComposerSection({ gate, structures }: { gate: Structure; structur
   const { policy, isLoading: policyLoading } = useGatePolicy(gate.objectId);
   const mutation = useGatePolicyMutation(gate.objectId, gate.ownerCapId);
   const batch = useBatchPresetMutation();
-  const { walletAddress } = useConnection();
 
   const batchTargets: GatePolicyTarget[] = useMemo(
     () =>
@@ -235,10 +226,7 @@ function PolicyComposerSection({ gate, structures }: { gate: Structure; structur
     const isStale = gate.extensionStatus === "stale";
     return (
       <section className="border border-border rounded p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-foreground">Gate Directive</h2>
-          <p className="text-[11px] font-mono text-muted-foreground">Policy Configuration</p>
-        </div>
+        <h2 className="text-sm font-semibold text-foreground">Gate Directive</h2>
         <div className="border border-dashed border-border/50 rounded py-8 flex flex-col items-center gap-2">
           <p className="text-sm text-muted-foreground/60">
             {isStale ? "Extension bound to old package" : "Extension not authorized"}
@@ -255,10 +243,7 @@ function PolicyComposerSection({ gate, structures }: { gate: Structure; structur
 
   return (
     <section className="border border-border rounded p-5 space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Gate Directive</h2>
-        <p className="text-[11px] font-mono text-muted-foreground">Policy Configuration</p>
-      </div>
+      <h2 className="text-sm font-semibold text-foreground">Gate Directive</h2>
 
       <TxFeedbackBanner
         status={mutation.status}
@@ -292,75 +277,36 @@ function PolicyComposerSection({ gate, structures }: { gate: Structure; structur
         onBatchApply={batch.deployPreset}
       />
 
-      <TreasuryEditor
-        currentTreasury={policy?.treasury ?? null}
-        isLoading={policyLoading}
-        txStatus={mutation.status}
-        defaultAddress={walletAddress ?? undefined}
-        onSet={mutation.setTreasury}
-      />
     </section>
   );
 }
 
-function PowerControlSection({ gate }: { gate: Structure }) {
-  const power = useStructurePower();
-  const isOnline = gate.status === "online";
-  const hasNetworkNode = !!gate.networkNodeId;
-  const lastActionLabel = useRef("Gate power state updated");
-
-  if (!hasNetworkNode) {
-    return (
-      <section className="border border-border rounded p-5 space-y-3">
-        <h2 className="text-sm font-semibold text-foreground">Power State</h2>
-        <p className="text-xs text-muted-foreground">
-          No network node linked — cannot control power state from web.
-        </p>
-      </section>
-    );
-  }
-
-  const handleToggle = () => {
-    lastActionLabel.current = isOnline ? "Gate taken offline" : "Gate brought online";
-    power.toggleSingle({
-      structureType: "gate",
-      structureId: gate.objectId,
-      ownerCapId: gate.ownerCapId,
-      networkNodeId: gate.networkNodeId!,
-      online: !isOnline,
-    });
-  };
+function TreasurySetupSection({ gate }: { gate: Structure }) {
+  const { policy, isLoading } = useGatePolicy(gate.objectId);
+  const mutation = useGatePolicyMutation(gate.objectId, gate.ownerCapId);
+  const { walletAddress } = useConnection();
 
   return (
-    <section className="border border-border rounded p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Power State</h2>
-        <button
-          onClick={handleToggle}
-          disabled={power.status === "pending"}
-          className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-            isOnline
-              ? "border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20"
-              : "border border-teal-500/30 bg-teal-500/10 text-teal-400 hover:bg-teal-500/20"
-          }`}
-        >
-          {power.status === "pending"
-            ? "Executing…"
-            : isOnline
-              ? "Take Offline"
-              : "Bring Online"}
-        </button>
-      </div>
-      {(power.status === "success" || power.status === "error") && (
-        <TxFeedbackBanner
-          status={power.status}
-          result={power.result}
-          error={power.error}
-          successLabel={lastActionLabel.current}
-          onDismiss={power.reset}
-        />
+    <CollapsibleSection title="Treasury" subtitle={policy?.treasury ? "Configured" : "Not set"}>
+      <TreasuryEditor
+        currentTreasury={policy?.treasury ?? null}
+        isLoading={isLoading}
+        txStatus={mutation.status}
+        defaultAddress={walletAddress ?? undefined}
+        onSet={mutation.setTreasury}
+      />
+      {(mutation.status === "success" || mutation.status === "error") && (
+        <div className="mt-3">
+          <TxFeedbackBanner
+            status={mutation.status}
+            result={mutation.result}
+            error={mutation.error}
+            successLabel="Treasury updated"
+            onDismiss={mutation.reset}
+          />
+        </div>
       )}
-    </section>
+    </CollapsibleSection>
   );
 }
 
@@ -369,6 +315,12 @@ function ExtensionSection({ gate }: { gate: Structure }) {
     useAuthorizeExtension();
   const queryClient = useQueryClient();
   const needsAuth = gate.extensionStatus !== "authorized";
+
+  const statusLabel = gate.extensionStatus === "authorized"
+    ? "Active"
+    : gate.extensionStatus === "stale"
+      ? "Needs re-authorization"
+      : "Not authorized";
 
   const handleReAuth = () => {
     authorizeGates(
@@ -380,9 +332,17 @@ function ExtensionSection({ gate }: { gate: Structure }) {
   };
 
   return (
-    <section className="border border-border rounded p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-sm font-semibold text-foreground">Extension Authority</h2>
+    <CollapsibleSection
+      title="Extension Authority"
+      subtitle={statusLabel}
+      defaultOpen={needsAuth}
+      headerRight={
+        needsAuth ? (
+          <span className="text-[10px] font-medium text-amber-400">Action needed</span>
+        ) : undefined
+      }
+    >
+      <div className="space-y-3">
         {needsAuth && (
           <button
             onClick={handleReAuth}
@@ -392,120 +352,48 @@ function ExtensionSection({ gate }: { gate: Structure }) {
             {gateStatus === "pending"
               ? "Authorizing…"
               : gate.extensionStatus === "stale"
-                ? "Re-authorize GateAuth"
-                : "Authorize GateAuth"}
+                ? "Re-authorize"
+                : "Authorize"}
           </button>
         )}
-      </div>
-      {(gateStatus === "success" || gateStatus === "error") && (
-        <TxFeedbackBanner
-          status={gateStatus}
-          result={gateResult}
-          error={gateError ?? null}
-          successLabel="GateAuth authorized"
-          onDismiss={resetGate}
-        />
-      )}
-      <div className="grid grid-cols-2 gap-4 text-sm">
-        <div>
-          <p className="text-[11px] text-muted-foreground mb-1">Extension</p>
-          <p className="font-mono text-foreground">
-            {gate.extensionStatus === "authorized"
-              ? "GateAuth (CivilizationControl)"
-              : gate.extensionStatus === "stale"
-                ? "Stale — old package"
-                : "None"}
-          </p>
+        {(gateStatus === "success" || gateStatus === "error") && (
+          <TxFeedbackBanner
+            status={gateStatus}
+            result={gateResult}
+            error={gateError ?? null}
+            successLabel="Extension authorized"
+            onDismiss={resetGate}
+          />
+        )}
+        <div className="grid grid-cols-2 gap-4 text-xs">
+          <div>
+            <p className="text-[11px] text-muted-foreground mb-1">Control Module</p>
+            <p className="font-mono text-foreground">
+              {gate.extensionStatus === "authorized"
+                ? "CivilizationControl"
+                : gate.extensionStatus === "stale"
+                  ? "Stale — needs rebind"
+                  : "None"}
+            </p>
+          </div>
+          <div>
+            <p className="text-[11px] text-muted-foreground mb-1">Owner Capability</p>
+            <p className="font-mono text-[11px] text-muted-foreground truncate" title={gate.ownerCapId}>
+              {gate.ownerCapId.slice(0, 10)}…{gate.ownerCapId.slice(-6)}
+            </p>
+          </div>
         </div>
-        <div>
-          <p className="text-[11px] text-muted-foreground mb-1">OwnerCap</p>
-          <p className="font-mono text-[11px] text-foreground truncate" title={gate.ownerCapId}>
-            {gate.ownerCapId.slice(0, 10)}…{gate.ownerCapId.slice(-6)}
-          </p>
-        </div>
       </div>
-    </section>
+    </CollapsibleSection>
   );
 }
 
-function TransitProofSection({ gate }: { gate: Structure }) {
-  const { data: linkedGateId, isLoading: linkedLoading } = useLinkedGate(gate.objectId);
-  const { policy } = useGatePolicy(gate.objectId);
-  const { data: posture } = usePostureState(gate.objectId);
-  const { status, result, error, execute, reset } = useTransitProofAction();
-
-  if (gate.extensionStatus !== "authorized") return null;
-
-  const activePosture = posture ?? "commercial";
-  const resolved = resolveEffectivePolicy(policy, activePosture, 0);
-  const tollLabel = resolved.toll > 0 ? `(${formatLux(resolved.toll)} Lux / ${formatEve(resolved.toll)} EVE)` : "";
-
-  const handleExecute = () => {
-    if (!linkedGateId) return;
-    execute(gate.objectId, linkedGateId, resolved.toll);
-  };
-
-  return (
-    <section className="border border-border rounded p-5 space-y-3">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-foreground">Transit Proof</h2>
-          <p className="text-[11px] text-muted-foreground mt-0.5">
-            Request a jump permit for your character to generate verifiable transit events
-          </p>
-        </div>
-        <button
-          onClick={handleExecute}
-          disabled={status === "pending" || linkedLoading || !linkedGateId}
-          className="rounded-md border border-cyan-500/30 bg-cyan-500/10 px-3 py-1.5 text-xs font-medium text-cyan-400 transition-colors hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {status === "pending"
-            ? "Executing…"
-            : `Generate Transit Proof ${tollLabel}`}
-        </button>
-      </div>
-
-      {linkedLoading && (
-        <p className="text-[11px] text-muted-foreground/60 animate-pulse">
-          Checking linked gate…
-        </p>
-      )}
-
-      {!linkedLoading && !linkedGateId && (
-        <div className="border border-dashed border-border/50 rounded py-4 flex flex-col items-center gap-1">
-          <p className="text-xs text-muted-foreground/60">
-            No linked destination gate
-          </p>
-          <p className="text-[11px] text-muted-foreground/40">
-            Gate must be linked to a destination before transit proofs can be generated
-          </p>
-        </div>
-      )}
-
-      {linkedGateId && !linkedLoading && (
-        <div className="text-[11px] text-muted-foreground">
-          <span className="text-muted-foreground/60">Destination: </span>
-          <span className="font-mono">{linkedGateId.slice(0, 10)}…{linkedGateId.slice(-6)}</span>
-          <span className="ml-3 text-muted-foreground/60">
-            Mode: {activePosture}
-          </span>
-          {resolved.toll > 0 && (
-            <span className="ml-3 text-muted-foreground/60">
-              Toll: {formatLux(resolved.toll)} Lux ({formatEve(resolved.toll)} EVE)
-            </span>
-          )}
-        </div>
-      )}
-
-      {(status === "success" || status === "error") && (
-        <TxFeedbackBanner
-          status={status}
-          result={result}
-          error={error}
-          successLabel="Transit proof generated — check Signal Feed"
-          onDismiss={reset}
-        />
-      )}
-    </section>
-  );
-}
+// Transit Proof section removed from main gate detail surface.
+// The underlying hooks and tx builders remain available in:
+//   src/hooks/useTransitProof.ts
+//   src/lib/transitProofTx.ts
+// To re-enable, import the hooks and render a TransitProofSection component.
+//
+// Excluded because: (1) confusing for demo/judges, (2) fires user-wallet tx
+// (not sponsored), (3) requires linked destination which may surface errors,
+// (4) demo beat sheet frames toll collection via post-prod, not live gate page.

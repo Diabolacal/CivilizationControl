@@ -92,7 +92,7 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
             Gates
           </h1>
           <p className="text-[11px] font-mono text-muted-foreground tracking-wide">
-            Gate Policy Management // {gates.length} Enrolled
+            {gates.length} {gates.length === 1 ? "Gate" : "Gates"}
           </p>
           {posture && (
             <div className="mt-1">
@@ -179,7 +179,7 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Gate</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Status</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Destination</th>
-                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Extension</th>
+                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Control</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Location</th>
               </tr>
             </thead>
@@ -233,20 +233,18 @@ function GateRow({ gate, structures }: { gate: Structure; structures: Structure[
       </td>
       <td className="py-3 px-4">
         {gate.extensionStatus === "authorized" ? (
-          <TagChip label="AUTHORIZED" variant="primary" size="sm" />
+          <TagChip label="CC ACTIVE" variant="primary" size="sm" />
         ) : gate.extensionStatus === "stale" ? (
-          <TagChip label="STALE — RE-AUTH" variant="warning" size="sm" />
+          <TagChip label="CC STALE" variant="warning" size="sm" />
         ) : (
-          <TagChip label="NONE" variant="default" size="sm" />
+          <TagChip label="NOT SET" variant="default" size="sm" />
         )}
       </td>
       <td className="py-3 px-4">
         {pin ? (
           <span className="text-[11px] text-muted-foreground">{pin.solarSystemName}</span>
         ) : (
-          <span className="text-[11px] font-mono text-muted-foreground/50" title={gate.objectId}>
-            {shortId(gate.objectId)}
-          </span>
+          <span className="text-[11px] text-muted-foreground/40">—</span>
         )}
       </td>
     </tr>

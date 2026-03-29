@@ -1,12 +1,7 @@
 #!/usr/bin/env node
 /**
- * Fetch all tribes from the EVE Frontier Stillness World API and write
+ * Fetch all tribes from the EVE Frontier Utopia World API and write
  * a static JSON snapshot for frontend bundling.
- *
- * WARNING: This script fetches from the STILLNESS environment API.
- * The resulting data is NOT valid for Utopia or other environments.
- * Use only as optional enrichment — tribe IDs are environment-specific.
- * For Utopia, manually curate src/data/tribes.json instead.
  *
  * Usage:  node scripts/fetch-tribes.mjs
  * Output: src/data/tribes.json
@@ -16,7 +11,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 
 const API_BASE =
-  "https://world-api-stillness.live.tech.evefrontier.com/v2/tribes";
+  "https://world-api-utopia.uat.pub.evefrontier.com/v2/tribes";
 const LIMIT = 500;
 const OUTPUT = "src/data/tribes.json";
 

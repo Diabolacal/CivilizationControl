@@ -6,9 +6,7 @@
  */
 
 import { StatusDot } from "@/components/StatusDot";
-import { TagChip } from "@/components/TagChip";
 import { StructureGlyph } from "@/components/topology/Glyphs";
-import { fuelTypeLabel } from "@/lib/fuelRuntime";
 import { shortId } from "@/lib/formatAddress";
 import type { Structure } from "@/types/domain";
 
@@ -16,11 +14,13 @@ interface StructureDetailHeaderProps {
   structure: Structure;
   /** Solar system name inherited from parent node's spatial pin. */
   solarSystemName?: string;
+  /** Optional content rendered at the trailing edge of the header. */
+  headerRight?: React.ReactNode;
 }
 
-export function StructureDetailHeader({ structure, solarSystemName }: StructureDetailHeaderProps) {
+export function StructureDetailHeader({ structure, solarSystemName, headerRight }: StructureDetailHeaderProps) {
   return (
-    <div className="flex items-start gap-4 border-b border-border/50 pb-4">
+    <div className="flex items-start gap-4 pb-4">
       <div className="text-muted-foreground mt-0.5">
         <StructureGlyph type={structure.type} size={28} />
       </div>
@@ -32,34 +32,17 @@ export function StructureDetailHeader({ structure, solarSystemName }: StructureD
           <StatusDot status={structure.status} size="md" />
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          <span className="text-[11px] font-mono text-muted-foreground" title={structure.objectId}>
-            {shortId(structure.objectId)}
-          </span>
           {solarSystemName && (
             <span className="text-[11px] text-muted-foreground/70">
               {solarSystemName}
             </span>
           )}
-          <TagChip
-            label={structure.status === "online" ? "ONLINE" : structure.status === "offline" ? "OFFLINE" : "NEUTRAL"}
-            variant={structure.status === "online" ? "success" : structure.status === "offline" ? "danger" : "default"}
-            size="sm"
-          />
-          {structure.extensionStatus === "authorized" && (
-            <TagChip label="EXTENSION" variant="primary" size="sm" />
-          )}
-          {structure.extensionStatus === "stale" && (
-            <TagChip label="STALE EXTENSION" variant="warning" size="sm" />
-          )}
-          {structure.fuel !== undefined && (
-            <TagChip
-              label={`FUEL ${fuelTypeLabel(structure.fuel.typeId) ?? ""} ${structure.fuel.quantity.toLocaleString()} units`.trim()}
-              variant={structure.fuel.quantity > 0 ? "default" : "warning"}
-              size="sm"
-            />
-          )}
+          <span className="text-[10px] font-mono text-muted-foreground/40" title={structure.objectId}>
+            {shortId(structure.objectId)}
+          </span>
         </div>
       </div>
+      {headerRight}
     </div>
   );
 }

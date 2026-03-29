@@ -1,24 +1,45 @@
 /**
- * Tribe catalog — curated name map for the active environment.
+ * Tribe catalog — name map for the active environment (Utopia).
  *
- * Source: Manually curated src/data/tribes.json (environment-specific).
- * The Stillness fetch script (scripts/fetch-tribes.mjs) can optionally
- * populate it, but those IDs are NOT valid for Utopia.
+ * Initial data: src/data/tribes.json (bundled at build time via
+ * scripts/fetch-tribes.mjs from the Utopia World API).
+ *
+ * At runtime, mergeFreshTribes() can be called to inject live API data.
+ * Fresh data wins on tribeId conflict; the bundled snapshot remains as
+ * fallback for any IDs not returned by the API.
  *
  * Chain/RPC is the source of truth for tribe IDs (Character.tribe_id).
- * This catalog provides optional name enrichment — unknown IDs
- * fall back to "Tribe #<id>" via resolveTribeName().
+ * This catalog provides name enrichment — unknown IDs fall back to
+ * "Tribe #<id>" via resolveTribeName().
  */
 
 import type { Tribe } from "@/types/domain";
 import rawCatalog from "@/data/tribes.json";
 
-const catalog: Tribe[] = rawCatalog as Tribe[];
-
+let catalog: Tribe[] = [...(rawCatalog as Tribe[])];
 const byId = new Map<number, Tribe>();
 for (const t of catalog) {
   byId.set(t.tribeId, t);
 }
+
+// ─── Version signal for React reactivity ───────────────────────
+
+let catalogVersion = 0;
+type Listener = () => void;
+const listeners = new Set<Listener>();
+
+/** Current catalog version (increments on merge). */
+export function getCatalogVersion(): number {
+  return catalogVersion;
+}
+
+/** Subscribe to catalog version changes. Returns unsubscribe function. */
+export function subscribeCatalog(fn: Listener): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+// ─── Core API ──────────────────────────────────────────────────
 
 /** Look up a tribe by numeric ID. */
 export function getTribeById(id: number): Tribe | undefined {
@@ -58,4 +79,20 @@ export function getCatalogSize(): number {
 /** Return all tribes in the catalog (for listing in empty-query state). */
 export function getAllTribes(): Tribe[] {
   return catalog;
+}
+
+// ─── Runtime merge ─────────────────────────────────────────────
+
+/**
+ * Merge fresh tribe data from the Utopia API into the catalog.
+ * API entries win on tribeId conflict. Snapshot entries absent from
+ * the API response are preserved (the snapshot is the safety net).
+ */
+export function mergeFreshTribes(fresh: Tribe[]): void {
+  for (const t of fresh) {
+    byId.set(t.tribeId, t);
+  }
+  catalog = Array.from(byId.values());
+  catalogVersion++;
+  for (const fn of listeners) fn();
 }
