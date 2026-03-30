@@ -1,10 +1,10 @@
 # CivilizationControl
 
-**A governance command layer for EVE Frontier infrastructure.**
+**The governance command layer for EVE Frontier infrastructure.**
 
 EVE Frontier gives players real ownership of frontier structures: gates that control space lanes, storage units that power trade, turrets that enforce defense, and network nodes that anchor territory. But actually _operating_ that infrastructure today means hand-building Sui transactions or scripting against raw RPC endpoints.
 
-CivilizationControl makes it usable. It is a Sui Move extension package paired with a browser frontend that turns every governance operation into a click-level action. If you own the infrastructure, you can govern it from a browser, without writing Move code, without constructing transactions, without touching a CLI.
+CivilizationControl makes it usable. It is a Sui Move extension package paired with a browser frontend that turns every governance operation into a click-level action. If you own infrastructure, you can govern it from a browser, without writing Move code, building transactions by hand, or touching a CLI.
 
 > Built for the [EVE Frontier Hackathon](https://www.evefrontier.com/) (Deepsurge / CCP Games, March 2026).
 > Deployed on the Utopia testnet.
@@ -17,9 +17,9 @@ CivilizationControl makes it usable. It is a Sui Move extension package paired w
 
 The world contracts give you ownership. They don't give you a way to exercise it.
 
-Right now, configuring a Smart Gate's access policy means assembling a programmable transaction block with the right dynamic field keys, type-origin package IDs, and witness types. Setting up a trade post means understanding cross-address settlement mechanics. Switching your fleet's defensive posture means rebinding turret extensions one at a time.
+Right now, configuring a Smart Gate's access policy means assembling programmable transactions with the right dynamic fields, package origins, and witness types. Setting up a trade post means understanding cross-address settlement mechanics. Switching your fleet's defensive posture means rebinding turret extensions one at a time.
 
-CivilizationControl replaces all of that with a product surface. The architecture is **publish-once, configure-via-data**: one extension package provides the governance logic, and operators configure rule types through transactions that write structured dynamic fields. No operator writes Move code. The package has been upgraded six times on Utopia using Sui's compatible upgrade policy, each time adding capabilities without breaking deployed state.
+CivilizationControl replaces all of that with a product surface. The architecture is **publish-once, configure-via-data**: one extension package provides the governance logic, and operators configure rule types through transactions that write structured dynamic fields. No operator writes Move code. The package has been upgraded repeatedly on Utopia using Sui's compatible upgrade policy, without breaking deployed state.
 
 Governance operations that require gas can optionally run through a Cloudflare Worker sponsor signer, so operators don't need to hold SUI for routine actions. The sponsor path is configured per-deployment; operations fall back to standard wallet signing when sponsorship is unavailable.
 
@@ -39,7 +39,7 @@ Anyone who owns EVE Frontier infrastructure and wants to govern it without devel
 | **TradePost** | SSU-backed storefronts with cross-address atomic buy settlement in `Coin<EVE>`. Buyers purchase directly; items transfer and revenue settles to the seller's treasury in a single programmable transaction block. Works even when the seller is offline. |
 | **Posture System** | Infrastructure-wide defensive stance switching. Two custom turret extensions (commercial targeting, defense targeting) swapped via posture presets. One PTB switches the posture of all connected structures simultaneously. |
 | **Direct Power Control** | Per-structure and bulk online/offline for gates, turrets, SSUs, and network nodes. All operations use `OwnerCap`-only auth. |
-| **Strategic Network Map** | SVG topology view of the operator's infrastructure fleet with live power state, extension health, and event overlays. Structure positions are derived from real solar system coordinates (24,500-entry catalog), with optional background stars for spatial orientation and operator-lockable layout positioning. |
+| **Strategic Network Map** | SVG topology view of the operator's infrastructure fleet with live power state, extension health, and event overlays. Structure positions are derived from real solar system coordinates, with optional background stars for spatial orientation and operator-lockable layout positioning. |
 | **Signal Feed** | Real-time governance event stream across 13 event types, folded into human-readable digests: posture changes, gate policy enforcement, trade settlement, turret response, power state transitions. Each digest links to its Sui Explorer transaction proof. |
 
 ---
@@ -53,7 +53,7 @@ These capabilities are implemented, deployed, and demonstrated against the Utopi
 - Posture-based preset switching (commercial ↔ defensive)
 - Cross-address atomic buy settlement (buyer pays EVE, item transfers, revenue to treasury)
 - Offline-seller trade (buyer purchases from SSU while seller is disconnected)
-- Infrastructure-wide posture switch (all turrets re-bound in one PTB)
+- Infrastructure-wide posture switch in one PTB
 - Per-structure and bulk online/offline power control
 - Extension health detection (stale bindings, missing auth)
 - Revenue counter with Lux ↔ EVE normalization
@@ -180,7 +180,7 @@ CivilizationControl/
 
 ## Authority Model
 
-CivilizationControl uses **`OwnerCap<Gate>`** from the EVE Frontier world contracts for all administrative operations. There is no centralized admin key. Each structure owner manages their own infrastructure through their ownership capability. The frontend borrows the owner cap via the character contract's `borrow_owner_cap<Gate>` / `return_owner_cap<Gate>` pattern within a single programmable transaction block.
+CivilizationControl uses the EVE Frontier owner-capability model for administrative operations. There is no centralized admin key. Each structure owner manages their own infrastructure through their ownership capability. The frontend borrows the owner cap via the character contract's `borrow_owner_cap<Gate>` / `return_owner_cap<Gate>` pattern within a single programmable transaction block.
 
 ---
 
