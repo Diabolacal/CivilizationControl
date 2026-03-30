@@ -35,8 +35,8 @@ Anyone who owns EVE Frontier infrastructure and wants to govern it without devel
 
 | Module | What It Does |
 |--------|-------------|
-| **GateControl** | Author policy presets on Smart Gates: tribe-specific access filters, per-tribe tolls, and default fallback rules. Presets are authored once and batch-deployed across multiple gates. Posture-aware, so commercial and defensive presets swap automatically when you change stance. Enforced on-chain via typed witness extension. |
-| **TradePost** | SSU-backed storefronts with cross-address atomic buy settlement in `Coin<EVE>`. Buyers purchase directly; items transfer and revenue settles to the seller's treasury in a single programmable transaction block. Works even when the seller is offline. |
+| **GateControl** | Author policy presets on Smart Gates: tribe-specific access filters, per-tribe tolls, and default fallback rules. Presets are authored once and batch-deployed across multiple gates. Posture-aware, so commercial and defensive presets swap automatically when you change stance. Enforced on-chain via typed witness extension. Operators can set the in-game DApp URL on-chain from the app, connecting the gate's web surface to its in-world structure. |
+| **TradePost** | SSU-backed storefronts with cross-address atomic buy settlement in `Coin<EVE>`. Buyers purchase directly; items transfer and revenue settles to the seller's treasury in a single programmable transaction block. Works even when the seller is offline. The in-game DApp URL is set on-chain from the app, so buyers reach the storefront directly from the structure in-game. |
 | **Posture System** | Infrastructure-wide defensive stance switching. Two custom turret extensions (commercial targeting, defense targeting) swapped via posture presets. One PTB switches the posture of all connected structures simultaneously. |
 | **Direct Power Control** | Per-structure and bulk online/offline for gates, turrets, SSUs, and network nodes. All operations use `OwnerCap`-only auth. |
 | **Strategic Network Map** | SVG topology view of the operator's infrastructure fleet with live power state, extension health, and event overlays. Structure positions are derived from real solar system coordinates, with optional background stars for spatial orientation and operator-lockable layout positioning. |
@@ -59,6 +59,7 @@ These capabilities are implemented, deployed, and demonstrated against the Utopi
 - Revenue counter with Lux ↔ EVE normalization
 - Strategic topology map with 54-structure fleet visualization
 - Signal Feed with 13 event types and transaction proof links
+- On-chain in-game DApp URL configuration for gates and trade posts, set from the app with no manual URL editing
 - Sponsored governance transactions via Cloudflare Worker signer (with standard-signing fallback)
 
 ---
