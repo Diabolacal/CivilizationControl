@@ -1,102 +1,178 @@
 # CivilizationControl
 
-A **browser-only governance command layer** for EVE Frontier tribe leaders. Built on Sui Move for the EVE Frontier hackathon (Deepsurge / CCP Games, March 2026).
+**The governance command layer for EVE Frontier infrastructure.**
 
-## What It Does
+CivilizationControl turns the raw power of EVE Frontier's on-chain world contracts into an operator-usable control surface. Tribe leaders manage gates, trade posts, turrets, and network nodes through a browser — no CLI, no Move code, no manual transaction building.
 
-CivilizationControl gives tribe leaders a unified command surface over the structures they own — gates, storefronts, turrets, and network nodes — without writing any code.
+> Built for the [EVE Frontier Hackathon](https://www.evefrontier.com/) (Deepsurge / CCP Games, March 2026).
+> Deployed on the Utopia testnet.
 
-| Module | Purpose |
-|--------|---------|
-| **GateControl** | Author policy presets (tribe-specific access + per-tribe tolls + default fallback) on Smart Gates. Preset model with batch deployment — author once, apply to many gates. Posture-aware enforcement (Commercial vs Defensive presets). On-chain via typed witness extension. |
-| **TradePost** | SSU-backed storefronts with cross-address atomic buy settlement using `Coin<EVE>`. |
-| **Posture System** | Two custom turret extensions (commercial + defense targeting) swapped via posture presets. Single-PTB infrastructure-wide posture switch. |
-| **Direct Power Control** | Per-structure and bulk online/offline for gates, turrets, SSUs, and network nodes. All operations use OwnerCap-only auth (no sponsored transactions needed). |
+**[Live App](https://civilizationcontrol.pages.dev)** · **[Demo Video](https://www.youtube.com/watch?v=nSctJ9gfZT4)** · **[Judged Branch](https://github.com/Diabolacal/CivilizationControl/tree/hackathon)**
 
-**Architecture:** Publish-once, configure-via-data. One extension package publishes the governance logic. Players configure pre-built rule types via transactions that write dynamic fields. No end user writes Move code.
+---
+
+## Why This Exists
+
+EVE Frontier gives players real ownership of frontier infrastructure — Smart Gates that control space lanes, Smart Storage Units that power trade, turrets that enforce defense policy. But operating that infrastructure today means constructing Sui transactions by hand or scripting against raw RPC endpoints.
+
+CivilizationControl bridges that gap. It is a **publish-once, configure-via-data** extension package on Sui Move, paired with a browser frontend that makes every governance action a click-level operation. One extension package provides the logic; players configure rule types through transactions that write dynamic fields. No player writes Move code.
+
+---
+
+## Core Modules
+
+| Module | What It Does |
+|--------|-------------|
+| **GateControl** | Author policy presets on Smart Gates — tribe-specific access filters, per-tribe tolls, and default fallback rules. Presets are authored once and batch-deployed across multiple gates. Posture-aware: commercial and defensive presets swap automatically. Enforced on-chain via typed witness extension. |
+| **TradePost** | SSU-backed storefronts with cross-address atomic buy settlement in `Coin<EVE>`. Buyers purchase directly; items transfer and revenue settles to the seller's treasury in a single programmable transaction block. Works even when the seller is offline. |
+| **Posture System** | Infrastructure-wide defensive stance switching. Two custom turret extensions (commercial targeting, defense targeting) swapped via posture presets. A single PTB switches the posture of all connected structures simultaneously. |
+| **Direct Power Control** | Per-structure and bulk online/offline for gates, turrets, SSUs, and network nodes. All operations use `OwnerCap`-only auth — no sponsored transactions needed. |
+| **Strategic Network Map** | SVG topology view of the operator's entire infrastructure fleet — gates, trade posts, turrets, NWNs — with live power state, extension health, and event overlays. |
+| **Signal Feed** | Real-time governance event stream. 13 event types folded into human-readable digests: posture changes, gate policy enforcement, trade settlement, turret response, power state transitions. |
+
+---
+
+## What's Validated (On-Chain, Live)
+
+These capabilities are implemented, deployed, and demonstrated against the Utopia testnet:
+
+- Gate policy presets with tribe-specific access + per-tribe toll amounts
+- Batch preset deployment across multiple gates in a single PTB
+- Posture-based preset switching (commercial ↔ defensive)
+- Cross-address atomic buy settlement (buyer pays EVE → item transfers → revenue to treasury)
+- Offline-seller trade (buyer purchases from SSU while seller is disconnected)
+- Infrastructure-wide posture switch (all turrets re-bound in one PTB)
+- Per-structure and bulk online/offline power control
+- Extension health detection (stale bindings, missing auth)
+- Revenue counter with Lux ↔ EVE normalization
+- Strategic topology map with 54-structure fleet visualization
+- Signal Feed with 13 event types and transaction proof links
+
+---
+
+## On-Chain Identifiers (Utopia Testnet)
+
+| Identifier | Value |
+|-----------|-------|
+| **Package (v6, current)** | `0x656006a3a68da4465dc60efc3a5d72154bdbf2dc31ac9b21c4f9fe475581b941` |
+| **Package (v1, type-origin)** | `0xf2f1e8ea4467977c90fbd17d9d54a717f3c2ef58e034ed9e5af29e17f075d22f` |
+| **GateConfig (shared)** | `0x3695f8978ab8cc36b6ff3ebdf8b8882e2f4d73c5a9cce0918a04d0a6a29a3eee` |
+| **Upgrade Capability** | `0xd373fd5b12516c4fe97ad79bd1920ab01b301cbadca76def86e9aac139486e81` |
+| **World Package** | `0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75` |
+| **Chain ID** | `4c78adac` (Utopia) |
+
+The package has been upgraded 6 times using Sui's compatible upgrade policy — additive-only (no breaking changes to public function signatures).
+
+---
 
 ## Tech Stack
 
-- **Move** (Sui edition 2024.beta) — on-chain extension package
-- **React + TypeScript + Vite** — frontend SPA
-- **@evefrontier/dapp-kit** — wallet adapter
-- **Tailwind CSS** — styling
-- **Cloudflare Pages** — static hosting
+| Layer | Technology |
+|-------|-----------|
+| **Smart contracts** | Sui Move (edition 2024.beta) |
+| **Frontend** | React 19 + TypeScript + Vite |
+| **Wallet** | @evefrontier/dapp-kit (wraps @mysten/dapp-kit-react + EveVault) |
+| **Styling** | Tailwind CSS 4 |
+| **Data** | Sui JSON-RPC → @tanstack/react-query |
+| **Hosting** | Cloudflare Pages (static SPA) |
 
-## Quickstart
+No backend. All chain reads go directly from the browser to Sui RPC. All writes are signed client-side via the connected wallet.
+
+---
+
+## Local Development
 
 ### Prerequisites
 
-- [Sui CLI](https://docs.sui.io/guides/developer/getting-started/sui-install) installed
+- [Sui CLI](https://docs.sui.io/guides/developer/getting-started/sui-install) (v1.68.1+)
 - Node.js 18+ and npm
 - Git with submodule support
 
 ### Setup
 
 ```bash
-# Clone with submodules
-git clone --recurse-submodules <repo-url>
+git clone --recurse-submodules https://github.com/Diabolacal/CivilizationControl.git
 cd CivilizationControl
 
 # If already cloned without submodules
 git submodule update --init --recursive
+```
 
-# Build Move contracts
-sui move build --path contracts/civilization_control
+### Move Contracts
 
-# Run Move tests
-sui move test --path contracts/civilization_control
-
-# Verify active Sui environment
-sui client active-env
+```bash
+sui move build --path contracts/civilization_control     # Build
+sui move test --path contracts/civilization_control       # Test
+sui client active-env                                     # Verify network
 ```
 
 ### Frontend
 
 ```bash
 npm install            # Install dependencies
-npm run dev            # Vite dev server (http://localhost:5173)
+npm run dev            # Dev server → http://localhost:5173
 npm run typecheck      # TypeScript check
 npm run build          # Production build → dist/
-npm run preview        # Preview production build
 ```
 
 ### Static Data Generation
 
 ```bash
-npm run generate:solar-systems   # Refresh solar system catalog (24.5k entries)
-npm run generate:types           # Refresh item type catalog
-npm run generate:tribes          # Refresh tribe catalog from Stillness API (optional enrichment)
+npm run generate:solar-systems   # Solar system catalog (24.5k entries)
+npm run generate:types           # Item type catalog
+npm run generate:tribes          # Tribe catalog from Stillness API
 ```
+
+---
 
 ## Repository Structure
 
 ```
 CivilizationControl/
-├── .github/              Agent guardrails, instructions, prompts, skills
-├── .vscode/              Editor config, tasks, prompts
-├── assets/icons/         SVG glyphs + overlays for topology UI
-├── contracts/
-│   └── civilization_control/   Move extension package
+├── contracts/civilization_control/   Sui Move extension package (v6)
+├── src/                              React frontend application
+│   ├── components/                   UI components (topology, controls, feed)
+│   ├── hooks/                        React hooks (chain reads, mutations)
+│   ├── lib/                          Transaction builders, event parsers, RPC
+│   ├── screens/                      Page-level components
+│   └── types/                        TypeScript domain types
 ├── docs/
-│   ├── core/             System spec, implementation plan, demo beat sheet
-│   ├── architecture/     Design validation docs
-│   ├── strategy/         Voice, narrative, product vision
-│   ├── analysis/         Assumption registries, fragility audits
-│   ├── validation/       Pre-start validation evidence
-│   ├── ux/               UX architecture, SVG specs
-│   ├── ptb/              PTB pattern library (revalidation required)
-│   ├── operations/       Runbooks, templates
-│   └── demo/             Narration specs
-├── templates/cloudflare/ Deployment scaffold
-└── vendor/               Upstream submodules (read-only)
-    ├── world-contracts/  EVE Frontier on-chain world contracts
-    └── builder-scaffold/ Builder scaffold (devnet, templates, scripts)
+│   ├── core/                         System spec, implementation plan, demo
+│   ├── architecture/                 Design validation, feasibility reports
+│   └── strategy/                     Product vision, voice, narrative
+├── assets/icons/                     SVG glyphs + overlays for topology UI
+├── scripts/                          Data generation, demo tooling
+└── vendor/                           Upstream submodules (read-only)
+    ├── world-contracts/              EVE Frontier world contracts
+    ├── builder-scaffold/             Builder scaffold
+    ├── builder-documentation/        Official builder docs
+    └── evevault/                     EveVault wallet adapter
 ```
 
-## Vendor Submodules
+---
 
-Submodules under `vendor/` are **read-only upstream references**. Never commit, modify, or create tracked files inside them.
+## Key Documentation
+
+| Document | Purpose |
+|----------|---------|
+| [System Spec](docs/core/spec.md) | Boundaries, on-chain model, risk model |
+| [Implementation Plan](docs/core/civilizationcontrol-implementation-plan.md) | Build sequence and dependencies |
+| [Demo Beat Sheet](docs/core/civilizationcontrol-demo-beat-sheet.md) | Narrated demo structure |
+| [Product Vision](docs/strategy/civilization-control/civilizationcontrol-product-vision.md) | Design intent and product thesis |
+| [Claim-Proof Matrix](docs/core/civilizationcontrol-claim-proof-matrix.md) | What's claimed vs. what's proven |
+| [Decision Log](docs/decision-log.md) | Chronological record of design decisions |
+
+---
+
+## Authority Model
+
+CivilizationControl uses **`OwnerCap<Gate>`** from the EVE Frontier world contracts for all administrative operations. There is no centralized admin key. Each structure owner manages their own infrastructure through their ownership capability. The frontend borrows the owner cap via the character contract's `borrow_owner_cap<Gate>` / `return_owner_cap<Gate>` pattern within a single programmable transaction block.
+
+---
+
+## License
+
+See [LICENSE](LICENSE).
 
 | Submodule | Purpose |
 |-----------|---------|
