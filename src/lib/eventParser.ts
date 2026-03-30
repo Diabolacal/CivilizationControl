@@ -59,6 +59,8 @@ interface EventDescriptor {
   relatedIdField?: string;
   secondaryIdField?: string;
   amountField?: string;
+  /** Field containing the operator address for ownership scoping (e.g. "seller"). */
+  ownerAddressField?: string;
 }
 
 const EVENT_MAP: Record<string, EventDescriptor> = {
@@ -135,17 +137,17 @@ const EVENT_MAP: Record<string, EventDescriptor> = {
     },
     category: "trade",
     variant: "revenue",
-    relatedIdField: "storage_unit_id",
     secondaryIdField: "listing_id",
     amountField: "price",
+    ownerAddressField: "seller",
   },
   [CC_EVENT_TYPES.LISTING_CANCELLED]: {
     label: "Listing Cancelled",
     describe: () => "Listing withdrawn by seller",
     category: "trade",
     variant: "info",
-    relatedIdField: "storage_unit_id",
     secondaryIdField: "listing_id",
+    ownerAddressField: "seller",
   },
   [CC_EVENT_TYPES.POSTURE_CHANGED]: {
     label: "Posture Changed",
@@ -281,6 +283,9 @@ export function parseChainEvent(raw: RawSuiEvent): SignalEvent | null {
       ? String(json[descriptor.secondaryIdField] ?? "")
       : undefined,
     sender: raw.sender,
+    ownerAddress: descriptor.ownerAddressField
+      ? String(json[descriptor.ownerAddressField] ?? "")
+      : undefined,
     amount: descriptor.amountField
       ? Number(json[descriptor.amountField] ?? 0)
       : undefined,

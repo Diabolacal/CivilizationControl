@@ -60,7 +60,6 @@ export function useBuyListing(storageUnitId: ObjectId) {
           resolvedCharacterId,
           listingId,
           price,
-          walletAddress,
           selected.coinObjectId,
         );
 

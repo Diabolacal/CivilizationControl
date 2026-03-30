@@ -4,7 +4,7 @@ export const WORLD_PACKAGE_ID =
   "0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75";
 
 export const CC_PACKAGE_ID =
-  "0xeffb45b2b2e5419e05fc863ff25d2a593d55edb6e9e68c7e10ecef07c0b6aaed";
+  "0x656006a3a68da4465dc60efc3a5d72154bdbf2dc31ac9b21c4f9fe475581b941";
 
 /**
  * Original (v1) package address — used for type-based queries (DF keys,

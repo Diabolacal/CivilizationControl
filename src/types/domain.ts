@@ -216,6 +216,8 @@ export interface SignalEvent {
   secondaryObjectId?: ObjectId;
   /** Tx sender address. */
   sender?: string;
+  /** Owner address for scoping (e.g. seller on trade events). */
+  ownerAddress?: string;
   /** Amount in EVE base units, if applicable (toll, trade). Divide by 10_000_000 for Lux. */
   amount?: number;
 }

@@ -37,6 +37,8 @@ interface StrategicMapPanelProps {
   structures: Structure[];
   isConnected: boolean;
   signals?: SignalEvent[];
+  /** Callback fired when posture transition state changes. */
+  onPostureTransitionChange?: (isTransitioning: boolean) => void;
 }
 
 /**
@@ -136,6 +138,7 @@ export function StrategicMapPanel({
   structures,
   isConnected,
   signals = [],
+  onPostureTransitionChange,
 }: StrategicMapPanelProps) {
   const [showStarfield, setShowStarfield] = useState(() => {
     try {
@@ -381,7 +384,7 @@ export function StrategicMapPanel({
           </div>
         </div>
         <div className="flex items-center">
-          <PostureControl nodeGroups={nodeGroups} isConnected={isConnected} inline />
+          <PostureControl nodeGroups={nodeGroups} isConnected={isConnected} inline onTransitionChange={onPostureTransitionChange} />
         </div>
       </div>
 

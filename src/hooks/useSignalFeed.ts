@@ -15,6 +15,7 @@ import type { SignalCategory, SignalEvent } from "@/types/domain";
 
 const SIGNAL_FEED_KEY = "signalFeed";
 const POLL_INTERVAL_MS = 30_000;
+const FAST_POLL_INTERVAL_MS = 4_000;
 /** Fixed per-module fetch limit — shared by all consumers for cache consistency. */
 const FETCH_LIMIT = 50;
 
@@ -29,10 +30,12 @@ interface UseSignalFeedOptions {
   ownedObjectIds?: string[];
   /** Connected wallet address — fallback scope for sender-based events. */
   walletAddress?: string | null;
+  /** Poll at accelerated cadence (4s) during posture transitions. */
+  aggressiveRefetch?: boolean;
 }
 
 export function useSignalFeed(options: UseSignalFeedOptions = {}) {
-  const { category = "all", polling = true, ownedObjectIds, walletAddress } = options;
+  const { category = "all", polling = true, ownedObjectIds, walletAddress, aggressiveRefetch = false } = options;
 
   const ownedSet = useMemo(
     () => (ownedObjectIds ? new Set(ownedObjectIds) : null),
@@ -46,8 +49,10 @@ export function useSignalFeed(options: UseSignalFeedOptions = {}) {
       const parsed = parseChainEvents(rawEvents as RawSuiEvent[]);
       return foldPostureSignals(parsed);
     },
-    staleTime: 15_000,
-    refetchInterval: polling ? POLL_INTERVAL_MS : false,
+    staleTime: aggressiveRefetch ? 2_000 : 15_000,
+    refetchInterval: polling
+      ? (aggressiveRefetch ? FAST_POLL_INTERVAL_MS : POLL_INTERVAL_MS)
+      : false,
   });
 
   const allSignals = data ?? [];
@@ -58,6 +63,7 @@ export function useSignalFeed(options: UseSignalFeedOptions = {}) {
     return allSignals.filter((s) => {
       if (s.relatedObjectId && ownedSet.has(s.relatedObjectId)) return true;
       if (s.secondaryObjectId && ownedSet.has(s.secondaryObjectId)) return true;
+      if (s.ownerAddress && walletAddress && s.ownerAddress === walletAddress) return true;
       if (s.sender && walletAddress && s.sender === walletAddress) return true;
       return false;
     });

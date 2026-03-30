@@ -30,9 +30,11 @@ interface PostureControlProps {
   compact?: boolean;
   /** Inline variant: just state indicator + button, no wrapper. For embedding in a header row. */
   inline?: boolean;
+  /** Callback fired when transition state changes (true = transitioning). */
+  onTransitionChange?: (isTransitioning: boolean) => void;
 }
 
-export function PostureControl({ nodeGroups, isConnected, compact, inline }: PostureControlProps) {
+export function PostureControl({ nodeGroups, isConnected, compact, inline, onTransitionChange }: PostureControlProps) {
   const firstGateId = useMemo(() => {
     for (const group of nodeGroups) {
       if (group.gates.length > 0) return group.gates[0].objectId;
@@ -44,6 +46,11 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline }: Pos
   // read-path confirms the new posture or on error/timeout.
   const [pendingTarget, setPendingTarget] = useState<PostureMode | null>(null);
   const isTransitioning = pendingTarget !== null;
+
+  // Notify parent when transition state changes
+  useEffect(() => {
+    onTransitionChange?.(isTransitioning);
+  }, [isTransitioning, onTransitionChange]);
 
   const { data: currentPosture, isLoading: postureLoading, isFetching: postureRefetching } = usePostureState(firstGateId, isTransitioning);
   const { status, result, error, switchPosture, reset } = usePostureSwitch();

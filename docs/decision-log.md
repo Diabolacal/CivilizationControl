@@ -4,6 +4,42 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-03-30 – CC v6 upgrade: add buy_to_inventory for correct item delivery
+- Goal: Sui's `compatible` upgrade policy rejects public function signature changes. Original plan to change `buy()` return type (Item → void) was incompatible. Revised approach: keep `buy()` unchanged, add new `buy_to_inventory()` that calls `deposit_to_owned<TradeAuth>()` for proper in-game delivery. Frontend targets new function.
+- Files: contracts/civilization_control/sources/trade_post.move, src/lib/tradePostTx.ts, src/constants.ts
+- Diff: ~+60 −3 (contract: +55 new function, frontend: target + package ID update)
+- Risk: **high** — on-chain contract upgrade (v5 → v6). Additive-only change, original `buy()` preserved.
+- Gates: Move build ✅ Move tests ✅ (26/26) typecheck ✅ build ✅
+- Upgrade tx: `HjV7RCtqs7wGiKuDi88ScLytsudYQzZ5de8Ng1XDa13k` (epoch 1054)
+- New CC_PACKAGE_ID: `0x656006a3a68da4465dc60efc3a5d72154bdbf2dc31ac9b21c4f9fe475581b941` (v6)
+- Sui CLI upgraded: 1.68.0 → 1.68.1 (protocol v118 support required by Utopia network)
+- **Initial deploy was to Preview only** (`--branch master`), not Production. Cloudflare Pages production branch is `main`; all prior `--branch master` deploys were Preview-only. Live purchase tx `3Vuvzkvf1AgMmtK5aUaQaNVdob8dJXP27ZpGbrAb3WiT` confirmed old v5 code ran: package `0xeffb45b2...`, function `buy()`, `transferObjects` to buyer wallet.
+- Production fix: redeployed with `--branch main` to promote to Production. Production URL `civilizationcontrol.pages.dev` now serves v6 code with `buy_to_inventory` target. Verified by inspecting production JS bundle.
+- Extension auth: SSU `TradeAuth` authorization **does NOT** need re-authorization post-upgrade. World contracts use `type_name::with_defining_ids<Auth>()` for both storage and runtime check — the defining ID is anchored to v1 (`0xf2f1e8ea...`) and never changes across upgrades.
+- Follow-ups: (1) TURRET_TARGETING event type string pre-existing bug, (2) **All future deploys must use `--branch main`** for Production, (3) operator re-test required from production URL.
+
+## 2026-03-30 – TradePost: fix item delivery to buyer's owned inventory
+- Goal: Purchased items were transferred as raw Sui objects to the buyer's wallet via `transferObjects`. In EVE Frontier, characters have no standalone inventory — all items live inside SSU dynamic fields. Raw `Item` objects in a wallet are invisible in-game. Fix: contract `buy()` now calls `deposit_to_owned<TradeAuth>()` to deposit into the buyer's per-character owned inventory on the same SSU (auto-created on first use). Frontend PTB builder updated to remove `transferObjects` step.
+- Files: contracts/civilization_control/sources/trade_post.move, src/lib/tradePostTx.ts, src/hooks/useBuyListing.ts
+- Diff: ~+20 −15 (contract: +7 −6, frontend: +8 −9)
+- Risk: **high** — changes Move contract entry function signature (return type Item → void). Requires package upgrade on Utopia testnet before the frontend fix takes effect.
+- Gates: Move build ✅ Move tests ✅ (26/26) typecheck ✅ build ✅
+- Source truth: world-contracts `storage_unit_tests::swap_ammo_for_lens_via_extension` pattern — withdraw from main inventory, deposit_to_owned for buyer delivery.
+- **Superseded by v6 upgrade entry above** — original approach was incompatible with Sui's upgrade policy. Revised to additive function.
+- Follow-ups: re-authorize TradeAuth extension on the SSU after upgrade if type-origin changes.
+
+---
+
+## 2026-03-30 – Signal Feed: accelerated polling during posture transitions
+- Goal: Recent Telemetry Signals preview on Command Overview now polls at 4s (matching posture read-path) during posture transitions, so the PostureChangedEvent appears in sync with the topology color shift instead of lagging up to 30s.
+- Files: src/hooks/useSignalFeed.ts, src/components/PostureControl.tsx, src/components/topology/StrategicMapPanel.tsx, src/screens/Dashboard.tsx, src/types/domain.ts, src/lib/eventParser.ts
+- Diff: ~+20 −8
+- Risk: low (UI polling cadence only, no contract/schema change)
+- Gates: typecheck ✅ build ✅
+- Also fixed: ListingPurchasedEvent/ListingCancelledEvent ownership scoping — events lacked `storage_unit_id` field, now scoped via `seller` address match (ownerAddressField).
+
+---
+
 ## 2026-03-29 – Audio: Beat 6C phrase-splice chosen, Beat 1 extended to ~22s
 - Goal: Lock two operator decisions into durable docs: (1) Beat 6C uses phrase-splice path (c1→400ms silence→c2→400ms silence→c3), not the combined c.mp3. (2) Beat 1 extended from 18s to ~22s — slower delivery accepted.
 - Files: capture-readiness-checklist.md, civilizationcontrol-demo-beat-sheet.md, demo-production-pipeline-plan.md, tts-generation-guide.md

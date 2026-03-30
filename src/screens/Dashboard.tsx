@@ -12,7 +12,7 @@
  * "Enforced Directives", "Telemetry Signals" per narrative spec.
  */
 
-import { useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { Link } from "react-router";
 import {
   Building2,
@@ -53,11 +53,14 @@ export function Dashboard({
     () => structures.map((s) => s.objectId),
     [structures],
   );
+  const [postureTransitioning, setPostureTransitioning] = useState(false);
+  const handlePostureTransitionChange = useCallback((t: boolean) => setPostureTransitioning(t), []);
   const PREVIEW_COUNT = 6;
   const { signals: recentSignals } = useSignalFeed({
     limit: 10,
     ownedObjectIds,
     walletAddress: walletAddress ?? null,
+    aggressiveRefetch: postureTransitioning,
   });
   const revenueSignals = recentSignals.filter((s) => s.variant === "revenue");
   const totalRevenueBaseUnits = revenueSignals.reduce((sum, s) => sum + (s.amount ?? 0), 0);
@@ -114,7 +117,7 @@ export function Dashboard({
 
       {/* Strategic Network — Topology + Posture Command (integrated) */}
       <div className="mt-5">
-        <StrategicMapPanel nodeGroups={nodeGroups} pins={pins} structures={structures} isConnected={isConnected} signals={recentSignals} />
+        <StrategicMapPanel nodeGroups={nodeGroups} pins={pins} structures={structures} isConnected={isConnected} signals={recentSignals} onPostureTransitionChange={handlePostureTransitionChange} />
       </div>
 
       {/* Lower section: Recent Signals + Attention Required */}

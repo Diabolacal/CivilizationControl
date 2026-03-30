@@ -1,16 +1,20 @@
 /// TradePost — SSU extension for cross-address marketplace trading.
 ///
 /// Sellers authorize `TradeAuth` on their SSU, then create shared `Listing`
-/// objects advertising items at a `Coin<EVE>` price. Buyers call `buy()` to
-/// atomically withdraw the item from the seller's SSU and receive it via
-/// `transfer::public_transfer`, while payment goes to the seller.
+/// objects advertising items at a `Coin<EVE>` price. Buyers call
+/// `buy_to_inventory()` to atomically withdraw the item from the seller's SSU
+/// and deposit it into the buyer's owned inventory on the same SSU, while
+/// payment goes to the seller.
 ///
 /// Key upstream dependency: `storage_unit::withdraw_item<Auth>` requires the
-/// SSU to be online and the extension type to match `TradeAuth`. Items are
-/// delivered directly to the buyer's address (not deposited into another SSU)
-/// because `deposit_item<Auth>` enforces `parent_id == storage_unit_id`.
+/// SSU to be online and the extension type to match `TradeAuth`. Purchased
+/// items are delivered via `storage_unit::deposit_to_owned<TradeAuth>`, which
+/// creates the buyer's ephemeral inventory on the SSU if it doesn't exist.
 ///
-/// Pattern reference: world-contracts `storage_unit_tests::test_swap_ammo_for_lens`,
+/// Legacy `buy()` returns a raw `Item` and is retained for upgrade
+/// compatibility only — new callers should use `buy_to_inventory()`.
+///
+/// Pattern reference: world-contracts `storage_unit_tests::swap_ammo_for_lens_via_extension`,
 /// builder-scaffold `smart_gate_extension`. Witness mint is `public(package)`.
 #[allow(lint(self_transfer))]
 module civilization_control::trade_post;
@@ -139,11 +143,11 @@ public fun create_listing(
     listing
 }
 
-/// Purchase a listing. The buyer's transaction atomically:
-/// 1. Withdraws the item from the seller's SSU (via `TradeAuth` extension)
-/// 2. Transfers the item to the buyer
-/// 3. Transfers payment to the seller
-/// 4. Destroys the listing
+/// Purchase a listing (legacy — returns raw Item to caller).
+///
+/// Prefer `buy_to_inventory()` which deposits directly into the buyer's
+/// owned inventory on the SSU. This function is retained for upgrade
+/// compatibility. The caller PTB must handle the returned `Item`.
 ///
 /// Requirements:
 /// - `storage_unit` must match `listing.storage_unit_id`
@@ -201,6 +205,82 @@ public fun buy(
 
     // Return item to caller — PTB or caller handles final transfer
     item
+}
+
+/// Purchase a listing with automatic inventory delivery.
+///
+/// Atomically:
+/// 1. Withdraws the item from the seller's SSU main inventory (via `TradeAuth`)
+/// 2. Deposits the item into the buyer's owned inventory on the same SSU
+/// 3. Transfers payment to the seller
+/// 4. Destroys the listing
+///
+/// The buyer's owned inventory is auto-created if it doesn't exist yet.
+/// The buyer character does NOT need to be the tx sender (works with
+/// sponsored transactions).
+///
+/// Requirements:
+/// - `storage_unit` must match `listing.storage_unit_id`
+/// - `payment` must have value >= `listing.price`
+/// - SSU must be online
+/// - SSU must have sufficient inventory
+///
+/// Overpayment: exact change only. Caller should split the coin in the PTB.
+public fun buy_to_inventory(
+    storage_unit: &mut StorageUnit,
+    character: &Character,
+    listing: Listing,
+    payment: Coin<EVE>,
+    ctx: &mut TxContext,
+) {
+    let Listing {
+        id,
+        storage_unit_id,
+        seller,
+        item_type_id,
+        quantity,
+        price,
+    } = listing;
+
+    // Validate listing matches the provided SSU
+    assert!(object::id(storage_unit) == storage_unit_id, ESsuMismatch);
+    assert!(payment.value() >= price, EInsufficientPayment);
+
+    // Withdraw item from seller's SSU via extension witness
+    let item = storage_unit::withdraw_item<TradeAuth>(
+        storage_unit,
+        character,
+        trade_auth(),
+        item_type_id,
+        quantity,
+        ctx,
+    );
+
+    // Deposit item into buyer's owned inventory on the same SSU
+    storage_unit::deposit_to_owned<TradeAuth>(
+        storage_unit,
+        character,
+        item,
+        trade_auth(),
+        ctx,
+    );
+
+    let buyer = ctx.sender();
+
+    event::emit(ListingPurchasedEvent {
+        listing_id: id.to_inner(),
+        buyer,
+        seller,
+        item_type_id,
+        quantity,
+        price,
+    });
+
+    // Transfer payment to seller
+    transfer::public_transfer(payment, seller);
+
+    // Destroy listing
+    id.delete();
 }
 
 /// Cancel a listing. Only the original seller can cancel.

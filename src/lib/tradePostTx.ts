@@ -4,7 +4,7 @@
  * Constructs Programmable Transaction Blocks for marketplace operations:
  *   - create_listing: seller creates a shared Listing object
  *   - cancel_listing: seller destroys their own Listing
- *   - buy: buyer purchases a listing, receives Item
+ *   - buy: buyer purchases a listing, item deposited into buyer's owned inventory
  *
  * Settlement token: EVE (Coin<EVE> from assets package).
  *
@@ -12,7 +12,7 @@
  *   create_listing(&StorageUnit, u64, u32, u64, &mut TxContext) -> Listing
  *   share_listing(Listing)
  *   cancel_listing(Listing, &mut TxContext)
- *   buy(&mut StorageUnit, &Character, Listing, Coin<EVE>, &mut TxContext) -> Item
+ *   buy(&mut StorageUnit, &Character, Listing, Coin<EVE>, &mut TxContext)
  */
 
 import { Transaction } from "@mysten/sui/transactions";
@@ -21,6 +21,10 @@ import type { ObjectId } from "@/types/domain";
 
 /**
  * Build PTB: buy listing with EVE payment.
+ *
+ * The contract deposits the purchased item into the buyer's owned
+ * inventory on the seller's SSU (auto-created if needed). No explicit
+ * transfer step is required in the PTB.
  *
  * The caller must provide `eveCoinId` — the object ID of an EVE coin
  * with sufficient balance. Use `fetchEveCoinObjects` + `selectEveCoin`
@@ -31,7 +35,6 @@ export function buildBuyListingTx(
   characterId: ObjectId,
   listingId: ObjectId,
   price: number,
-  buyerAddress: string,
   eveCoinId: ObjectId,
 ): Transaction {
   const tx = new Transaction();
@@ -39,9 +42,9 @@ export function buildBuyListingTx(
   // Split exact payment from the buyer's EVE coin object
   const [payment] = tx.splitCoins(tx.object(eveCoinId), [tx.pure.u64(BigInt(price))]);
 
-  // Call buy() — consumes listing, returns Item
-  const item = tx.moveCall({
-    target: `${CC_PACKAGE_ID}::trade_post::buy`,
+  // Call buy_to_inventory() — consumes listing, deposits item into buyer's owned inventory
+  tx.moveCall({
+    target: `${CC_PACKAGE_ID}::trade_post::buy_to_inventory`,
     arguments: [
       tx.object(storageUnitId),
       tx.object(characterId),
@@ -49,9 +52,6 @@ export function buildBuyListingTx(
       payment,
     ],
   });
-
-  // Transfer the returned Item to the buyer
-  tx.transferObjects([item], tx.pure.address(buyerAddress));
 
   return tx;
 }
