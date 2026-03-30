@@ -73,3 +73,7 @@ wallet_objects.txt
 
 # Vite cache
 .vite/
+
+# Demo recording pipeline outputs (large media files)
+recordings/*
+!recordings/README.md

@@ -4,6 +4,45 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-03-29 – Audio: Beat 6C phrase-splice chosen, Beat 1 extended to ~22s
+- Goal: Lock two operator decisions into durable docs: (1) Beat 6C uses phrase-splice path (c1→400ms silence→c2→400ms silence→c3), not the combined c.mp3. (2) Beat 1 extended from 18s to ~22s — slower delivery accepted.
+- Files: capture-readiness-checklist.md, civilizationcontrol-demo-beat-sheet.md, demo-production-pipeline-plan.md, tts-generation-guide.md
+- Diff: ~+50 −60 across 5 docs
+- Risk: low (documentation only, timing adjustments)
+- Runtime impact: Total demo ~3:04 (was 3:00). Under 3:05 ceiling. No compensating trims needed.
+- Beat 6 audio: c1 + 400ms silence + c2 + 400ms silence + c3 (controlled inter-phrase pacing). Combined c.mp3 retained but not used.
+
+---
+
+## 2026-03-29 – Audio: TTS narration package complete — project enters pre-capture state
+- Goal: Verify generated TTS audio inventory against guide, update pipeline docs to reflect audio-ready status.
+- Files: docs/demo/demo-production-pipeline-plan.md (status + voiceover status + risk tracker updated)
+- Audio inventory: 14 narration MP3s + 7 silence WAVs + 3 Beat 6C fallback files = 24 files in `recordings/voiceovers/`. All match `tts-generation-guide.md` naming and location spec. Beat 6C fallback was exercised (inter-phrase pauses collapsed as predicted).
+- Measured durations: b01=21s, b02a=1s, b02b=9s, b03a=3s, b03b=10s, b04a=4s, b04b=5s, b05=10s, b06a=1s, b06b=1s, b06c=4s, b07=12s, b08a=5s, b08b=3s.
+- Risk: low (no code changes)
+- State transition: script-locked → audio-ready → pre-capture
+
+## 2026-03-29 – Docs: Pre-lock tightening — Beat 2/7/8 wording, 1.6s defense timing, visual simplification
+- Goal: Final tightening pass before script lock. Five operator feedback items: (1) Beat 2 keeps "one view" (not "one surface"). (2) Beat 7 geography: "far side of the gate" → "far side of the network." (3) Beat 8 avoids narrated structure counts (already count-free in prior pass). (4) Defense transition timing corrected ~800ms → ~1.6s across all docs. (5) TTS baseline unchanged. Also tightened: Beat 4 narration ("Denied. The chain enforced it."), Beat 6 narration ("Threat inbound" + "Gates locked. Turrets armed."), Beat 3 visual direction simplified (removed zoom/dim/crop — static holds only).
+- Files: docs/core/civilizationcontrol-demo-beat-sheet.md, docs/demo/narration-direction-spec.md, docs/demo/demo-production-pipeline-plan.md
+- Diff: ~+30 −30 across 3 docs
+- Risk: low (documentation only)
+
+## 2026-03-29 – Docs: Script-lock pass — command-count audit, tiered pricing, visual direction
+- Goal: Lock narration + visual direction for all 9 demo beats. Resolve three operator-flagged issues: (1) "thirteen commands" claim unjustifiable for single-gate config, (2) Beat 3 narration described binary allow/deny — actual UI shows tiered commercial pricing, (3) Beat 7 commerce amount too low (1,000 → 100,000 Lux).
+- Files: docs/core/civilizationcontrol-demo-beat-sheet.md, docs/demo/narration-direction-spec.md
+- Diff: ~+250 −80 across 2 docs
+- Risk: low (documentation only)
+- Key decisions: (1) "Thirteen commands" replaced with "Every rule, every gate — a manual transaction" — structural pain claim is unchallengeable. Audit found 13 steps cover *full lifecycle from world-publish*; per-gate policy config is 4–6 CLI transactions. (2) Beat 3 completely rewritten around tiered commercial pricing per operator gate screenshot: allies 1K, rivals 25K, neutral 5K, default 10K Lux. (3) Beat 7 commerce: 1,000 → 100,000 Lux (= 1,000 EVE). (4) Locked visual direction added to all 9 beats with exact shot counts, timestamps, emphasis guidance, and silence windows.
+
+## 2026-03-29 – Docs: Phase 2 capture validation findings + demo script alignment
+- Goal: Write validated operational truth from Phase 2 Playwright testing into all demo docs. Correct stale demo narrative (gate count 9→10, EVE→Lux-first currency, generic tribe→ally naming). Add validated recording environment section to pipeline plan.
+- Files: docs/demo/demo-production-pipeline-plan.md, docs/core/civilizationcontrol-demo-beat-sheet.md, docs/demo/narration-direction-spec.md, docs/core/civilizationcontrol-claim-proof-matrix.md
+- Diff: ~+120 −40 across 4 docs
+- Risk: low (documentation only)
+- Gates: N/A (no code changes)
+- Key findings captured: (1) Headed Chromium + Eve Vault is the viable recording path. (2) Wallet popup opens in separate OS window — no viewport contamination. (3) localStorage persists across reload/navigation/relaunch. (4) Wallet does NOT persist across relaunch. (5) Per-scene short recordings (<60s) at 2560×1440 recommended. (6) Structure counts: 10 gates, 10 governed, 2 trade posts, 36 turrets, 6 network nodes.
+
 ## 2026-03-29 – Feat: Transaction proof hover card on digest links
 - Goal: Replace browser-default title tooltip on transaction digests with an in-app proof summary card. Lazy-fetches tx details from Sui JSON-RPC on ~500ms hover, caches by digest. Shows status, type, digest, checkpoint, timestamp, gas. Click still opens SuiScan.
 - Files: src/components/DigestHoverLink.tsx (new), src/components/TxProofCard.tsx (new), src/hooks/useTxDetails.ts (new), src/lib/txDetails.ts (new), src/components/SignalEventRow.tsx (modified)

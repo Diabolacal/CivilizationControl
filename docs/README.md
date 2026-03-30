@@ -161,6 +161,11 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 | File | Purpose |
 |------|---------|
 | [demo/narration-direction-spec.md](demo/narration-direction-spec.md) | Demo narration direction — voice config, delivery control, recording checklist |
+| [demo/tts-generation-guide.md](demo/tts-generation-guide.md) | **TTS generation guide** — beat-by-beat audio segmentation, file naming, generation order, QC checklist, editor handoff |
+| [demo/capture-readiness-checklist.md](demo/capture-readiness-checklist.md) | **Capture readiness checklist** — audio→scene mapping, capture order, pre-capture chain state, timing decisions |
+| [demo/demo-production-pipeline-plan.md](demo/demo-production-pipeline-plan.md) | **Demo production pipeline plan** — automated recording feasibility, beat automation assessment, tooling, blockers |
+| [demo/video-production-guide-reference.md](demo/video-production-guide-reference.md) | **Video production guide (reference)** — Playwright + ffmpeg pipeline patterns, scene recording, trailer assembly, music mixing |
+| [demo/manual-obs-capture-runbook.md](demo/manual-obs-capture-runbook.md) | **Manual OBS capture runbook** — beat-by-beat shot list, OBS settings, capture order, retake triggers, Descript assembly notes |
 
 ---
 

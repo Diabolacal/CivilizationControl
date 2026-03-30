@@ -4,9 +4,9 @@
 
 > Competitive demo blueprint for the CivilizationControl hackathon submission video.
 > Arc: Pain → Power → Policy → Denial → Revenue → Defense Mode → Commerce → Command
-> Target duration: **~3:00** (hard ceiling 3:05)
-> Sources: v1 beat sheet, product vision, emotional objective, voice guide, claim-proof matrix, posture-switch validation, judging criteria digest
-> Last updated: 2026-03-04 (gameplay/currency realism pass)
+> Target duration: **~3:04** (hard ceiling 3:05)
+> Sources: v1 beat sheet, product vision, emotional objective, voice guide, claim-proof matrix, posture-switch validation, judging criteria digest, Phase 2 recording validation (2026-03-29)
+> Last updated: 2026-03-29 (gate count, currency, tribe naming, capture validation pass)
 
 ---
 
@@ -15,6 +15,8 @@
 > A frontier operator wakes up to chaos. By the end of this demo, every gate, turret, and trade post is under sovereign command — policy enforced, hostiles denied, revenue flowing, and the entire network locked down in one click.
 
 **Arc:** Pain → Power → Policy → Denial → Revenue → Defense Mode → Commerce → Command
+
+**Structure counts (validated 2026-03-29):** 10 gates, 10 governed, 2 trade posts, 36 turrets, 6 network nodes (54 total structures).
 
 This is not a feature tour. It is three minutes of escalating authority. Each beat raises the stakes. The climax is Defense Mode — one action, infrastructure-wide state change, chain-enforced. Everything that follows proves the system pays for itself.
 
@@ -75,16 +77,16 @@ Both techniques are honest. They show real chain enforcement without fabricating
 
 ## Beats
 
-### Beat 1 — Pain (0:00–0:18)
+### Beat 1 — Pain (0:00–0:22)
 
-**Duration:** 18 seconds
+**Duration:** 22 seconds (extended — slower delivery accepted, 2026-03-29)
 
 **Spoken narration:**
-> "Nine gates link five systems on your EVE Frontier. Last night, two went offline. Nobody told you. Your pilots rerouted through hostile territory. Hostiles caught them hauling fuel."
+> "Ten gates link five systems on your EVE Frontier. Last night, two went offline. Nobody told you. Your pilots rerouted through hostile territory. Hostiles caught them hauling fuel."
 
 *[Screen: black background. White text fades in, one line at a time, matching narration cadence. No terminal. No UI. Just the words.]*
 
-> "Configuring one gate takes thirteen commands. You have nine gates."
+> "Every rule, every gate — a manual transaction. You have ten gates."
 
 *[Beat. Text: "No visibility. No alerts. No control."]*
 
@@ -92,11 +94,15 @@ Both techniques are honest. They show real chain enforcement without fabricating
 
 **Evidence:** None. This is the "before."
 
-**Purpose:** Visceral, specific pain. Not abstract ("20 commands") — personal ("your pilots died"). The viewer must feel the gap before seeing the solution.
+**Purpose:** Visceral, specific pain. Not abstract — personal ("your pilots died"). The viewer must feel the gap before seeing the solution.
+
+**Visual direction (locked):** Text-on-black only. No UI, no terminal, no props. White text fades in one line at a time, synchronized to narration cadence. Brief pause (500ms) before the final "You have ten gates" to let viewer absorb the multiplication. 2560×1440 with generous letter-spacing for cinematic weight. The hard cut to Beat 2 should have zero transition — black frame, then Command Overview.
+
+> **Command-count audit (2026-03-29):** The prior "thirteen commands" claim originated from `gate-lifecycle-runbook.md`, which documents 13 top-level steps for the *full lifecycle from world-package publish to first jump*. However, steps 1–5 are one-time world/admin setup that a tribe leader never performs — those are CCP/world-operator responsibilities. The per-gate policy configuration burden (what CC replaces) is 4–6 CLI transactions: authorize extension, set commercial preset, set defense preset, set treasury, plus verification reads. The specific number was replaced with a structural pain claim — "every rule, every gate — a manual transaction" — which is unchallengeable and emphasizes the per-gate repetition without a number that could be contested. See decision log 2026-03-29.
 
 ---
 
-### Beat 2 — Power Reveal (0:18–0:38)
+### Beat 2 — Power Reveal (0:22–0:42)
 
 **Duration:** 20 seconds
 
@@ -117,6 +123,16 @@ Both techniques are honest. They show real chain enforcement without fabricating
 
 **Purpose:** Emotional pivot. Black despair → calm authority. The operator's frontier is under command. This is not a tool reveal — it is a power reveal.
 
+**Capture note (2026-03-29):** Map camera angle and lock persist via localStorage (validated). Frame the topology once during setup; all subsequent captures reuse the same angle. The map lock button ("lock" label, top-right of map panel) freezes all orbit/zoom/pan. Posture should read "Commercial" at this point. Structure counts visible: "10 Gates / 10 Governed / 2 Posts / 6 Nodes."
+
+**Visual direction (locked):**
+- **Shot 1 (0:18–0:20):** "CivilizationControl." Hard cut from black to Command Overview. No transition effect — the cut IS the effect. Full viewport, fully loaded.
+- **Shot 2 (0:20–0:22):** Hold. 2 seconds of silence. Let the interface breathe. No narration.
+- **Shot 3 (0:22–0:32):** "Every structure you own…" Hold on the full Command Overview. Structure counts (top), metric cards, topology map, Signal Feed all visible at native resolution. No camera movement — let the viewer read the interface.
+- **Shot 4 (0:32–0:38):** "Status, policy, revenue — one view." Continue hold. The Command Overview earns the line — everything it claims is already visible.
+- **Emphasis:** No zoom, no crop, no dim, no pan. The hard cut from black is the only dramatic device. The Command Overview fills the screen at native resolution. Let it carry the moment.
+- **Silence window:** 2 seconds after "CivilizationControl" (0:20–0:22).
+
 **Three-Second Check:**
 - What am I governing? Policies visible ✓
 - What is under my authority? Structure registry ✓
@@ -125,37 +141,61 @@ Both techniques are honest. They show real chain enforcement without fabricating
 
 ---
 
-### Beat 3 — Policy (0:38–1:04)
+### Beat 3 — Policy (0:42–1:08)
 
 **Duration:** 26 seconds
 
 **Spoken narration:**
-> "You decide who crosses and what they pay."
+> "You decide who crosses — and what each tribe pays."
 
-*[Click into a gate. Policy panel opens. Two rule types: Tribe Filter and Toll.]*
+*[Click into a gate. Gate Directive panel opens. Commercial tab active. Three named tribes visible with differentiated toll rates: Static Conclave at 1,000 Lux, Wartime Republic at 25,000 Lux, Peaceful Trade Empire at 5,000 Lux. Default rate for all others: 10,000 Lux.]*
 
-> "Tribe filter: only your allies. Toll: five EVE per jump."
+*[Hold 3 seconds. Let the viewer read the tiered pricing table.]*
 
-*[Operator authors a policy preset — selects tribe entries, sets toll. Applies preset to all gates in one batch.]*
+> "Allies at a thousand. Rivals at twenty-five thousand. Everyone else — the default."
 
-> "One preset. Applied to all gates. One transaction."
+*[Operator clicks "Apply to All Gates (9)." Wallet popup appears briefly (separate window). Transaction confirms.]*
 
-*[Signal Feed: PolicyPresetSetEvent entries appear for each gate.]*
+> "One directive. Applied across the network."
 
-**On-screen:** Gate detail → policy preset editor → batch apply → Signal Feed confirmation.
+*[Signal Feed: PolicyPresetSetEvent entries cascade — one per gate.]*
+
+**On-screen:** Gate detail → Gate Directive panel (Commercial tab) → tiered tribe pricing table → "Apply to All Gates (9)" → Signal Feed cascade.
+
+**Exact operator action sequence:**
+1. Navigate to gate detail (click gate name or topology node)
+2. Gate Directive section is immediately visible — no extra navigation
+3. Commercial tab is active by default — tiered pricing already configured
+4. Camera/viewer reads the existing tribe entries for 3 seconds
+5. Click "Apply to All Gates (9)" button in "Deploy to Other Gates" section
+6. Wallet popup appears (separate OS window — does not contaminate viewport)
+7. Approve transaction
+8. Signal Feed shows PolicyPresetSetEvent cascade
+
+**Visual direction (locked):**
+- **Shot 1 (0:38–0:42):** Gate Directive panel, Commercial tab. Hold on the tribe pricing table. No narration yet — let the visual register. 3-second silence window.
+- **Shot 2 (0:42–0:49):** Hold on tribe table. Narrate: "Allies at a thousand. Rivals at twenty-five thousand. Everyone else — the default." Each amount should be visually readable as narrator speaks it.
+- **Shot 3 (0:49–0:54):** Hold widens to include "Apply to All Gates (9)" button. Operator clicks. Wallet popup is ignored (separate window).
+- **Shot 4 (0:54–1:00):** Cut to Signal Feed. PolicyPresetSetEvent entries cascade in — one per gate. Hold 2 seconds on the cascade. Narrate: "One directive. Applied across the network."
+- **Shot 5 (1:00–1:04):** Brief hold on full gate detail showing confirmed directive. Transition to Beat 4.
+- **Emphasis:** Static holds. No zoom, no dim, no crop. The tribe pricing table and the batch-apply button are intrinsically readable. The Signal Feed cascade is the only motion.
+- **Silence window:** 3 seconds (0:38–0:41) before first narration line. Let the policy table speak for itself.
 
 **Evidence overlay (post-production):**
 - Tx digest of batch preset deployment (single PTB, N gates)
 - Signal Feed showing PolicyPresetSetEvent for each gate
-- Batch apply button with gate count
+- "Apply to All Gates (9)" button visible with gate count
+- Toll rate spread visible: 1,000 / 5,000 / 25,000 / 10,000 Lux
 
-**Purpose:** Core value — governance through interface, not CLI. Two clicks replace manual CLI configuration. No jargon about typed witnesses or dynamic fields.
+**Purpose:** Core governance claim — the operator sets *differentiated commercial policy per tribe*. This is not binary allow/deny. This is tiered economic governance: trusted traffic moves cheap, rivals pay premium, unknowns pay the default. The UI proves the operator has granular control AND can deploy network-wide in one action. The batch apply across 9 other gates is the conversion moment: manual per-gate CLI → one click.
 
-**Scope note (2026-03-18):** Freeze and Subscription Pass are intentionally excluded from the live demo. Freeze is irreversible and permanently breaks posture switching on turrets (see `extension-freeze-safety-guide.md`). Subscription Pass is not implemented. The on-chain freeze capability exists and can be referenced in narration if desired, but must not be executed during recording.
+**Why tiered pricing is the stronger claim (2026-03-29):** The previous narration ("Tribe filter: only your allies. Toll: one thousand Lux per jump.") described binary access with a flat toll. The actual UI — confirmed by operator screenshot — demonstrates tiered commercial pricing with four distinct rates. This is a fundamentally stronger governance claim: the operator doesn't just allow or block — they set economic policy at tribal granularity. The screenshot showing Static Conclave (1,000 Lux), Wartime Republic (25,000 Lux), Peaceful Trade Empire (5,000 Lux), and default (10,000 Lux) is canonical evidence.
+
+**Scope note (2026-03-18):** Freeze and Subscription Pass are intentionally excluded from the live demo. Freeze is irreversible and permanently breaks posture switching on turrets (see `extension-freeze-safety-guide.md`). Subscription Pass is not implemented.
 
 ---
 
-### Beat 4 — Denial (1:04–1:22)
+### Beat 4 — Denial (1:08–1:26)
 
 **Duration:** 18 seconds
 
@@ -166,7 +206,7 @@ Both techniques are honest. They show real chain enforcement without fabricating
 
 *[Brief inset (post-prod): hostile wallet view. The transaction fails. MoveAbort. Red error.]*
 
-> "The chain enforces it. The transaction aborts. No override. No appeal."
+> "Denied. The chain enforced it. No override. No appeal."
 
 *[Return to CC. Gate detail unchanged. The operator's infrastructure never noticed — the chain handled it silently.]*
 
@@ -182,18 +222,25 @@ Both techniques are honest. They show real chain enforcement without fabricating
 
 **Purpose:** First consequence. Policy → enforcement. The operator set it; the chain enforced it. The hostile's failure is shown from *their* perspective — because the operator's dashboard has no reason to know. That's the point.
 
+**Visual direction (locked):**
+- **Shot 1 (1:04–1:08):** CC gate detail on screen. Active tribe filter/toll table visible. This is the same gate from Beat 3 — the viewer recognizes the policy they just watched deploy.
+- **Shot 2 (1:08–1:12):** Inset (post-prod): hostile wallet view. Small inset rectangle in lower-right (~30% of viewport). The hostile's transaction fails. MoveAbort error visible. 4-second hold.
+- **Shot 3 (1:12–1:18):** Return to full CC viewport. Gate detail unchanged. No Signal Feed entry. Narrate: "No override. No appeal."
+- **Emphasis:** The inset is the only embellishment. Keep it small and brief. The power of this beat is the ABSENCE of change in the operator's dashboard — the chain enforced the policy silently.
+- **Silence window:** None. Narration carries this beat.
+
 **Framing note (2026-03-18):** The hostile denied path produces NO on-chain events — `assert!` in `request_jump_permit` causes a MoveAbort that reverts everything, including any events that might have been emitted earlier in the transaction. The only evidence of denial is the failed transaction response in the hostile's own wallet. The operator's Signal Feed cannot observe other wallets' failed transactions. Evidence for this beat must be pre-captured from a hostile wallet and shown as a post-production overlay, or narrated honestly as "the hostile's transaction fails — the chain rejected it." Do not script the Signal Feed showing a denied entry — it will not happen live.
 
 ---
 
-### Beat 5 — Revenue (1:22–1:40)
+### Beat 5 — Revenue (1:26–1:44)
 
 **Duration:** 18 seconds
 
 **Spoken narration:**
-> "An ally — right tribe — jumps through. Five EVE collected."
+> "An ally jumps through. A thousand Lux — the rate you set."
 
-*[Signal Feed: new entry, green badge. "Jump completed. Toll: 5 EVE. Gate North-3."]*
+*[Signal Feed: new entry, green badge. "Transit Authorized. Toll: 1,000 Lux."]*
 
 > "Revenue to the operator."
 
@@ -207,9 +254,19 @@ Both techniques are honest. They show real chain enforcement without fabricating
 - Tx digest of tolled jump
 - `TollCollectedEvent` (CC extension event)
 - `JumpEvent` (world-contracts event)
-- Balance delta: operator +5 EVE
+- Balance delta: operator +1,000 Lux (10 EVE)
 
-**Purpose:** Same policy, opposite outcome. The gate discriminates and generates revenue. "The gate pays for itself" — six words that reframe infrastructure as an asset, not a cost.
+**Purpose:** Same policy, opposite outcome. The gate discriminates and generates revenue. "A thousand Lux — the rate you set" ties directly back to Beat 3's tiered pricing. "The gate pays for itself" — six words that reframe infrastructure as an asset, not a cost.
+
+**Visual direction (locked):**
+- **Shot 1 (1:22–1:28):** Signal Feed receives new entry: "Transit Authorized" (green badge). Narrate: "An ally jumps through. A thousand Lux — the rate you set."
+- **Shot 2 (1:28–1:32):** Hold on Signal Feed entry. Hover over tx digest link — DigestHoverLink proof card appears showing tx details (status, type, gas, timestamp). Hold 2 seconds on the proof card. This shows depth without narrating it.
+- **Shot 3 (1:32–1:36):** "Revenue to the operator." Brief zoom (1.2×) on hero metric card ("Gross Network Yield") as Lux value increments.
+- **Shot 4 (1:36–1:40):** "The gate pays for itself." Pull back to show full metric row. Hold.
+- **Emphasis:** Hover proof card on the tx digest is the key visual innovation. Brief zoom on revenue metric card as it increments. Keep both subtle.
+- **Silence window:** None.
+
+> **Currency note (2026-03-29):** The UI displays Lux-first with EVE in brackets (e.g., "1,000 Lux"). Narration matches: "one thousand Lux collected." Do not use EVE-first phrasing. The Signal Feed already shows "1,000 Lux" in toll entries and "Transit Authorized" as the event label.
 
 **Precondition note (updated 2026-03-18):** `jump_with_permit` (actual jump execution) requires AdminACL sponsor co-signature. However, `request_jump_permit` (permit issuance + toll collection) is **now callable from the operator dashboard** via the Transit Proof section on any gate detail screen with a linked destination and authorized extension. This fires `PermitIssuedEvent` and `TollCollectedEvent` live in the Signal Feed, making this beat partially self-demonstrable. The operator generates a real toll-paid permit on their own gate — the distinction is that the character doesn't physically jump (that still requires AdminACL), but the revenue event and tribe check are real and on-chain.
 
@@ -217,7 +274,7 @@ Both techniques are honest. They show real chain enforcement without fabricating
 
 ---
 
-### Beat 6 — Defense Mode (1:40–2:10)
+### Beat 6 — Defense Mode (1:44–2:14)
 
 **Duration:** 30 seconds. This is the climax. Give it room.
 
@@ -226,7 +283,7 @@ Both techniques are honest. They show real chain enforcement without fabricating
 *[Hard cut to Command Overview. PostureControl clearly visible.]*
 
 **Spoken narration:**
-> "Threat conditions change. One decision."
+> "Threat inbound."
 
 *[Pause. 1 second.]*
 
@@ -236,11 +293,11 @@ Both techniques are honest. They show real chain enforcement without fabricating
 
 *[PostureControl shows "Executing…" — topology holds current teal colors (no premature change).]*
 
-*[Tx confirms. PostureControl shows "Confirming…" briefly. Then, over ~800ms, turret glyphs shift teal → amber. NWN nodes shift teal → amber. Defense overlay fades in across the topology canvas. Posture indicator transitions from "Commercial" to "Defensive."]*
+*[Tx confirms. PostureControl shows "Confirming…" briefly. Then, over ~1.6s, turret glyphs shift teal → amber. NWN nodes shift teal → amber. Defense overlay fades in across the topology canvas. Posture indicator transitions from "Commercial" to "Defensive."]*
 
 *[Hold 2 seconds. Let the confirmed state change settle visually.]*
 
-> "Turrets re-armed. Posture switched. One transaction."
+> "Gates locked. Turrets armed. One transaction."
 
 *[Signal Feed: PostureChangedEvent appears.]*
 
@@ -248,7 +305,7 @@ Both techniques are honest. They show real chain enforcement without fabricating
 
 *[Cut to world footage: outsider enters turret range. Turret engages. The doctrine the operator just deployed is enforced on the frontier — not in the dashboard, but in the world itself.]*
 
-**On-screen:** The full Command Overview transforming — posture indicator, gate colors, turret states, Signal Feed. The transition is animated (~800ms) and tied to confirmed chain state — colors change only after the on-chain posture re-read completes, not on button click.
+**On-screen:** The full Command Overview transforming — posture indicator, gate colors, turret states, Signal Feed. The transition is animated (~1.6s) and tied to confirmed chain state — colors change only after the on-chain posture re-read completes, not on button click.
 
 **Evidence overlay (post-production):**
 - **Single tx digest** containing all posture changes (single PTB)
@@ -265,11 +322,26 @@ Both techniques are honest. They show real chain enforcement without fabricating
 
 **Technical reality (implemented v3):** Single PTB contains: `set_posture` + N × (`borrow_owner_cap<Turret>` → `authorize_extension<CommercialAuth|DefenseAuth>` → `return_owner_cap`). Unified `turret.move` dispatches by reading stored TypeName. Old `turret_bouncer.move` / `turret_defense.move` are legacy (never called by the game engine). ExtensionAuthorizedEvent (world module) persists on posture switch.
 
+**Capture validation (2026-03-29):** A real Commercial → Defensive posture switch was executed and validated on-chain. Signal Feed showed "Network Posture Set: Defense posture applied." Wallet popup appeared as a separate window (does NOT contaminate viewport recording). The topology cascade and posture indicator transition were visible in the app viewport. For recording: capture the live switch — it produces compelling footage without requiring post-production simulation.
+
+**Visual direction (locked):**
+- **Shot 1 (1:40–1:44):** Brief world footage (if available): unaffiliated vessel near gate perimeter. Tension cue. 4 seconds max.
+- **Shot 2 (1:44–1:46):** Hard cut to Command Overview. PostureControl clearly visible. Narrate: "Threat inbound."
+- **Shot 3 (1:46–1:48):** Pause 1 second. Narrate: "One click." Operator clicks "Defensive" button.
+- **Shot 4 (1:48–1:52):** PostureControl shows "Executing…" → "Confirming…". Topology holds current teal colors (no premature change). Wallet popup appears in separate window — ignored. 4-second hold on the transition.
+- **Shot 5 (1:52–1:54):** Tx confirms. Over ~1.6s, turret glyphs shift teal → amber. NWN nodes shift teal → amber. Defense overlay fades in across topology canvas. Posture indicator transitions to "Defensive." **DO NOT CUT during this transition. Let the color propagation complete.**
+- **Shot 6 (1:54–1:56):** Hold 2 seconds on confirmed amber state. No narration. The visual IS the proof.
+- **Shot 7 (1:56–2:00):** Narrate: "Gates locked. Turrets armed. One transaction." Signal Feed: PostureChangedEvent appears.
+- **Shot 8 (2:00–2:04):** Hold 2 seconds on transformed Command Overview.
+- **Shot 9 (2:04–2:10):** If available: cut to world footage — outsider enters turret range, turret engages. The doctrine deployed in the dashboard is enforced in the world.
+- **Emphasis:** The teal→amber topology cascade is the visual climax of the entire demo. No additional effects. No zoom. No dim. Let the color transition fill the viewport and breathe.
+- **Silence windows:** 2 seconds after posture confirms (Shot 6). 2 seconds on transformed state (Shot 8).
+
 **Preconditions:** ≥1 turret anchored + online with CommercialAuth extension configured (commercial posture). Gates in "Open for Business" (tribe+toll). OwnerCap<Turret> accessible via character borrow. **Turrets must be rebound after upgrade** — the Turret List shows an amber "Turret Doctrine Rebind Required" banner with "Rebind Doctrine" button. Old extensions show "STALE — REBIND". After rebinding, turrets show "CC ACTIVE".
 
 ---
 
-### Beat 7 — Commerce (2:10–2:32)
+### Beat 7 — Commerce (2:14–2:36)
 
 **Duration:** 22 seconds
 
@@ -277,27 +349,37 @@ Both techniques are honest. They show real chain enforcement without fabricating
 
 *[Cut to Trade Post view. Storefront: Eupraxite, fuel, repair paste. Prices listed.]*
 
-> "A trade post on the far side of the gate. A thousand Eupraxite. Ten EVE."
+> "A trade post on the far side of the network. A thousand Eupraxite. One hundred thousand Lux."
 
 *[Buyer clicks. Transaction confirms: "Trade settled. Eupraxite acquired."]*
 
 > "Payment to the seller. Item to the buyer. One transaction."
 
-*[Signal Feed: "Trade settled. 1,000 Eupraxite. 100 EVE." Revenue counter ticks up again.]*
+*[Signal Feed: "Trade Settled. 1,000 Eupraxite. 100,000 Lux." Revenue counter ticks up again.]*
 
 **On-screen:** Trade Post storefront → Buy → confirmation → Signal Feed + revenue update.
 
 **Evidence overlay (post-production):**
 - Tx digest of buy
 - `ListingPurchasedEvent` (CC extension event)
-- Balance deltas: buyer −10 EVE, seller +10 EVE
+- Balance deltas: buyer −100,000 Lux (1,000 EVE), seller +100,000 Lux (1,000 EVE)
 - Listing state: `is_active: true → false`
 
 **Purpose:** Close the economic loop. Gate toll drove traffic. Commerce captured demand. The operator profits from both sides. Infrastructure → governance → revenue.
 
+**Visual direction (locked):**
+- **Shot 1 (2:10–2:16):** Cut to Trade Post detail/storefront. Listing visible: Eupraxite with price (100,000 Lux) and quantity (1,000). Clean framing on the listing card.
+- **Shot 2 (2:16–2:22):** Narrate amounts. Buyer clicks "Buy." Wallet popup (separate window, ignored). Transaction confirms. Signal Feed: "Trade Settled."
+- **Shot 3 (2:22–2:28):** "Payment to the seller. Item to the buyer. One transaction." Revenue counter ticks up. Hold on Signal Feed showing trade settlement event.
+- **Shot 4 (2:28–2:32):** Brief hold on trade post showing updated listing state. Transition to Beat 8.
+- **Emphasis:** None. Clean and subordinate. Commerce is a supporting beat — Defense Mode (Beat 6) is the climax. Don't over-produce this beat.
+- **Silence window:** None.
+
+> **Commerce amount note (2026-03-29):** Prior draft used "One thousand Lux" (= 10 EVE) which read as implausibly low for a cargo of Eupraxite. Operator feedback: 100,000 Lux (= 1,000 EVE) is a more credible trade amount. Larger Lux numbers also make the economic counters and revenue framing feel more substantial.
+
 ---
 
-### Beat 8 — Command (2:32–2:47)
+### Beat 8 — Command (2:36–2:51)
 
 **Duration:** 15 seconds
 
@@ -317,9 +399,15 @@ Both techniques are honest. They show real chain enforcement without fabricating
 - Structure count + status summary
 - Signal Feed showing mixed events (policy, toll, trade, posture)
 
+**Visual direction (locked):**
+- **Shot 1 (2:32–2:40):** Pull back to full Command Overview. All four metric cards visible. Revenue shows combined toll + trade. Posture indicator: Defensive. Signal Feed scrolling with mixed event types. Topology: amber defense posture state.
+- **Shot 2 (2:40–2:47):** "Your infrastructure. Under your command." Slow deceleration. Hold on the full system view. No zoom, no crop — the wide shot is the proof. This is the most important static hold in the demo.
+- **Emphasis:** None. Clean wide shot. The accumulated state of the Command Overview — defense posture, active structures, revenue, mixed Signal Feed — IS the proof. Any visual effect would diminish the authority.
+- **Silence window:** None, but the final line should be delivered with visible deceleration.
+
 ---
 
-### Beat 9 — Close (2:47–3:00)
+### Beat 9 — Close (2:51–3:04)
 
 **Duration:** 13 seconds
 
@@ -331,22 +419,26 @@ Both techniques are honest. They show real chain enforcement without fabricating
 
 **On-screen:** Name only. Clean. Final.
 
+**Visual direction (locked):** Title card fades in over the Command Overview. No animation, no effects. Hold 13 seconds. The demo defined what it is — the title card confirms it.
+
 ---
 
 ## Timing Summary
 
 | Beat | Name | Start | End | Duration |
 |---|---|---|---|---|
-| 1 | Pain | 0:00 | 0:18 | 18s |
-| 2 | Power Reveal | 0:18 | 0:38 | 20s |
-| 3 | Policy | 0:38 | 1:04 | 26s |
-| 4 | Denial (narrated) | 1:04 | 1:22 | 18s |
-| 5 | Revenue | 1:22 | 1:40 | 18s |
-| 6 | Defense Mode | 1:40 | 2:10 | 30s |
-| 7 | Commerce | 2:10 | 2:32 | 22s |
-| 8 | Command | 2:32 | 2:47 | 15s |
-| 9 | Close | 2:47 | 3:00 | 13s |
-| **Total** | | | | **3:00** |
+| 1 | Pain | 0:00 | 0:22 | 22s |
+| 2 | Power Reveal | 0:22 | 0:42 | 20s |
+| 3 | Policy | 0:42 | 1:08 | 26s |
+| 4 | Denial (narrated) | 1:08 | 1:26 | 18s |
+| 5 | Revenue | 1:26 | 1:44 | 18s |
+| 6 | Defense Mode | 1:44 | 2:14 | 30s |
+| 7 | Commerce | 2:14 | 2:36 | 22s |
+| 8 | Command | 2:36 | 2:51 | 15s |
+| 9 | Close | 2:51 | 3:04 | 13s |
+| **Total** | | | | **3:04** |
+
+> **Timing shift note (2026-03-29):** Beat 1 extended from 18s to 22s (slower delivery accepted). All downstream beats shifted +4s. Shot-level timestamps within each beat's visual direction still show pre-shift values — add 4 seconds to any absolute timestamp in Beats 2–9. Total 3:04 remains under the 3:05 ceiling.
 
 ---
 
@@ -406,7 +498,10 @@ Complete every item before pressing record. Incomplete items = retake risk.
 | 19 | Beat 1 text-on-black assets prepared | ☐ |
 | 20 | Post-production overlay templates ready (digest badge, balance delta, event) | ☐ |
 | 21 | Narration script printed / teleprompter ready | ☐ |
-| 22 | Screen resolution set (1920×1080 recommended for video) | ☐ |
+| 22 | Screen resolution set to **2560×1440** (validated pipeline resolution) | ☐ |
+| 23 | Stable profile directory set up with solar systems + map lock + starfield configured | ☐ |
+| 24 | Map camera framed and locked (persists via localStorage — one-time) | ☐ |
+| 25 | Wallet popup capture strategy confirmed (viewport-only = no contamination) | ☐ |
 
 ---
 

@@ -19,19 +19,8 @@ import { shortId } from "@/lib/formatAddress";
 
 type Stage = "init" | "resolve" | "wallet" | "loading" | "ready" | "error";
 
-function stageLabel(s: Stage): string {
-  switch (s) {
-    case "init": return "Initializing…";
-    case "resolve": return "Resolving gate context…";
-    case "wallet": return "Connecting wallet…";
-    case "loading": return "Loading gate data…";
-    case "ready": return "Ready";
-    case "error": return "Error";
-  }
-}
-
 export function GatePermitPage() {
-  const { gateId, source, error: resolveError } = useResolveGateId();
+  const { gateId, error: resolveError } = useResolveGateId();
   const { isConnected, walletAddress } = useConnection();
   const { connectError } = useAutoConnect();
 
@@ -65,50 +54,45 @@ export function GatePermitPage() {
 
   if (stage === "error") {
     return (
-      <PageShell stage={stage}>
+      <PageShell>
         <p className="text-destructive text-sm">{stageError}</p>
-        <StageDebug stage={stage} gateId={gateId} source={source} />
       </PageShell>
     );
   }
 
   if (!gateId) {
     return (
-      <PageShell stage={stage}>
+      <PageShell>
         <p className="text-muted-foreground text-sm">
           No gate context found. This page expects either a gate ID in the URL
           or in-game query parameters (?itemId=&amp;tenant=).
         </p>
-        <StageDebug stage={stage} gateId={gateId} source={source} />
       </PageShell>
     );
   }
 
   if (!isConnected) {
     return (
-      <PageShell stage={stage}>
+      <PageShell>
         <p className="text-muted-foreground text-sm">Connecting wallet…</p>
-        <StageDebug stage={stage} gateId={gateId} source={source} />
       </PageShell>
     );
   }
 
   if (isLoading) {
     return (
-      <PageShell stage={stage}>
+      <PageShell>
         <p className="text-muted-foreground text-sm">Loading gate data…</p>
-        <StageDebug stage={stage} gateId={gateId} source={source} />
       </PageShell>
     );
   }
 
   if (!gate) {
     return (
-      <PageShell stage={stage}>
+      <PageShell>
         <p className="text-destructive text-sm">
           Failed to load gate data. Verify the gate ID is correct.
         </p>
-        <StageDebug stage={stage} gateId={gateId} source={source} />
       </PageShell>
     );
   }
@@ -118,7 +102,7 @@ export function GatePermitPage() {
   const canRequest = gate.accessAllowed && !noCharacter && !noLinkedGate;
 
   return (
-    <PageShell stage={stage}>
+    <PageShell>
       {/* Gate identity */}
       <div className="border-b border-border/50 pb-4">
         <h1 className="text-lg font-bold tracking-tight text-foreground">
@@ -214,45 +198,18 @@ export function GatePermitPage() {
         </>
       )}
 
-      <StageDebug stage={stage} gateId={gateId} source={source} />
     </PageShell>
   );
 }
 
 // ─── Sub-components ──────────────────────────────────────
 
-function PageShell({ children, stage }: { children: React.ReactNode; stage?: Stage }) {
+function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="dark min-h-screen bg-background text-foreground flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-5 rounded-lg border border-border/50 bg-secondary/30 p-6">
-        {stage && (
-          <div className="text-[10px] font-mono text-muted-foreground/60 border-b border-border/30 pb-2">
-            Stage: {stageLabel(stage)}
-          </div>
-        )}
         {children}
       </div>
-    </div>
-  );
-}
-
-function StageDebug({
-  stage,
-  gateId,
-  source,
-}: {
-  stage: Stage;
-  gateId: string | undefined;
-  source: string;
-}) {
-  return (
-    <div className="border-t border-border/30 pt-2 mt-2 space-y-0.5">
-      <p className="text-[9px] font-mono text-muted-foreground/40">
-        stage={stage} source={source} gate={gateId ? shortId(gateId) : "none"}
-      </p>
-      <p className="text-[9px] font-mono text-muted-foreground/40">
-        url={typeof window !== "undefined" ? window.location.href : "ssr"}
-      </p>
     </div>
   );
 }

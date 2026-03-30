@@ -15,27 +15,26 @@ import { useBuyListing } from "@/hooks/useBuyListing";
 import { ListingCard } from "@/components/ListingCard";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { shortId } from "@/lib/formatAddress";
+import { useQuery } from "@tanstack/react-query";
+import { fetchPlayerProfile } from "@/lib/suiReader";
+import { resolveTribeName } from "@/lib/tribeCatalog";
 
 type Stage = "init" | "resolve" | "wallet" | "loading" | "ready" | "error";
 
-function stageLabel(s: Stage): string {
-  switch (s) {
-    case "init": return "Initializing…";
-    case "resolve": return "Resolving SSU context…";
-    case "wallet": return "Connecting wallet…";
-    case "loading": return "Loading marketplace…";
-    case "ready": return "Ready";
-    case "error": return "Error";
-  }
-}
-
 export function SsuMarketplacePage() {
-  const { ssuId, source, error: resolveError } = useResolveSsuId();
+  const { ssuId, error: resolveError } = useResolveSsuId();
   const { isConnected, walletAddress } = useConnection();
   const { connectError } = useAutoConnect();
 
   const { listings, isLoading: listingsLoading } = useListings(ssuId);
   const buyMutation = useBuyListing(ssuId ?? "");
+
+  const { data: profile } = useQuery({
+    queryKey: ["playerProfile", walletAddress],
+    queryFn: () => fetchPlayerProfile(walletAddress!),
+    enabled: !!walletAddress,
+    staleTime: 60_000,
+  });
 
   let stage: Stage = "init";
   let stageError: string | null = null;
@@ -58,36 +57,33 @@ export function SsuMarketplacePage() {
 
   if (stage === "error") {
     return (
-      <PageShell stage={stage}>
+      <PageShell>
         <p className="text-destructive text-sm">{stageError}</p>
-        <StageDebug stage={stage} ssuId={ssuId} source={source} />
       </PageShell>
     );
   }
 
   if (!ssuId) {
     return (
-      <PageShell stage={stage}>
+      <PageShell>
         <p className="text-muted-foreground text-sm">
           No SSU context found. This page expects either an SSU ID in the URL
           or in-game query parameters (?itemId=&amp;tenant=).
         </p>
-        <StageDebug stage={stage} ssuId={ssuId} source={source} />
       </PageShell>
     );
   }
 
   if (!isConnected) {
     return (
-      <PageShell stage={stage}>
+      <PageShell>
         <p className="text-muted-foreground text-sm">Connecting wallet…</p>
-        <StageDebug stage={stage} ssuId={ssuId} source={source} />
       </PageShell>
     );
   }
 
   return (
-    <PageShell stage={stage}>
+    <PageShell>
       {/* SSU identity */}
       <div className="border-b border-border/50 pb-4">
         <h1 className="text-lg font-bold tracking-tight text-foreground">
@@ -101,9 +97,18 @@ export function SsuMarketplacePage() {
       {/* Pilot identity */}
       <div className="space-y-1">
         <Label>Pilot</Label>
-        <p className="text-sm text-foreground">
-          {shortId(walletAddress ?? "")}
-        </p>
+        {profile?.characterName ? (
+          <p className="text-sm text-foreground">
+            {profile.characterName}
+            <span className="text-muted-foreground ml-2 text-xs">
+              {resolveTribeName(profile.tribeId)}
+            </span>
+          </p>
+        ) : (
+          <p className="text-sm text-foreground">
+            {shortId(walletAddress ?? "")}
+          </p>
+        )}
       </div>
 
       {/* Buy feedback */}
@@ -149,46 +154,18 @@ export function SsuMarketplacePage() {
           </div>
         )}
       </div>
-
-      <StageDebug stage={stage} ssuId={ssuId} source={source} />
     </PageShell>
   );
 }
 
 // ─── Sub-components ──────────────────────────────────────
 
-function PageShell({ children, stage }: { children: React.ReactNode; stage?: Stage }) {
+function PageShell({ children }: { children: React.ReactNode }) {
   return (
     <div className="dark min-h-screen bg-background text-foreground flex items-center justify-center p-4">
       <div className="w-full max-w-md space-y-5 rounded-lg border border-border/50 bg-secondary/30 p-6">
-        {stage && (
-          <div className="text-[10px] font-mono text-muted-foreground/60 border-b border-border/30 pb-2">
-            Stage: {stageLabel(stage)}
-          </div>
-        )}
         {children}
       </div>
-    </div>
-  );
-}
-
-function StageDebug({
-  stage,
-  ssuId,
-  source,
-}: {
-  stage: Stage;
-  ssuId: string | undefined;
-  source: string;
-}) {
-  return (
-    <div className="border-t border-border/30 pt-2 mt-2 space-y-0.5">
-      <p className="text-[9px] font-mono text-muted-foreground/40">
-        stage={stage} source={source} ssu={ssuId ? shortId(ssuId) : "none"}
-      </p>
-      <p className="text-[9px] font-mono text-muted-foreground/40">
-        url={typeof window !== "undefined" ? window.location.href : "ssr"}
-      </p>
     </div>
   );
 }

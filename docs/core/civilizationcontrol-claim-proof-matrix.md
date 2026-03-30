@@ -4,9 +4,11 @@
 
 > Evidence ledger mapping every demo claim to its proof artifact.
 > Sources: shortlist-viability-validation-report.md, gate-lifecycle-runbook.md, gatecontrol-feasibility-report.md, tradepost-cross-address-ptb-validation.md, zk-gatepass-feasibility-report.md, civcontrol-independent-audit.md
-> Last updated: 2026-03-24 (OwnerCap model, batch presets, posture/turret, player marketplace)
+> Last updated: 2026-03-29 (Lux-first currency alignment, capture validation, gate count 10)
 
-> **Currency note:** The demo narrative uses **Lux** as the primary player-facing display denomination and **EVE** as the secondary on-chain denomination (e.g., "500 Lux toll · 5 EVE"). Conversion: 100 Lux = 1 EVE. Sandbox validation artifacts in this matrix were captured using **SUI** (the native devnet coin). Submission-grade evidence will use the Lux/EVE denomination on the hackathon test server.
+> **Currency note:** The demo narrative uses **Lux** as the primary player-facing display denomination and **EVE** as the secondary on-chain denomination (e.g., "1,000 Lux toll · 10 EVE"). Conversion: 100 Lux = 1 EVE. Sandbox validation artifacts in this matrix were captured using **SUI** (the native devnet coin). Submission-grade evidence will use the Lux/EVE denomination on the hackathon test server.
+>
+> **Capture note (2026-03-29):** Phase 2 Playwright validation confirmed: headed Chromium + Eve Vault is the viable recording path. Wallet popup opens in a separate OS window and does NOT contaminate the Playwright viewport capture. localStorage persistence (spatial pins, map camera, starfield) survives reload/navigation/relaunch. Per-scene short recordings (<60s) at 2560×1440 are the recommended capture strategy.
 
 ---
 

@@ -5,9 +5,12 @@
  * Buy button for non-seller viewers, cancel button for the listing seller.
  */
 
+import { useQuery } from "@tanstack/react-query";
 import type { Listing, TxStatus } from "@/types/domain";
 import { resolveItemTypeName } from "@/lib/typeCatalog";
 import { formatLux, formatEve } from "@/lib/currency";
+import { fetchPlayerProfile } from "@/lib/suiReader";
+import { resolveTribeName } from "@/lib/tribeCatalog";
 
 interface ListingCardProps {
   listing: Listing;
@@ -32,15 +35,18 @@ export function ListingCard({
     walletAddress != null &&
     listing.seller.toLowerCase() === walletAddress.toLowerCase();
 
+  const { data: sellerProfile } = useQuery({
+    queryKey: ["playerProfile", listing.seller],
+    queryFn: () => fetchPlayerProfile(listing.seller),
+    staleTime: 60_000,
+  });
+
   return (
     <div className="border border-border rounded p-4 space-y-3">
       <div className="grid grid-cols-2 gap-3 text-sm">
         <div>
           <p className="text-[11px] text-muted-foreground mb-0.5">Item</p>
           <p className="text-foreground">{resolveItemTypeName(listing.itemTypeId)}</p>
-          <p className="text-[10px] font-mono text-muted-foreground/50 mt-0.5">
-            #{listing.itemTypeId}
-          </p>
         </div>
         <div>
           <p className="text-[11px] text-muted-foreground mb-0.5">Quantity</p>
@@ -57,8 +63,13 @@ export function ListingCard({
         </div>
         <div>
           <p className="text-[11px] text-muted-foreground mb-0.5">Seller</p>
-          <p className="font-mono text-[11px] text-foreground truncate" title={listing.seller}>
-            {listing.seller.slice(0, 10)}…{listing.seller.slice(-6)}
+          <p className="text-[11px] text-foreground truncate" title={listing.seller}>
+            {sellerProfile?.characterName || `${listing.seller.slice(0, 10)}…${listing.seller.slice(-6)}`}
+            {sellerProfile?.tribeId ? (
+              <span className="text-muted-foreground ml-1.5 text-[10px]">
+                {resolveTribeName(sellerProfile.tribeId)}
+              </span>
+            ) : null}
             {isSeller && (
               <span className="ml-1.5 text-[9px] text-primary/70">(you)</span>
             )}
@@ -67,9 +78,7 @@ export function ListingCard({
       </div>
 
       <div className="flex items-center justify-between pt-1">
-        <p className="text-[10px] font-mono text-muted-foreground/50 truncate" title={listing.objectId}>
-          {listing.objectId.slice(0, 10)}…{listing.objectId.slice(-6)}
-        </p>
+        <div className="flex-1" />
         <div className="flex gap-2">
           {isSeller && onCancel ? (
             <button

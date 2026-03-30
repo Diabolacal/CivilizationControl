@@ -4,7 +4,7 @@
 
 Production narration direction for the CivilizationControl hackathon demo video. Governs vocal delivery, pacing, silence windows, and TTS engine configuration for ElevenLabs Eleven v3.
 
-**Status:** v1.2 — 2026-03-04 (gameplay/currency realism pass)
+**Status:** v1.4 — 2026-03-29 (tiered pricing, command-count audit, commerce amounts, locked visual direction)
 **Canonical source:** [Demo Beat Sheet v2](../core/civilizationcontrol-demo-beat-sheet.md)
 **Voice doctrine:** [Voice & Narrative Guide](../strategy/civilization-control/civilizationcontrol-voice-and-narrative.md)
 **Emotional target:** [Hackathon Emotional Objective](../strategy/civilization-control/civilizationcontrol-hackathon-emotional-objective.md)
@@ -128,15 +128,15 @@ Do not select a specific voice. Select against these profile characteristics:
 
 | Beat | Time | Tone | Pacing | Stability | Style Exag. | Pause Notes |
 |---|---|---|---|---|---|---|
-| **1 — Pain** | 0:00–0:18 | Grave, measured — stating facts about loss, not dramatizing | Slow-measured. Each sentence is a separate weight. | 80 | 10–15 | 300ms between sentences. 500ms before "Configuring one gate takes thirteen commands." |
+| **1 — Pain** | 0:00–0:18 | Grave, measured — stating facts about loss, not dramatizing | Slow-measured. Each sentence is a separate weight. | 80 | 10–15 | 300ms between sentences. 500ms before "Every rule, every gate." |
 | **2 — Power Reveal** | 0:18–0:38 | Calm authority. The solution exists. It is not being introduced — it is being revealed. | Measured, unhurried. Hold after "CivilizationControl." | 80 | 0–5 | 1500ms silence after "CivilizationControl." 300ms between structure types in enumeration. |
-| **3 — Policy** | 0:38–1:00 | Neutral-operational. Describing a governance action. | Slightly clipped — action sequence, not reflection. | 80 | 0–5 | 200ms between "Tribe filter: only Tribe 7" and "Toll: five EVE per jump." 400ms before "One action." |
-| **4 — Denial** | 1:00–1:18 | Cold-precise. The system acted. The narrator reports the outcome. | Measured. "Denied" lands with zero inflection change. | 85 | 0 | 500ms between "Denied." and "The chain enforced it." 300ms before "No override. No appeal." |
-| **5 — Revenue** | 1:18–1:36 | Neutral-factual. Revenue is stated, not celebrated. | Steady. No acceleration when toll is mentioned. | 80 | 0–5 | 200ms after "Five EVE collected." 400ms before "The gate pays for itself." |
-| **6 — Defense Mode** | 1:36–2:06 | Restrained gravity. The climax is the silence, not the voice. | Slow. Deliberate. Each word in the post-silence line is isolated. | 85 | 0 | **See §5 for full Defense Mode timing spec.** Turrets armed, not "online." |
-| **7 — Commerce** | 2:06–2:28 | Neutral-operational. Commerce is subordinate to Defense Mode. | Slightly faster than Beat 6 — returning to operational cadence. | 80 | 0–5 | 200ms between trade description sentences. |
-| **8 — Command** | 2:28–2:43 | Authoritative finality. Closing the arc. | Slow-measured. The final line is the slowest delivery in the demo. | 85 | 0 | 500ms before "Your infrastructure. Under your command." Slight deceleration on "Under your command." |
-| **9 — Close** | 2:43–2:56 | N/A — no narration | N/A | N/A | N/A | Title card hold. Silence. |
+| **3 — Policy** | 0:38–1:04 | Neutral-operational. Describing tiered governance. | Measured. Let the pricing register. Slightly clipped on the final line. | 80 | 0–5 | 3-second silence before first narration (visual leads). 300ms between amount clauses. 400ms before "One directive." |
+| **4 — Denial** | 1:04–1:22 | Cold-precise. The system acted. The narrator reports the outcome. | Measured. "Denied" lands with zero inflection change. | 85 | 0 | 500ms between "Denied." and "The chain enforced it." 300ms before "No override. No appeal." |
+| **5 — Revenue** | 1:22–1:40 | Neutral-factual. Revenue is stated, not celebrated. | Steady. No acceleration when toll is mentioned. | 80 | 0–5 | 200ms after "the rate you set." 400ms before "The gate pays for itself." |
+| **6 — Defense Mode** | 1:40–2:10 | Restrained gravity. The climax is the silence, not the voice. | Slow. Deliberate. Each word in the post-silence line is isolated. | 85 | 0 | **See §5 for full Defense Mode timing spec.** Turrets armed, not "online." |
+| **7 — Commerce** | 2:10–2:32 | Neutral-operational. Commerce is subordinate to Defense Mode. | Slightly faster than Beat 6 — returning to operational cadence. | 80 | 0–5 | 200ms between trade description sentences. |
+| **8 — Command** | 2:32–2:47 | Authoritative finality. Closing the arc. | Slow-measured. The final line is the slowest delivery in the demo. | 85 | 0 | 500ms before "Your infrastructure. Under your command." Slight deceleration on "Under your command." |
+| **9 — Close** | 2:47–3:00 | N/A — no narration | N/A | N/A | N/A | Title card hold. Silence. |
 
 ### Reading the Table
 
@@ -166,23 +166,23 @@ The following script preserves the canonical narration from the Beat Sheet. Anno
 ```
 //NOTE: Speed 0.95. Stability 80. Style exaggeration 10-15.//
 
-Nine gates link five systems on your EVE Frontier…
+Ten gates link five systems on your EVE Frontier…
 Last night, two went offline. Nobody told you.
 Your pilots rerouted through hostile territory.
 Hostiles caught them hauling fuel.
 
 //SILENCE 0.5s//
 
-Configuring one gate takes thirteen commands… You have nine gates.
+Every rule, every gate — a manual transaction. You have ten gates.
 ```
 
 **Delivery notes:**
 - No audio tags. The gravity comes from content, not vocal affect.
-- "Nine gates" lands first — numbers-before-context creates immediate grounding. Ellipsis after "EVE Frontier" creates a natural breath before the bad news.
+- "Ten gates" lands first — numbers-before-context creates immediate grounding. Ellipsis after "EVE Frontier" creates a natural breath before the bad news.
 - "Nobody told you." — Flat statement. No sympathy inflection.
 - "Your pilots rerouted through hostile territory." — Cause stated. Period. The consequence follows as a separate sentence.
 - "Hostiles caught them hauling fuel." — Six words, blunt, past tense. Fait accompli. No vocal dramatization.
-- Ellipsis after "thirteen commands" lets the viewer multiply.
+- "Every rule, every gate — a manual transaction." Em-dash creates a breath. The burden is structural, not numeric. "You have ten gates" is the multiplication hammer — 500ms pause before it lands.
 
 ---
 
@@ -207,26 +207,31 @@ Status, policy, revenue — one view.
 
 ---
 
-### Beat 3 — Policy (0:38–1:00)
+### Beat 3 — Policy (0:38–1:04)
 
 ```
 //NOTE: Speed 0.95. Stability 80. Style exaggeration 0-5.//
 
-You decide who crosses and what they pay.
+You decide who crosses — and what each tribe pays.
 
-Tribe filter — only Tribe Seven. Toll — five EVE per jump.
+//SILENCE 3.0s — visual leads: tiered pricing table on screen//
 
-One action. Two rules. Deployed on-chain.
+Allies at a thousand. Rivals at twenty-five thousand. Everyone else — the default.
+
+One directive. Applied across the network.
 ```
 
 **Delivery notes:**
 - "You decide" — No emphasis on "you." The operator's authority is assumed, not highlighted.
-- Number normalization: "7" written as "Seven" to prevent TTS ambiguity. "5 EVE" written as "five EVE" — v3 handles small numerals well but explicit spelling is safer.
-- "One action. Two rules. Deployed on-chain." — Three separate declarative statements. Period after each. Equal cadence. No acceleration. No emphasis on "on-chain."
+- 3-second silence window before the pricing line. The visual (tiered pricing table) leads. Narration follows.
+- "Allies at a thousand." — Short, clipped. The viewer sees "Static Conclave — 1,000 Lux" on screen.
+- "Rivals at twenty-five thousand." — Same cadence. No emphasis on the high number. Let the contrast speak.
+- "Everyone else — the default." — Em-dash pause. Factory-setting finality.
+- "One directive. Applied across the network." — Two declarative statements. Equal cadence. No emphasis on "network" — the Signal Feed cascade is the proof.
 
 ---
 
-### Beat 4 — Denial (1:00–1:18)
+### Beat 4 — Denial (1:04–1:22)
 
 ```
 //NOTE: Speed 0.92. Stability 85. Style exaggeration 0.//
@@ -246,12 +251,12 @@ Denied. The chain enforced it. No override. No appeal.
 
 ---
 
-### Beat 5 — Revenue (1:18–1:36)
+### Beat 5 — Revenue (1:22–1:40)
 
 ```
 //NOTE: Speed 0.95. Stability 80. Style exaggeration 0-5.//
 
-An ally — right tribe — jumps through. Five EVE collected.
+An ally jumps through. A thousand Lux — the rate you set.
 
 Revenue to the operator.
 
@@ -259,13 +264,14 @@ The gate pays for itself.
 ```
 
 **Delivery notes:**
-- Mirror structure of Beat 4 (ally/hostile, right/wrong tribe) — the narrator treats success and denial identically. Same register, same pacing. The system does not celebrate passage any more than it celebrates denial.
+- Mirror structure of Beat 4 (ally/hostile, success/denial). Same register, same pacing. The system does not celebrate passage any more than it celebrates denial.
+- "A thousand Lux — the rate you set." — Ties directly to Beat 3's tiered pricing. Em-dash creates a breath. "The rate you set" is factual, not celebratory.
 - "Revenue to the operator." — Factual. This is a ledger entry, not an achievement.
 - "The gate pays for itself." — The single most important non-climax line. Deliver at the same measured pace. No vocal emphasis on "pays" or "itself." The insight is in the content. If the narrator emphasizes it, it becomes a sales pitch. If the narrator states it flatly, it becomes an obvious truth.
 
 ---
 
-### Beat 6 — Defense Mode (1:36–2:06)
+### Beat 6 — Defense Mode (1:40–2:10)
 
 > **See §5 for complete Defense Mode timing spec.**
 
@@ -287,25 +293,25 @@ Gates locked. Turrets armed. One transaction.
 
 ---
 
-### Beat 7 — Commerce (2:06–2:28)
+### Beat 7 — Commerce (2:10–2:32)
 
 ```
 //NOTE: Speed 0.95. Stability 80. Style exaggeration 0-5.//
 
-A trade post on the far side of the gate… A thousand Eupraxite. Ten EVE.
+A trade post on the far side of the network… A thousand Eupraxite. One hundred thousand Lux.
 
 Payment to the seller. Item to the buyer. One transaction.
 ```
 
 **Delivery notes:**
-- Ellipsis after "gate" creates a scene-setting pause.
-- "A thousand Eupraxite. Ten EVE." — Clipped. Product and price. No elaboration. "Eupraxite" pronounced "you-PRAX-ite."
+- Ellipsis after "network" creates a scene-setting pause.
+- "A thousand Eupraxite. One hundred thousand Lux." — Clipped. Product and price. No elaboration. "Eupraxite" pronounced "you-PRAX-ite." "One hundred thousand" should be articulated clearly — the large number is intentional (= 1,000 EVE). Lux-first currency — do not substitute EVE.
 - "Payment to the seller. Item to the buyer." — Parallel structure, equal weight. No emphasis on either actor.
 - "One transaction." — Same cadence as Beat 3's "Deployed on-chain" and Beat 6's "One transaction." The repetition is structural, not accidental. The narrator's delivery must be identical each time — the viewer recognizes the pattern subconsciously.
 
 ---
 
-### Beat 8 — Command (2:28–2:43)
+### Beat 8 — Command (2:32–2:47)
 
 ```
 //NOTE: Speed 0.90. Stability 85. Style exaggeration 0.//
@@ -324,7 +330,7 @@ Your infrastructure… Under your command.
 
 ---
 
-### Beat 9 — Close (2:43–2:56)
+### Beat 9 — Close (2:47–3:00)
 
 ```
 //No narration. Title card: "CivilizationControl" — hold 13 seconds.//
@@ -341,7 +347,7 @@ This is the climax. The narrator's restraint here determines whether the moment 
 
 | Time Offset | Duration | Content | Audio State |
 |---|---|---|---|
-| 0:00 (1:36 abs) | ~1.2s | Narrator: "Threat inbound." | Voice only |
+| 0:00 (1:40 abs) | ~1.2s | Narrator: "Threat inbound." | Voice only |
 | 1.2s | 1.0s | **Silence** | Dead silence — no music, no ambient, no narration |
 | 2.2s | ~0.8s | Narrator: "One click." | Voice only |
 | 3.0s | **2.0s** | **Silence — visual dominance window** | Dead silence. Screen shows posture shifting, gates changing color, turrets activating. This is the demo's hammer. |
@@ -440,7 +446,7 @@ Complete before generating any final narration audio.
 | 2 | Stability slider set to 80 (baseline) | ☐ |
 | 3 | Speed set to 0.92 (baseline, adjust per beat) | ☐ |
 | 4 | Style exaggeration set to 0 (baseline, Beat 1 may use 10–15) | ☐ |
-| 5 | All numerals written as words in script ("Seven," "five EVE," "thirteen," "A thousand") | ☐ |
+| 5 | All numerals written as words in script ("ten," "a thousand Lux," "twenty-five thousand," "one hundred thousand") | ☐ |
 | 6 | "CivilizationControl" pronunciation verified — all syllables articulated | ☐ |
 | 7 | "SUI" pronunciation verified — rhymes with "sweet," not "sue-ee" | ☐ |
 | 8 | Test generation: Beat 4 "Denied." — confirm flat delivery, no emotional coloring | ☐ |
