@@ -17,7 +17,7 @@ CivilizationControl makes it usable. It is a Sui Move extension package paired w
 
 The world contracts give you ownership. They don't give you a way to exercise it.
 
-Right now, configuring a Smart Gate's access policy means assembling programmable transactions with the right dynamic fields, package origins, and witness types. Setting up a trade post means understanding cross-address settlement mechanics. Switching your fleet's defensive posture means rebinding turret extensions one at a time.
+Right now, configuring a Smart Gate's access policy means assembling programmable transactions with the right dynamic fields, package origins, and witness types. Setting up a trade post means understanding cross-address settlement mechanics. Switching your network's defensive posture means rebinding turret extensions one at a time.
 
 CivilizationControl replaces all of that with a product surface. The architecture is **publish-once, configure-via-data**: one extension package provides the governance logic, and operators configure rule types through transactions that write structured dynamic fields. No operator writes Move code. The package has been upgraded repeatedly on Utopia using Sui's compatible upgrade policy, without breaking deployed state.
 
@@ -37,7 +37,7 @@ Anyone who owns EVE Frontier infrastructure and wants to govern it without devel
 |--------|-------------|
 | **GateControl** | Author policy presets on Smart Gates: tribe-specific access filters, per-tribe tolls, and default fallback rules. Presets are authored once and batch-deployed across multiple gates. Posture-aware, so commercial and defensive presets swap automatically when you change stance. Enforced on-chain via typed witness extension. Operators can set the in-game DApp URL on-chain from the app, connecting the gate's web surface to its in-world structure. |
 | **TradePost** | SSU-backed storefronts with cross-address atomic buy settlement in `Coin<EVE>`. Buyers purchase directly; items transfer and revenue settles to the seller's treasury in a single programmable transaction block. Works even when the seller is offline. The in-game DApp URL is set on-chain from the app, so buyers reach the storefront directly from the structure in-game. |
-| **Posture System** | Infrastructure-wide defensive stance switching. Two custom turret extensions (commercial targeting, defense targeting) swapped via posture presets. One PTB switches the posture of all connected structures simultaneously. |
+| **Posture System** | Infrastructure-wide defensive stance switching. Two turret doctrines swapped via posture presets: commercial (fire only on aggression) and defensive (target non-tribe pilots by default). One PTB switches the posture of all connected structures simultaneously. |
 | **Direct Power Control** | Per-structure and bulk online/offline for gates, turrets, SSUs, and network nodes. All operations use `OwnerCap`-only auth. |
 | **Strategic Network Map** | SVG topology view of the operator's infrastructure fleet with live power state, extension health, and event overlays. Structure positions are derived from real solar system coordinates, with optional background stars for spatial orientation and operator-lockable layout positioning. |
 | **Signal Feed** | Real-time governance event stream across 13 event types, folded into human-readable digests: posture changes, gate policy enforcement, trade settlement, turret response, power state transitions. Each digest links to its Sui Explorer transaction proof. |
@@ -57,7 +57,7 @@ These capabilities are implemented, deployed, and demonstrated against the Utopi
 - Per-structure and bulk online/offline power control
 - Extension health detection (stale bindings, missing auth)
 - Revenue counter with Lux ↔ EVE normalization
-- Strategic topology map with 54-structure fleet visualization
+- Strategic topology map validated across a live multi-structure network
 - Signal Feed with 13 event types and transaction proof links
 - On-chain in-game DApp URL configuration for gates and trade posts, set from the app with no manual URL editing
 - Sponsored governance transactions via Cloudflare Worker signer (with standard-signing fallback)
