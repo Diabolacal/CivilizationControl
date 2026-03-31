@@ -177,6 +177,8 @@ CivilizationControl/
 | [Claim-Proof Matrix](docs/core/civilizationcontrol-claim-proof-matrix.md) | What's claimed vs. what's proven |
 | [Decision Log](docs/decision-log.md) | Chronological record of design decisions |
 
+Post-hackathon direction: [Where CivilizationControl goes next](docs/strategy/civilization-control/where-civilizationcontrol-goes-next.md)
+
 ---
 
 ## Authority Model

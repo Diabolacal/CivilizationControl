@@ -98,6 +98,7 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 | [strategy/civilization-control/civilizationcontrol-hackathon-emotional-objective.md](strategy/civilization-control/civilizationcontrol-hackathon-emotional-objective.md) | **Emotional design target** — Five-Pillar Lens, 3-Second Check |
 | [strategy/civilization-control/civilizationcontrol-strategy-memo.md](strategy/civilization-control/civilizationcontrol-strategy-memo.md) | Strategic positioning review |
 | [strategy/civilization-control/civilizationcontrol-product-vision.md](strategy/civilization-control/civilizationcontrol-product-vision.md) | Product vision pitch — problem, vision, demo narrative |
+| [strategy/civilization-control/where-civilizationcontrol-goes-next.md](strategy/civilization-control/where-civilizationcontrol-goes-next.md) | Post-hackathon direction — Stillness deployment, platform tracking, future governance surfaces |
 
 ## Analysis
 
