@@ -19,7 +19,7 @@ export interface ResolvedGateId {
   error: string | null;
 }
 
-const DEFAULT_TENANT = "utopia";
+const DEFAULT_TENANT = "stillness";
 
 export function useResolveGateId(): ResolvedGateId {
   const { gateId: paramGateId } = useParams<{ gateId: string }>();

@@ -5,10 +5,6 @@ import {
   WORLD_PACKAGE_ID,
   CC_PACKAGE_ID,
   CC_ORIGINAL_PACKAGE_ID,
-  GATE_ID,
-  GATE_OWNER_CAP_ID,
-  SSU_ID,
-  SSU_OWNER_CAP_ID,
 } from "../constants";
 import { useCharacterId } from "@/hooks/useCharacter";
 import type { TurretSwitchTarget, GateAuthTarget, SsuAuthTarget, PostureMode } from "@/types/domain";
@@ -30,45 +26,6 @@ export function useAuthorizeExtension() {
   const [ssuStatus, setSsuStatus] = useState<AuthStatus>("idle");
   const [ssuResult, setSsuResult] = useState<AuthResult | null>(null);
   const [ssuError, setSsuError] = useState<string | null>(null);
-
-  const authorizeGate = useCallback(async () => {
-    if (!characterId) throw new Error("Character not resolved yet \u2014 please wait");
-    setGateStatus("pending");
-    setGateError(null);
-    try {
-      const tx = new Transaction();
-
-      // 1. Borrow Gate OwnerCap from Character
-      // tx.object() auto-resolves to Receiving when the Move param is Receiving<T>
-      const [ownerCap, receipt] = tx.moveCall({
-        target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
-        typeArguments: [`${WORLD_PACKAGE_ID}::gate::Gate`],
-        arguments: [tx.object(characterId), tx.object(GATE_OWNER_CAP_ID)],
-      });
-
-      // 2. Authorize GateAuth extension on the gate
-      tx.moveCall({
-        target: `${WORLD_PACKAGE_ID}::gate::authorize_extension`,
-        typeArguments: [`${CC_ORIGINAL_PACKAGE_ID}::gate_control::GateAuth`],
-        arguments: [tx.object(GATE_ID), ownerCap],
-      });
-
-      // 3. Return OwnerCap (consume hot-potato receipt)
-      tx.moveCall({
-        target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
-        typeArguments: [`${WORLD_PACKAGE_ID}::gate::Gate`],
-        arguments: [tx.object(characterId), ownerCap, receipt],
-      });
-
-      const { digest } = await executeTx(tx);
-      setGateResult({ digest });
-      setGateStatus("success");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setGateError(message);
-      setGateStatus("error");
-    }
-  }, [executeTx, characterId]);
 
   const authorizeGates = useCallback(
     async (targets: GateAuthTarget[], dappBaseUrl?: string) => {
@@ -124,44 +81,6 @@ export function useAuthorizeExtension() {
     },
     [executeTx, characterId],
   );
-
-  const authorizeSsu = useCallback(async () => {
-    if (!characterId) throw new Error("Character not resolved yet \u2014 please wait");
-    setSsuStatus("pending");
-    setSsuError(null);
-    try {
-      const tx = new Transaction();
-
-      // 1. Borrow SSU OwnerCap from Character
-      const [ownerCap, receipt] = tx.moveCall({
-        target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
-        typeArguments: [`${WORLD_PACKAGE_ID}::storage_unit::StorageUnit`],
-        arguments: [tx.object(characterId), tx.object(SSU_OWNER_CAP_ID)],
-      });
-
-      // 2. Authorize TradeAuth extension on the SSU
-      tx.moveCall({
-        target: `${WORLD_PACKAGE_ID}::storage_unit::authorize_extension`,
-        typeArguments: [`${CC_ORIGINAL_PACKAGE_ID}::trade_post::TradeAuth`],
-        arguments: [tx.object(SSU_ID), ownerCap],
-      });
-
-      // 3. Return OwnerCap (consume hot-potato receipt)
-      tx.moveCall({
-        target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
-        typeArguments: [`${WORLD_PACKAGE_ID}::storage_unit::StorageUnit`],
-        arguments: [tx.object(characterId), ownerCap, receipt],
-      });
-
-      const { digest } = await executeTx(tx);
-      setSsuResult({ digest });
-      setSsuStatus("success");
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err);
-      setSsuError(message);
-      setSsuStatus("error");
-    }
-  }, [executeTx, characterId]);
 
   const authorizeSsus = useCallback(
     async (targets: SsuAuthTarget[], dappBaseUrl?: string) => {
@@ -359,7 +278,6 @@ export function useAuthorizeExtension() {
   );
 
   return {
-    authorizeGate,
     authorizeGates,
     setGateDappUrl,
     gateStatus,
@@ -370,7 +288,6 @@ export function useAuthorizeExtension() {
       setGateResult(null);
       setGateError(null);
     }, []),
-    authorizeSsu,
     authorizeSsus,
     setSsuDappUrl,
     ssuStatus,

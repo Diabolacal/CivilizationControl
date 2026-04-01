@@ -1,6 +1,6 @@
 [package]
 name = "civilization_control"
-edition = "2024.beta"
+edition = "2024"
 
 [dependencies]
 world = { local = "../../vendor/world-contracts/contracts/world" }

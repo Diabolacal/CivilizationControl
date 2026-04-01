@@ -1,26 +1,19 @@
 import { useConnection } from "@evefrontier/dapp-kit";
 import { useCurrentAccount } from "@mysten/dapp-kit-react";
 import { useAuthorizeExtension } from "../hooks/useAuthorizeExtension";
-import {
-  CC_PACKAGE_ID,
-  GATE_ID,
-  GATE_OWNER_CAP_ID,
-  SSU_ID,
-  SSU_OWNER_CAP_ID,
-  CHARACTER_ID,
-} from "../constants";
+import { CC_PACKAGE_ID } from "../constants";
+import { useCharacterId } from "@/hooks/useCharacter";
 
-const short = (id: string) => `${id.slice(0, 6)}…${id.slice(-4)}`;
+const short = (id: string) => id ? `${id.slice(0, 6)}…${id.slice(-4)}` : "—";
 
 function AuthHarness() {
   const { handleConnect, handleDisconnect } = useConnection();
   const account = useCurrentAccount();
+  const characterId = useCharacterId();
   const {
-    authorizeGate,
     gateStatus,
     gateResult,
     gateError,
-    authorizeSsu,
     ssuStatus,
     ssuResult,
     ssuError,
@@ -56,48 +49,35 @@ function AuthHarness() {
         <table style={{ fontSize: 12, borderCollapse: "collapse" }}>
           <tbody>
             <Row label="CC Package" value={CC_PACKAGE_ID} />
-            <Row label="Character" value={CHARACTER_ID} />
-            <Row label="Gate" value={GATE_ID} />
-            <Row label="Gate OwnerCap" value={GATE_OWNER_CAP_ID} />
-            <Row label="SSU" value={SSU_ID} />
-            <Row label="SSU OwnerCap" value={SSU_OWNER_CAP_ID} />
+            <Row label="Character" value={characterId ?? ""} />
+            <Row label="Wallet" value={account?.address ?? ""} />
           </tbody>
         </table>
+        <p style={{ fontSize: 11, color: "#666", marginTop: 8 }}>
+          Gate/SSU IDs are resolved dynamically from the connected wallet.
+          Use the Gate and Trade Post list screens for extension authorization.
+        </p>
       </section>
 
       <hr style={{ borderColor: "#333", margin: "16px 0" }} />
 
-      {/* Action 1: Gate */}
+      {/* Action 1: Gate — now informational only */}
       <section>
-        <h2 style={{ fontSize: 16 }}>Action 1 — Authorize GateAuth on Gate</h2>
+        <h2 style={{ fontSize: 16 }}>Gate Extension Authorization</h2>
         <p style={{ fontSize: 12, color: "#aaa" }}>
-          borrow_owner_cap → gate::authorize_extension&lt;GateAuth&gt; → return_owner_cap
+          Use the Gates list screen to authorize GateAuth on discovered gates.
         </p>
-        <button
-          onClick={authorizeGate}
-          disabled={!account || gateStatus === "pending"}
-          style={btnStyle}
-        >
-          {gateStatus === "pending" ? "Signing…" : "Authorize GateAuth"}
-        </button>
         <StatusDisplay status={gateStatus} digest={gateResult?.digest} error={gateError} />
       </section>
 
       <hr style={{ borderColor: "#333", margin: "16px 0" }} />
 
-      {/* Action 2: SSU */}
+      {/* Action 2: SSU — now informational only */}
       <section>
-        <h2 style={{ fontSize: 16 }}>Action 2 — Authorize TradeAuth on SSU</h2>
+        <h2 style={{ fontSize: 16 }}>SSU Extension Authorization</h2>
         <p style={{ fontSize: 12, color: "#aaa" }}>
-          borrow_owner_cap → storage_unit::authorize_extension&lt;TradeAuth&gt; → return_owner_cap
+          Use the Trade Posts list screen to authorize TradeAuth on discovered SSUs.
         </p>
-        <button
-          onClick={authorizeSsu}
-          disabled={!account || ssuStatus === "pending"}
-          style={btnStyle}
-        >
-          {ssuStatus === "pending" ? "Signing…" : "Authorize TradeAuth"}
-        </button>
         <StatusDisplay status={ssuStatus} digest={ssuResult?.digest} error={ssuError} />
       </section>
     </div>

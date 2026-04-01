@@ -1,5 +1,5 @@
 /**
- * Header — Fixed top bar with brand wordmark and wallet control.
+ * Header — Fixed top bar with brand wordmark, vote link, and wallet control.
  */
 
 import { WalletControl } from "@/components/WalletControl";
@@ -15,6 +15,14 @@ export function Header({ characterName }: HeaderProps) {
         <h1 className="text-sm font-medium tracking-wide text-foreground">
           CivilizationControl
         </h1>
+        <a
+          href="https://vote.deepsurge.xyz/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs font-mono text-orange-400/90 hover:text-orange-300 tracking-wide transition-all border border-orange-500/50 hover:border-orange-400/70 rounded-full px-4 py-1.5 bg-orange-500/5 hover:bg-orange-500/10 hover:shadow-[0_0_8px_rgba(249,115,22,0.15)]"
+        >
+          Vote for CivilizationControl ↗
+        </a>
         <WalletControl characterName={characterName} />
       </div>
     </header>

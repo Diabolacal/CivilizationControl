@@ -24,7 +24,7 @@ import type {
 } from "@/types/domain";
 import { WORLD_PACKAGE_ID, CC_PACKAGE_ID, CC_ORIGINAL_PACKAGE_ID, GATE_CONFIG_ID } from "@/constants";
 
-/** Default Sui RPC endpoint for Utopia testnet. */
+/** Default Sui RPC endpoint for Stillness testnet. */
 const DEFAULT_RPC = "https://fullnode.testnet.sui.io:443";
 
 let clientInstance: SuiJsonRpcClient | null = null;

@@ -86,12 +86,25 @@ export function ActivityFeedScreen() {
       {!isLoading && !isError && signals.length === 0 && (
         <section className="border border-dashed border-border rounded py-16 flex flex-col items-center gap-3">
           <Radio className="w-6 h-6 text-muted-foreground/30" />
-          <p className="text-sm text-muted-foreground/60">
-            No signals recorded yet
-          </p>
-          <p className="text-[11px] text-muted-foreground/40 max-w-[32ch] text-center">
-            Events emitted by GateControl and TradePost transactions will appear here
-          </p>
+          {!walletAddress ? (
+            <>
+              <p className="text-sm text-muted-foreground/60">
+                Connect wallet to view telemetry
+              </p>
+              <p className="text-[11px] text-muted-foreground/40 max-w-[36ch] text-center">
+                Signal Feed shows activity from your governed infrastructure
+              </p>
+            </>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground/60">
+                No telemetry for your infrastructure
+              </p>
+              <p className="text-[11px] text-muted-foreground/40 max-w-[36ch] text-center">
+                Events from your gates, trade posts, and turrets will appear here
+              </p>
+            </>
+          )}
         </section>
       )}
 

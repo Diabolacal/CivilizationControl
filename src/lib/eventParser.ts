@@ -9,7 +9,7 @@
  *   Turrets:     BouncerTargetingEvent, DefenseTargetingEvent, TurretResponseEvent
  */
 
-import { CC_PACKAGE_ID, CC_ORIGINAL_PACKAGE_ID, WORLD_PACKAGE_ID } from "@/constants";
+import { CC_ORIGINAL_PACKAGE_ID, WORLD_PACKAGE_ID } from "@/constants";
 import { resolveItemTypeName } from "@/lib/typeCatalog";
 import { resolveTribeName } from "@/lib/tribeCatalog";
 import { formatLux } from "@/lib/currency";
@@ -32,7 +32,7 @@ export const CC_EVENT_TYPES = {
   BOUNCER_TARGETING: `${CC_ORIGINAL_PACKAGE_ID}::turret_bouncer::BouncerTargetingEvent`,
   DEFENSE_TARGETING: `${CC_ORIGINAL_PACKAGE_ID}::turret_defense::DefenseTargetingEvent`,
   TURRET_RESPONSE: `${CC_ORIGINAL_PACKAGE_ID}::turret_events::TurretResponseEvent`,
-  TURRET_TARGETING: `${CC_PACKAGE_ID}::turret::TurretTargetingEvent`,
+  TURRET_TARGETING: `${CC_ORIGINAL_PACKAGE_ID}::turret::TurretTargetingEvent`,
   // World-level turret events (emitted by world::turret module on extension changes)
   TURRET_EXT_AUTHORIZED: `${WORLD_PACKAGE_ID}::turret::ExtensionAuthorizedEvent`,
   TURRET_EXT_REVOKED: `${WORLD_PACKAGE_ID}::turret::ExtensionRevokedEvent`,

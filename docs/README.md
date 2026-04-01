@@ -150,6 +150,8 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 | [operations/extension-freeze-safety-guide.md](operations/extension-freeze-safety-guide.md) | **Extension freeze safety guide** — when/how to freeze, posture-switching constraint |
 | [operations/gate-control-web-capabilities.md](operations/gate-control-web-capabilities.md) | **Structure control web capabilities** — controllability matrix for gates, turrets, SSUs, network nodes |
 | [operations/operator-validation-checklist.md](operations/operator-validation-checklist.md) | **Operator validation checklist** — 10-step manual smoke test runbook for the dashboard |
+| [operations/migrate-to-stillness.md](operations/migrate-to-stillness.md) | **Stillness migration playbook** — compatibility verification, address inventory, migration checklist |
+| [operations/stillness-sponsor-worker-handoff.md](operations/stillness-sponsor-worker-handoff.md) | **Sponsor worker handoff** — exact APP_POLICIES config for Flappy-Frontier sponsor-service on Stillness |
 
 ## Working Memory
 

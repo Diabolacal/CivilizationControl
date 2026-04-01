@@ -19,7 +19,7 @@ export interface ResolvedSsuId {
   error: string | null;
 }
 
-const DEFAULT_TENANT = "utopia";
+const DEFAULT_TENANT = "stillness";
 
 export function useResolveSsuId(): ResolvedSsuId {
   const { ssuId: paramSsuId } = useParams<{ ssuId: string }>();

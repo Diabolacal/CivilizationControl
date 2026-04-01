@@ -143,10 +143,12 @@ export function Dashboard({
             ) : (
               <div className="px-4 py-6 text-center">
                 <p className="text-sm text-muted-foreground/60">
-                  No signals yet
+                  {isConnected ? "No telemetry for your infrastructure" : "Connect wallet to view telemetry"}
                 </p>
                 <p className="text-[11px] text-muted-foreground/40 mt-1">
-                  Deploy policies to begin governing your infrastructure
+                  {isConnected
+                    ? "Events from your gates, trade posts, and turrets will appear here"
+                    : "Signal Feed shows activity from your governed infrastructure"}
                 </p>
               </div>
             )}

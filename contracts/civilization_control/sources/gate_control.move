@@ -11,7 +11,6 @@
 ///
 /// Treasury: one operator-controlled payout address per gate. All toll
 /// revenue transfers directly to that address — no escrow, no claim flow.
-#[allow(lint(self_transfer))]
 module civilization_control::gate_control;
 
 use sui::{
@@ -125,7 +124,6 @@ public struct PermitIssuedEvent has copy, drop {
     tribe_id: u32,
     mode: u8,
     toll: u64,
-    permit_id: ID,
 }
 
 // === Package-internal witness mint ===
@@ -178,7 +176,7 @@ public fun request_jump_permit(
     let ts = clock.timestamp_ms();
     assert!(ts <= (0xFFFFFFFFFFFFFFFFu64 - PERMIT_TTL_MS), EExpiryOverflow);
 
-    let permit_id = gate::issue_jump_permit_with_id<GateAuth>(
+    gate::issue_jump_permit<GateAuth>(
         source_gate,
         destination_gate,
         character,
@@ -193,7 +191,6 @@ public fun request_jump_permit(
         tribe_id,
         mode,
         toll,
-        permit_id,
     });
 }
 
@@ -218,7 +215,7 @@ public fun request_jump_permit_free(
     let ts = clock.timestamp_ms();
     assert!(ts <= (0xFFFFFFFFFFFFFFFFu64 - PERMIT_TTL_MS), EExpiryOverflow);
 
-    let permit_id = gate::issue_jump_permit_with_id<GateAuth>(
+    gate::issue_jump_permit<GateAuth>(
         source_gate,
         destination_gate,
         character,
@@ -233,7 +230,6 @@ public fun request_jump_permit_free(
         tribe_id,
         mode,
         toll: 0,
-        permit_id,
     });
 }
 

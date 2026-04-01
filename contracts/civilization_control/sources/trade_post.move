@@ -16,7 +16,6 @@
 ///
 /// Pattern reference: world-contracts `storage_unit_tests::swap_ammo_for_lens_via_extension`,
 /// builder-scaffold `smart_gate_extension`. Witness mint is `public(package)`.
-#[allow(lint(self_transfer))]
 module civilization_control::trade_post;
 
 use sui::{

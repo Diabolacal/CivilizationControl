@@ -4,6 +4,28 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-01 – Architecture correction: remove player-specific constants
+- Goal: CHARACTER_ID, GATE_ID, GATE_OWNER_CAP_ID, SSU_ID, SSU_OWNER_CAP_ID were treated as deployment constants to fill in. They are per-wallet dynamic values. 15-flow audit confirmed all production paths were already dynamic. Removed constants and legacy single-target functions.
+- Files: `src/constants.ts`, `src/hooks/useAuthorizeExtension.ts`, `src/screens/AuthHarness.tsx`, `docs/operations/migrate-to-stillness.md`
+- Diff: ~−50 lines (constants, legacy functions, broken imports)
+- Risk: low — all production flows unchanged, only removed dead code and dev-only harness references
+- Gates: typecheck ✅ build ✅
+
+## 2026-04-01 – Migrate CivilizationControl from Utopia to Stillness
+- Goal: Fresh publish of CC package to Stillness testnet world. Migrate all frontend constants, URLs, tenant defaults, and tribe catalog.
+- Files: 15 files modified (5 Move, 10 frontend/scripts)
+- Diff: ~+54 −183
+- Risk: **high** — full environment migration, new package publish, all IDs changed
+- Gates: Move build ✅ Move tests ✅ (26/26) typecheck ✅ build ✅
+- Key adaptation: `gate::issue_jump_permit_with_id` → `gate::issue_jump_permit` (Stillness world is v1, pre-v0.0.20)
+- Publish tx: `Exixj2g847Cf54cQGx6iyRdHGevFY3372nkHLxJ6qX6X`
+- CC_PACKAGE_ID: `0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021` (v1)
+- CC_ORIGINAL_PACKAGE_ID: same (fresh publish)
+- GATE_CONFIG_ID: `0xad76aec886fb85d8e0daad5e375b110cdadd48a8b3439ff76e9601ae39ebe08e`
+- Bug fix: eventParser TURRET_TARGETING type now uses CC_ORIGINAL_PACKAGE_ID (was CC_PACKAGE_ID)
+- Preview: https://feat-stillness-migration.civilizationcontrol.pages.dev
+- Follow-ups: Sponsor worker APP_POLICIES update, README update, production deploy from main
+
 ## 2026-03-30 – CC v6 upgrade: add buy_to_inventory for correct item delivery
 - Goal: Sui's `compatible` upgrade policy rejects public function signature changes. Original plan to change `buy()` return type (Item → void) was incompatible. Revised approach: keep `buy()` unchanged, add new `buy_to_inventory()` that calls `deposit_to_owned<TradeAuth>()` for proper in-game delivery. Frontend targets new function.
 - Files: contracts/civilization_control/sources/trade_post.move, src/lib/tradePostTx.ts, src/constants.ts

@@ -44,7 +44,19 @@ export function WalletControl({ characterName }: WalletControlProps) {
   }, [walletAddress]);
 
   if (!isConnected) {
-    return <ConnectButton />;
+    return (
+      <div className="flex items-center gap-3">
+        <a
+          href="https://docs.evefrontier.com/eve-vault/browser-extension"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-[11px] font-mono text-muted-foreground/60 hover:text-muted-foreground tracking-wide transition-colors"
+        >
+          Get EVE Vault ↗
+        </a>
+        <ConnectButton />
+      </div>
+    );
   }
 
   const displayName = characterName || (walletAddress ? shortenAddress(walletAddress) : "Connected");

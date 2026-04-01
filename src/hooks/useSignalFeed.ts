@@ -57,9 +57,11 @@ export function useSignalFeed(options: UseSignalFeedOptions = {}) {
 
   const allSignals = data ?? [];
 
-  // Scope to owned infrastructure when ownership data is available
+  // Scope to owned infrastructure — never show unrelated global activity.
+  // When no structures are owned (or no wallet connected), return empty.
   const scopedSignals = useMemo(() => {
-    if (!ownedSet || ownedSet.size === 0) return allSignals;
+    if (!ownedSet || (ownedSet.size === 0 && !walletAddress)) return [];
+    if (ownedSet.size === 0) return [];
     return allSignals.filter((s) => {
       if (s.relatedObjectId && ownedSet.has(s.relatedObjectId)) return true;
       if (s.secondaryObjectId && ownedSet.has(s.secondaryObjectId)) return true;

@@ -1,5 +1,5 @@
 /**
- * Hook: background tribe catalog refresh from the Utopia World API.
+ * Hook: background tribe catalog refresh from the Stillness World API.
  *
  * Fire-and-forget — runs once per mount, no loading chrome.
  * On success, merges fresh data into the in-memory catalog via
@@ -13,7 +13,7 @@ import { mergeFreshTribes } from "@/lib/tribeCatalog";
 import type { Tribe } from "@/types/domain";
 
 const API_BASE =
-  "https://world-api-utopia.uat.pub.evefrontier.com/v2/tribes";
+  "https://world-api-stillness.live.tech.evefrontier.com/v2/tribes";
 const PAGE_SIZE = 500;
 
 interface ApiResponse {

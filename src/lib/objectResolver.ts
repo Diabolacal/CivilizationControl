@@ -11,9 +11,9 @@ import { bcs } from "@mysten/sui/bcs";
 import { deriveObjectID } from "@mysten/sui/utils";
 import { WORLD_PACKAGE_ID } from "../constants";
 
-/** ObjectRegistry singleton on Utopia testnet. Immutable after world deployment. */
+/** ObjectRegistry singleton on Stillness testnet. Immutable after world deployment. */
 const OBJECT_REGISTRY_ID =
-  "0xc2b969a72046c47e24991d69472afb2216af9e91caf802684514f39706d7dc57";
+  "0x454a9aa3d37e1d08d3c9181239c1b683781e4087fbbbd48c935d54b6736fd05c";
 
 const TYPE_TAG = `${WORLD_PACKAGE_ID}::in_game_id::TenantItemId`;
 

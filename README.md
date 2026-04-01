@@ -7,7 +7,7 @@ EVE Frontier gives players real ownership of frontier structures: gates that con
 CivilizationControl makes it usable. It is a Sui Move extension package paired with a browser frontend that turns every governance operation into a click-level action. If you own infrastructure, you can govern it from a browser, without writing Move code, building transactions by hand, or touching a CLI.
 
 > Built for the [EVE Frontier Hackathon](https://www.evefrontier.com/) (Deepsurge / CCP Games, March 2026).
-> Deployed on the Utopia testnet.
+> Deployed on the Stillness testnet.
 
 **[Live App](https://civilizationcontrol.pages.dev)** · **[Demo Video](https://www.youtube.com/watch?v=nSctJ9gfZT4)** · **[Judged Branch](https://github.com/Diabolacal/CivilizationControl/tree/hackathon)**
 
@@ -19,7 +19,7 @@ The world contracts give you ownership. They don't give you a way to exercise it
 
 Right now, configuring a Smart Gate's access policy means assembling programmable transactions with the right dynamic fields, package origins, and witness types. Setting up a trade post means understanding cross-address settlement mechanics. Switching your network's defensive posture means rebinding turret extensions one at a time.
 
-CivilizationControl replaces all of that with a product surface. The architecture is **publish-once, configure-via-data**: one extension package provides the governance logic, and operators configure rule types through transactions that write structured dynamic fields. No operator writes Move code. The package has been upgraded repeatedly on Utopia using Sui's compatible upgrade policy, without breaking deployed state.
+CivilizationControl replaces all of that with a product surface. The architecture is **publish-once, configure-via-data**: one extension package provides the governance logic, and operators configure rule types through transactions that write structured dynamic fields. No operator writes Move code. The package was developed and upgraded iteratively on Utopia during the hackathon, then freshly published to Stillness for production use.
 
 Governance operations that require gas can optionally run through a Cloudflare Worker sponsor signer, so operators don't need to hold SUI for routine actions. The sponsor path is configured per-deployment; operations fall back to standard wallet signing when sponsorship is unavailable.
 
@@ -46,7 +46,7 @@ Anyone who owns EVE Frontier infrastructure and wants to govern it without devel
 
 ## What's Validated (On-Chain, Live)
 
-These capabilities are implemented, deployed, and demonstrated against the Utopia testnet:
+These capabilities are implemented, deployed, and demonstrated against the Stillness testnet:
 
 - Gate policy presets with tribe-specific access and per-tribe toll amounts
 - Batch preset deployment across multiple gates in a single PTB
@@ -64,18 +64,17 @@ These capabilities are implemented, deployed, and demonstrated against the Utopi
 
 ---
 
-## On-Chain Identifiers (Utopia Testnet)
+## On-Chain Identifiers (Stillness Testnet)
 
 | Identifier | Value |
 |-----------|-------|
-| **Package (v6, current)** | `0x656006a3a68da4465dc60efc3a5d72154bdbf2dc31ac9b21c4f9fe475581b941` |
-| **Package (v1, type-origin)** | `0xf2f1e8ea4467977c90fbd17d9d54a717f3c2ef58e034ed9e5af29e17f075d22f` |
-| **GateConfig (shared)** | `0x3695f8978ab8cc36b6ff3ebdf8b8882e2f4d73c5a9cce0918a04d0a6a29a3eee` |
-| **Upgrade Capability** | `0xd373fd5b12516c4fe97ad79bd1920ab01b301cbadca76def86e9aac139486e81` |
-| **World Package** | `0xd12a70c74c1e759445d6f209b01d43d860e97fcf2ef72ccbbd00afd828043f75` |
-| **Chain ID** | `4c78adac` (Utopia) |
+| **Package (v1, current)** | `0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021` |
+| **GateConfig (shared)** | `0xad76aec886fb85d8e0daad5e375b110cdadd48a8b3439ff76e9601ae39ebe08e` |
+| **Upgrade Capability** | `0xa2dabc23269bd395305958c49034cbf748e11a598afc7808682739231f2b7cc6` |
+| **World Package** | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` |
+| **Chain ID** | `4c78adac` (Stillness) |
 
-The package has been upgraded 6 times using Sui's compatible upgrade policy (additive-only, no breaking changes to public function signatures).
+Fresh v1 publish on Stillness — all types share a single package origin, eliminating the multi-version type-origin complexity experienced during iterative development on Utopia.
 
 ---
 
@@ -144,7 +143,7 @@ npm run generate:tribes          # Tribe catalog from Stillness API
 
 ```
 CivilizationControl/
-├── contracts/civilization_control/   Sui Move extension package (v6)
+├── contracts/civilization_control/   Sui Move extension package (v1 on Stillness)
 ├── src/                              React frontend application
 │   ├── components/                   UI components (topology, controls, feed)
 │   ├── hooks/                        React hooks (chain reads, mutations)

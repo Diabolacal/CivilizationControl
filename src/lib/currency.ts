@@ -14,9 +14,9 @@ import { getSuiClient } from "@/lib/suiReader";
 
 // ─── EVE Token Constants ─────────────────────────────────
 
-/** Utopia EVE assets package ID (from @evefrontier/dapp-kit TENANT_CONFIG). */
+/** Stillness EVE assets package ID (from @evefrontier/dapp-kit TENANT_CONFIG). */
 export const EVE_PACKAGE_ID =
-  "0xf0446b93345c1118f21239d7ac58fb82d005219b2016e100f074e4d17162a465";
+  "0x2a66a89b5a735738ffa4423ac024d23571326163f324f9051557617319e59d60";
 
 /** Fully qualified EVE coin type for RPC queries. */
 export const EVE_COIN_TYPE = `${EVE_PACKAGE_ID}::EVE::EVE`;
