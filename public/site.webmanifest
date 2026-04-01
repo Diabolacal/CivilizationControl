@@ -1,0 +1,16 @@
+{
+  "name": "CivilizationControl",
+  "short_name": "CivControl",
+  "description": "Governance command layer for EVE Frontier infrastructure on Stillness.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0a0a",
+  "theme_color": "#0a0a0a",
+  "icons": [
+    {
+      "src": "/assets/branding/civilizationcontrol-logo.png",
+      "sizes": "1024x1024",
+      "type": "image/png"
+    }
+  ]
+}
