@@ -12,8 +12,8 @@
 
 import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useDAppKit } from "@mysten/dapp-kit-react";
 import { useConnection } from "@evefrontier/dapp-kit";
+import { useSponsoredExecution } from "@/hooks/useSponsoredExecution";
 import { fetchLinkedGateId } from "@/lib/suiReader";
 import {
   buildTransitProofFreeTx,
@@ -35,7 +35,7 @@ export function useLinkedGate(gateId: ObjectId | undefined) {
 
 /** Execute a transit proof transaction. */
 export function useTransitProofAction() {
-  const dAppKit = useDAppKit();
+  const executeTx = useSponsoredExecution();
   const { walletAddress } = useConnection();
   const queryClient = useQueryClient();
   const characterId = useCharacterId();
@@ -74,14 +74,9 @@ export function useTransitProofAction() {
           tx = buildTransitProofFreeTx({ sourceGateId, destinationGateId, characterId });
         }
 
-        const res = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-        const txData =
-          res.$kind === "Transaction" ? res.Transaction : res.FailedTransaction;
-        if (!txData || res.$kind === "FailedTransaction") {
-          throw new Error("Transit proof transaction failed on-chain");
-        }
+        const { digest } = await executeTx(tx);
 
-        setResult({ digest: txData.digest });
+        setResult({ digest });
         setStatus("success");
         queryClient.invalidateQueries({ queryKey: ["signalFeed"] });
       } catch (err: unknown) {
@@ -90,7 +85,7 @@ export function useTransitProofAction() {
         setStatus("error");
       }
     },
-    [dAppKit, walletAddress, queryClient, characterId],
+    [executeTx, walletAddress, queryClient, characterId],
   );
 
   const reset = useCallback(() => {

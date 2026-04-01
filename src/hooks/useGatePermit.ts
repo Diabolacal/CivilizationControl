@@ -10,8 +10,8 @@
 
 import { useCallback, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useDAppKit } from "@mysten/dapp-kit-react";
 import { useConnection } from "@evefrontier/dapp-kit";
+import { useSponsoredExecution } from "@/hooks/useSponsoredExecution";
 import { fetchPlayerProfile, fetchGateRules, fetchLinkedGateId, fetchPosture } from "@/lib/suiReader";
 import { fetchEveCoinObjects, selectEveCoin } from "@/lib/currency";
 import { buildPermitFreeTx, buildPermitTollTx } from "@/lib/gatePermitTx";
@@ -65,7 +65,7 @@ export function useGateData(gateId: ObjectId | undefined) {
 
 /** Execute the permit acquisition transaction. */
 export function usePermitAction() {
-  const dAppKit = useDAppKit();
+  const executeTx = useSponsoredExecution();
   const { walletAddress } = useConnection();
   const queryClient = useQueryClient();
 
@@ -105,14 +105,9 @@ export function usePermitAction() {
           });
         }
 
-        const res = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-        const txData =
-          res.$kind === "Transaction" ? res.Transaction : res.FailedTransaction;
-        if (!txData || res.$kind === "FailedTransaction") {
-          throw new Error("Permit transaction failed on-chain.");
-        }
+        const { digest: txDigest } = await executeTx(tx);
 
-        setDigest(txData.digest);
+        setDigest(txDigest);
         setStatus("success");
         queryClient.invalidateQueries({ queryKey: ["gatePermit"] });
       } catch (err: unknown) {
@@ -121,7 +116,7 @@ export function usePermitAction() {
         setStatus("error");
       }
     },
-    [dAppKit, walletAddress, queryClient],
+    [executeTx, walletAddress, queryClient],
   );
 
   const reset = useCallback(() => {

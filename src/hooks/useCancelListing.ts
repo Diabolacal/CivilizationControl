@@ -6,14 +6,14 @@
  */
 
 import { useCallback, useState } from "react";
-import { useDAppKit } from "@mysten/dapp-kit-react";
 import { useConnection } from "@evefrontier/dapp-kit";
+import { useSponsoredExecution } from "@/hooks/useSponsoredExecution";
 import { buildCancelListingTx } from "@/lib/tradePostTx";
 import { useInvalidateListings } from "@/hooks/useListings";
 import type { ObjectId, TxStatus, TxResult } from "@/types/domain";
 
 export function useCancelListing(storageUnitId: ObjectId) {
-  const dAppKit = useDAppKit();
+  const executeTx = useSponsoredExecution();
   const { walletAddress } = useConnection();
   const invalidate = useInvalidateListings();
 
@@ -35,14 +35,9 @@ export function useCancelListing(storageUnitId: ObjectId) {
 
       try {
         const tx = buildCancelListingTx(listingId);
-        const res = await dAppKit.signAndExecuteTransaction({ transaction: tx });
-        const txData =
-          res.$kind === "Transaction" ? res.Transaction : res.FailedTransaction;
-        if (!txData || res.$kind === "FailedTransaction") {
-          throw new Error("Transaction failed on-chain");
-        }
+        const { digest } = await executeTx(tx);
 
-        setResult({ digest: txData.digest });
+        setResult({ digest });
         setStatus("success");
         invalidate(storageUnitId);
       } catch (err: unknown) {
@@ -51,7 +46,7 @@ export function useCancelListing(storageUnitId: ObjectId) {
         setStatus("error");
       }
     },
-    [dAppKit, walletAddress, storageUnitId, invalidate],
+    [executeTx, walletAddress, storageUnitId, invalidate],
   );
 
   const reset = useCallback(() => {
