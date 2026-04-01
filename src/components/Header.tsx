@@ -16,7 +16,7 @@ export function Header({ characterName }: HeaderProps) {
           CivilizationControl
         </h1>
         <a
-          href="https://vote.deepsurge.xyz/"
+          href="https://vote.deepsurge.xyz/?sort=popular&q=civilizationcontrol#projects"
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs font-mono text-orange-400/90 hover:text-orange-300 tracking-wide transition-all border border-orange-500/50 hover:border-orange-400/70 rounded-full px-4 py-1.5 bg-orange-500/5 hover:bg-orange-500/10 hover:shadow-[0_0_8px_rgba(249,115,22,0.15)]"
