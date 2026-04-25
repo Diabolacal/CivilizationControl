@@ -57,6 +57,12 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 |------|---------|
 | [decision-log.md](decision-log.md) | Non-trivial technical and strategic decisions (newest first) |
 
+## Repo Reference
+
+| File | Purpose |
+|------|---------|
+| [llm-reference-guide.md](llm-reference-guide.md) | Self-contained repo briefing for LLM agents and fresh ChatGPT sessions |
+
 ## Core
 
 | File | Purpose |
