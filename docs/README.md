@@ -158,6 +158,7 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 | [operations/operator-validation-checklist.md](operations/operator-validation-checklist.md) | **Operator validation checklist** — 10-step manual smoke test runbook for the dashboard |
 | [operations/migrate-to-stillness.md](operations/migrate-to-stillness.md) | **Stillness migration playbook** — compatibility verification, address inventory, migration checklist |
 | [operations/stillness-sponsor-worker-handoff.md](operations/stillness-sponsor-worker-handoff.md) | **Sponsor worker handoff** — exact APP_POLICIES config for Flappy-Frontier sponsor-service on Stillness |
+| [operations/post-hackathon-repo-readiness-audit.md](operations/post-hackathon-repo-readiness-audit.md) | **Post-hackathon readiness audit** — cleanup sequence, Stillness risks, stashes, submodules, validation baseline |
 
 ## Working Memory
 
