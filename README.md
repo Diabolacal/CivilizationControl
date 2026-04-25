@@ -71,10 +71,13 @@ These capabilities are implemented, deployed, and demonstrated against the Still
 | **Package (v1, current)** | `0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021` |
 | **GateConfig (shared)** | `0xad76aec886fb85d8e0daad5e375b110cdadd48a8b3439ff76e9601ae39ebe08e` |
 | **Upgrade Capability** | `0xa2dabc23269bd395305958c49034cbf748e11a598afc7808682739231f2b7cc6` |
-| **World Package** | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` |
+| **World Package (original/type-origin)** | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` |
+| **World Package (upstream Stillness v2 published-at)** | `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780` |
 | **Chain ID** | `4c78adac` (Stillness) |
 
 Fresh v1 publish on Stillness — all types share a single package origin, eliminating the multi-version type-origin complexity experienced during iterative development on Utopia.
+
+As of the 2026-04-25 vendor refresh, upstream `world-contracts` records Stillness world v2 metadata. The local app has not yet migrated runtime calls to the v2 `published-at` package; do that in a dedicated runtime-ID pass that preserves original/type-origin IDs for dynamic fields and event type strings.
 
 ---
 

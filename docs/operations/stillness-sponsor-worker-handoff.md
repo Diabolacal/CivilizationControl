@@ -5,6 +5,8 @@
 **Date:** 2026-04-01
 **Purpose:** Exact data needed to update the sponsor-worker `APP_POLICIES` for CivilizationControl on Stillness.
 
+> **2026-04-25 status note:** Treat the exact `WORLD_PACKAGE_ID` values in this handoff as the original Stillness v1 instructions until a runtime-ID audit updates them. Upstream `vendor/world-contracts` now records Stillness world v2 with `published-at` `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780` and original/type-origin ID `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`. Sponsor-worker allowlists must match the runtime package the frontend actually calls; do not blindly apply the v1 allowlist to a world-v2 frontend.
+
 ---
 
 ## Environment Summary

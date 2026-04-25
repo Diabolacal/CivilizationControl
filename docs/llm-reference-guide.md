@@ -226,7 +226,8 @@ Wallet/auth UI:
 Current environment and IDs:
 
 - `src/constants.ts` is the source of active frontend IDs.
-- Current `WORLD_PACKAGE_ID`: `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`.
+- Current local `WORLD_PACKAGE_ID`: `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`.
+- Upstream `vendor/world-contracts` now records Stillness world v2 with `published-at` `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780` and original/type-origin ID `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`. Do not migrate runtime calls without splitting latest/runtime IDs from original/type-origin IDs.
 - Current `CC_PACKAGE_ID`: `0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021`.
 - Current `CC_ORIGINAL_PACKAGE_ID`: same as `CC_PACKAGE_ID` because Stillness is a fresh v1 publish.
 - Current shared `GATE_CONFIG_ID`: `0xad76aec886fb85d8e0daad5e375b110cdadd48a8b3439ff76e9601ae39ebe08e`.

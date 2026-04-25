@@ -4,6 +4,8 @@
 **Created:** 2026-04-01  
 **Last updated:** 2026-04-01  
 
+> **Historical note (2026-04-25):** This playbook captured the original Stillness v1 migration. Upstream `vendor/world-contracts` now records Stillness world v2 metadata with `published-at` `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780` and original/type-origin ID `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`. Use [submodule-refresh-20260425.md](submodule-refresh-20260425.md) before reusing package-ID or sponsor-worker sections from this playbook.
+
 This document is the complete migration playbook for CivilizationControl from Utopia testnet to Stillness. A fresh agent can execute the migration from this document alone.
 
 ---

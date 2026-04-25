@@ -190,6 +190,8 @@ Validation after a wipe:
 
 ## 6. Submodule/vendor readiness
 
+> **2026-04-25 refresh note:** This section has been superseded by [submodule-refresh-20260425.md](submodule-refresh-20260425.md). `vendor/world-contracts`, `vendor/evevault`, and `vendor/builder-documentation` were refreshed on `chore/submodule-refresh-20260425`; `vendor/builder-scaffold` remained unchanged. The main follow-up is a separate Stillness world-v2 runtime-ID audit because upstream world metadata now has a v2 `published-at` package while the original/type-origin package remains unchanged.
+
 Submodule declarations live in `.gitmodules`.
 
 ### `vendor/world-contracts`

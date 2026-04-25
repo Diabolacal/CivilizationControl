@@ -4,6 +4,14 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-25 – Refresh vendor submodule pointers
+- Goal: Refresh vendor references after post-hackathon cleanup and document Stillness-focused compatibility impact.
+- Files: `vendor/world-contracts`, `vendor/evevault`, `vendor/builder-documentation`, docs under `docs/operations/`, `docs/llm-reference-guide.md`, `README.md`
+- Diff: submodule pointers plus targeted docs
+- Risk: medium-high — `world-contracts` source APIs stayed stable, but upstream Stillness world metadata now records v2 `published-at`; Eve Vault changed wallet/auth/sponsorship internals.
+- Gates: diff-check ✅ active-env ✅ Move build ✅ Move tests ✅ (26/26) typecheck ✅ build ✅
+- Follow-ups: separate world-v2 runtime-ID audit, sponsor allowlist verification, headed Eve Vault smoke
+
 ## 2026-04-01 – Architecture correction: remove player-specific constants
 - Goal: CHARACTER_ID, GATE_ID, GATE_OWNER_CAP_ID, SSU_ID, SSU_OWNER_CAP_ID were treated as deployment constants to fill in. They are per-wallet dynamic values. 15-flow audit confirmed all production paths were already dynamic. Removed constants and legacy single-target functions.
 - Files: `src/constants.ts`, `src/hooks/useAuthorizeExtension.ts`, `src/screens/AuthHarness.tsx`, `docs/operations/migrate-to-stillness.md`
