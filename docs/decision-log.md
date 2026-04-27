@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-27 – Record sponsor worker deploy readiness
+- Goal: Resolve the last preserved parent stash safely and inspect whether the in-repo sponsor worker is ready for Cloudflare deploy and frontend cutover from `master` without changing runtime IDs or deploying by default.
+- Files: `docs/operations/sponsor-worker-deploy-readiness-20260427.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: docs-only readiness report plus index update
+- Risk: low-medium — docs only, but grounded in Cloudflare account inspection, stash cleanup, and deploy/cutover decision criteria
+- Gates: policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
+- Result: Wrangler is authenticated to `Michael.davis.home@gmail.com's Account`, but Worker `civilizationcontrol-sponsor` does not exist yet, secret names could not be verified, local `.env` still classifies `VITE_SPONSOR_URL` as the older Flappy-hosted worker, and deploy/cutover remains a no-go until a separate explicit Worker deploy and preview cutover task.
+- Follow-ups: deploy `civilizationcontrol-sponsor` from `workers/sponsor-service/`, capture the exact worker base URL, set preview `VITE_SPONSOR_URL`, and run one real sponsored governance smoke before any production cutover.
+
 ## 2026-04-27 – Reconcile sponsor worker ownership docs
 - Goal: Update the docs to match the post-implementation state where CivilizationControl owns the sponsor-worker source, while keeping deployment and live cutover explicitly out of scope.
 - Files: `docs/operations/sponsor-signer-migration-plan-20260427.md`, `docs/operations/sponsor-worker-runbook.md`, `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/operations/post-hackathon-repo-readiness-audit.md`, `docs/operations/submodule-refresh-20260425.md`, `docs/operations/hackathon-archive-cleanup-20260427.md`, `docs/decision-log.md`
