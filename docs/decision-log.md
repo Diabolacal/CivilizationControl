@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-27 – Record sponsor worker runtime discovery
+- Goal: Determine which sponsor worker CivilizationControl is currently using in practice, without deploying or changing runtime state.
+- Files: `docs/operations/sponsor-worker-runtime-discovery-20260427.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: docs-only runtime discovery report plus index update
+- Risk: low — documentation only, grounded in local env inspection, Cloudflare read-only checks, and non-destructive endpoint probing
+- Gates: policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
+- Result: CivilizationControl is still pointed at `flappy-frontier-sponsor`, that worker exists on the active Cloudflare account and exposes the expected `/sponsor` behavior for the production origin, while `civilizationcontrol-sponsor` still does not exist. Recommendation: keep the live Flappy worker temporarily and perform a separate explicit deploy-and-cutover task later.
+- Follow-ups: create `civilizationcontrol-sponsor` in a later migration task, provision secrets there, cut preview first, and validate with one real sponsored governance smoke before any production switch.
+
 ## 2026-04-27 – Record sponsor worker deploy readiness
 - Goal: Resolve the last preserved parent stash safely and inspect whether the in-repo sponsor worker is ready for Cloudflare deploy and frontend cutover from `master` without changing runtime IDs or deploying by default.
 - Files: `docs/operations/sponsor-worker-deploy-readiness-20260427.md`, `docs/README.md`, `docs/decision-log.md`
