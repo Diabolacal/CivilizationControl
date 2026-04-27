@@ -173,6 +173,7 @@ Important docs paths:
 - `docs/archive/hackathon-2026/README.md`: historical hackathon demo, submission, recording, and evidence bundle.
 - `docs/operations/migrate-to-stillness.md`: Stillness migration playbook, useful but time-specific.
 - `docs/operations/stillness-sponsor-worker-handoff.md`: sponsor worker allowlist handoff, partly stale against current hooks.
+- `docs/operations/sponsor-signer-migration-plan-20260427.md`: current planning document for moving sponsor-worker ownership into this repo without changing runtime IDs yet.
 - `docs/strategy/civilization-control/`: product vision, voice, narrative, and future direction.
 - `docs/ux/`: UX architecture, topology specs, and polish/audit notes.
 

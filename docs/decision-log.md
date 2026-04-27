@@ -4,6 +4,14 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-27 – Plan sponsor signer migration
+- Goal: Investigate the current sponsor-worker ownership split between CivilizationControl and Flappy Frontier, then document a phased migration plan for moving sponsor-worker ownership into this repo without changing runtime IDs or deploying anything yet.
+- Files: `docs/operations/sponsor-signer-migration-plan-20260427.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
+- Diff: docs-only planning artifact plus targeted index/reference updates
+- Risk: medium — planning only, but centered on sponsorship security, worker ownership, and future runtime-ID coordination
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Follow-ups: implementation should pin the intended Flappy worker source revision before copying because the inspected local `C:/dev/flappy-frontier` checkout was dirty.
+
 ## 2026-04-27 – Archive hackathon demo material
 - Goal: Move clear hackathon submission, demo-production, recording, and one-off validation material under `docs/archive/hackathon-2026/` so future work starts from current product context rather than old demo packages.
 - Files: archived docs from `docs/core/`, `docs/demo/`, and `docs/operations/`; archived demo scripts and `recordings/README.md`; updated `docs/README.md`, `README.md`, `docs/llm-reference-guide.md`, and active cross-links; added archive README and cleanup report.
