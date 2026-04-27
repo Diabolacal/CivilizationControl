@@ -284,7 +284,7 @@ All UI labels follow canonical mapping. Banned terms: Dashboard, Admin, Settings
 
 Arc: A frontier operator wakes up to chaos. By the end, every gate, turret, and trade post is under sovereign command — policy enforced, hostiles denied, revenue flowing, and the entire network locked down in one click. Defense Mode is the climax.
 
-> Canonical demo blueprint: [CivilizationControl — Demo Beat Sheet v2](civilizationcontrol-demo-beat-sheet.md)
+> Canonical demo blueprint: [CivilizationControl — Demo Beat Sheet v2](../archive/hackathon-2026/core/civilizationcontrol-demo-beat-sheet.md)
 
 ### 5.2 Primary Variant (~2:56, 9 beats)
 
@@ -370,8 +370,8 @@ If TradePost UI not ready: 2-minute GateControl-only (Beats 1–5 + close). Drop
 |----------|---------|
 | [march-11-reimplementation-checklist.md](march-11-reimplementation-checklist.md) | Pattern catalog + Day-1 procedure |
 | [civilizationcontrol-implementation-plan.md](civilizationcontrol-implementation-plan.md) | 45 atomic implementation steps |
-| [civilizationcontrol-demo-beat-sheet.md](civilizationcontrol-demo-beat-sheet.md) | Demo script |
-| [civilizationcontrol-claim-proof-matrix.md](civilizationcontrol-claim-proof-matrix.md) | Evidence mapping |
+| [../archive/hackathon-2026/core/civilizationcontrol-demo-beat-sheet.md](../archive/hackathon-2026/core/civilizationcontrol-demo-beat-sheet.md) | Demo script |
+| [../archive/hackathon-2026/core/civilizationcontrol-claim-proof-matrix.md](../archive/hackathon-2026/core/civilizationcontrol-claim-proof-matrix.md) | Evidence mapping |
 | [../architecture/gatecontrol-feasibility-report.md](../architecture/gatecontrol-feasibility-report.md) | Gate architecture validation |
 | [../architecture/policy-authoring-model-validation.md](../architecture/policy-authoring-model-validation.md) | Publish-once model VERIFIED |
 | [../architecture/world-contracts-auth-model.md](../architecture/world-contracts-auth-model.md) | 3-tier auth model |

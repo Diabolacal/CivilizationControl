@@ -15,7 +15,7 @@
 
 > **PRE-HACKATHON PROVISIONAL PLAN (partially stale)**
 > Written before implementation. Module names, struct names, and event names have evolved.
-> Authoritative references: operator-validation-checklist.md (rehearsal), demo-beat-sheet (recording), claim-proof-matrix (evidence).
+> Authoritative historical references: `docs/archive/hackathon-2026/operations/operator-validation-checklist.md` (rehearsal), `docs/archive/hackathon-2026/core/civilizationcontrol-demo-beat-sheet.md` (recording), `docs/archive/hackathon-2026/core/civilizationcontrol-claim-proof-matrix.md` (evidence).
 > Retained for validation pattern reference. Key renames: `gate_permit`→`gate_control`, `CivControlConfig`→`GateConfig`, `AdminCap`→removed (OwnerCap<Gate> via character borrow), `ETribeMismatch`→`EAccessDenied`, `TradeSettledEvent`→`ListingPurchasedEvent`.
 
 > **Purpose:** Defines how to verify each implementation step. Includes build, lint, runtime expectations, and deterministic proof moment validation.

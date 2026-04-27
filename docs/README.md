@@ -2,10 +2,10 @@
 
 **Retention:** Carry-forward
 
-Documentation for the CivilizationControl hackathon submission. Documents are organized by lifecycle and purpose.
+Documentation for CivilizationControl. Active product, architecture, validation, and operational references stay in place here; historical hackathon and demo-production material lives under `archive/`.
 
 **Taxonomy:**
-- `core/` — Authority documents: spec, implementation plan, validation, demo
+- `core/` — Authority documents: spec, implementation plan, validation, conventions
 - `architecture/` — Technical design and feasibility validation
 - `strategy/civilization-control/` — Product positioning, voice, narrative
 - `analysis/` — Cross-cutting analytical artifacts
@@ -13,7 +13,7 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 - `ux/` — UX architecture and visual design specs
 - `ptb/` — PTB assembly pattern library (revalidation required)
 - `operations/` — Runbooks, templates, procedures
-- `demo/` — Demo production assets
+- `archive/` — Historical hackathon/demo packages and preserved working memory
 
 > **New docs rule:** All markdown files must go inside a categorized subfolder. Do not create files directly under `docs/`. Update this index when adding a new document.
 
@@ -71,12 +71,9 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 | [core/march-11-reimplementation-checklist.md](core/march-11-reimplementation-checklist.md) | **Execution checklist** — validated patterns, day-1 bootstrap, pitfalls |
 | [core/civilizationcontrol-implementation-plan.md](core/civilizationcontrol-implementation-plan.md) | **Implementation plan** — 45 steps across 7 phases |
 | [core/day1-checklist.md](core/day1-checklist.md) | **Day-1 validation checklist** — 10 structured checks with GO/NO-GO gate |
-| [core/civilizationcontrol-demo-beat-sheet.md](core/civilizationcontrol-demo-beat-sheet.md) | **Demo beat sheet (v2)** — ~2:56 primary loop, proof registry, failure fallbacks |
-| [core/civilizationcontrol-claim-proof-matrix.md](core/civilizationcontrol-claim-proof-matrix.md) | **Claim-proof matrix** — every demo claim mapped to evidence |
 | [core/validation.md](core/validation.md) | **Validation procedures** — build gates, runtime expectations, proof moment validation |
 | [core/memory.md](core/memory.md) | **Working memory template** — structured sprint tracking, proof moment evidence |
 | [core/hackathon-repo-conventions.md](core/hackathon-repo-conventions.md) | **Repo conventions** — git workflow, file discipline, naming, judge legibility |
-| [core/demo-readiness-tranches.md](core/demo-readiness-tranches.md) | **Demo readiness tranches** — live capabilities, UI gaps, contract gaps, prioritized build order |
 | [core/gate-policy-v2-design.md](core/gate-policy-v2-design.md) | **Gate policy v2 design** — multi-tribe presets, posture-aware enforcement, upgrade plan |
 | [core/CARRY_FORWARD_INDEX.md](core/CARRY_FORWARD_INDEX.md) | **Carry-forward index** — definitive file list |
 
@@ -149,13 +146,10 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 |------|---------|
 | [operations/DECISIONS_TEMPLATE.md](operations/DECISIONS_TEMPLATE.md) | Decision log entry format template |
 | [operations/gate-lifecycle-runbook.md](operations/gate-lifecycle-runbook.md) | 13-step gate lifecycle procedure with evidence |
-| [operations/demo-evidence-appendix.md](operations/demo-evidence-appendix.md) | Demo evidence mapping — beat sheet artifacts to scripts |
 | [operations/submodule-refresh-prompt.md](operations/submodule-refresh-prompt.md) | Reusable submodule refresh procedure |
-| [operations/day1-validation.md](operations/day1-validation.md) | **Day 1 chain validation results** — Utopia testnet IDs, source assumption checks, blockers |
 | [operations/sui-upgrade-type-origin-guide.md](operations/sui-upgrade-type-origin-guide.md) | **Sui upgrade type-origin guide** — dual package ID model, verification evidence |
 | [operations/extension-freeze-safety-guide.md](operations/extension-freeze-safety-guide.md) | **Extension freeze safety guide** — when/how to freeze, posture-switching constraint |
 | [operations/gate-control-web-capabilities.md](operations/gate-control-web-capabilities.md) | **Structure control web capabilities** — controllability matrix for gates, turrets, SSUs, network nodes |
-| [operations/operator-validation-checklist.md](operations/operator-validation-checklist.md) | **Operator validation checklist** — 10-step manual smoke test runbook for the dashboard |
 | [operations/migrate-to-stillness.md](operations/migrate-to-stillness.md) | **Stillness migration playbook** — compatibility verification, address inventory, migration checklist |
 | [operations/stillness-sponsor-worker-handoff.md](operations/stillness-sponsor-worker-handoff.md) | **Sponsor worker handoff** — exact APP_POLICIES config for Flappy-Frontier sponsor-service on Stillness |
 | [operations/post-hackathon-repo-readiness-audit.md](operations/post-hackathon-repo-readiness-audit.md) | **Post-hackathon readiness audit** — cleanup sequence, Stillness risks, stashes, submodules, validation baseline |
@@ -167,16 +161,11 @@ Documentation for the CivilizationControl hackathon submission. Documents are or
 |------|---------|
 | [working_memory/2026-03-12_march11-foundation.md](working_memory/2026-03-12_march11-foundation.md) | March 11 foundation sprint — GateControl progress, environment state, next steps |
 
-## Demo
+## Archive / Historical
 
 | File | Purpose |
 |------|---------|
-| [demo/narration-direction-spec.md](demo/narration-direction-spec.md) | Demo narration direction — voice config, delivery control, recording checklist |
-| [demo/tts-generation-guide.md](demo/tts-generation-guide.md) | **TTS generation guide** — beat-by-beat audio segmentation, file naming, generation order, QC checklist, editor handoff |
-| [demo/capture-readiness-checklist.md](demo/capture-readiness-checklist.md) | **Capture readiness checklist** — audio→scene mapping, capture order, pre-capture chain state, timing decisions |
-| [demo/demo-production-pipeline-plan.md](demo/demo-production-pipeline-plan.md) | **Demo production pipeline plan** — automated recording feasibility, beat automation assessment, tooling, blockers |
-| [demo/video-production-guide-reference.md](demo/video-production-guide-reference.md) | **Video production guide (reference)** — Playwright + ffmpeg pipeline patterns, scene recording, trailer assembly, music mixing |
-| [demo/manual-obs-capture-runbook.md](demo/manual-obs-capture-runbook.md) | **Manual OBS capture runbook** — beat-by-beat shot list, OBS settings, capture order, retake triggers, Descript assembly notes |
+| [archive/hackathon-2026/README.md](archive/hackathon-2026/README.md) | Historical hackathon submission, demo production, recordings, and archived scripts |
 
 ---
 

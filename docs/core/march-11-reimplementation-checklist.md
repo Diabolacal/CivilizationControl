@@ -340,7 +340,7 @@ Verify these on hackathon day. If any break, reassess the corresponding module.
 
 ### Hour 0.5: Environment Verification (30 min) — ✅ COMPLETE (2026-03-12)
 
-**Completed on Utopia testnet.** Full results in [`docs/operations/day1-validation.md`](../operations/day1-validation.md).
+**Completed on Utopia testnet.** Full results in [`docs/archive/hackathon-2026/operations/day1-validation.md`](../archive/hackathon-2026/operations/day1-validation.md).
 
 - [x] Pull latest `world-contracts` — v0.0.18, all assumptions verified
 - [x] Verify assumptions A1–A5, A8 by reading key function signatures — all PASS
@@ -390,9 +390,9 @@ Verify these on hackathon day. If any break, reassess the corresponding module.
 
 ### Hour 5: Integration on Local Devnet / Test Server (2 hours)
 
-> **Package published to Utopia testnet** (2026-03-12). Transaction digest: `EBU5T9cDymgUnyGTdtXkfBWuUmfWLKEMLJT5VXU8p5QU`. Package ID: `0xb41a7ce1b492064c09a9545a16edce1f73ac069f5a85712f0eadc7e3bb246a04`. Full publish record in [`docs/operations/day1-validation.md`](../operations/day1-validation.md#publish-record--utopia-testnet-2026-03-12).
+> **Package published to Utopia testnet** (2026-03-12). Transaction digest: `EBU5T9cDymgUnyGTdtXkfBWuUmfWLKEMLJT5VXU8p5QU`. Package ID: `0xb41a7ce1b492064c09a9545a16edce1f73ac069f5a85712f0eadc7e3bb246a04`. Full publish record in [`docs/archive/hackathon-2026/operations/day1-validation.md`](../archive/hackathon-2026/operations/day1-validation.md#publish-record--utopia-testnet-2026-03-12).
 
-> **Asset discovery complete** (2026-03-12 Hour 5). 70 OwnerCaps mapped: 12 gates, 5 SSUs, 41 turrets, 9 nodes. Primary test pair selected: Gate `0xf130…1b68` + SSU `0x73a2…f121` (ONLINE, 5 items) co-located at Node `0x8bad…`. Full inventory in [`docs/operations/day1-validation.md`](../operations/day1-validation.md#hour-5-live-asset-discovery--utopia-2026-03-12).
+> **Asset discovery complete** (2026-03-12 Hour 5). 70 OwnerCaps mapped: 12 gates, 5 SSUs, 41 turrets, 9 nodes. Primary test pair selected: Gate `0xf130…1b68` + SSU `0x73a2…f121` (ONLINE, 5 items) co-located at Node `0x8bad…`. Full inventory in [`docs/archive/hackathon-2026/operations/day1-validation.md`](../archive/hackathon-2026/operations/day1-validation.md#hour-5-live-asset-discovery--utopia-2026-03-12).
 
 - [x] ~~Run infrastructure setup chain (Pattern 5) — on test server if admin tools available, otherwise local devnet~~ — Using live Utopia testnet (world already deployed)
 - [x] Publish CivControl extension package — **DONE** (see publish record above)

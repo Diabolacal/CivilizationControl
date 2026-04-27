@@ -292,11 +292,11 @@ These are drawn from the 87-item assumption registry. Only those that represent 
 ## References
 
 - [spec.md](../core/spec.md)
-- [civilizationcontrol-demo-beat-sheet.md](../core/civilizationcontrol-demo-beat-sheet.md)
+- [civilizationcontrol-demo-beat-sheet.md](../archive/hackathon-2026/core/civilizationcontrol-demo-beat-sheet.md)
 - [day1-checklist.md](../core/day1-checklist.md)
 - [validation.md](../core/validation.md)
 - [civilizationcontrol-implementation-plan.md](../core/civilizationcontrol-implementation-plan.md)
-- [civilizationcontrol-claim-proof-matrix.md](../core/civilizationcontrol-claim-proof-matrix.md)
+- [civilizationcontrol-claim-proof-matrix.md](../archive/hackathon-2026/core/civilizationcontrol-claim-proof-matrix.md)
 - [assumption-registry-and-demo-fragility-audit.md](../analysis/assumption-registry-and-demo-fragility-audit.md)
 - [fortune-gauntlet-feasibility.md](../analysis/fortune-gauntlet-feasibility.md)
 - [hackathon-ideas-grounded-v3-judged.md](../ideas/hackathon-ideas-grounded-v3-judged.md)

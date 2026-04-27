@@ -225,7 +225,7 @@ CivilizationControl is not another Move contract demo. It's the missing layer be
 
 ## Demo Narrative (~2:56 Video)
 
-> **Canonical demo blueprint:** [CivilizationControl — Demo Beat Sheet v2](../../core/civilizationcontrol-demo-beat-sheet.md)
+> **Canonical demo blueprint:** [CivilizationControl — Demo Beat Sheet v2](../../archive/hackathon-2026/core/civilizationcontrol-demo-beat-sheet.md)
 > This section summarizes the 9-beat arc. For full narration scripts, stage directions, evidence overlays, failure fallbacks, and pre-flight checklists, see the beat sheet.
 
 **Arc:** Pain → Power → Policy → Denial → Revenue → Defense Mode → Commerce → Command → Close

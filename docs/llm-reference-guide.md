@@ -66,7 +66,7 @@ Documented as live or validated, but not revalidated in this guide:
 
 Planned, partial, or not currently implemented:
 
-- Subscription passes are described in older strategy/spec documents such as `docs/core/spec.md`, but `docs/core/demo-readiness-tranches.md` says no subscription ledger exists. No current source module implements a subscription pass ledger.
+- Subscription passes are described in older strategy/spec documents such as `docs/core/spec.md`, but the archived `docs/archive/hackathon-2026/core/demo-readiness-tranches.md` explicitly says no subscription ledger exists. No current source module implements a subscription pass ledger.
 - Network node offline is not implemented in the current UI; `src/screens/NetworkNodeListScreen.tsx` explicitly says offline is not yet implemented.
 - The sponsor worker implementation is not in this repo. `docs/operations/stillness-sponsor-worker-handoff.md` says it lives in a separate Flappy-Frontier worker service.
 - Turret targeting events emitted during `devInspect` evaluation are diagnostic and not reliable persisted dashboard telemetry. `contracts/civilization_control/sources/turret.move` comments and demo docs warn about this.
@@ -135,10 +135,10 @@ Top-level map:
 - `.env.example`: example environment variables. It is partly stale because it labels the world package as Utopia while current runtime constants are Stillness.
 - `src/`: active React frontend.
 - `contracts/civilization_control/`: active Sui Move package.
-- `docs/`: product, architecture, validation, demo, operations, and now this LLM guide.
+- `docs/`: active product, architecture, validation, operations, archive material, and this LLM guide.
 - `assets/icons/`: topology glyphs and icon asset guidance.
 - `public/`: static hosting files such as `_headers`, `robots.txt`, `sitemap.xml`, `site.webmanifest`, and public assets.
-- `scripts/`: data generation, smoke tests, recording automation, and some stale diagnostic scripts.
+- `scripts/`: active data generation plus a few stale diagnostic scripts. Historical demo-capture scripts live under `docs/archive/hackathon-2026/scripts/`.
 - `templates/cloudflare/`: generic Cloudflare Pages/Workers scaffold and deploy instructions.
 - `vendor/`: read-only submodules for `world-contracts`, `builder-scaffold`, `builder-documentation`, and `evevault`. Do not modify tracked files inside `vendor/`.
 
@@ -170,8 +170,7 @@ Important docs paths:
 - `docs/README.md`: documentation index and canonical terminology.
 - `docs/decision-log.md`: newest-first decision history. The 2026-04-01 entries are key for Stillness migration.
 - `docs/core/validation.md`: validation procedures, but partially stale because it predates current implementation in places.
-- `docs/core/civilizationcontrol-claim-proof-matrix.md`: claimed demo proof evidence.
-- `docs/core/demo-readiness-tranches.md`: useful for separating live, partial, and non-implemented claims.
+- `docs/archive/hackathon-2026/README.md`: historical hackathon demo, submission, recording, and evidence bundle.
 - `docs/operations/migrate-to-stillness.md`: Stillness migration playbook, useful but time-specific.
 - `docs/operations/stillness-sponsor-worker-handoff.md`: sponsor worker allowlist handoff, partly stale against current hooks.
 - `docs/strategy/civilization-control/`: product vision, voice, narrative, and future direction.
@@ -387,7 +386,7 @@ Cloudflare deploy commands are documented only in `templates/cloudflare/README.m
 
 Smoke/diagnostic scripts:
 
-- `scripts/smoke-test-wallet-ext.mts`, `scripts/smoke-test-manual-connect.mts`, and `scripts/smoke-test-phase2-persistence.mts` are documented in script comments and can be run with `npx tsx ...` when relevant.
+- Historical recording and capture scripts now live under `docs/archive/hackathon-2026/scripts/` and should not be treated as current validation commands.
 - `scripts/test-sponsor.mjs` and `scripts/test-turret-targeting.mjs` contain stale Utopia-era IDs and should not be trusted without refresh.
 
 Markdown validation:

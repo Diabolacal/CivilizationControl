@@ -327,7 +327,7 @@ CivilizationControl's dashboard is a **list-first control plane** — structures
 
 ## 7. Demo Strategy
 
-> **⚠ Superseded.** This section reflects an earlier 5-act / 2+1-minute demo concept. The canonical demo structure is the **9-beat / ~2:56 arc** in [CivilizationControl — Demo Beat Sheet v2](../../core/civilizationcontrol-demo-beat-sheet.md). Retain this section for historical context only.
+> **⚠ Superseded.** This section reflects an earlier 5-act / 2+1-minute demo concept. The canonical demo structure is the **9-beat / ~2:56 arc** in [CivilizationControl — Demo Beat Sheet v2](../../archive/hackathon-2026/core/civilizationcontrol-demo-beat-sheet.md). Retain this section for historical context only.
 
 ### Aligned to Modified Recommendation (2+1 Minutes)
 

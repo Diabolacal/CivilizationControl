@@ -419,10 +419,10 @@ Final choice is deferred to build phase. All three options share the same data s
 
 - [UX Architecture Spec §9 — Spatial Layer Model](../ux/civilizationcontrol-ux-architecture-spec.md)
 - [UX Architecture Spec §8 — Manual Pinning Model](../ux/civilizationcontrol-ux-architecture-spec.md)
-- [Demo Beat Sheet](../core/civilizationcontrol-demo-beat-sheet.md)
+- [Demo Beat Sheet](../archive/hackathon-2026/core/civilizationcontrol-demo-beat-sheet.md)
 - [Hackathon Emotional Objective](../strategy/civilization-control/civilizationcontrol-hackathon-emotional-objective.md)
 - [Voice & Narrative Guide](../strategy/civilization-control/civilizationcontrol-voice-and-narrative.md)
-- [Claim → Proof Matrix](../core/civilizationcontrol-claim-proof-matrix.md)
+- [Claim → Proof Matrix](../archive/hackathon-2026/core/civilizationcontrol-claim-proof-matrix.md)
 - [Structural Risk Sweep](structural-risk-sweep-2026-02-18.md)
 - [EF-Map Embed Guide](https://ef-map.com/embed-guide)
 - [Decision Log — Hybrid Spatial Architecture](../decision-log.md)

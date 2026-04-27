@@ -154,11 +154,12 @@ CivilizationControl/
 │   ├── screens/                      Page-level components
 │   └── types/                        TypeScript domain types
 ├── docs/
-│   ├── core/                         System spec, implementation plan, demo
+│   ├── core/                         System spec, implementation plan, validation
 │   ├── architecture/                 Design validation, feasibility reports
+│   ├── archive/                      Historical hackathon/demo materials
 │   └── strategy/                     Product vision, voice, narrative
 ├── assets/icons/                     SVG glyphs and overlays for topology UI
-├── scripts/                          Data generation, demo tooling
+├── scripts/                          Active data generation and diagnostics
 └── vendor/                           Upstream submodules (read-only)
     ├── world-contracts/              EVE Frontier world contracts
     ├── builder-scaffold/             Builder scaffold
@@ -174,9 +175,9 @@ CivilizationControl/
 |----------|---------|
 | [System Spec](docs/core/spec.md) | Boundaries, on-chain model, risk model |
 | [Implementation Plan](docs/core/civilizationcontrol-implementation-plan.md) | Build sequence and dependencies |
-| [Demo Beat Sheet](docs/core/civilizationcontrol-demo-beat-sheet.md) | Narrated demo structure |
 | [Product Vision](docs/strategy/civilization-control/civilizationcontrol-product-vision.md) | Design intent and product thesis |
-| [Claim-Proof Matrix](docs/core/civilizationcontrol-claim-proof-matrix.md) | What's claimed vs. what's proven |
+| [LLM Reference Guide](docs/llm-reference-guide.md) | Current repo-grounded brief for agents and fresh sessions |
+| [Hackathon Archive](docs/archive/hackathon-2026/README.md) | Historical demo, submission, recording, and evidence materials |
 | [Decision Log](docs/decision-log.md) | Chronological record of design decisions |
 
 Post-hackathon direction: [Where CivilizationControl goes next](docs/strategy/civilization-control/where-civilizationcontrol-goes-next.md)

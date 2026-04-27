@@ -868,7 +868,7 @@ The SVG topology is a visual control surface and is not the primary interaction 
 
 | Document | Path | Relevance |
 |---|---|---|
-| Demo Beat Sheet v2 | [docs/core/civilizationcontrol-demo-beat-sheet.md](../core/civilizationcontrol-demo-beat-sheet.md) | Narrative anchor: 5 proof moments, Defense Mode cascade timing, transaction latency protocol |
+| Demo Beat Sheet v2 | [docs/archive/hackathon-2026/core/civilizationcontrol-demo-beat-sheet.md](../archive/hackathon-2026/core/civilizationcontrol-demo-beat-sheet.md) | Narrative anchor: 5 proof moments, Defense Mode cascade timing, transaction latency protocol |
 | Product Vision | [docs/strategy/civilization-control/civilizationcontrol-product-vision.md](../strategy/civilization-control/civilizationcontrol-product-vision.md) | "Command layer for frontier infrastructure" positioning, posture presets, revenue thesis |
 | UX Architecture Spec §9 | [docs/ux/civilizationcontrol-ux-architecture-spec.md](civilizationcontrol-ux-architecture-spec.md) | Strategic Network Map interaction patterns, screen hierarchy, data sources |
 | Spatial Embed Requirements | [docs/architecture/spatial-embed-requirements.md](../architecture/spatial-embed-requirements.md) | 12 visual primitive requirements, hybrid architecture decision, EF-Map limitations |

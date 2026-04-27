@@ -4,6 +4,14 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-27 – Archive hackathon demo material
+- Goal: Move clear hackathon submission, demo-production, recording, and one-off validation material under `docs/archive/hackathon-2026/` so future work starts from current product context rather than old demo packages.
+- Files: archived docs from `docs/core/`, `docs/demo/`, and `docs/operations/`; archived demo scripts and `recordings/README.md`; updated `docs/README.md`, `README.md`, `docs/llm-reference-guide.md`, and active cross-links; added archive README and cleanup report.
+- Diff: git moves plus targeted index/link updates
+- Risk: low — documentation/archive only, no runtime or contract changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Follow-ups: review a small set of uncertain Stillness-era runbooks and stale diagnostic scripts separately from this archive pass.
+
 ## 2026-04-25 – Refresh vendor submodule pointers
 - Goal: Refresh vendor references after post-hackathon cleanup and document Stillness-focused compatibility impact.
 - Files: `vendor/world-contracts`, `vendor/evevault`, `vendor/builder-documentation`, docs under `docs/operations/`, `docs/llm-reference-guide.md`, `README.md`
