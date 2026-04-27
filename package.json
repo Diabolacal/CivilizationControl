@@ -8,6 +8,9 @@
     "build": "tsc && vite build",
     "typecheck": "tsc --noEmit",
     "preview": "vite preview",
+    "sponsor:test": "npm --prefix workers/sponsor-service test",
+    "sponsor:typecheck": "npm --prefix workers/sponsor-service run typecheck",
+    "sponsor:validate-policy": "node scripts/validate-sponsor-policy.mjs",
     "generate:solar-systems": "node scripts/fetch-solar-systems.mjs",
     "generate:tribes": "node scripts/fetch-tribes.mjs",
     "generate:types": "node scripts/fetch-types.mjs"

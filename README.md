@@ -22,6 +22,7 @@ Right now, configuring a Smart Gate's access policy means assembling programmabl
 CivilizationControl replaces all of that with a product surface. The architecture is **publish-once, configure-via-data**: one extension package provides the governance logic, and operators configure rule types through transactions that write structured dynamic fields. No operator writes Move code. The package was developed and upgraded iteratively on Utopia during the hackathon, then freshly published to Stillness for production use.
 
 Governance operations that require gas can optionally run through a Cloudflare Worker sponsor signer, so operators don't need to hold SUI for routine actions. The sponsor path is configured per-deployment; operations fall back to standard wallet signing when sponsorship is unavailable.
+The worker implementation now lives in this repo under `workers/sponsor-service`, with committed Stillness policy metadata under `config/chain/` and `config/sponsorship/`.
 
 ---
 
@@ -131,6 +132,16 @@ npm run dev            # Dev server at http://localhost:5173
 npm run typecheck      # TypeScript check
 npm run build          # Production build into dist/
 ```
+
+### Sponsor Worker
+
+```bash
+npm run sponsor:validate-policy
+npm run sponsor:test
+npm run sponsor:typecheck
+```
+
+The worker package itself lives in `workers/sponsor-service/`. Use `cd workers/sponsor-service && npm run dev` for local Worker development. If you set `VITE_SPONSOR_API_KEY`, remember it is browser-visible configuration, not a durable secret.
 
 ### Static Data Generation
 

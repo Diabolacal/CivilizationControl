@@ -1,9 +1,11 @@
 # Stillness Sponsor Worker Handoff
 
+> Historical note: this document captures the earlier CivilizationControl to Flappy-Frontier handoff for Stillness v1 sponsor-worker policy updates. Current worker ownership now lives in-repo under `workers/sponsor-service/`, with the live operational guide at `docs/operations/sponsor-worker-runbook.md`. Keep this file for handoff history and stale-allowlist failure context, not as the current operational source of truth.
+
 **From:** CivilizationControl repo (`feat/stillness-migration` branch)
 **To:** Flappy-Frontier repo (`workers/sponsor-service/`)
 **Date:** 2026-04-01
-**Purpose:** Exact data needed to update the sponsor-worker `APP_POLICIES` for CivilizationControl on Stillness.
+**Purpose:** Historical record of the exact data that was once needed to update the external Flappy-owned sponsor-worker `APP_POLICIES` for CivilizationControl on Stillness.
 
 > **2026-04-25 status note:** Treat the exact `WORLD_PACKAGE_ID` values in this handoff as the original Stillness v1 instructions until a runtime-ID audit updates them. Upstream `vendor/world-contracts` now records Stillness world v2 with `published-at` `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780` and original/type-origin ID `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`. Sponsor-worker allowlists must match the runtime package the frontend actually calls; do not blindly apply the v1 allowlist to a world-v2 frontend.
 

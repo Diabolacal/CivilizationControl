@@ -68,7 +68,7 @@ Planned, partial, or not currently implemented:
 
 - Subscription passes are described in older strategy/spec documents such as `docs/core/spec.md`, but the archived `docs/archive/hackathon-2026/core/demo-readiness-tranches.md` explicitly says no subscription ledger exists. No current source module implements a subscription pass ledger.
 - Network node offline is not implemented in the current UI; `src/screens/NetworkNodeListScreen.tsx` explicitly says offline is not yet implemented.
-- The sponsor worker implementation is not in this repo. `docs/operations/stillness-sponsor-worker-handoff.md` says it lives in a separate Flappy-Frontier worker service.
+- The sponsor worker implementation now lives in this repo under `workers/sponsor-service/`. The older `docs/operations/stillness-sponsor-worker-handoff.md` file remains historical context for the earlier Flappy-owned setup.
 - Turret targeting events emitted during `devInspect` evaluation are diagnostic and not reliable persisted dashboard telemetry. `contracts/civilization_control/sources/turret.move` comments and demo docs warn about this.
 
 ## 5. Major user workflows
@@ -275,7 +275,7 @@ Environment differences:
 
 ## 9. Sponsorship / gas abstraction
 
-Sponsorship is present on the frontend path, but the worker implementation is external to this repo.
+Sponsorship is present on the frontend path, and the current worker implementation now lives in this repo under `workers/sponsor-service/`.
 
 Frontend implementation:
 
@@ -284,18 +284,20 @@ Frontend implementation:
 - `src/hooks/useSponsoredExecution.ts` centralizes execution. It builds `TransactionKind` bytes, requests sponsorship, asks the wallet to sign the sponsored transaction, submits dual signatures, and falls back to standard wallet execution if sponsorship is unavailable or rejected.
 - Current hooks for gate permits, listing creation, listing purchase, listing cancellation, policy, posture, power, authorization, and transit proof use `useSponsoredExecution`.
 
-Worker/server-side model, documented but not implemented here:
+Worker/server-side model:
 
-- `docs/operations/stillness-sponsor-worker-handoff.md` says the worker lives in a separate Flappy-Frontier repo under `workers/sponsor-service/`.
-- That doc describes a policy allowlist model: the worker validates MoveCall targets against `APP_POLICIES`, supplies sponsor gas, returns sponsored transaction bytes plus sponsor signature, and the player supplies their signature.
-- The same handoff says stale Utopia package IDs broke sponsorship before fallback masked it. Keep worker package IDs synchronized with `src/constants.ts` and `Published.toml`.
+- `workers/sponsor-service/src/index.ts` implements the Worker handler and returns `{ txB64, sponsorSignature }`.
+- `workers/sponsor-service/src/validation.ts` enforces command-kind allowlists, cross-app rejection, and `GasCoin` blocking.
+- `config/chain/stillness.ts` and `config/sponsorship/civilizationControlPolicy.ts` are the committed Stillness/policy references checked by `scripts/validate-sponsor-policy.mjs`.
+- `docs/operations/sponsor-worker-runbook.md` is the live operational guide.
+- `docs/operations/stillness-sponsor-worker-handoff.md` remains historical evidence of the earlier external-worker setup and the stale-allowlist failure mode.
 
 Operations and limits:
 
 - Sponsorship is optional. If `VITE_SPONSOR_URL` is unset or the worker fails, users pay gas normally through the connected wallet.
 - `VITE_SPONSOR_API_KEY` is optional in current client code. If a real worker requires auth, configure it via environment without committing secrets.
 - Value-transfer actions involving `Coin<EVE>` can still be sponsored for gas because the player signs and authorizes their EVE coin. The sponsor contributes gas only.
-- The worker allowlist and deployed worker state were not verified during this guide creation.
+- The in-repo worker policy and validation suite exist in this repo, but deployed worker behavior still requires preview or live verification.
 
 ## 10. Authentication/session/wallet model
 
@@ -408,7 +410,7 @@ On-chain and environment risks:
 
 - Stillness and Utopia share the same Sui testnet chain ID `4c78adac`; world/package IDs distinguish them.
 - Future package upgrades can reintroduce type-origin vs runtime-package bugs. Use `CC_ORIGINAL_PACKAGE_ID` for type strings and dynamic field key types, and current `CC_PACKAGE_ID` for runtime MoveCall targets and MoveModule filters.
-- Sponsor worker policies live outside this repo and can become stale even when frontend code is correct.
+- Sponsor worker policy drift can still happen, but the committed worker package, policy config, and validation script now live in this repo so the risk is localised to one codebase.
 - Move unit tests include notes that some end-to-end behavior needs devnet/testnet integration, especially permit issuance and trade buy settlement.
 
 Auth/session risks:
@@ -452,6 +454,6 @@ Follow these repo-specific rules before making changes:
 
 CivilizationControl is an EVE Frontier governance command layer: a React/Vite/Tailwind browser app plus a Sui Move extension package that lets infrastructure owners govern gates, SSUs, turrets, and network nodes without hand-building Sui transactions. The active app code is in `src/`, contracts are in `contracts/civilization_control/`, product/architecture docs are in `docs/`, Cloudflare templates are in `templates/cloudflare/`, and upstream references are read-only submodules in `vendor/`. Current runtime target is Stillness testnet. Active IDs live in `src/constants.ts`; `README.md` and `contracts/civilization_control/Published.toml` record the Stillness v1 package `0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021` and shared `GateConfig` `0xad76aec886fb85d8e0daad5e375b110cdadd48a8b3439ff76e9601ae39ebe08e`.
 
-The main source truth is code, not older planning docs. The app discovers wallet-owned infrastructure through `src/lib/suiReader.ts`: wallet to PlayerProfile to Character to OwnerCaps to shared structures. `src/App.tsx` defines player routes `/gate/:gateId` and `/ssu/:ssuId` plus operator routes for Command Overview, Gates, TradePosts, Turrets, Network Nodes, Signal Feed, and Configuration. Chain reads use TanStack Query hooks; writes use focused PTB builders in `src/lib/*Tx.ts`. Sponsorship is centralized in `src/hooks/useSponsoredExecution.ts` and `src/lib/sponsorship.ts`, with `VITE_SPONSOR_URL` enabling a worker-based gas path and fallback to wallet-paid execution. The worker itself is outside this repo.
+The main source truth is code, not older planning docs. The app discovers wallet-owned infrastructure through `src/lib/suiReader.ts`: wallet to PlayerProfile to Character to OwnerCaps to shared structures. `src/App.tsx` defines player routes `/gate/:gateId` and `/ssu/:ssuId` plus operator routes for Command Overview, Gates, TradePosts, Turrets, Network Nodes, Signal Feed, and Configuration. Chain reads use TanStack Query hooks; writes use focused PTB builders in `src/lib/*Tx.ts`. Sponsorship is centralized in `src/hooks/useSponsoredExecution.ts` and `src/lib/sponsorship.ts`, with `VITE_SPONSOR_URL` enabling a worker-based gas path and fallback to wallet-paid execution. The worker package, its Stillness policy config, and the policy validator now live in this repo.
 
 Implemented Move modules include `config.move` for shared `GateConfig`, `gate_control.move` for policy presets/tolls/permits/treasury, `trade_post.move` for SSU listings and `buy_to_inventory`, `posture.move` for Commercial/Defense posture state, and `turret.move` for the unified turret doctrine dispatcher. Current UI surfaces include gate governance, player permit acquisition, trade post marketplace/listings, posture switching with turret rebinding, power controls, topology map, and Signal Feed. Treat subscription passes, network node offline, some in-game wallet claims, sponsor worker status, and live Stillness validation claims as requiring revalidation. Beware stale Utopia references in `.env.example`, root fixtures, and some scripts. For future work, preserve command-layer UX language, verify Sui/world-contract signatures before changing PTBs, keep type-origin IDs separate from runtime package IDs, avoid modifying `vendor/`, and run relevant gates before committing.

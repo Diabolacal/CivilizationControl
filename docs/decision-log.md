@@ -4,6 +4,14 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-27 – Bring sponsor worker into CivilizationControl
+- Goal: Copy the stabilized sponsor worker from Flappy Frontier into this repo, adapt it to CivilizationControl ownership, add committed Stillness and policy config, and add local validation without changing runtime package IDs or deploying anything.
+- Files: `workers/sponsor-service/`, `config/chain/stillness.ts`, `config/sponsorship/civilizationControlPolicy.ts`, `scripts/validate-sponsor-policy.mjs`, `.env.example`, `README.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/operations/stillness-sponsor-worker-handoff.md`, `docs/operations/sponsor-worker-runbook.md`, `package.json`
+- Diff: new worker package plus targeted docs/env/script updates
+- Risk: medium — new worker package and security-sensitive config, but no contract or runtime-ID changes
+- Gates: policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
+- Follow-ups: preview-only worker deploy, preview frontend URL cutover, and a later separate Stillness world v2 runtime-ID task.
+
 ## 2026-04-27 – Plan sponsor signer migration
 - Goal: Investigate the current sponsor-worker ownership split between CivilizationControl and Flappy Frontier, then document a phased migration plan for moving sponsor-worker ownership into this repo without changing runtime IDs or deploying anything yet.
 - Files: `docs/operations/sponsor-signer-migration-plan-20260427.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`

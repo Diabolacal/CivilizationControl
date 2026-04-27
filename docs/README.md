@@ -151,7 +151,8 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 | [operations/extension-freeze-safety-guide.md](operations/extension-freeze-safety-guide.md) | **Extension freeze safety guide** — when/how to freeze, posture-switching constraint |
 | [operations/gate-control-web-capabilities.md](operations/gate-control-web-capabilities.md) | **Structure control web capabilities** — controllability matrix for gates, turrets, SSUs, network nodes |
 | [operations/migrate-to-stillness.md](operations/migrate-to-stillness.md) | **Stillness migration playbook** — compatibility verification, address inventory, migration checklist |
-| [operations/stillness-sponsor-worker-handoff.md](operations/stillness-sponsor-worker-handoff.md) | **Sponsor worker handoff** — exact APP_POLICIES config for Flappy-Frontier sponsor-service on Stillness |
+| [operations/stillness-sponsor-worker-handoff.md](operations/stillness-sponsor-worker-handoff.md) | **Historical sponsor worker handoff** — archived Flappy-owned allowlist handoff and failure history |
+| [operations/sponsor-worker-runbook.md](operations/sponsor-worker-runbook.md) | **Sponsor worker runbook** — in-repo worker layout, secrets, validation, and policy update procedure |
 | [operations/sponsor-signer-migration-plan-20260427.md](operations/sponsor-signer-migration-plan-20260427.md) | **Sponsor signer migration plan** — investigation and phased plan for bringing worker ownership into CivilizationControl |
 | [operations/post-hackathon-repo-readiness-audit.md](operations/post-hackathon-repo-readiness-audit.md) | **Post-hackathon readiness audit** — cleanup sequence, Stillness risks, stashes, submodules, validation baseline |
 | [operations/submodule-refresh-20260425.md](operations/submodule-refresh-20260425.md) | **Submodule refresh audit** — vendor pointer updates, upstream impact, validation, and follow-up actions |
