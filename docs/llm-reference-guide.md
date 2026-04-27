@@ -68,7 +68,7 @@ Planned, partial, or not currently implemented:
 
 - Subscription passes are described in older strategy/spec documents such as `docs/core/spec.md`, but the archived `docs/archive/hackathon-2026/core/demo-readiness-tranches.md` explicitly says no subscription ledger exists. No current source module implements a subscription pass ledger.
 - Network node offline is not implemented in the current UI; `src/screens/NetworkNodeListScreen.tsx` explicitly says offline is not yet implemented.
-- The sponsor worker implementation now lives in this repo under `workers/sponsor-service/`. The older `docs/operations/stillness-sponsor-worker-handoff.md` file remains historical context for the earlier Flappy-owned setup.
+- The sponsor worker implementation now lives in this repo under `workers/sponsor-service/`. The older `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md` file remains historical context for the earlier Flappy-owned setup.
 - Turret targeting events emitted during `devInspect` evaluation are diagnostic and not reliable persisted dashboard telemetry. `contracts/civilization_control/sources/turret.move` comments and demo docs warn about this.
 
 ## 5. Major user workflows
@@ -115,7 +115,7 @@ Sponsored/gasless workflow:
 1. A hook builds a `Transaction` and calls `useSponsoredExecution`.
 2. If `VITE_SPONSOR_URL` is configured, `useSponsoredExecution` builds `TransactionKind` bytes only, calls `requestSponsorship`, asks the wallet to sign the sponsored transaction, then submits player and sponsor signatures together.
 3. If sponsorship is missing or fails, the same hook falls back to standard wallet-paid execution.
-4. Current permit, listing, policy, posture, power, authorization, and trade hooks route through `useSponsoredExecution`, but the worker allowlist must be kept in sync outside this repo.
+4. Current permit, listing, policy, posture, power, authorization, and trade hooks route through `useSponsoredExecution`. The committed worker policy now lives in `config/sponsorship/civilizationControlPolicy.ts`, deploy config lives in `workers/sponsor-service/wrangler.toml`, and `npm run sponsor:validate-policy` checks current repo drift. Deploy/cutover still requires an explicit Cloudflare task.
 
 Deployment/demo/test workflow:
 
@@ -172,8 +172,8 @@ Important docs paths:
 - `docs/core/validation.md`: validation procedures, but partially stale because it predates current implementation in places.
 - `docs/archive/hackathon-2026/README.md`: historical hackathon demo, submission, recording, and evidence bundle.
 - `docs/operations/migrate-to-stillness.md`: Stillness migration playbook, useful but time-specific.
-- `docs/operations/stillness-sponsor-worker-handoff.md`: sponsor worker allowlist handoff, partly stale against current hooks.
-- `docs/operations/sponsor-signer-migration-plan-20260427.md`: current planning document for moving sponsor-worker ownership into this repo without changing runtime IDs yet.
+- `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md`: archived sponsor worker handoff, retained for historical allowlist context and stale-failure evidence.
+- `docs/operations/sponsor-signer-migration-plan-20260427.md`: historical planning document with a top status update pointing to the implemented in-repo migration state.
 - `docs/strategy/civilization-control/`: product vision, voice, narrative, and future direction.
 - `docs/ux/`: UX architecture, topology specs, and polish/audit notes.
 
@@ -290,7 +290,7 @@ Worker/server-side model:
 - `workers/sponsor-service/src/validation.ts` enforces command-kind allowlists, cross-app rejection, and `GasCoin` blocking.
 - `config/chain/stillness.ts` and `config/sponsorship/civilizationControlPolicy.ts` are the committed Stillness/policy references checked by `scripts/validate-sponsor-policy.mjs`.
 - `docs/operations/sponsor-worker-runbook.md` is the live operational guide.
-- `docs/operations/stillness-sponsor-worker-handoff.md` remains historical evidence of the earlier external-worker setup and the stale-allowlist failure mode.
+- `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md` remains historical evidence of the earlier external-worker setup and the stale-allowlist failure mode.
 
 Operations and limits:
 
@@ -402,7 +402,7 @@ Stale or conflicting docs:
 
 - `docs/core/validation.md` is explicitly marked pre-hackathon/provisional and partially stale. It remains useful for validation patterns, not as current implementation truth.
 - `.env.example` labels a Utopia world package, while `src/constants.ts` and `README.md` use Stillness IDs.
-- `docs/operations/stillness-sponsor-worker-handoff.md` contains a section saying several hooks still need rerouting through sponsorship, but current hooks such as `src/hooks/useGatePermit.ts`, `src/hooks/useBuyListing.ts`, `src/hooks/useCreateListing.ts`, and `src/hooks/useCancelListing.ts` already use `useSponsoredExecution`.
+- `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md` contains a section saying several hooks still need rerouting through sponsorship, but current hooks such as `src/hooks/useGatePermit.ts`, `src/hooks/useBuyListing.ts`, `src/hooks/useCreateListing.ts`, and `src/hooks/useCancelListing.ts` already use `useSponsoredExecution`.
 - `docs/operations/migrate-to-stillness.md` records a point-in-time migration state, including limited gate availability, while `README.md` later claims Stillness-live gate validation. Treat the README as newer but revalidate on-chain before using the claim externally.
 - Root fixtures and diagnostic scripts include Utopia-era or mixed IDs: `gate_obj.json`, `playerprofile.json`, `wallet_objects.txt`, `scripts/test-sponsor.mjs`, and `scripts/test-turret-targeting.mjs`.
 

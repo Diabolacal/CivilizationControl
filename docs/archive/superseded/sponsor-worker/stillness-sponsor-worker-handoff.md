@@ -1,6 +1,13 @@
 # Stillness Sponsor Worker Handoff
 
-> Historical note: this document captures the earlier CivilizationControl to Flappy-Frontier handoff for Stillness v1 sponsor-worker policy updates. Current worker ownership now lives in-repo under `workers/sponsor-service/`, with the live operational guide at `docs/operations/sponsor-worker-runbook.md`. Keep this file for handoff history and stale-allowlist failure context, not as the current operational source of truth.
+> Superseded note: sponsor worker source ownership moved into CivilizationControl in commit `9fa2144` after copying the stabilized worker from Flappy Frontier commit `de2fbbd03a32464c29729fe561314fd676029e1f`. Moving the source did not itself deploy or cut over the live Cloudflare Worker.
+>
+> Keep this file only for historical allowlist/context and the earlier stale-policy failure mode. The active source of truth is now:
+> - `workers/sponsor-service/`
+> - `config/chain/stillness.ts`
+> - `config/sponsorship/civilizationControlPolicy.ts`
+> - `scripts/validate-sponsor-policy.mjs`
+> - `docs/operations/sponsor-worker-runbook.md`
 
 **From:** CivilizationControl repo (`feat/stillness-migration` branch)
 **To:** Flappy-Frontier repo (`workers/sponsor-service/`)

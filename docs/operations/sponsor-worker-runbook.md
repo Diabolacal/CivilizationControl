@@ -19,6 +19,8 @@ Purpose: operate the in-repo CivilizationControl sponsor worker without changing
 
 The sponsor worker provides gas sponsorship for current CivilizationControl governance PTBs. It validates MoveCall targets against the committed CivilizationControl allowlist, blocks sponsor `GasCoin` access, applies sponsor gas ownership, signs the rebuilt transaction, and returns `{ txB64, sponsorSignature }`.
 
+CivilizationControl now owns the worker source, deployment config, and committed policy inputs. Moving the source into this repo did not itself deploy or cut over any Cloudflare Worker environment; preview/live deploy and frontend cutover verification remain separate follow-up tasks.
+
 Current committed config is CivilizationControl-only:
 
 - Stillness v1 runtime package targets only
@@ -77,7 +79,7 @@ npm run build
 
 ## Deploy command shape
 
-Do not deploy from this runbook automatically. The current command shape is:
+Do not deploy from this runbook automatically. Deploy and frontend cutover are later tasks, and the current command shape is:
 
 ```bash
 cd workers/sponsor-service
@@ -92,6 +94,8 @@ Before any real deploy:
 4. validate preview behavior before any production cutover
 
 ## Policy update process
+
+Package-ID, runtime-ID, and allowlist changes belong in this repo. Update the committed chain and policy files first, then reflect the same values in worker deploy config.
 
 1. Update current package or object metadata only in `config/chain/stillness.ts`.
 2. Update the sponsorship allowlist only in `config/sponsorship/civilizationControlPolicy.ts`.
@@ -113,7 +117,7 @@ Before any real deploy:
 
 ## Historical handoff note
 
-`docs/operations/stillness-sponsor-worker-handoff.md` remains useful as historical evidence of the earlier Flappy-owned worker handoff and the stale-allowlist failure mode, but it is no longer the live operational source of truth for worker ownership.
+`docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md` remains useful as historical evidence of the earlier Flappy-owned worker handoff and the stale-allowlist failure mode, but it is no longer the live operational source of truth for worker ownership.
 
 ## World v2 warning
 

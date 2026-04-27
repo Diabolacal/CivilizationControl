@@ -1,8 +1,31 @@
 # Sponsor Signer Migration Plan — 2026-04-27
 
-Status: planning only
+Status: phases 1 through 4 implemented locally; deploy and cutover remain separate follow-up work
 
-Scope guardrails for this document:
+## Status Update — 2026-04-27
+
+- Implementation commit: `9fa2144`
+- Worker source provenance: copied from Flappy Frontier commit `de2fbbd03a32464c29729fe561314fd676029e1f`
+- Implemented locally in CivilizationControl:
+	- `workers/sponsor-service/` now contains the worker runtime, tests, package metadata, and Wrangler config
+	- `config/chain/stillness.ts` is the committed chain and package-ID source of truth for sponsor-worker updates
+	- `config/sponsorship/civilizationControlPolicy.ts` is the committed CivilizationControl allowlist source of truth
+	- `scripts/validate-sponsor-policy.mjs` plus `npm run sponsor:validate-policy` validate repo drift against current config/runtime metadata
+	- `docs/operations/sponsor-worker-runbook.md` documents in-repo worker ownership and maintenance
+	- Local validation passed: `npm run sponsor:validate-policy`, `npm run sponsor:test`, `npm run sponsor:typecheck`, `npm run typecheck`, `npm run build`
+- Not implemented yet:
+	- Cloudflare deploy from CivilizationControl
+	- Frontend env cutover verification against the in-repo worker
+	- Live sponsored transaction validation against a deployed worker URL
+	- Stillness World v2 runtime-ID migration
+- Operational clarification:
+	- Moving worker source into CivilizationControl changes source ownership only. It does not automatically redeploy or cut over the live Cloudflare Worker.
+	- Future package-ID or World v2 runtime-ID changes should update `config/chain/stillness.ts`, `config/sponsorship/civilizationControlPolicy.ts`, `workers/sponsor-service/wrangler.toml`, and `scripts/validate-sponsor-policy.mjs` in this repo, not a Flappy Frontier handoff doc.
+	- After this branch merges, Flappy Frontier is no longer needed for routine sponsor-worker edits.
+
+The remainder of this file is preserved as the original pre-implementation planning artifact and describes the pre-copy state unless explicitly noted otherwise.
+
+Historical planning guardrails from the original planning-only task:
 - Do not copy implementation code into CivilizationControl yet.
 - Do not change runtime code, Move contracts, package IDs, world IDs, object IDs, sponsor allowlists, or Cloudflare config in this task.
 - Do not deploy, publish, or upgrade anything in this task.
@@ -65,7 +88,7 @@ Transaction builder surfaces currently affected by sponsorship policy:
 - `src/lib/transitProofTx.ts`
 
 Supporting docs:
-- `docs/operations/stillness-sponsor-worker-handoff.md`
+- `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md`
 - `docs/operations/submodule-refresh-20260425.md`
 - `docs/operations/post-hackathon-repo-readiness-audit.md`
 - `docs/llm-reference-guide.md`
@@ -535,7 +558,7 @@ Instead:
 - keep docs focused on process and validation
 - generate or summarize the current policy from code when documentation needs to show the allowlist
 
-That replaces the current pattern where `docs/operations/stillness-sponsor-worker-handoff.md` can become stale while the code evolves.
+That replaces the current pattern where `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md` preserves history while the live code and policy evolve in-repo.
 
 ## 8. World v2 readiness implications
 

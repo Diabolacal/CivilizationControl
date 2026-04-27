@@ -79,7 +79,7 @@ Updated in this branch:
 - `README.md` — annotated world original/type-origin ID versus upstream Stillness v2 published-at.
 - `docs/llm-reference-guide.md` — added the same world-v2 package distinction for future agents.
 - `docs/operations/post-hackathon-repo-readiness-audit.md` — marked the prior submodule-readiness section as superseded by this refresh.
-- `docs/operations/stillness-sponsor-worker-handoff.md` — marked exact v1 allowlist instructions as requiring world-v2 verification before reuse.
+- `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md` — marked exact v1 allowlist instructions as requiring world-v2 verification before reuse.
 - `docs/operations/migrate-to-stillness.md` — marked the migration playbook as historical relative to the new world-v2 metadata.
 - `docs/README.md` — indexed this report.
 - `docs/decision-log.md` — added the concise decision-log entry.

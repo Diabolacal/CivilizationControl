@@ -4,9 +4,17 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-27 – Reconcile sponsor worker ownership docs
+- Goal: Update the docs to match the post-implementation state where CivilizationControl owns the sponsor-worker source, while keeping deployment and live cutover explicitly out of scope.
+- Files: `docs/operations/sponsor-signer-migration-plan-20260427.md`, `docs/operations/sponsor-worker-runbook.md`, `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/operations/post-hackathon-repo-readiness-audit.md`, `docs/operations/submodule-refresh-20260425.md`, `docs/operations/hackathon-archive-cleanup-20260427.md`, `docs/decision-log.md`
+- Diff: docs-only status reconciliation plus archive move and link updates
+- Risk: low — documentation only, no runtime/package-ID/deploy changes
+- Gates: diff-check ✅ policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
+- Follow-ups: verify preview or production Worker deployment separately, verify frontend env cutover separately, and handle Stillness world v2 runtime-ID migration in a dedicated later task.
+
 ## 2026-04-27 – Bring sponsor worker into CivilizationControl
 - Goal: Copy the stabilized sponsor worker from Flappy Frontier into this repo, adapt it to CivilizationControl ownership, add committed Stillness and policy config, and add local validation without changing runtime package IDs or deploying anything.
-- Files: `workers/sponsor-service/`, `config/chain/stillness.ts`, `config/sponsorship/civilizationControlPolicy.ts`, `scripts/validate-sponsor-policy.mjs`, `.env.example`, `README.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/operations/stillness-sponsor-worker-handoff.md`, `docs/operations/sponsor-worker-runbook.md`, `package.json`
+- Files: `workers/sponsor-service/`, `config/chain/stillness.ts`, `config/sponsorship/civilizationControlPolicy.ts`, `scripts/validate-sponsor-policy.mjs`, `.env.example`, `README.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md`, `docs/operations/sponsor-worker-runbook.md`, `package.json`
 - Diff: new worker package plus targeted docs/env/script updates
 - Risk: medium — new worker package and security-sensitive config, but no contract or runtime-ID changes
 - Gates: policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅

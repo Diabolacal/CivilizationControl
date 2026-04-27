@@ -4,6 +4,8 @@ Date: 2026-04-25
 Branch used for this audit: `docs/post-hackathon-readiness-audit`
 Scope: audit/planning only. No stashes were applied or dropped, no submodules were updated, no runtime code was changed, no deploys or Move publishes were run.
 
+> **2026-04-27 superseded note:** Sponsor-worker ownership references in this audit describe the pre-migration state. The current in-repo source of truth now lives under `workers/sponsor-service/`, `config/chain/stillness.ts`, `config/sponsorship/civilizationControlPolicy.ts`, `scripts/validate-sponsor-policy.mjs`, and `docs/operations/sponsor-worker-runbook.md`. That source migration did not itself deploy or cut over any Cloudflare Worker environment.
+
 ## 1. Executive summary
 
 The repo is close to being ready for normal Stillness-focused feature work, but it is not quite ready to resume as-is.
@@ -122,14 +124,14 @@ Must fix before normal feature work:
 
 - `.env.example` labels `VITE_EVE_WORLD_PACKAGE_ID` as Utopia and contains the Utopia world package. Current source does not appear to consume this variable, but it is an active setup file and a trap for future agents.
 - The branch/default naming mismatch must be resolved or documented before deploy-related work: Git base is `master`; production deploy guidance says `main`.
-- Sponsor allowlist status must be verified before any sponsored/gasless feature work or claims. `src/lib/sponsorship.ts` enables sponsorship with `VITE_SPONSOR_URL`, `src/hooks/useSponsoredExecution.ts` falls back silently, and `docs/operations/stillness-sponsor-worker-handoff.md` says worker policies live outside this repo.
+- Sponsor allowlist status must be verified before any sponsored/gasless feature work or claims. `src/lib/sponsorship.ts` enables sponsorship with `VITE_SPONSOR_URL`, `src/hooks/useSponsoredExecution.ts` falls back silently, and the current worker source/policy now lives in-repo under `workers/sponsor-service/`, `config/sponsorship/civilizationControlPolicy.ts`, and `scripts/validate-sponsor-policy.mjs`.
 
 Should fix soon:
 
 - `gate_obj.json`, `playerprofile.json`, and `wallet_objects.txt` contain Utopia-era or mixed object IDs. They are root-level fixtures and should be clearly marked historical, moved under a fixture/archive area, refreshed for Stillness, or removed in a dedicated cleanup.
 - `scripts/test-sponsor.mjs`, `scripts/test-turret-targeting.mjs`, and parts of `scripts/record-demo-scenes.mts` contain hardcoded Utopia-era IDs and should not be used for Stillness validation until refreshed.
 - `src/lib/tribeCatalog.ts` has stale Utopia wording in comments while active data refresh scripts use Stillness World API endpoints.
-- `docs/operations/stillness-sponsor-worker-handoff.md` still contains stale language saying some hooks need sponsorship rerouting, while current hooks such as `src/hooks/useGatePermit.ts`, `src/hooks/useCreateListing.ts`, `src/hooks/useCancelListing.ts`, and `src/hooks/useBuyListing.ts` already use `useSponsoredExecution`.
+- `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md` still contains stale language saying some hooks needed sponsorship rerouting in the earlier external-worker model, while current hooks such as `src/hooks/useGatePermit.ts`, `src/hooks/useCreateListing.ts`, `src/hooks/useCancelListing.ts`, and `src/hooks/useBuyListing.ts` already use `useSponsoredExecution`.
 - `docs/operations/sui-upgrade-type-origin-guide.md` is Utopia-era and marked active. Revisit it before event/indexer/package upgrade work.
 
 Safe historical doc references:
@@ -157,7 +159,7 @@ Runtime-critical files likely to need updates after a wipe:
 
 External or environment-dependent refresh points:
 
-- Sponsor worker `APP_POLICIES` in the external worker repo described by `docs/operations/stillness-sponsor-worker-handoff.md`.
+- Sponsor worker `APP_POLICIES` in `workers/sponsor-service/wrangler.toml`, together with the committed allowlist in `config/sponsorship/civilizationControlPolicy.ts`.
 - Cloudflare environment variables such as `VITE_SPONSOR_URL` and optional `VITE_SPONSOR_API_KEY` if the sponsor service changes.
 - `.env.example` if it remains an operator-facing setup file.
 
@@ -165,7 +167,7 @@ Documentation-only or evidence refresh points:
 
 - `README.md` Stillness ID table and validation claims.
 - `docs/llm-reference-guide.md` runtime ID summary.
-- `docs/operations/stillness-sponsor-worker-handoff.md` allowlist tables.
+- `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md` allowlist tables.
 - `docs/operations/migrate-to-stillness.md` only if it is promoted from historical playbook to active runbook; otherwise mark historical.
 - `docs/decision-log.md` for any new publish, wipe migration, or production deploy.
 
@@ -273,7 +275,7 @@ Production deploy protocol:
 Sponsor worker dependency:
 
 - Sponsorship is frontend-configured through `VITE_SPONSOR_URL` and optional `VITE_SPONSOR_API_KEY` in `src/lib/sponsorship.ts`.
-- The worker implementation and allowlist are external to this repo, documented in `docs/operations/stillness-sponsor-worker-handoff.md`.
+- The worker implementation and allowlist now live in this repo under `workers/sponsor-service/`, `config/chain/stillness.ts`, and `config/sponsorship/civilizationControlPolicy.ts`. No deploy or frontend cutover verification was performed as part of the source migration.
 - A stale worker allowlist can be hidden by graceful fallback in `src/hooks/useSponsoredExecution.ts`; verify sponsor success explicitly before claiming gasless operation.
 
 Environment variable risks:
@@ -292,7 +294,7 @@ Must update before feature work:
 
 Update during next relevant work:
 
-- `docs/operations/stillness-sponsor-worker-handoff.md`: remove or mark stale hook-reroute TODOs; refresh allowlist status only after checking the external worker.
+- `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md`: keep as archived history only; make future sponsor allowlist updates in the in-repo policy/config files instead of reviving this handoff.
 - `docs/operations/sui-upgrade-type-origin-guide.md`: revisit before package upgrade or event/indexer work.
 - `docs/strategy/civilization-control/where-civilizationcontrol-goes-next.md`: it still says Utopia is deployed and Stillness is next; update when roadmap docs are being refreshed.
 - `docs/ux/civilizationcontrol-ux-architecture-spec.md`: stale on `Coin<SUI>` vs current `Coin<EVE>` commerce and some responsive assumptions.

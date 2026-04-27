@@ -57,7 +57,7 @@ Moved clear hackathon submission, demo-production, recording, and one-off valida
 - `docs/architecture/*`
 - `docs/operations/post-hackathon-repo-readiness-audit.md`
 - `docs/operations/submodule-refresh-20260425.md`
-- `docs/operations/stillness-sponsor-worker-handoff.md`
+- `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md`
 - `docs/operations/migrate-to-stillness.md`
 - `docs/operations/sui-upgrade-type-origin-guide.md`
 - `docs/operations/extension-freeze-safety-guide.md`
@@ -70,7 +70,7 @@ Moved clear hackathon submission, demo-production, recording, and one-off valida
 
 ## Uncertain Files Left For Later Review
 
-- `docs/operations/stillness-sponsor-worker-handoff.md`
+- `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md`
 - `docs/operations/migrate-to-stillness.md`
 - `docs/strategy/civilization-control/where-civilizationcontrol-goes-next.md`
 - `docs/core/spec.md`
@@ -100,5 +100,5 @@ Moved clear hackathon submission, demo-production, recording, and one-off valida
 ## Remaining Cleanup Recommendations
 
 - Decide later whether `scripts/test-sponsor.mjs` and `scripts/test-turret-targeting.mjs` should be archived or rewritten for Stillness-era diagnostics.
-- Refresh `docs/operations/stillness-sponsor-worker-handoff.md` and `docs/operations/migrate-to-stillness.md` only in a dedicated Stillness/runtime follow-up.
+- Refresh `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md` and `docs/operations/migrate-to-stillness.md` only in a dedicated Stillness/runtime follow-up.
 - If a future post-hackathon demo package is created, build it from the archive rather than treating archived demo docs as active source-of-truth.
