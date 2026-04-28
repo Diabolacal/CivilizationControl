@@ -55,6 +55,13 @@ Worker-tail corroboration:
 
 - live `wrangler tail` recorded the post-deploy `OPTIONS /sponsor` requests as `Ok`
 
+Later production smoke update after the fix:
+
+- operator manually tested from `https://civilizationcontrol.com`
+- production transactions were confirmed sponsor-paid by operator observation of sponsor-wallet activity
+- no frontend redeploy was required for this fix because the production bundle already pointed at `civilizationcontrol-sponsor`
+- transaction digest was not captured in the agent transcript
+
 ## Manual smoke update — operator-performed
 
 After the initial agent-run preview validation was recorded, the operator performed a manual preview smoke outside the agent browser environment.
@@ -291,8 +298,8 @@ The old Worker remains intact:
 
 ## Remaining tasks
 
-1. Run or capture one manual production governance smoke with digest or gas-payer evidence if possible.
+1. Capture production digest or gas-payer evidence in a later follow-up if transcript-grade proof is needed; manual sponsor-wallet confirmation is already recorded.
 2. Keep `flappy-frontier-sponsor` alive during the soak period.
 3. Decide later whether to keep optional API-key auth disabled or deliberately enable it.
 4. Consider old Worker retirement only in a separate later cleanup task.
-5. After the custom-domain CORS fix, capture one production action from `https://civilizationcontrol.com` with `/sponsor` status, no-fallback confirmation, digest, and sponsor-wallet activity evidence.
+5. Keep Stillness World v2 runtime-ID work separate from this completed sponsor-worker fix path.

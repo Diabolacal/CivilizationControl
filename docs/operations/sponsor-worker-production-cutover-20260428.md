@@ -99,6 +99,11 @@ Required fix:
 - keep existing Pages alias support and preview suffix support
 - do not redeploy frontend as part of this fix
 
+Resolution status:
+
+- this was later resolved with a worker-only redeploy of `civilizationcontrol-sponsor`
+- no frontend redeploy was required because the production bundle already pointed at `civilizationcontrol-sponsor`
+
 ## Manual preview smoke result
 
 Operator-provided manual smoke evidence was accepted for this cutover:
@@ -120,31 +125,24 @@ Fallback status:
 
 ## Production smoke result
 
-Agent-performed production smoke status: partial only
+Agent-performed production smoke status before the CORS fix: partial only
 
-What the agent verified directly:
+What the agent verified directly before the fix:
 
 - production app loads at `https://civilizationcontrol.pages.dev`
 - production bundle references `civilizationcontrol-sponsor`
 - production bundle does not reference `flappy-frontier-sponsor`
 
-What the agent did not prove directly:
+What the operator later verified after the custom-domain CORS fix:
 
-- a real production sponsored governance transaction
-- an on-chain production digest with sponsor gas evidence
+- operator tested from `https://civilizationcontrol.com`
+- production transactions are now sponsor-paid
+- sponsor wallet activity was observed for the production transaction path
+- no frontend redeploy was required for this fix because the production bundle already pointed at `civilizationcontrol-sponsor`
 
-Reason:
+Digest status:
 
-- the available browser automation environment is not reliable for wallet-backed transaction execution
-
-Recommended manual production smoke:
-
-1. load `https://civilizationcontrol.com`
-2. connect wallet in a normal operator browser session
-3. use one safe owned Gate `Set On-Chain` metadata update or owned SSU fallback
-4. capture `/sponsor` status and confirm fallback logs disappear
-5. confirm the sponsor wallet processed the transaction or capture digest or gas-payer evidence
-5. record the digest if available
+- transaction digest was not captured in the agent transcript
 
 ## Rollback path
 
@@ -158,6 +156,6 @@ If production rollback is needed:
 ## Remaining follow-up
 
 1. Keep `flappy-frontier-sponsor` alive during the soak window.
-2. Perform or capture one manual production sponsored governance smoke from `https://civilizationcontrol.com` with `/sponsor` status, digest evidence, and sponsor-wallet confirmation if possible.
+2. Capture a production digest or gas-payer proof in a later follow-up if transcript-grade evidence is needed; manual sponsor-wallet confirmation is already recorded.
 3. Consider old Worker retirement only in a later dedicated cleanup task.
 4. Handle Stillness World v2 runtime-ID review only in a later dedicated audit task.

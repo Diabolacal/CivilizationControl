@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-28 – Record production sponsor smoke success after CORS fix
+- Goal: Record the operator-confirmed production sponsor-paid smoke after the custom-domain CORS fix on `civilizationcontrol-sponsor`, without changing runtime IDs, allowlists, or frontend deployment state.
+- Files: `docs/operations/production-sponsor-fallback-diagnostic-20260428.md`, `docs/operations/sponsor-worker-production-cutover-20260428.md`, `docs/operations/sponsor-worker-cutover-validation-20260428.md`, `docs/decision-log.md`
+- Diff: docs-only update recording manual production success after the live worker-only CORS fix
+- Risk: low — documentation only, grounded in the already-deployed worker fix and operator manual production evidence
+- Gates: diff-check ✅ policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
+- Result: the production sponsor failure root cause remained the missing custom-domain CORS allowlist entries on `civilizationcontrol-sponsor`; after the worker-only redeploy, the operator manually tested from `https://civilizationcontrol.com` and confirmed sponsor-paid production transactions by observing sponsor-wallet activity. No frontend redeploy was required because the production bundle already pointed at `civilizationcontrol-sponsor`, the digest was not captured in the agent transcript, and `flappy-frontier-sponsor` remains deployed as rollback during soak.
+- Follow-ups: merge the completed fix branch back to `master`, preserve the old Worker during soak, and handle any later sponsor-doc consolidation in a separate archive pass.
+
 ## 2026-04-28 – Fix sponsor worker CORS for production custom domains
 - Goal: Eliminate silent player-paid fallback on the real production domain by allowing sponsor-worker CORS preflight from `https://civilizationcontrol.com` and `https://www.civilizationcontrol.com` while preserving existing Pages and preview support.
 - Files: `workers/sponsor-service/wrangler.toml`, `workers/sponsor-service/src/index.ts`, `workers/sponsor-service/src/__tests__/index.test.ts`, `docs/operations/sponsor-worker-runbook.md`, `docs/operations/sponsor-worker-cutover-validation-20260428.md`, `docs/operations/sponsor-worker-production-cutover-20260428.md`, `docs/operations/production-sponsor-fallback-diagnostic-20260428.md`, `docs/README.md`, `docs/decision-log.md`

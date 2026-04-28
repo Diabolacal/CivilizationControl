@@ -16,6 +16,8 @@ That caused browser CORS preflight rejection before the sponsor POST could compl
 
 The narrow fix was to add both custom production domains to the Worker `ALLOWED_ORIGINS`, keep existing Pages support, keep preview suffix support, validate, redeploy only `civilizationcontrol-sponsor`, and verify live `OPTIONS /sponsor` behavior for all required origins.
 
+After the worker-only redeploy, the operator manually retried from `https://civilizationcontrol.com` and confirmed that production transactions were sponsor-paid by observing sponsor-wallet activity.
+
 ## Observed production evidence
 
 Operator browser evidence from `https://civilizationcontrol.com`:
@@ -130,19 +132,20 @@ Worker runtime corroboration:
 
 - live `wrangler tail` recorded the post-deploy `OPTIONS /sponsor` requests as `Ok`
 
-## Next manual production check
+## Manual production smoke result
 
-Repeat one safe production action from `https://civilizationcontrol.com` and capture:
+Operator-provided result after the fix:
 
-1. `/sponsor` status
-2. whether fallback logs disappear
-3. final digest
-4. whether the sponsor wallet shows activity
+- operator tested from `https://civilizationcontrol.com`
+- production transactions are now confirmed sponsor-paid by operator observation of sponsor-wallet activity
+- no frontend redeploy was required for this fix because the production bundle already pointed at `civilizationcontrol-sponsor`
+- old `flappy-frontier-sponsor` remains deployed as a rollback path during the soak window
 
-Preferred action:
+Digest status:
 
-- one owned Gate detail `Set On-Chain` metadata update
+- unavailable in the agent transcript
 
-Fallback action:
+What remains unproven in transcript evidence:
 
-- one owned SSU or Trade Post `Set On-Chain` metadata update
+- exact `/sponsor` response status for the successful production smoke was not captured in the agent transcript
+- the final production transaction digest was not captured in the agent transcript
