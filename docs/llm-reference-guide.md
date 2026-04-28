@@ -1,6 +1,6 @@
 # CivilizationControl LLM Reference Guide
 
-Last repo-grounded synthesis: 2026-04-25.
+Last repo-grounded synthesis: 2026-04-28.
 
 This guide is written for LLM agents and fresh ChatGPT sessions. It summarizes what CivilizationControl is, how the current repository is organized, what the implementation can do, what is only documented or historical, and what future agents must verify before changing code.
 
@@ -115,7 +115,7 @@ Sponsored/gasless workflow:
 1. A hook builds a `Transaction` and calls `useSponsoredExecution`.
 2. If `VITE_SPONSOR_URL` is configured, `useSponsoredExecution` builds `TransactionKind` bytes only, calls `requestSponsorship`, asks the wallet to sign the sponsored transaction, then submits player and sponsor signatures together.
 3. If sponsorship is missing or fails, the same hook falls back to standard wallet-paid execution.
-4. Current permit, listing, policy, posture, power, authorization, and trade hooks route through `useSponsoredExecution`. The committed worker policy now lives in `config/sponsorship/civilizationControlPolicy.ts`, deploy config lives in `workers/sponsor-service/wrangler.toml`, and `npm run sponsor:validate-policy` checks current repo drift. Deploy/cutover still requires an explicit Cloudflare task.
+4. Current permit, listing, policy, posture, power, authorization, and trade hooks route through `useSponsoredExecution`. The committed worker policy now lives in `config/sponsorship/civilizationControlPolicy.ts`, deploy config lives in `workers/sponsor-service/wrangler.toml`, and `npm run sponsor:validate-policy` checks current repo drift. Production is already cut over to the repo-owned worker `civilizationcontrol-sponsor`; the custom-domain CORS fix for `https://civilizationcontrol.com` and `https://www.civilizationcontrol.com` is complete; and the older `flappy-frontier-sponsor` Worker remains rollback-only during soak.
 
 Deployment/demo/test workflow:
 
@@ -172,8 +172,9 @@ Important docs paths:
 - `docs/core/validation.md`: validation procedures, but partially stale because it predates current implementation in places.
 - `docs/archive/hackathon-2026/README.md`: historical hackathon demo, submission, recording, and evidence bundle.
 - `docs/operations/migrate-to-stillness.md`: Stillness migration playbook, useful but time-specific.
+- `docs/operations/sponsor-worker-runbook.md`: live sponsor-worker source of truth for current runtime state, validation commands, policy-update flow, and operational guardrails.
 - `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md`: archived sponsor worker handoff, retained for historical allowlist context and stale-failure evidence.
-- `docs/operations/sponsor-signer-migration-plan-20260427.md`: historical planning document with a top status update pointing to the implemented in-repo migration state.
+- `docs/archive/sponsor-worker-20260428/README.md`: archive index for the completed sponsor-worker migration, cutover, validation, and production-fix evidence bundle.
 - `docs/strategy/civilization-control/`: product vision, voice, narrative, and future direction.
 - `docs/ux/`: UX architecture, topology specs, and polish/audit notes.
 
@@ -290,6 +291,10 @@ Worker/server-side model:
 - `workers/sponsor-service/src/validation.ts` enforces command-kind allowlists, cross-app rejection, and `GasCoin` blocking.
 - `config/chain/stillness.ts` and `config/sponsorship/civilizationControlPolicy.ts` are the committed Stillness/policy references checked by `scripts/validate-sponsor-policy.mjs`.
 - `docs/operations/sponsor-worker-runbook.md` is the live operational guide.
+- The worker is no longer externalized to Flappy Frontier; source, committed config, and policy now live in this repo.
+- Production currently uses `civilizationcontrol-sponsor`, and the custom-domain CORS fix for `https://civilizationcontrol.com` and `https://www.civilizationcontrol.com` is complete.
+- The old `flappy-frontier-sponsor` Worker remains deployed only as rollback during soak.
+- If future agents need historical execution evidence for the migration, preview cutover, production cutover, or production CORS fix, start from `docs/archive/sponsor-worker-20260428/README.md`.
 - `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md` remains historical evidence of the earlier external-worker setup and the stale-allowlist failure mode.
 
 Operations and limits:
@@ -297,7 +302,7 @@ Operations and limits:
 - Sponsorship is optional. If `VITE_SPONSOR_URL` is unset or the worker fails, users pay gas normally through the connected wallet.
 - `VITE_SPONSOR_API_KEY` is optional in current client code. If a real worker requires auth, configure it via environment without committing secrets.
 - Value-transfer actions involving `Coin<EVE>` can still be sponsored for gas because the player signs and authorizes their EVE coin. The sponsor contributes gas only.
-- The in-repo worker policy and validation suite exist in this repo, but deployed worker behavior still requires preview or live verification.
+- The in-repo worker policy and validation suite exist in this repo, and production sponsor-paid behavior is manually confirmed by sponsor-wallet observation. Transcript-grade digest evidence is still missing for the production smoke, so future claims should avoid inventing a digest.
 
 ## 10. Authentication/session/wallet model
 

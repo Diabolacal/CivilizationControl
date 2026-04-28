@@ -4,9 +4,18 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-28 – Consolidate completed sponsor operations docs
+- Goal: Reduce context noise in `docs/operations/` by archiving completed sponsor-worker migration and cutover evidence, keeping the sponsor-worker runbook active, and updating the LLM guide and docs index with current sponsor-worker truth.
+- Files: `docs/archive/sponsor-worker-20260428/README.md`, `docs/archive/sponsor-worker-20260428/sponsor-signer-migration-plan-20260427.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-deploy-readiness-20260427.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-runtime-discovery-20260427.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-cutover-plan-20260428.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-cutover-validation-20260428.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-production-cutover-20260428.md`, `docs/archive/sponsor-worker-20260428/production-sponsor-fallback-diagnostic-20260428.md`, `docs/archive/hackathon-2026/operations/hackathon-archive-cleanup-20260427.md`, `docs/operations/sponsor-worker-runbook.md`, `docs/operations/documentation-consolidation-20260428.md`, `docs/llm-reference-guide.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: archive moves for completed sponsor-worker evidence plus compact source-of-truth updates for the runbook, LLM guide, docs index, and consolidation report
+- Risk: low — documentation only, no runtime, contract, policy, or deployment changes
+- Gates: diff-check ✅ status/diff-review ✅ typecheck ✅ build ✅ sponsor-policy-check ✅ sponsor-test ✅ sponsor-typecheck ✅
+- Result: completed sponsor-worker planning, readiness, cutover, validation, and incident reports now live under `docs/archive/sponsor-worker-20260428/`, the active sponsor-worker source of truth remains `docs/operations/sponsor-worker-runbook.md`, `docs/llm-reference-guide.md` now reflects the in-repo worker, completed production cutover, and custom-domain CORS fix, and the completed hackathon cleanup report was moved out of `docs/operations/`.
+- Follow-ups: consider a separate authority-chain cleanup for `docs/core/day1-checklist.md`, `docs/core/march-11-reimplementation-checklist.md`, and `docs/core/CARRY_FORWARD_INDEX.md`, which remain active for now because other live docs still treat them as current authority or implementation context.
+
 ## 2026-04-28 – Record production sponsor smoke success after CORS fix
 - Goal: Record the operator-confirmed production sponsor-paid smoke after the custom-domain CORS fix on `civilizationcontrol-sponsor`, without changing runtime IDs, allowlists, or frontend deployment state.
-- Files: `docs/operations/production-sponsor-fallback-diagnostic-20260428.md`, `docs/operations/sponsor-worker-production-cutover-20260428.md`, `docs/operations/sponsor-worker-cutover-validation-20260428.md`, `docs/decision-log.md`
+- Files: `docs/archive/sponsor-worker-20260428/production-sponsor-fallback-diagnostic-20260428.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-production-cutover-20260428.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-cutover-validation-20260428.md`, `docs/decision-log.md`
 - Diff: docs-only update recording manual production success after the live worker-only CORS fix
 - Risk: low — documentation only, grounded in the already-deployed worker fix and operator manual production evidence
 - Gates: diff-check ✅ policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
@@ -15,7 +24,7 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ## 2026-04-28 – Fix sponsor worker CORS for production custom domains
 - Goal: Eliminate silent player-paid fallback on the real production domain by allowing sponsor-worker CORS preflight from `https://civilizationcontrol.com` and `https://www.civilizationcontrol.com` while preserving existing Pages and preview support.
-- Files: `workers/sponsor-service/wrangler.toml`, `workers/sponsor-service/src/index.ts`, `workers/sponsor-service/src/__tests__/index.test.ts`, `docs/operations/sponsor-worker-runbook.md`, `docs/operations/sponsor-worker-cutover-validation-20260428.md`, `docs/operations/sponsor-worker-production-cutover-20260428.md`, `docs/operations/production-sponsor-fallback-diagnostic-20260428.md`, `docs/README.md`, `docs/decision-log.md`
+- Files: `workers/sponsor-service/wrangler.toml`, `workers/sponsor-service/src/index.ts`, `workers/sponsor-service/src/__tests__/index.test.ts`, `docs/operations/sponsor-worker-runbook.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-cutover-validation-20260428.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-production-cutover-20260428.md`, `docs/archive/sponsor-worker-20260428/production-sponsor-fallback-diagnostic-20260428.md`, `docs/README.md`, `docs/decision-log.md`
 - Diff: narrow worker origin-list update, new worker preflight tests, and operational documentation of the custom-domain root cause plus deployed fix evidence
 - Risk: medium — live sponsor-worker runtime change on production traffic, but no package-id, world-id, object-id, or Move allowlist change
 - Gates: diff-check ✅ policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅ post-deploy-options ✅
@@ -24,7 +33,7 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ## 2026-04-28 – Record sponsor worker production cutover
 - Goal: Cut the production CivilizationControl frontend over from `flappy-frontier-sponsor` to `civilizationcontrol-sponsor` after preview validation and operator-confirmed manual preview sponsorship proof.
-- Files: `docs/operations/sponsor-worker-production-cutover-20260428.md`, `docs/operations/sponsor-worker-cutover-validation-20260428.md`, `docs/operations/sponsor-worker-cutover-plan-20260428.md`, `docs/operations/sponsor-worker-runbook.md`, `docs/README.md`, `docs/decision-log.md`
+- Files: `docs/archive/sponsor-worker-20260428/sponsor-worker-production-cutover-20260428.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-cutover-validation-20260428.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-cutover-plan-20260428.md`, `docs/operations/sponsor-worker-runbook.md`, `docs/README.md`, `docs/decision-log.md`
 - Diff: docs-only production cutover record plus updated validation status, runbook status, and docs index
 - Risk: medium — documentation only, but grounded in a real production Pages deploy and manual operator smoke evidence
 - Gates: diff-check ✅ policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
@@ -33,7 +42,7 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ## 2026-04-28 – Record sponsor worker preview cutover
 - Goal: Execute the preview-first runtime cutover for the new `civilizationcontrol-sponsor` Worker without touching production frontend configuration.
-- Files: `docs/operations/sponsor-worker-cutover-validation-20260428.md`, `docs/operations/sponsor-worker-cutover-plan-20260428.md`, `docs/README.md`, `docs/decision-log.md`
+- Files: `docs/archive/sponsor-worker-20260428/sponsor-worker-cutover-validation-20260428.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-cutover-plan-20260428.md`, `docs/README.md`, `docs/decision-log.md`
 - Diff: docs-only validation record plus cutover-plan link and index update
 - Risk: medium — documentation only, but grounded in real Cloudflare Worker deploy, secret provisioning, preview deployment, and smoke-attempt evidence
 - Gates: diff-check ✅ policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
@@ -42,7 +51,7 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ## 2026-04-28 – Plan sponsor worker runtime cutover
 - Goal: Capture a precise, no-deploy implementation plan for moving live sponsorship from `flappy-frontier-sponsor` to a new `civilizationcontrol-sponsor` Worker with preview-first validation and rollback preserved.
-- Files: `docs/operations/sponsor-worker-cutover-plan-20260428.md`, `docs/README.md`, `docs/decision-log.md`
+- Files: `docs/archive/sponsor-worker-20260428/sponsor-worker-cutover-plan-20260428.md`, `docs/README.md`, `docs/decision-log.md`
 - Diff: docs-only cutover plan plus index update
 - Risk: low — planning only, but grounded in prior runtime discovery, deploy-readiness evidence, Wrangler command-surface inspection, and smoke-test design
 - Gates: policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
@@ -51,7 +60,7 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ## 2026-04-27 – Record sponsor worker runtime discovery
 - Goal: Determine which sponsor worker CivilizationControl is currently using in practice, without deploying or changing runtime state.
-- Files: `docs/operations/sponsor-worker-runtime-discovery-20260427.md`, `docs/README.md`, `docs/decision-log.md`
+- Files: `docs/archive/sponsor-worker-20260428/sponsor-worker-runtime-discovery-20260427.md`, `docs/README.md`, `docs/decision-log.md`
 - Diff: docs-only runtime discovery report plus index update
 - Risk: low — documentation only, grounded in local env inspection, Cloudflare read-only checks, and non-destructive endpoint probing
 - Gates: policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
@@ -60,7 +69,7 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ## 2026-04-27 – Record sponsor worker deploy readiness
 - Goal: Resolve the last preserved parent stash safely and inspect whether the in-repo sponsor worker is ready for Cloudflare deploy and frontend cutover from `master` without changing runtime IDs or deploying by default.
-- Files: `docs/operations/sponsor-worker-deploy-readiness-20260427.md`, `docs/README.md`, `docs/decision-log.md`
+- Files: `docs/archive/sponsor-worker-20260428/sponsor-worker-deploy-readiness-20260427.md`, `docs/README.md`, `docs/decision-log.md`
 - Diff: docs-only readiness report plus index update
 - Risk: low-medium — docs only, but grounded in Cloudflare account inspection, stash cleanup, and deploy/cutover decision criteria
 - Gates: policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
@@ -69,7 +78,7 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ## 2026-04-27 – Reconcile sponsor worker ownership docs
 - Goal: Update the docs to match the post-implementation state where CivilizationControl owns the sponsor-worker source, while keeping deployment and live cutover explicitly out of scope.
-- Files: `docs/operations/sponsor-signer-migration-plan-20260427.md`, `docs/operations/sponsor-worker-runbook.md`, `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/operations/post-hackathon-repo-readiness-audit.md`, `docs/operations/submodule-refresh-20260425.md`, `docs/operations/hackathon-archive-cleanup-20260427.md`, `docs/decision-log.md`
+- Files: `docs/archive/sponsor-worker-20260428/sponsor-signer-migration-plan-20260427.md`, `docs/operations/sponsor-worker-runbook.md`, `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/operations/post-hackathon-repo-readiness-audit.md`, `docs/operations/submodule-refresh-20260425.md`, `docs/archive/hackathon-2026/operations/hackathon-archive-cleanup-20260427.md`, `docs/decision-log.md`
 - Diff: docs-only status reconciliation plus archive move and link updates
 - Risk: low — documentation only, no runtime/package-ID/deploy changes
 - Gates: diff-check ✅ policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
@@ -85,7 +94,7 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ## 2026-04-27 – Plan sponsor signer migration
 - Goal: Investigate the current sponsor-worker ownership split between CivilizationControl and Flappy Frontier, then document a phased migration plan for moving sponsor-worker ownership into this repo without changing runtime IDs or deploying anything yet.
-- Files: `docs/operations/sponsor-signer-migration-plan-20260427.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
+- Files: `docs/archive/sponsor-worker-20260428/sponsor-signer-migration-plan-20260427.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
 - Diff: docs-only planning artifact plus targeted index/reference updates
 - Risk: medium — planning only, but centered on sponsorship security, worker ownership, and future runtime-ID coordination
 - Gates: diff-check ✅ typecheck ✅ build ✅

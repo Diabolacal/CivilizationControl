@@ -29,6 +29,18 @@ Current committed config is CivilizationControl-only:
 - explicit allowed origins for `https://civilizationcontrol.com`, `https://www.civilizationcontrol.com`, `https://civilizationcontrol.pages.dev`, and local dev
 - preview support remains suffix-based via `.civilizationcontrol.pages.dev`
 
+## Current runtime snapshot
+
+- Worker name: `civilizationcontrol-sponsor`
+- Worker URL: `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`
+- Worker source/config/policy live in `workers/sponsor-service/`, `config/chain/stillness.ts`, `config/sponsorship/civilizationControlPolicy.ts`, and `scripts/validate-sponsor-policy.mjs`
+- Production frontend already uses `civilizationcontrol-sponsor`
+- Custom-domain CORS is configured for `https://civilizationcontrol.com` and `https://www.civilizationcontrol.com`
+- `https://civilizationcontrol.pages.dev` remains allowed, and preview hosts remain allowed via `.civilizationcontrol.pages.dev`
+- Manual production smoke after the custom-domain CORS fix confirmed sponsor-paid transactions by sponsor-wallet observation
+- Production digest evidence was not captured in the agent transcript
+- `flappy-frontier-sponsor` remains rollback-only during soak and is not yet retired
+
 ## Environment variables and secrets
 
 Commit-safe vars in `wrangler.toml`:
@@ -100,6 +112,7 @@ Current runtime note:
 - preview smoke was later manually confirmed by the operator
 - production frontend now points at `civilizationcontrol-sponsor`
 - a later production diagnostic found that custom-domain traffic from `https://civilizationcontrol.com` was initially blocked by missing CORS allowlist entries even though `https://civilizationcontrol.pages.dev` worked
+- production sponsor-paid behavior was later manually reconfirmed by the operator after the worker-only CORS fix
 - old Worker retirement remains a later separate task
 
 ## Policy update process
@@ -128,6 +141,8 @@ Package-ID, runtime-ID, and allowlist changes belong in this repo. Update the co
 ## Historical handoff note
 
 `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md` remains useful as historical evidence of the earlier Flappy-owned worker handoff and the stale-allowlist failure mode, but it is no longer the live operational source of truth for worker ownership.
+
+The dated migration, cutover, validation, and diagnostic records for the 2026-04-27 to 2026-04-28 sponsor-worker transition now live under `docs/archive/sponsor-worker-20260428/README.md`.
 
 ## World v2 warning
 

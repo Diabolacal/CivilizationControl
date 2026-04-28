@@ -145,6 +145,7 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 | File | Purpose |
 |------|---------|
 | [operations/DECISIONS_TEMPLATE.md](operations/DECISIONS_TEMPLATE.md) | Decision log entry format template |
+| [operations/documentation-consolidation-20260428.md](operations/documentation-consolidation-20260428.md) | **Documentation consolidation report** — archive moves, kept-active docs, uncertain items, and future doc-hygiene rule |
 | [operations/gate-lifecycle-runbook.md](operations/gate-lifecycle-runbook.md) | 13-step gate lifecycle procedure with evidence |
 | [operations/submodule-refresh-prompt.md](operations/submodule-refresh-prompt.md) | Reusable submodule refresh procedure |
 | [operations/sui-upgrade-type-origin-guide.md](operations/sui-upgrade-type-origin-guide.md) | **Sui upgrade type-origin guide** — dual package ID model, verification evidence |
@@ -152,13 +153,6 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 | [operations/gate-control-web-capabilities.md](operations/gate-control-web-capabilities.md) | **Structure control web capabilities** — controllability matrix for gates, turrets, SSUs, network nodes |
 | [operations/migrate-to-stillness.md](operations/migrate-to-stillness.md) | **Stillness migration playbook** — compatibility verification, address inventory, migration checklist |
 | [operations/sponsor-worker-runbook.md](operations/sponsor-worker-runbook.md) | **Sponsor worker runbook** — in-repo worker layout, secrets, validation, and policy update procedure |
-| [operations/sponsor-worker-deploy-readiness-20260427.md](operations/sponsor-worker-deploy-readiness-20260427.md) | **Sponsor worker deploy readiness** — stash resolution, Cloudflare inspection, worker no-go/go criteria, and cutover steps |
-| [operations/sponsor-worker-runtime-discovery-20260427.md](operations/sponsor-worker-runtime-discovery-20260427.md) | **Sponsor worker runtime discovery** — confirms the current live Flappy worker path, Cloudflare existence, endpoint behavior, and temporary keep-vs-cutover recommendation |
-| [operations/sponsor-worker-cutover-plan-20260428.md](operations/sponsor-worker-cutover-plan-20260428.md) | **Sponsor worker cutover plan** — preview-first runtime migration plan from `flappy-frontier-sponsor` to `civilizationcontrol-sponsor` with rollback criteria and real sponsorship smoke requirements |
-| [operations/sponsor-worker-cutover-validation-20260428.md](operations/sponsor-worker-cutover-validation-20260428.md) | **Sponsor worker cutover validation** — deployed worker URL, secret-name verification, preview deploy evidence, endpoint checks, and current smoke-test proof status |
-| [operations/sponsor-worker-production-cutover-20260428.md](operations/sponsor-worker-production-cutover-20260428.md) | **Sponsor worker production cutover** — production frontend deploy method, bundle verification, manual preview smoke evidence, and rollback posture after switching to `civilizationcontrol-sponsor` |
-| [operations/production-sponsor-fallback-diagnostic-20260428.md](operations/production-sponsor-fallback-diagnostic-20260428.md) | **Production sponsor fallback diagnostic** — custom-domain CORS root cause, worker-only fix, deployed version, and post-deploy origin verification |
-| [operations/sponsor-signer-migration-plan-20260427.md](operations/sponsor-signer-migration-plan-20260427.md) | **Sponsor signer migration plan** — historical planning artifact with the implemented status update and source provenance |
 | [operations/post-hackathon-repo-readiness-audit.md](operations/post-hackathon-repo-readiness-audit.md) | **Post-hackathon readiness audit** — cleanup sequence, Stillness risks, stashes, submodules, validation baseline |
 | [operations/submodule-refresh-20260425.md](operations/submodule-refresh-20260425.md) | **Submodule refresh audit** — vendor pointer updates, upstream impact, validation, and follow-up actions |
 
@@ -173,6 +167,7 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 | File | Purpose |
 |------|---------|
 | [archive/hackathon-2026/README.md](archive/hackathon-2026/README.md) | Historical hackathon submission, demo production, recordings, and archived scripts |
+| [archive/sponsor-worker-20260428/README.md](archive/sponsor-worker-20260428/README.md) | Sponsor-worker migration and cutover archive — planning, validation, cutover, and CORS-fix evidence bundle |
 | [archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md](archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md) | Superseded sponsor worker handoff — preserved Flappy-owned allowlist history and stale-policy context |
 
 ---
