@@ -154,6 +154,7 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 | [operations/extension-freeze-safety-guide.md](operations/extension-freeze-safety-guide.md) | **Extension freeze safety guide** — when/how to freeze, posture-switching constraint |
 | [operations/gate-control-web-capabilities.md](operations/gate-control-web-capabilities.md) | **Structure control web capabilities** — controllability matrix for gates, turrets, SSUs, network nodes |
 | [operations/migrate-to-stillness.md](operations/migrate-to-stillness.md) | **Stillness migration playbook** — compatibility verification, address inventory, migration checklist |
+| [operations/mvr-world-package-audit-20260429.md](operations/mvr-world-package-audit-20260429.md) | **MVR world package audit** — `@evefrontier/world` resolution findings, World v2 impact, and phased adoption strategy |
 | [operations/sponsor-worker-runbook.md](operations/sponsor-worker-runbook.md) | **Sponsor worker runbook** — in-repo worker layout, secrets, validation, and policy update procedure |
 | [operations/post-hackathon-repo-readiness-audit.md](operations/post-hackathon-repo-readiness-audit.md) | **Post-hackathon readiness audit** — cleanup sequence, Stillness risks, stashes, submodules, validation baseline |
 | [operations/submodule-refresh-20260425.md](operations/submodule-refresh-20260425.md) | **Submodule refresh audit** — vendor pointer updates, upstream impact, validation, and follow-up actions |

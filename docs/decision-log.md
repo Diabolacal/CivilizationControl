@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Audit MVR world package strategy
+- Goal: Audit how CivilizationControl should use Move Registry / MVR for `@evefrontier/world`, compare that against the current Stillness package-ID model, and recommend a safe path without changing runtime IDs, sponsor allowlists, Move dependencies, or deployments.
+- Files: `docs/operations/mvr-world-package-audit-20260429.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
+- Diff: docs-only audit plus targeted docs index and future-agent guidance updates
+- Risk: low — documentation only, no runtime, package-ID, sponsor-policy, Move, or deployment changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: recorded that public MVR currently resolves `@evefrontier/world` to Stillness/Testnet version 2 at `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780`, while CivilizationControl still uses committed concrete world IDs rooted at `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`; recommended MVR first as audit/build-time validation, keep runtime config concrete, keep `vendor/world-contracts` for source review, and handle World v2 migration in a separate high-risk branch.
+- Follow-ups: implement a Phase 1 read-only MVR world-resolution audit script before attempting any World v2 runtime migration, direct named-package PTB experiment, or Move.toml MVR dependency experiment.
+
 ## 2026-04-28 – Reframe indexer docs as shared Frontier backend
 - Goal: Correct the EF-Map/indexer documentation so it describes one shared EVE Frontier backend currently source-controlled and operated through the EF-Map repo/runtime, rather than framing CivilizationControl as consuming EF-Map as a subordinate app.
 - Files: `docs/operations/efmap-indexer-awareness-20260428.md`, `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`, `docs/llm-reference-guide.md`, `docs/README.md`, `docs/decision-log.md`
