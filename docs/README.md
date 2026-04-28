@@ -146,6 +146,7 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 |------|---------|
 | [operations/DECISIONS_TEMPLATE.md](operations/DECISIONS_TEMPLATE.md) | Decision log entry format template |
 | [operations/documentation-consolidation-20260428.md](operations/documentation-consolidation-20260428.md) | **Documentation consolidation report** — archive moves, kept-active docs, uncertain items, and future doc-hygiene rule |
+| [operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md](operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md) | **CC read-path replacement plan** — concrete matrix of current browser reads, EF-Map replacement candidates, safe boundaries, and the recommended first slice |
 | [operations/efmap-indexer-awareness-20260428.md](operations/efmap-indexer-awareness-20260428.md) | **EF-Map indexer awareness** — local repo, VPS/runtime, data surfaces, boundaries, and recommended next slice for future CC integration |
 | [operations/gate-lifecycle-runbook.md](operations/gate-lifecycle-runbook.md) | 13-step gate lifecycle procedure with evidence |
 | [operations/submodule-refresh-prompt.md](operations/submodule-refresh-prompt.md) | Reusable submodule refresh procedure |

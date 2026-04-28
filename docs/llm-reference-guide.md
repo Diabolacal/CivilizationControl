@@ -169,6 +169,7 @@ Important docs paths:
 
 - `docs/README.md`: documentation index and canonical terminology.
 - `docs/decision-log.md`: newest-first decision history. The 2026-04-01 entries are key for Stillness migration.
+- `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`: concrete replacement matrix for current CC browser-side JSON-RPC, polling, static-catalog, and World API reads versus EF-Map replacement or enrichment candidates, plus the recommended first implementation slice.
 - `docs/operations/efmap-indexer-awareness-20260428.md`: read-only awareness report for the confirmed local EF-Map repo at `C:/EF-Map-main`, the reachable `ef-map-vps` runtime, and the current recommendation to treat EF-Map as a richer future read source without wiring the CC browser directly to its database.
 - `docs/core/validation.md`: validation procedures, but partially stale because it predates current implementation in places.
 - `docs/archive/hackathon-2026/README.md`: historical hackathon demo, submission, recording, and evidence bundle.
@@ -184,7 +185,8 @@ EF-Map indexer awareness summary:
 - A separate EF-Map repo is confirmed locally at `C:/EF-Map-main`, with the browser app in `C:/EF-Map-main/eve-frontier-map`.
 - A local SSH alias `ef-map-vps` was sufficient for read-only runtime inspection on 2026-04-28.
 - EF-Map already has a richer Postgres-backed indexer/event/export pipeline than CivilizationControl, including structure, event, type, tribe, inventory, and API/snapshot surfaces.
-- Current integration status is awareness and planning only. CivilizationControl does not yet consume EF-Map data at runtime.
+- The active replacement matrix is `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`, which identifies which current CC reads should stay direct-on-chain and which should move toward EF-Map enrichment.
+- Current integration status is still awareness and planning only. CivilizationControl does not yet consume EF-Map data at runtime.
 - Future CC integration should use an EF-Map Worker/API/snapshot/proxy surface, not raw DB credentials or direct browser-to-DB access.
 
 Future agents should start with `README.md`, `docs/decision-log.md`, `src/constants.ts`, `src/App.tsx`, `src/lib/suiReader.ts`, `src/hooks/useSponsoredExecution.ts`, and the relevant `src/lib/*Tx.ts` or Move module for the requested surface.

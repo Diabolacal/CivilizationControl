@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-28 – Map CC read paths to EF-Map indexer
+- Goal: Document CivilizationControl's current browser-side read and polling model, map which paths should stay direct-on-chain versus move to EF-Map enrichment, and define the safest first replacement slice without implementing integration yet.
+- Files: `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`, `docs/operations/efmap-indexer-awareness-20260428.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
+- Diff: docs-only replacement matrix plus awareness/index/LLM-guide updates
+- Risk: low — documentation only, no runtime, contract, VPS, database, or deployment changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: recorded the current CC JSON-RPC, polling, static catalog, and World API read paths; mapped them against EF-Map structure, event, type, tribe, inventory, and snapshot surfaces; and chose a preview-only EF-Map structure-summary endpoint by assembly IDs as the best first slice.
+- Follow-ups: the next implementation task should happen in the EF-Map repo first by defining the preview-only read-only structure-summary endpoint and its browser-safe auth/CORS contract.
+
 ## 2026-04-28 – Document EF-Map indexer awareness
 - Goal: Record that EF-Map already exists as a richer local/VPS indexer capability, inspect its repo and runtime read-only, and document what CivilizationControl could later consume without implementing integration now.
 - Files: `docs/operations/efmap-indexer-awareness-20260428.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`

@@ -12,6 +12,14 @@ The important boundary is architectural, not technical: CivilizationControl shou
 
 The most likely next step is not direct app wiring. It is to prove one small read-only data contract for CC, most likely a structure-summary or network-node-summary endpoint exposed from EF-Map's Worker/API layer and keyed by structure IDs or system IDs rather than by raw DB access.
 
+### Update: replacement analysis added
+
+The follow-on read-path replacement analysis now lives in `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`.
+
+That document maps current CivilizationControl browser-side JSON-RPC, polling, static-catalog, and World API reads against EF-Map replacement or enrichment candidates, and recommends the safest first slice.
+
+Current status is still planning and awareness only. No EF-Map integration has been implemented in CivilizationControl yet.
+
 ## 2. Local repo discovery
 
 ### Confirmed local paths
