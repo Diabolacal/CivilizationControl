@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-28 – Reframe indexer docs as shared Frontier backend
+- Goal: Correct the EF-Map/indexer documentation so it describes one shared EVE Frontier backend currently source-controlled and operated through the EF-Map repo/runtime, rather than framing CivilizationControl as consuming EF-Map as a subordinate app.
+- Files: `docs/operations/efmap-indexer-awareness-20260428.md`, `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`, `docs/llm-reference-guide.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: docs-only reframing of backend ownership, integration boundaries, privacy scope, and next-prompt wording
+- Risk: low — documentation only, no runtime, contract, VPS, database, or deployment changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: the docs now frame the live indexer/runtime as a shared Frontier backend currently implemented in the EF-Map repo/runtime, clarify that EF-Map is the original/current primary consumer and operator rather than the sole conceptual data owner, and record that future backend endpoints should be committed to the backend source repo rather than hand-edited on the VPS.
+- Follow-ups: the next backend implementation task should define a preview-only shared-backend structure-summary endpoint in the current backend source repo, currently EF-Map, with scoped payloads that avoid broad intelligence leaks.
+
 ## 2026-04-28 – Map CC read paths to EF-Map indexer
 - Goal: Document CivilizationControl's current browser-side read and polling model, map which paths should stay direct-on-chain versus move to EF-Map enrichment, and define the safest first replacement slice without implementing integration yet.
 - Files: `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`, `docs/operations/efmap-indexer-awareness-20260428.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`

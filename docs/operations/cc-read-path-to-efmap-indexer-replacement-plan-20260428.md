@@ -12,7 +12,7 @@ The biggest read-path pain points are:
 - per-slot dynamic-field inventory reads for SSUs
 - static or partially stale taxonomy, tribe, and system enrichment layers
 
-EF-Map can already replace or enrich part of that read load because it has live Postgres-backed Sui indexer data, normalized activity history, structure tables, ownership joins, inventory tables, type/tribe enrichment, internal APIs, snapshots, and realtime event-worker surfaces. The safe boundary remains the same as in the awareness doc: CivilizationControl should consume EF-Map only through an EF-Map-owned Worker/API/snapshot surface, or a thin CC proxy if needed. It should not wire its browser directly to EF-Map Postgres or raw internal service hosts.
+The shared Frontier backend currently implemented in the EF-Map repo/runtime can already replace or enrich part of that read load because it has live Postgres-backed Sui indexer data, normalized activity history, structure tables, ownership joins, inventory tables, type/tribe enrichment, internal APIs, snapshots, and realtime event-worker surfaces. The safe boundary remains the same as in the awareness doc: CivilizationControl should consume shaped shared-backend Worker/API/snapshot surfaces, or a thin CC proxy if needed. It should not wire its browser directly to the backend Postgres store or raw internal service hosts.
 
 The slices that should not be replaced are the ones that protect write correctness and operator authority:
 
@@ -23,7 +23,27 @@ The slices that should not be replaced are the ones that protect write correctne
 - EVE coin-object discovery used for payable PTBs
 - transaction proof reads used for verification
 
-The recommended first implementation slice is exactly one new EF-Map-owned, read-only structure-summary endpoint keyed by assembly IDs already known to CC after on-chain ownership discovery. That slice improves the broadest operator surface with the lowest privacy risk, proves the Worker/API contract boundary, and keeps rollback trivial because CC can fall back to its current direct chain reads.
+The recommended first implementation slice is exactly one new shared-backend, read-only structure-summary endpoint keyed by assembly IDs already known to CC after on-chain ownership discovery. Today that means adding backend source code in the EF-Map repo/runtime, because that is where the shared backend lives. That slice improves the broadest operator surface with the lowest privacy risk, proves the Worker/API contract boundary, and keeps rollback trivial because CC can fall back to its current direct chain reads.
+
+## Shared backend integration model
+
+CivilizationControl should not treat this as "consume EF-Map as a separate app." The better model is one shared EVE Frontier indexer/backend serving multiple products.
+
+Current reality:
+
+- one shared backend runtime for events, history, structures, types, universe data, enrichment, snapshots, and filtered streams
+- backend source code currently lives mostly in the EF-Map repo because that is where the backend grew up
+- backend runtime is currently operated through the EF-Map VPS/runtime
+- EF-Map is the original/current primary consumer and operator, but not the only logical consumer
+- CivilizationControl and future apps should consume safe shaped backend surfaces from that same shared backend
+
+What this implies:
+
+- CivilizationControl should not run a duplicate indexer unless there is a specific operational reason later
+- CivilizationControl should consume shaped surfaces from the shared backend: API endpoint, snapshot, filtered event stream, or an optional CC proxy if needed
+- direct browser DB access remains rejected
+- direct VPS/DB access is acceptable only for read-only investigation and server-side/operator tooling, not app runtime
+- additive backend endpoints for CivilizationControl should be committed to the backend source repo, currently EF-Map, rather than hand-edited on the VPS
 
 ## 2. Current CivilizationControl read-path inventory
 
@@ -160,7 +180,9 @@ The safe default is minimal-identifier enrichment:
 
 EF-Map can easily become an intelligence surface if it exposes owner or tribe joins too broadly.
 
-## 5. EF-Map replacement / enrichment candidates
+## 5. Shared backend replacement / enrichment candidates
+
+The tables and services below are currently implemented through the EF-Map repo/runtime, but the framing here is a shared backend serving multiple apps.
 
 | Category | EF-Map tables / surfaces | Current exposure status | API or data contract needed | Safety notes |
 |---|---|---|---|---|
@@ -182,24 +204,24 @@ Repo-grounded caveats from the awareness pass still matter:
 
 ## 6. Replacement matrix
 
-| Current CC read path | Current source | Proposed EF-Map source | Integration type | Priority | Risk | Recommendation |
+| Current CC read path | Current source | Proposed shared-backend source | Integration type | Priority | Risk | Recommendation |
 |---|---|---|---|---|---|---|
 | wallet -> `PlayerProfile` -> `Character` -> `OwnerCap` discovery | direct Sui JSON-RPC | none | direct chain | High | Low | Keep direct chain |
-| structure hydration after ownership discovery | direct Sui JSON-RPC `getObject` per structure | `ef_sui.assemblies` via new structure-summary endpoint by assembly IDs | Worker/API | High | Medium | Enrich now, replace selected summary fields later |
-| network-node grouping and detail enrichment | local grouping from `energy_source_id` on direct structure reads | `ef_sui.assemblies` structure summaries first, node-summary endpoint later | Worker/API | High | Medium | Enrich first, defer full replacement |
+| structure hydration after ownership discovery | direct Sui JSON-RPC `getObject` per structure | `ef_sui.assemblies` via new shared-backend structure-summary endpoint by assembly IDs | Worker/API | High | Medium | Enrich now, replace selected summary fields later |
+| network-node grouping and detail enrichment | local grouping from `energy_source_id` on direct structure reads | `ef_sui.assemblies` structure summaries first, shared-backend node-summary endpoint later | Worker/API | High | Medium | Enrich first, defer full replacement |
 | gate policy reads | direct `GateConfig` dynamic fields | none | direct chain | High | Low | Keep direct chain |
 | posture reads | direct `GateConfig` dynamic fields | none | direct chain | High | Low | Keep direct chain |
 | linked-gate lookup | direct structure read | none | direct chain | Medium | Low | Keep direct chain |
-| Recent Signals / activity feed | nine browser `queryEvents` module polls | `ef_sui.activity_log` via filtered Recent Signals endpoint | Worker/API | High | Medium | Replace after structure-summary endpoint exists |
+| Recent Signals / activity feed | nine browser `queryEvents` module polls | `ef_sui.activity_log` via filtered shared-backend Recent Signals endpoint | Worker/API | High | Medium | Replace after structure-summary endpoint exists |
 | listing discovery | event-scan plus `multiGetObjects` | normalized listing or SSU summary endpoint if EF-Map adds one | Worker/API | Medium | Medium | Defer; enrich later |
 | SSU inventory browser | direct SSU read plus per-key dynamic-field reads | `ef_sui.inventory_items` via filtered SSU-summary endpoint | Worker/API | Medium | High | Enrich later |
 | seller / player display enrichment | direct `fetchPlayerProfile` for names and tribes | filtered character / tribe enrichment or derived display fields | Worker/API | Medium | High | Enrich carefully |
 | bundled type catalog | bundled `itemTypes.json` | `world_api_dlt.type` or Worker `/api/item-types` | public snapshot or public API | Medium | Low | Replace or enrich |
 | bundled tribe catalog and World API refresh | bundled `tribes.json` plus Stillness World API refresh | `world_api_dlt.tribe` export or route | public snapshot or filtered API | Low to medium | Medium | Enrich or defer |
-| bundled solar-system catalog | bundled `solarSystems.json` | EF-Map public static universe assets | static snapshot | Low | Low | Enrich |
+| bundled solar-system catalog | bundled `solarSystems.json` | shared-backend public static universe assets currently shipped through EF-Map runtime | static snapshot | Low | Low | Enrich |
 | EVE coin-object discovery for payable PTBs | direct Sui JSON-RPC | none | direct chain | High | Low | Keep direct chain |
 | tx proof hover | direct Sui JSON-RPC `getTransactionBlock` | none | direct chain | Medium | Low | Keep direct chain |
-| direct browser access to EF-Map DB or internal hosts | not used today | raw Postgres / raw service hosts | rejected | High | High | Reject |
+| direct browser access to the shared backend DB or internal hosts | not used today | raw Postgres / raw service hosts | rejected | High | High | Reject |
 
 Decision labels behind the matrix:
 
@@ -215,18 +237,18 @@ Decision labels behind the matrix:
 
 Choose exactly one first slice:
 
-**EF-Map read-only structure-summary endpoint by assembly IDs.**
+**Shared-backend read-only structure-summary endpoint by assembly IDs, currently to be implemented in the EF-Map repo/runtime.**
 
 ### Why this first
 
 - It touches the broadest operator surface because structures are the root of the dashboard, lists, node views, topology, and detail screens.
-- It keeps the safe ownership boundary: CC still discovers owned structures directly on-chain, then asks EF-Map only for enrichment by known IDs.
+- It keeps the safe ownership boundary: CC still discovers owned structures directly on-chain, then asks the shared backend only for enrichment by known IDs.
 - It avoids the harder semantics problem of event normalization or node-level aggregation as a first step.
 - It is easy to roll back because CC can fall back to its current direct chain structure reads.
 
 ### What it proves
 
-- EF-Map can expose a CC-safe, browser-consumable contract without exposing DB credentials or raw internal hosts.
+- The shared backend can expose a CC-safe, browser-consumable contract without exposing DB credentials or raw internal hosts.
 - CC can enrich its read path through a provider seam without changing write authority, package IDs, or Move logic.
 - The integration boundary can be previewed and validated independently of broader event or websocket work.
 
@@ -248,11 +270,11 @@ Minimal first payload, keyed by assembly IDs already known to CC:
 
 This is enough to prove UI value without exposing owner or tribe joins.
 
-### Likely EF-Map files later
+### Likely shared-backend source files later (currently in the EF-Map repo)
 
 - `eve-frontier-map/_worker.js` or `worker.js`
 - optionally `tools/assembly-api/api_wrapper_v2.py` if the Worker delegates to an internal helper
-- optionally `tools/snapshot-exporter/sui_structure_snapshot_exporter.js` only if EF-Map decides to serve a snapshot rather than a live filtered endpoint
+- optionally `tools/snapshot-exporter/sui_structure_snapshot_exporter.js` only if the backend serves a snapshot rather than a live filtered endpoint
 
 ### Likely CC files later
 
@@ -263,7 +285,7 @@ This is enough to prove UI value without exposing owner or tribe joins.
 
 ### Preview validation plan
 
-1. add the EF-Map route in preview only
+1. add the shared-backend route in preview only
 2. prove it returns only the agreed structure-summary fields
 3. point a CC preview or local dev build at the preview route or a CC proxy
 4. compare a few owned structures against current direct chain reads
@@ -282,18 +304,18 @@ The user goal here is near-instant updates without relying on browser-side fulln
 
 | Model | Fit | Benefits | Risks / costs | Recommendation |
 |---|---|---|---|---|
-| Browser polling a filtered EF-Map endpoint | Best near-term | Reuses current CC polling model, no websocket contract needed, easy rollback | Still polling, but against a cheaper filtered source | Recommended near-term |
+| Browser polling a filtered shared-backend endpoint | Best near-term | Reuses current CC polling model, no websocket contract needed, easy rollback | Still polling, but against a cheaper filtered source | Recommended near-term |
 | Server-sent events | Possible mid-term | Simpler than WebSocket for one-way push | Needs stable filtered subscription contract and reconnect semantics | Consider after a filtered poll endpoint exists |
 | WebSocket filtered by known structure IDs | Best long-term for realtime | Near-instant push, lowest browser poll cost | Requires stable auth, subscription, filtering, and backpressure rules | Recommended long-term |
-| CC Worker subscription / proxy | Good fallback | CC can hold upstream secrets and normalize responses | Adds service hop and ownership split | Use only if EF-Map cannot expose a CC-safe route directly |
-| EF-Map broadcasting everything and CC filtering client-side | Bad fit | Minimal server work | Leaks intelligence, high payload volume, unstable privacy boundary | Reject |
-| EF-Map server-side filtering by assembly IDs / character / tribe | Strong | Aligns with owned-structure scoping and privacy controls | Requires explicit contract design | Prefer assembly-ID filtering first |
+| CC Worker subscription / proxy | Good fallback | CC can hold upstream secrets and normalize responses | Adds service hop and ownership split | Use only if the shared backend cannot expose a CC-safe route directly |
+| Shared backend broadcasting everything and CC filtering client-side | Bad fit | Minimal server work | Leaks intelligence, high payload volume, unstable privacy boundary | Reject |
+| Shared backend server-side filtering by assembly IDs / character / tribe | Strong | Aligns with owned-structure scoping and privacy controls | Requires explicit contract design | Prefer assembly-ID filtering first |
 
 ### Recommendation
 
 Safest near-term model:
 
-- browser polling of a filtered EF-Map endpoint keyed by already-known assembly IDs
+- browser polling of a filtered shared-backend endpoint keyed by already-known assembly IDs
 - keep the current 30-second cadence initially
 - use the same `SignalEvent` shape or a close server-side equivalent so CC can swap the provider without redesigning the UI
 
@@ -309,44 +331,49 @@ What not to do:
 
 ## 9. Cloudflare Tunnel / VPS access model
 
-- Cloudflare Tunnel and raw internal VPS service URLs are appropriate for server-side Workers, backend services, and bounded operator tooling.
+- Cloudflare Tunnel and raw internal VPS service URLs are appropriate for server-side Workers, shared-backend services, and bounded operator tooling.
 - They should not become direct browser dependencies for CivilizationControl.
-- If CC needs data from an EF-Map service behind a tunnel or internal hostname, the safe shape is:
-  - EF-Map Worker route exposed on a public controlled boundary, or
+- If CC needs data from a service behind the shared backend's tunnel or internal hostname, the safe shape is:
+  - shared-backend Worker route exposed on a public controlled boundary, or
   - CC Worker proxy that calls EF-Map server-side and returns a minimal shaped response
 
 Ownership split should remain:
 
-- EF-Map repo owns indexer runtime, schema, internal APIs, tunnels, and any public data contracts it intentionally exposes
-- CC repo owns read-provider selection, client consumption, UI fallback behavior, and any optional CC-specific proxy if EF-Map cannot expose a direct browser-safe route
+- the shared backend runtime currently lives in the EF-Map repo/VPS because that is where the backend source and operational knowledge live today
+- the EF-Map repo is therefore the current backend source repo for additive endpoint work
+- CC repo owns read-provider selection, client consumption, UI fallback behavior, and any optional CC-specific proxy if the backend cannot expose a direct browser-safe route
+- backend code should be changed in source control, not by hand on the VPS
 
 ## 10. Security / privacy rules
 
 - no DB credentials in the browser
 - no bearer tokens in `VITE_*`
-- no direct browser use of raw internal EF-Map service hosts
+- no direct browser use of raw internal shared-backend service hosts
+- even if the shared backend already surfaces some broad information publicly, CC-facing endpoints should avoid becoming a broad intelligence surface tied to a signed-in operator session
 - prefer queries keyed by assembly IDs already known to CC after on-chain ownership discovery
 - treat broader owner / character / tribe joins as privileged and privacy-sensitive
+- browser network calls from CC should request only the minimum structure or enrichment data needed for the current user's UI
 - do not expose unfiltered player or tribe intelligence as public APIs or global websocket broadcasts
-- require explicit CORS policy, response shaping, and rate limiting on any browser-facing EF-Map route
+- require explicit CORS policy, response shaping, and rate limiting on any browser-facing shared-backend route
 - if privileged data is ever exposed later, require wallet, character, or other scoped proof in addition to structure-ID filtering
+- if a future endpoint accepts solar system IDs, structure IDs, character IDs, or tribe IDs, document whether that query could reveal sensitive operational context and whether it should be authenticated, rate-limited, or proxied
 
 ## 11. Implementation sequence
 
-### Phase 1: EF-Map endpoint contract
+### Phase 1: Shared backend endpoint contract
 
 - define the structure-summary response shape
 - define filtering by assembly IDs
 - define CORS and rate-limit behavior
 
-### Phase 2: EF-Map preview endpoint
+### Phase 2: Shared backend preview endpoint
 
-- implement preview-only route in EF-Map
+- implement preview-only route in the current backend source repo
 - confirm read-only behavior and minimal payload
 
 ### Phase 3: CC provider / client wrapper
 
-- add an EF-Map client seam in CC without changing default behavior yet
+- add a shared-backend client seam in CC without changing default behavior yet
 - preserve direct chain fallback
 
 ### Phase 4: CC preview UI enrichment
@@ -370,11 +397,11 @@ Ownership split should remain:
 - incomplete `solar_system_id` and `assembly_type` coverage in `ef_sui.assemblies`
 - privacy risk if owner, character, tribe, or activity joins are exposed too broadly
 - CORS and auth policy for any browser-facing route
-- endpoint ownership: EF-Map-owned route versus CC proxy
-- EF-Map uptime becoming a CC read dependency
+- endpoint ownership: shared-backend route in the current backend source repo versus CC proxy
+- shared-backend uptime becoming a CC read dependency
 - accidental Cloudflare Tunnel or internal-host exposure
 - interaction with future World v2 / MVR changes and how those affect runtime IDs or indexed schemas
 
 ## 13. Recommended next prompt
 
-"In the EF-Map repo, design a preview-only read-only structure-summary endpoint for CivilizationControl keyed by assembly IDs, returning only the minimal fields listed in the replacement plan, with browser-safe CORS/rate-limit rules and no raw internal host exposure. Do not wire CivilizationControl to it yet." 
+"In the shared EVE Frontier backend, currently source-controlled and deployed through the EF-Map repo/runtime, design one preview-only read-only structure-summary endpoint for CivilizationControl keyed by assembly IDs, returning only the minimal fields listed in the replacement plan, with browser-safe CORS/rate-limit rules and no raw internal host exposure. Do not wire CivilizationControl to it yet."

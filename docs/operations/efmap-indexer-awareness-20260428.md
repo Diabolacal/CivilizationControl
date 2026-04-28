@@ -2,23 +2,43 @@
 
 ## 1. Executive summary
 
-EF-Map already runs a richer EVE Frontier data stack outside this repo. The local EF-Map checkout was found at `C:/EF-Map-main`, with the browser app under `C:/EF-Map-main/eve-frontier-map`. A local SSH alias `ef-map-vps` was present and reachable, and a read-only runtime inspection confirmed that the live EF-Map stack is running on the VPS under `/opt/ef-map`.
+A shared EVE Frontier data backend already exists. It is currently source-controlled and operated through the EF-Map repo/runtime, with the local checkout found at `C:/EF-Map-main`, the browser app under `C:/EF-Map-main/eve-frontier-map`, and the live runtime reachable through the `ef-map-vps` SSH alias on the VPS under `/opt/ef-map`.
 
-The live runtime is not just a static map app. It includes a Dockerized Postgres-backed Sui indexer, a Sui event emitter, enrichment jobs, a snapshot exporter, assembly and SSU APIs, a Worker layer, and a realtime universe-events worker. The normalized Postgres tables inspected during this task were populated and current: `ef_sui.raw_events` had 5,310,234 rows, `ef_sui.activity_log` had 653,664 rows, `ef_sui.assemblies` had 53,945 rows, and both `raw_events` and `activity_log` were current through checkpoint `331021283` at `2026-04-28 21:39:55.546+00`.
+This shared backend runtime is not just a static map app. It includes a Dockerized Postgres-backed Sui indexer, a Sui event emitter, enrichment jobs, a snapshot exporter, assembly and SSU APIs, a Worker layer, and a realtime universe-events worker. The normalized Postgres tables inspected during this task were populated and current: `ef_sui.raw_events` had 5,310,234 rows, `ef_sui.activity_log` had 653,664 rows, `ef_sui.assemblies` had 53,945 rows, and both `raw_events` and `activity_log` were current through checkpoint `331021283` at `2026-04-28 21:39:55.546+00`.
 
-This matters to CivilizationControl because the current app still does most discovery and event work directly in the browser through Sui JSON-RPC and fixed module polling. EF-Map already appears to hold richer structure, ownership, type, tribe, inventory, and recent-event data that could later support better network-node detail views, taxonomy and icon enrichment, Recent Signals, and reduced browser-side polling.
+This matters to CivilizationControl because the current app still does most discovery and event work directly in the browser through Sui JSON-RPC and fixed module polling, while the shared backend already appears to hold richer structure, ownership, type, tribe, inventory, and recent-event data. EF-Map is the original and current primary consumer of that backend, but CivilizationControl and future apps should also treat it as shared infrastructure available through safe shaped APIs, snapshots, and filtered streams.
 
-The important boundary is architectural, not technical: CivilizationControl should not connect its browser directly to EF-Map's Postgres database or internal bearer-protected service hostnames. EF-Map should remain the owner of indexer/runtime/database concerns. Any later CivilizationControl integration should consume an EF-Map-owned Worker/API/snapshot surface, or a thin CC proxy, through a provider/client abstraction.
+The important boundary is architectural, not technical: CivilizationControl should not connect its browser directly to the shared backend's Postgres database or internal bearer-protected service hostnames. The backend is currently implemented and operated through the EF-Map repo/runtime, and any later CivilizationControl integration should consume a shaped shared-backend Worker/API/snapshot surface, or a thin CC proxy, through a provider/client abstraction.
 
-The most likely next step is not direct app wiring. It is to prove one small read-only data contract for CC, most likely a structure-summary or network-node-summary endpoint exposed from EF-Map's Worker/API layer and keyed by structure IDs or system IDs rather than by raw DB access.
+The most likely next step is not direct app wiring. It is to prove one small read-only data contract for CC on the shared backend, most likely a structure-summary or network-node-summary endpoint currently to be implemented in the EF-Map repo/runtime and keyed by structure IDs or system IDs rather than by raw DB access.
 
 ### Update: replacement analysis added
 
 The follow-on read-path replacement analysis now lives in `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`.
 
-That document maps current CivilizationControl browser-side JSON-RPC, polling, static-catalog, and World API reads against EF-Map replacement or enrichment candidates, and recommends the safest first slice.
+That document maps current CivilizationControl browser-side JSON-RPC, polling, static-catalog, and World API reads against shared-backend replacement or enrichment candidates, and recommends the safest first slice.
 
 Current status is still planning and awareness only. No EF-Map integration has been implemented in CivilizationControl yet.
+
+## Shared backend ownership model
+
+The runtime infrastructure discovered in this task is a shared EVE Frontier backend: the VPS, Postgres store, Sui indexer containers, Cloudflare tunnels, event emitter, internal APIs, snapshot exporters, and realtime worker all form one backend stack that can serve multiple apps.
+
+Today, that backend is mostly source-controlled through the EF-Map repo because the backend grew out of EF-Map's needs and operational workflows. That means the current backend source of truth for indexer code, Worker/API routes, event emission, snapshot export, deploy docs, and VPS operational knowledge lives in `C:/EF-Map-main` and its deployed runtime under `/opt/ef-map`.
+
+That does not mean EF-Map is the only conceptual owner of the data. The better mental model is:
+
+- shared backend runtime and data plane
+- EF-Map as the original/current primary consumer and operator
+- CivilizationControl as another consumer
+- future Frontier apps as additional consumers
+
+Practical implications:
+
+- backend runtime knowledge can be inspected read-only from the CivilizationControl workspace when needed
+- additive backend endpoints for CivilizationControl should be committed to the backend source repo, currently EF-Map, rather than hand-edited on the VPS
+- the VPS should be treated as deployed infrastructure, not as the place where product behavior is manually patched
+- multiple apps should share one backend where possible so event/history/type/universe truth stays consistent and duplicate indexers are avoided
 
 ## 2. Local repo discovery
 
@@ -307,19 +327,19 @@ That makes EF-Map a strong candidate source for a future CC Recent Signals surfa
 
 ### Structure discovery without browser polling
 
-CC currently discovers structures by walking wallet -> player profile -> character -> owner caps -> shared objects in-browser. EF-Map could later reduce the amount of direct browser-side chain walking if CC uses it for enrichment or secondary discovery, but the safest first model is still:
+CC currently discovers structures by walking wallet -> player profile -> character -> owner caps -> shared objects in-browser. The shared backend could later reduce the amount of direct browser-side chain walking if CC uses it for enrichment or secondary discovery, but the safest first model is still:
 
 1. CC resolves operator ownership context locally and on-chain.
-2. CC asks EF-Map only for enrichment or summaries keyed by already-known structure IDs or system IDs.
+2. CC asks the shared backend only for enrichment or summaries keyed by already-known structure IDs or system IDs.
 
 ## 7. Safe architecture boundaries
 
-- CivilizationControl's browser should consume an API, Worker, snapshot, or WebSocket surface. It should not consume raw Postgres credentials or direct DB sockets.
-- VPS/database access is acceptable for EF-Map server-side services and for bounded read-only operator investigations like this one. It is not an app-runtime dependency for CC's browser.
-- EF-Map should remain the owner of indexer/runtime/database concerns unless the user intentionally chooses to split that system later.
-- CivilizationControl should keep a provider/client abstraction so EF-Map becomes one optional read source rather than a hard-coded dependency path.
+- CivilizationControl's browser should consume an API, Worker, snapshot, or WebSocket surface from the shared backend. It should not consume raw Postgres credentials or direct DB sockets.
+- VPS/database access is acceptable for shared-backend server-side services and for bounded read-only operator investigations like this one. It is not an app-runtime dependency for CC's browser.
+- The shared backend is currently implemented and operated through the EF-Map repo/runtime. If backend code changes are needed, make them in that source repo rather than by hand-editing the VPS.
+- CivilizationControl should keep a provider/client abstraction so the shared backend becomes a stable optional read source rather than a hard-coded product-to-product dependency path.
 - `VITE_*` values in CivilizationControl must remain browser-safe. Do not place DB credentials, Worker bearer tokens, or private upstream API secrets in `VITE_*`.
-- The raw internal service hostnames and their bearer tokens should stay EF-Map-owned and server-side only.
+- The raw internal service hostnames and their bearer tokens should stay shared-backend-owned and server-side only.
 - Ownership, character, and tribe joins should be filtered carefully. Public chain data can still become surveillance-heavy when reassembled into a reusable intelligence graph.
 - The safest future CC contract is probably keyed by structure IDs or system IDs after CC has already resolved operator ownership locally.
 
@@ -327,25 +347,25 @@ CC currently discovers structures by walking wallet -> player profile -> charact
 
 | Candidate shape | Fit | Benefits | Constraints | Recommendation |
 |---|---|---|---|---|
-| Consume existing EF-Map public API/snapshot directly | Narrow | Lowest coordination; immediately usable for `/api/item-types` and some static map assets | Does not solve richer structure/event needs; some static assets may not have explicit cross-origin guarantees | Useful only for low-risk catalog/static enrichment |
-| Add a CC-specific EF-Map Worker/API endpoint | Strong | Keeps EF-Map as owner; lets EF-Map filter/auth/cache server-side; avoids DB exposure | Requires cross-repo implementation and endpoint contract | Best next implementation shape |
-| Use EF-Map WebSocket/event stream | Medium later | Best path for live Recent Signals or low-latency event UI | Auth/filter/stability contract is not ready for CC yet | Consider after a simpler read-only endpoint exists |
-| Create a thin CC Worker/proxy | Strong fallback | Lets CC own auth/CORS mediation while keeping EF-Map private | Adds another service hop and deploy surface | Good fallback if EF-Map cannot expose a direct CC-safe route |
+| Consume existing shared-backend public API/snapshot directly | Narrow | Lowest coordination; immediately usable for `/api/item-types` and some static map assets | Does not solve richer structure/event needs; some static assets may not have explicit cross-origin guarantees | Useful only for low-risk catalog/static enrichment |
+| Add a CC-specific shared-backend Worker/API endpoint currently implemented in the EF-Map repo/runtime | Strong | Keeps one shared backend; lets the backend filter/auth/cache server-side; avoids DB exposure | Requires backend-repo implementation and endpoint contract | Best next implementation shape |
+| Use shared-backend WebSocket/event stream | Medium later | Best path for live Recent Signals or low-latency event UI | Auth/filter/stability contract is not ready for CC yet | Consider after a simpler read-only endpoint exists |
+| Create a thin CC Worker/proxy | Strong fallback | Lets CC own auth/CORS mediation while keeping the shared backend private | Adds another service hop and deploy surface | Good fallback if the backend cannot expose a direct CC-safe route |
 | Generate/import static type or universe snapshots | Strong complementary slice | Low risk, easy cacheability, no privacy concerns | Helps taxonomy/location only, not live ownership/event needs | Good supporting slice, not enough by itself |
-| Direct DB from CC server-side tooling only | Limited/internal | Useful for one-off admin/export jobs | Still tightly couples CC to EF-Map runtime and credentials | Acceptable only for internal tooling, not browser runtime |
+| Direct DB from CC server-side tooling only | Limited/internal | Useful for one-off admin/export jobs | Still tightly couples CC to the shared backend runtime and credentials | Acceptable only for internal tooling, not browser runtime |
 | Direct DB from CC browser | Reject | None worth taking | Credential exposure, coupling, zero auth boundary, operationally unsafe | Reject |
 
 ## 9. Recommended next slice
 
 ### Recommendation
 
-Create a CC-specific read-only EF-Map endpoint for structure and network-node enrichment, then consume it behind a new non-default client/provider in CivilizationControl.
+Create a CC-specific read-only shared-backend endpoint for structure and network-node enrichment, then consume it behind a new non-default client/provider in CivilizationControl.
 
 This is the best next slice because:
 
-- the most valuable data is already in EF-Map's indexed Postgres tables
+- the most valuable data is already in the shared backend's indexed Postgres tables
 - the most useful existing richer routes are not currently public cross-origin contracts for another browser app
-- CC can keep direct on-chain ownership discovery while using EF-Map only for enrichment keyed by structure IDs or system IDs
+- CC can keep direct on-chain ownership discovery while using the shared backend only for enrichment keyed by structure IDs or system IDs
 - it avoids pushing database or bearer-token concerns into the browser
 
 ### First data contract to prove
@@ -366,7 +386,7 @@ First payload should stay minimal and browser-safe:
 - `energySourceId`
 - `url`
 - `lastUpdated`
-- optional derived fields such as `typeName` if EF-Map wants to join that server-side
+- optional derived fields such as `typeName` if the shared backend wants to join that server-side
 
 That contract is enough to prove immediate CC value without exposing full ownership or character/tribe joins.
 
@@ -378,11 +398,11 @@ That contract is enough to prove immediate CC value without exposing full owners
 - `src/types/domain.ts` — optional enrichment fields added to the CC domain model
 - `docs/operations/efmap-indexer-awareness-20260428.md` — source doc for the plan and boundaries
 
-### Likely files in EF-Map
+### Likely files in the shared backend source repo today (currently EF-Map)
 
 - `eve-frontier-map/_worker.js` or `worker.js` — preferred place for a CC-facing Worker route
-- `tools/assembly-api/api_wrapper_v2.py` — only if EF-Map wants the Worker to call a richer internal API helper instead of querying an existing snapshot
-- `tools/snapshot-exporter/sui_structure_snapshot_exporter.js` — only if EF-Map chooses a snapshot-first contract instead of a live query route
+- `tools/assembly-api/api_wrapper_v2.py` — only if the backend wants the Worker to call a richer internal API helper instead of querying an existing snapshot
+- `tools/snapshot-exporter/sui_structure_snapshot_exporter.js` — only if the backend chooses a snapshot-first contract instead of a live query route
 
 ### Validation commands for that future slice
 
@@ -391,15 +411,15 @@ CivilizationControl:
 - `npm run typecheck`
 - `npm run build`
 
-EF-Map:
+Shared backend source repo (currently EF-Map):
 
 - frontend/Worker build for the modified route surface
-- preview deploy of the EF-Map Worker/app route
+- preview deploy of the backend Worker/app route
 - a bounded endpoint smoke test from both same-origin EF-Map and the intended CC preview origin or proxy path
 
 ### Preview test plan for that future slice
 
-1. Deploy the EF-Map route to preview only.
+1. Deploy the shared-backend route to preview only.
 2. Verify the endpoint returns only the agreed structure-summary fields.
 3. Point a CC preview build or local dev build at the preview endpoint or CC proxy.
 4. Compare returned structure summaries against one operator's existing chain-discovered structures in CC.
@@ -412,11 +432,11 @@ EF-Map:
 - Snapshot reliability: the sampled `smart_gate_links_v1` and `gate_access_snapshot_v1` export run produced zero rows, so those specific outputs are not yet safe assumptions for CC.
 - Auth/CORS assumptions: richer Worker routes are protected today and are not documented as ready-made third-party browser contracts.
 - Tribe/player privacy: joining structures, characters, tribes, and locations raises real intelligence/privacy concerns even when the underlying chain data is public.
-- VPS coupling: the more CC depends on EF-Map runtime availability, the more EF-Map deploy health becomes a CC read dependency.
+- VPS coupling: the more CC depends on the shared backend runtime, the more backend deploy health becomes a CC read dependency.
 - Credential exposure risk: any attempt to shortcut through DB credentials, bearer tokens, or raw hostnames would be a design mistake.
 - Runtime health variance: `intel-refresh` was unhealthy during inspection, which shows not every EF-Map service is equally healthy at all times.
 - Future world/runtime migrations: EF-Map's lower-level package-address schemas and CC's own Stillness/World v2 work will likely keep shifting over time.
 
 ## 11. Recommended next prompt
 
-"In the EF-Map repo, design and implement one preview-only read-only Worker endpoint for CivilizationControl that returns structure-summary data by assembly ID from the indexed `ef_sui.assemblies` table, without exposing DB credentials or raw internal hostnames. Do not wire CivilizationControl to it yet; only define the endpoint, payload, auth/CORS model, and preview validation path." 
+"In the shared EVE Frontier backend, currently source-controlled and deployed through the EF-Map repo/runtime, design one preview-only read-only Worker endpoint for CivilizationControl that returns structure-summary data by assembly ID from the indexed `ef_sui.assemblies` table, without exposing DB credentials or raw internal hostnames. Do not wire CivilizationControl to it yet; only define the endpoint, payload, auth/CORS model, and preview validation path."
