@@ -1,6 +1,6 @@
 # Sponsor Worker Cutover Plan — 2026-04-28
 
-Execution results for the first preview-cutover run are recorded in `docs/operations/sponsor-worker-cutover-validation-20260428.md`.
+Execution results for the preview validation run are recorded in `docs/operations/sponsor-worker-cutover-validation-20260428.md`. Production frontend cutover execution is recorded in `docs/operations/sponsor-worker-production-cutover-20260428.md`.
 
 ## 1. Executive summary
 

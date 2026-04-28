@@ -10,6 +10,36 @@ The new Worker `civilizationcontrol-sponsor` was successfully created from `work
 
 A preview-only CivilizationControl frontend deployment was then built with a temporary `VITE_SPONSOR_URL` pointing at the new Worker and deployed to Cloudflare Pages preview.
 
+The operator later performed a manual preview smoke in a normal browser session and confirmed that the sponsor wallet processed a real transaction.
+
+Production frontend was later cut over to the same new Worker URL after the preview proof and production bundle verification steps completed.
+
+## Manual smoke update — operator-performed
+
+After the initial agent-run preview validation was recorded, the operator performed a manual preview smoke outside the agent browser environment.
+
+Operator-provided result:
+
+- operator loaded the preview frontend
+- operator connected wallet successfully
+- operator performed a real transaction
+- operator validated that the sponsor wallet processed the transaction
+- sponsorship was manually confirmed from the operator side
+
+Digest status:
+
+- digest was not captured in the agent transcript
+
+Fallback status:
+
+- fallback is treated as ruled out for that preview smoke because the operator verified sponsor-wallet processing directly
+- exact digest or gas-payer evidence should still be captured in a later production smoke record if available
+
+Important chronology:
+
+- initial agent browser smoke failed at wallet connection time
+- later operator manual preview smoke passed
+
 What is proven by this execution:
 
 - the new Worker exists on the intended Cloudflare account
@@ -17,17 +47,17 @@ What is proven by this execution:
 - `SPONSOR_PRIVATE_KEY` exists on the new Worker by name
 - the Worker responds correctly to CivilizationControl CORS preflight and controlled invalid POST traffic
 - the preview frontend bundle references `civilizationcontrol-sponsor`, not `flappy-frontier-sponsor`
-- production frontend was not changed
+- preview sponsorship was manually confirmed by the operator
+- production frontend was later cut over to `civilizationcontrol-sponsor`
 - the old Worker remains untouched
 
 What is not yet proven:
 
-- a real sponsored governance transaction on preview
-- a conclusive proof that fallback was ruled out in a live governance action
+- a real production sponsored governance transaction with digest evidence captured in the agent transcript
 
 Reason:
 
-- wallet connection failed in the available browser environment before any real transaction could be attempted
+- the available agent browser environment still did not complete a wallet-backed smoke itself
 
 ## Worker deploy result
 
@@ -139,7 +169,7 @@ Interpretation:
 
 ## Real sponsored transaction smoke test
 
-Status: not proven
+Status: manually proven on preview by operator; agent browser attempt remained limited
 
 Target smoke design remained:
 
@@ -151,6 +181,12 @@ What was attempted:
 - open preview frontend
 - open wallet modal
 - attempt connection through the available `Slush` wallet option
+
+What later happened outside the agent browser:
+
+- operator connected wallet successfully in a normal browser session
+- operator performed a real transaction
+- operator confirmed that the sponsor wallet processed the transaction
 
 Observed result:
 
@@ -165,23 +201,30 @@ Evidence captured:
 - preview URL loaded successfully
 - wallet modal appeared
 - selecting `Slush` produced `Connection failed` before a wallet session was established
+- operator later reported successful preview wallet connection and sponsor-wallet processing of a real transaction
 
 Conclusion:
 
-- live sponsorship is **not yet proven**
-- fallback was **not ruled out**, because no real sponsored transaction was executed
-- the cutover is valid through the Worker and preview frontend layers, but the final end-to-end sponsorship proof still requires a real browser session with a functioning wallet and a safe owned structure
+- preview live sponsorship is **manually confirmed**
+- fallback is **treated as ruled out for the preview smoke** based on the operator's sponsor-wallet verification
+- exact digest or gas evidence was not captured in the agent transcript
+- production live sponsorship still benefits from a later manual smoke with recorded digest evidence
 
 ## Production cutover status
 
-Production cutover status: not performed
+Production cutover status: performed
 
-Specifically not done in this task:
+What was done later in this task:
 
-- no production frontend deploy
-- no production Pages env change
-- no production `VITE_SPONSOR_URL` change
-- no change to the live production/runtime Worker target
+- production frontend was built with `VITE_SPONSOR_URL=https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`
+- `VITE_SPONSOR_API_KEY` remained unset
+- Cloudflare Pages production deploy was executed with branch `main`
+- production alias `https://civilizationcontrol.pages.dev` now serves a bundle that references `civilizationcontrol-sponsor`
+- production alias bundle no longer references `flappy-frontier-sponsor`
+
+What still was not done:
+
+- no production live governance transaction was completed in the agent browser environment
 
 ## Rollback path
 
@@ -202,7 +245,7 @@ The old Worker remains intact:
 
 ## Remaining tasks
 
-1. Run one real preview governance smoke in a browser session with a working wallet and a safe owned gate or SSU.
-2. Capture the transaction digest and prove sponsor gas payment rather than fallback.
-3. If sponsorship is proven, decide whether to keep optional API-key auth disabled or deliberately enable it.
-4. Only after preview proof succeeds, prepare a separate production frontend cutover task.
+1. Run or capture one manual production governance smoke with digest or gas-payer evidence if possible.
+2. Keep `flappy-frontier-sponsor` alive during the soak period.
+3. Decide later whether to keep optional API-key auth disabled or deliberately enable it.
+4. Consider old Worker retirement only in a separate later cleanup task.

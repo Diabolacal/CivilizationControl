@@ -19,7 +19,7 @@ Purpose: operate the in-repo CivilizationControl sponsor worker without changing
 
 The sponsor worker provides gas sponsorship for current CivilizationControl governance PTBs. It validates MoveCall targets against the committed CivilizationControl allowlist, blocks sponsor `GasCoin` access, applies sponsor gas ownership, signs the rebuilt transaction, and returns `{ txB64, sponsorSignature }`.
 
-CivilizationControl now owns the worker source, deployment config, and committed policy inputs. Moving the source into this repo did not itself deploy or cut over any Cloudflare Worker environment; preview/live deploy and frontend cutover verification remain separate follow-up tasks.
+CivilizationControl now owns the worker source, deployment config, and committed policy inputs. As of 2026-04-28, the repo-owned Worker `civilizationcontrol-sponsor` is deployed in Cloudflare and both preview and production frontend bundles have been cut over to its base URL. The older `flappy-frontier-sponsor` Worker is still intentionally kept alive as a rollback path during the soak window.
 
 Current committed config is CivilizationControl-only:
 
@@ -92,6 +92,12 @@ Before any real deploy:
 2. confirm secrets are present in the target Worker environment
 3. confirm allowed origins and preview suffixes match the intended frontend URL
 4. validate preview behavior before any production cutover
+
+Current runtime note:
+
+- preview smoke was later manually confirmed by the operator
+- production frontend now points at `civilizationcontrol-sponsor`
+- old Worker retirement remains a later separate task
 
 ## Policy update process
 

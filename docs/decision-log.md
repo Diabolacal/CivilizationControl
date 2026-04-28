@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-28 – Record sponsor worker production cutover
+- Goal: Cut the production CivilizationControl frontend over from `flappy-frontier-sponsor` to `civilizationcontrol-sponsor` after preview validation and operator-confirmed manual preview sponsorship proof.
+- Files: `docs/operations/sponsor-worker-production-cutover-20260428.md`, `docs/operations/sponsor-worker-cutover-validation-20260428.md`, `docs/operations/sponsor-worker-cutover-plan-20260428.md`, `docs/operations/sponsor-worker-runbook.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: docs-only production cutover record plus updated validation status, runbook status, and docs index
+- Risk: medium — documentation only, but grounded in a real production Pages deploy and manual operator smoke evidence
+- Gates: diff-check ✅ policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
+- Result: Cloudflare Pages production was redeployed to `main` using a bundle built against `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`, `https://civilizationcontrol.pages.dev` now serves a bundle that references `civilizationcontrol-sponsor` and not `flappy-frontier-sponsor`, the operator-reported manual preview smoke is recorded as passed, production live transaction smoke was not performed by the agent, and the old Worker remains alive for rollback.
+- Follow-ups: keep the old Worker during the soak period, capture a manual production digest if possible, retire the old Worker only later, and keep World v2 runtime-ID work separate.
+
 ## 2026-04-28 – Record sponsor worker preview cutover
 - Goal: Execute the preview-first runtime cutover for the new `civilizationcontrol-sponsor` Worker without touching production frontend configuration.
 - Files: `docs/operations/sponsor-worker-cutover-validation-20260428.md`, `docs/operations/sponsor-worker-cutover-plan-20260428.md`, `docs/README.md`, `docs/decision-log.md`
