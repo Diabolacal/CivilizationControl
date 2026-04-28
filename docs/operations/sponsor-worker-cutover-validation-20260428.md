@@ -14,6 +14,47 @@ The operator later performed a manual preview smoke in a normal browser session 
 
 Production frontend was later cut over to the same new Worker URL after the preview proof and production bundle verification steps completed.
 
+## Diagnostic addendum — custom production domain CORS gap
+
+Later on 2026-04-28, production fallback was traced to the real custom production domain rather than the Pages alias.
+
+Observed browser evidence from `https://civilizationcontrol.com`:
+
+- browser preflight rejected `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev/sponsor`
+- the response exposed no `Access-Control-Allow-Origin` header for that origin
+- frontend console showed the sponsor path starting and then failing with `Failed to fetch`
+- the frontend then fell back to standard player-paid execution
+
+Root cause:
+
+- initial endpoint checks in this document only covered `https://civilizationcontrol.pages.dev`
+- the deployed Worker `ALLOWED_ORIGINS` did not include `https://civilizationcontrol.com` or `https://www.civilizationcontrol.com`
+- this was a CORS origin-gating issue, not a package-id, object-id, or sponsorship allowlist issue
+
+Fix path:
+
+- add both custom production domains to the Worker `ALLOWED_ORIGINS`
+- keep existing `https://civilizationcontrol.pages.dev` support
+- keep existing preview suffix support via `.civilizationcontrol.pages.dev`
+- redeploy only `civilizationcontrol-sponsor`
+
+Deployed fix result:
+
+- worker redeployed from `workers/sponsor-service/`
+- deployed Worker version id: `74bdc428-4d0c-4df6-b5dc-077335979db1`
+- deployed `ALLOWED_ORIGINS` now includes `https://civilizationcontrol.com`, `https://www.civilizationcontrol.com`, and `https://civilizationcontrol.pages.dev`
+- `ALLOWED_ORIGIN_SUFFIXES` remains `.civilizationcontrol.pages.dev`
+
+Post-fix `OPTIONS /sponsor` verification results:
+
+- `https://civilizationcontrol.com` → `204` with `Access-Control-Allow-Origin: https://civilizationcontrol.com`
+- `https://www.civilizationcontrol.com` → `204` with `Access-Control-Allow-Origin: https://www.civilizationcontrol.com`
+- `https://civilizationcontrol.pages.dev` → `204` with `Access-Control-Allow-Origin: https://civilizationcontrol.pages.dev`
+
+Worker-tail corroboration:
+
+- live `wrangler tail` recorded the post-deploy `OPTIONS /sponsor` requests as `Ok`
+
 ## Manual smoke update — operator-performed
 
 After the initial agent-run preview validation was recorded, the operator performed a manual preview smoke outside the agent browser environment.
@@ -129,8 +170,13 @@ Observed results:
 Interpretation:
 
 - the new Worker is live
-- CORS is correctly configured for CivilizationControl's production origin
+- CORS was correctly configured for the Pages production alias that was tested at the time
 - the request path is serving the expected sponsor route and validating requests cleanly
+
+What this endpoint check missed:
+
+- it did not test the real custom production domain `https://civilizationcontrol.com`
+- later production diagnostics showed that the custom domain required additional explicit `ALLOWED_ORIGINS` entries
 
 ## Preview frontend cutover status
 
@@ -249,3 +295,4 @@ The old Worker remains intact:
 2. Keep `flappy-frontier-sponsor` alive during the soak period.
 3. Decide later whether to keep optional API-key auth disabled or deliberately enable it.
 4. Consider old Worker retirement only in a separate later cleanup task.
+5. After the custom-domain CORS fix, capture one production action from `https://civilizationcontrol.com` with `/sponsor` status, no-fallback confirmation, digest, and sponsor-wallet activity evidence.

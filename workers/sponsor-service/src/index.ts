@@ -55,6 +55,8 @@ interface SponsorResponse {
 const DEFAULT_RPC = 'https://fullnode.testnet.sui.io:443';
 const DEFAULT_GAS_BUDGET = 50_000_000;
 const DEFAULT_ALLOWED_ORIGINS = [
+  'https://civilizationcontrol.com',
+  'https://www.civilizationcontrol.com',
   'https://civilizationcontrol.pages.dev',
   'http://localhost:5173',
 ];

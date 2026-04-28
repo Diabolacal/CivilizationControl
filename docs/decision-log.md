@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-28 – Fix sponsor worker CORS for production custom domains
+- Goal: Eliminate silent player-paid fallback on the real production domain by allowing sponsor-worker CORS preflight from `https://civilizationcontrol.com` and `https://www.civilizationcontrol.com` while preserving existing Pages and preview support.
+- Files: `workers/sponsor-service/wrangler.toml`, `workers/sponsor-service/src/index.ts`, `workers/sponsor-service/src/__tests__/index.test.ts`, `docs/operations/sponsor-worker-runbook.md`, `docs/operations/sponsor-worker-cutover-validation-20260428.md`, `docs/operations/sponsor-worker-production-cutover-20260428.md`, `docs/operations/production-sponsor-fallback-diagnostic-20260428.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: narrow worker origin-list update, new worker preflight tests, and operational documentation of the custom-domain root cause plus deployed fix evidence
+- Risk: medium — live sponsor-worker runtime change on production traffic, but no package-id, world-id, object-id, or Move allowlist change
+- Gates: diff-check ✅ policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅ post-deploy-options ✅
+- Result: root cause was confirmed as a missing custom-domain CORS allowlist entry on `civilizationcontrol-sponsor`; worker version `74bdc428-4d0c-4df6-b5dc-077335979db1` is now deployed with explicit origins for `https://civilizationcontrol.com`, `https://www.civilizationcontrol.com`, and `https://civilizationcontrol.pages.dev`, and post-deploy `OPTIONS /sponsor` checks returned `204` with matching `Access-Control-Allow-Origin` for all three.
+- Follow-ups: repeat one real production action from `https://civilizationcontrol.com`, confirm `/sponsor` returns a real status without browser CORS failure, confirm fallback logs disappear, capture the final digest, and confirm sponsor-wallet activity.
+
 ## 2026-04-28 – Record sponsor worker production cutover
 - Goal: Cut the production CivilizationControl frontend over from `flappy-frontier-sponsor` to `civilizationcontrol-sponsor` after preview validation and operator-confirmed manual preview sponsorship proof.
 - Files: `docs/operations/sponsor-worker-production-cutover-20260428.md`, `docs/operations/sponsor-worker-cutover-validation-20260428.md`, `docs/operations/sponsor-worker-cutover-plan-20260428.md`, `docs/operations/sponsor-worker-runbook.md`, `docs/README.md`, `docs/decision-log.md`

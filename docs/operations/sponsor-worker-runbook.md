@@ -26,6 +26,8 @@ Current committed config is CivilizationControl-only:
 - Stillness v1 runtime package targets only
 - one app policy id: `civilization-control`
 - no Flappy Frontier origins or app policy entries in committed config
+- explicit allowed origins for `https://civilizationcontrol.com`, `https://www.civilizationcontrol.com`, `https://civilizationcontrol.pages.dev`, and local dev
+- preview support remains suffix-based via `.civilizationcontrol.pages.dev`
 
 ## Environment variables and secrets
 
@@ -90,13 +92,14 @@ Before any real deploy:
 
 1. confirm `APP_POLICIES` matches current policy validation output
 2. confirm secrets are present in the target Worker environment
-3. confirm allowed origins and preview suffixes match the intended frontend URL
+3. confirm allowed origins and preview suffixes match every intended frontend URL, including custom production domains and Pages preview hosts
 4. validate preview behavior before any production cutover
 
 Current runtime note:
 
 - preview smoke was later manually confirmed by the operator
 - production frontend now points at `civilizationcontrol-sponsor`
+- a later production diagnostic found that custom-domain traffic from `https://civilizationcontrol.com` was initially blocked by missing CORS allowlist entries even though `https://civilizationcontrol.pages.dev` worked
 - old Worker retirement remains a later separate task
 
 ## Policy update process
@@ -119,6 +122,7 @@ Package-ID, runtime-ID, and allowlist changes belong in this repo. Update the co
 - `npm run sponsor:typecheck`
 - `npm run typecheck`
 - `npm run build`
+- `OPTIONS /sponsor` checks for `https://civilizationcontrol.com`, `https://www.civilizationcontrol.com`, and `https://civilizationcontrol.pages.dev`
 - one preview smoke that confirms real sponsorship, not only successful fallback execution
 
 ## Historical handoff note
