@@ -1,5 +1,7 @@
 # Sponsor Worker Cutover Plan — 2026-04-28
 
+Execution results for the first preview-cutover run are recorded in `docs/operations/sponsor-worker-cutover-validation-20260428.md`.
+
 ## 1. Executive summary
 
 CivilizationControl's current live sponsorship runtime is still the older Cloudflare Worker `flappy-frontier-sponsor`.

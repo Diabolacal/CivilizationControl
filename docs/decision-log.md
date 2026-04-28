@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-28 – Record sponsor worker preview cutover
+- Goal: Execute the preview-first runtime cutover for the new `civilizationcontrol-sponsor` Worker without touching production frontend configuration.
+- Files: `docs/operations/sponsor-worker-cutover-validation-20260428.md`, `docs/operations/sponsor-worker-cutover-plan-20260428.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: docs-only validation record plus cutover-plan link and index update
+- Risk: medium — documentation only, but grounded in real Cloudflare Worker deploy, secret provisioning, preview deployment, and smoke-attempt evidence
+- Gates: diff-check ✅ policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
+- Result: `civilizationcontrol-sponsor` was created at `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`, `SPONSOR_PRIVATE_KEY` now exists by name, endpoint checks passed, preview frontend was redeployed to `https://59a237d5.civilizationcontrol.pages.dev` and now references the new Worker, production frontend remained unchanged, and the old `flappy-frontier-sponsor` Worker was left untouched. Real sponsorship is still unproven because wallet connection failed before any governance transaction could be sent.
+- Follow-ups: run one real preview governance smoke in a working wallet/browser environment, prove sponsor gas payment rather than fallback, and only then consider a separate production frontend cutover.
+
 ## 2026-04-28 – Plan sponsor worker runtime cutover
 - Goal: Capture a precise, no-deploy implementation plan for moving live sponsorship from `flappy-frontier-sponsor` to a new `civilizationcontrol-sponsor` Worker with preview-first validation and rollback preserved.
 - Files: `docs/operations/sponsor-worker-cutover-plan-20260428.md`, `docs/README.md`, `docs/decision-log.md`
