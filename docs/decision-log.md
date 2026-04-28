@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-28 – Plan sponsor worker runtime cutover
+- Goal: Capture a precise, no-deploy implementation plan for moving live sponsorship from `flappy-frontier-sponsor` to a new `civilizationcontrol-sponsor` Worker with preview-first validation and rollback preserved.
+- Files: `docs/operations/sponsor-worker-cutover-plan-20260428.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: docs-only cutover plan plus index update
+- Risk: low — planning only, but grounded in prior runtime discovery, deploy-readiness evidence, Wrangler command-surface inspection, and smoke-test design
+- Gates: policy-check ✅ worker-test ✅ worker-typecheck ✅ typecheck ✅ build ✅
+- Result: the plan now separates source ownership from runtime cutover, treats new Worker creation as safer than rename, keeps production on the old Worker until preview proof succeeds, and defines the exact secret-handling, preview env, smoke-test, rollback, and production criteria for the next implementation task.
+- Follow-ups: execute the cutover plan on a dedicated implementation branch, create `civilizationcontrol-sponsor`, provision secrets by name, point preview at the new Worker, and capture one real sponsorship proof before any production change.
+
 ## 2026-04-27 – Record sponsor worker runtime discovery
 - Goal: Determine which sponsor worker CivilizationControl is currently using in practice, without deploying or changing runtime state.
 - Files: `docs/operations/sponsor-worker-runtime-discovery-20260427.md`, `docs/README.md`, `docs/decision-log.md`
