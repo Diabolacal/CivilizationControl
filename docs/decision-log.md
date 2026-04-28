@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-28 – Document EF-Map indexer awareness
+- Goal: Record that EF-Map already exists as a richer local/VPS indexer capability, inspect its repo and runtime read-only, and document what CivilizationControl could later consume without implementing integration now.
+- Files: `docs/operations/efmap-indexer-awareness-20260428.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
+- Diff: docs-only awareness report plus targeted docs index and LLM guide updates
+- Risk: low — documentation only, no runtime, contract, VPS, database, or deployment changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: confirmed the local EF-Map repo at `C:/EF-Map-main`, confirmed read-only SSH access through `ef-map-vps`, verified a live Postgres-backed EF-Map runtime under `/opt/ef-map`, documented populated `ef_sui` and `world_api_dlt` data surfaces, and recorded the current boundary that CC should consume EF-Map through Worker/API/snapshot/proxy surfaces rather than direct browser-to-DB access.
+- Follow-ups: the most likely next implementation slice is a preview-only read-only EF-Map endpoint for CC structure/node enrichment keyed by structure IDs or system IDs.
+
 ## 2026-04-28 – Consolidate completed sponsor operations docs
 - Goal: Reduce context noise in `docs/operations/` by archiving completed sponsor-worker migration and cutover evidence, keeping the sponsor-worker runbook active, and updating the LLM guide and docs index with current sponsor-worker truth.
 - Files: `docs/archive/sponsor-worker-20260428/README.md`, `docs/archive/sponsor-worker-20260428/sponsor-signer-migration-plan-20260427.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-deploy-readiness-20260427.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-runtime-discovery-20260427.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-cutover-plan-20260428.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-cutover-validation-20260428.md`, `docs/archive/sponsor-worker-20260428/sponsor-worker-production-cutover-20260428.md`, `docs/archive/sponsor-worker-20260428/production-sponsor-fallback-diagnostic-20260428.md`, `docs/archive/hackathon-2026/operations/hackathon-archive-cleanup-20260427.md`, `docs/operations/sponsor-worker-runbook.md`, `docs/operations/documentation-consolidation-20260428.md`, `docs/llm-reference-guide.md`, `docs/README.md`, `docs/decision-log.md`
