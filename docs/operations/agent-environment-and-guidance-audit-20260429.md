@@ -606,6 +606,25 @@ Files changed:
 What remains for later:
 - Keep local VS Code/tooling review separate.
 
+## Local VS Code/tooling review — completed
+
+Document created:
+- `docs/operations/local-vscode-tooling-review-20260429.md`
+
+Major findings:
+- Repo-local configuration is mostly sound; the main noise/cost risks come from `chat.autopilot.enabled = true`, `chat.agent.maxRequests = 100`, and duplicate global extensions rather than checked-in repo files.
+- No workspace-local MCP config exists; built-in browser tools remain the correct default browser validation surface for this repo.
+- The clearest repo-level toolchain follow-up is a later runtime-pinning/policy branch for Node/npm and repo-root Wrangler reproducibility.
+
+Nothing changed locally:
+- No settings, extensions, MCP config, or local tools were changed in this audit.
+
+Remaining implementation decisions:
+- Whether to review `.vscode/settings.json` in a dedicated branch.
+- Whether to lower Autopilot/maxRequests for this workspace.
+- Whether to do a manual global-extension cleanup pass.
+- Whether to add repo-level runtime pinning in a separate tooling branch.
+
 ## Deploy and Secret Guidance Cleanup — Implemented
 
 Files changed:

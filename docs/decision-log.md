@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Review local VS Code tooling
+- Goal: Create a tracked, read-only audit of the local VS Code, Copilot, MCP, extension, and CLI/tooling environment for CivilizationControl without changing settings, extensions, MCP config, or runtime code.
+- Files: `docs/operations/local-vscode-tooling-review-20260429.md`, `docs/operations/agent-environment-and-guidance-audit-20260429.md`, `docs/decision-log.md`, `docs/README.md`
+- Diff: docs-only local-tooling review and follow-up notes
+- Risk: low — documentation only, no runtime/package/settings/vendor/submodule changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: recorded the current workspace settings, installed extensions, MCP visibility, browser-tool overlap, Autopilot/token-noise risks, and local CLI/toolchain drift; confirmed that nothing was changed locally; and documented the next decisions as manual reviews or later dedicated branches.
+- Follow-ups: decide whether to do a dedicated workspace-settings cleanup branch, a manual global-extension cleanup pass, and a separate runtime-pinning/toolchain-policy branch.
+
 ## 2026-04-29 – Retire stale bootstrap prompt
 - Goal: Remove the misleading scaffold-era bootstrap prompt from the active repo prompt surface without changing runtime code or VS Code settings.
 - Files: `.github/prompts/archive/vibe-bootstrap.prompt.md`, `docs/README.md`, `docs/operations/agent-environment-and-guidance-audit-20260429.md`, `docs/decision-log.md`
