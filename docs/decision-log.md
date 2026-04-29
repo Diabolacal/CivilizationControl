@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Record repo state cleanup
+- Goal: Return the repo to a cleaner post-merge baseline without changing runtime code by resolving safe generated submodule lockfile churn and deleting only fully merged stale branches.
+- Files: `docs/decision-log.md`
+- Diff: docs-only cleanup record
+- Risk: low — no runtime/package/deploy/settings changes; vendor source left untouched and unstaged
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: classified `vendor/world-contracts/contracts/world/Move.lock` as safe generated churn caused by Windows-style path rewriting, backed up the exact diff to `C:/dev/CivilizationControl-world-contracts-Move-lock-dirt-20260429.patch`, restored the submodule worktree file to clean, deleted the fully merged `docs/world-v2-runtime-migration-plan` branch locally and on origin, preserved `feat/stillness-migration` because it still has unique commits ahead of `master`, and preserved `hackathon`.
+- Follow-ups: use `docs/operations/agent-environment-and-guidance-audit-20260429.md` as the candidate list for the next stale docs/archive pass.
+
 ## 2026-04-29 – Clarify deploy and secret guidance
 - Goal: Refresh repo-local deploy guidance, Cloudflare template wording, and secret-handling instructions so future agents distinguish public `VITE_*` config from Wrangler or Worker secrets without changing runtime code, deploy state, settings, or vendor state.
 - Files: `.github/skills/deploy/SKILL.md`, `.github/skills/docker-ops/SKILL.md`, `.github/instructions/deployment.instructions.md`, `.github/copilot-instructions.md`, `templates/cloudflare/README.md`, `.env.example`, `docs/operations/agent-environment-and-guidance-audit-20260429.md`, `docs/decision-log.md`
