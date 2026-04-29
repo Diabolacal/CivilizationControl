@@ -3,7 +3,8 @@ name: World Package Drift
 on:
   workflow_dispatch:
   schedule:
-    - cron: '0 6 * * *'
+    # twice weekly; enough to catch upstream package drift without noisy runs
+    - cron: '0 9 * * 1,4'
 
 permissions:
   contents: read
