@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Audit agent environment and guidance
+- Goal: Create a planning-only tracked audit of repo guidance files, local VS Code/Copilot/tooling surfaces, documentation sprawl, security guidance, and follow-up implementation tasks without changing runtime code, worker code, deploy state, vendor files, settings, or local tooling.
+- Files: `docs/operations/agent-environment-and-guidance-audit-20260429.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: docs-only audit, docs index update, and decision-log entry
+- Risk: low — documentation only, no runtime/package/sponsor/deploy/vendor/settings changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: recorded a single current-state audit covering repo instruction quality, live-vs-stale guidance drift, design-guidance discoverability, local VS Code/Copilot and extension inventory, MCP/browser-tool overlap, secret-handling guidance, documentation sprawl, and recommended follow-up branches, then validated the repo with `git diff --check`, `npm run typecheck`, and `npm run build`.
+- Follow-ups: use this audit as the implementation brief for later instruction refresh, design-guidance consolidation, workspace-tool review, archive pass, and tooling-policy branches.
+
 ## 2026-04-29 – Record shared-backend enrichment production cutover
 - Goal: Merge `feat/shared-backend-assembly-enrichment` into `master`, push `origin/master`, deploy the production frontend with explicit public sponsor/shared-backend overrides, and record live bundle plus browser-origin endpoint proof without changing sponsor worker code, package IDs, Move code, or write paths.
 - Files: `docs/operations/shared-backend-assembly-enrichment-20260429.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
