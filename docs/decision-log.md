@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Update world v2 migration next step
+- Goal: Correct the stale follow-up guidance in the MVR world package audit now that Phase 2 runtime/original split work is already complete.
+- Files: `docs/operations/mvr-world-package-audit-20260429.md`, `docs/decision-log.md`
+- Diff: docs-only correction of the recommended next prompt
+- Risk: low — documentation only, no runtime, sponsor policy, worker config, Move dependency, vendor, or deploy changes
+- Gates: world:mvr:check ✅ world:mvr:ci ✅ world:mvr:strict expected-fail ✅ sponsor:validate-policy ✅ sponsor:test ✅ sponsor:typecheck ✅ typecheck ✅ build ✅ diff-check ✅
+- Result: replaced the stale “implement Phase 2” prompt with a planning-only World v2 runtime migration prompt that keeps original/type-origin handling explicit, requires aligned runtime-surface updates, and calls for preview smoke validation before any production cutover.
+- Follow-ups: merge this docs correction together with the Phase 2 branch so the next task starts from a planning-only World v2 migration brief rather than already-completed Phase 2 work.
+
 ## 2026-04-29 – Split world runtime and original package IDs
 - Goal: Implement the app-layer Phase 2 split between world runtime targets and original/type-origin surfaces without changing live behavior, sponsor allowlists, Move dependencies, vendor files, or deployments.
 - Files: `src/constants.ts`, `src/lib/gatePolicyTx.ts`, `src/lib/postureSwitchTx.ts`, `src/lib/structurePowerTx.ts`, `src/hooks/useAuthorizeExtension.ts`, `src/lib/suiReader.ts`, `src/lib/eventParser.ts`, `src/lib/objectResolver.ts`, `scripts/check-world-mvr-drift.mjs`, `scripts/validate-sponsor-policy.mjs`, `docs/operations/world-runtime-original-split-20260429.md`, `docs/operations/mvr-world-package-audit-20260429.md`, `docs/llm-reference-guide.md`, `docs/README.md`, `docs/decision-log.md`
