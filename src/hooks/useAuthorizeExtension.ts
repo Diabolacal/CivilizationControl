@@ -2,9 +2,10 @@ import { useCallback, useState } from "react";
 import { Transaction } from "@mysten/sui/transactions";
 import { useSponsoredExecution } from "@/hooks/useSponsoredExecution";
 import {
-  WORLD_PACKAGE_ID,
   CC_PACKAGE_ID,
   CC_ORIGINAL_PACKAGE_ID,
+  WORLD_ORIGINAL_PACKAGE_ID,
+  WORLD_RUNTIME_PACKAGE_ID,
 } from "../constants";
 import { useCharacterId } from "@/hooks/useCharacter";
 import type { TurretSwitchTarget, GateAuthTarget, SsuAuthTarget, PostureMode } from "@/types/domain";
@@ -35,18 +36,18 @@ export function useAuthorizeExtension() {
       setGateError(null);
       try {
         const tx = new Transaction();
-        const gateType = `${WORLD_PACKAGE_ID}::gate::Gate`;
+        const gateType = `${WORLD_ORIGINAL_PACKAGE_ID}::gate::Gate`;
         const gateAuthType = `${CC_ORIGINAL_PACKAGE_ID}::gate_control::GateAuth`;
 
         for (const target of targets) {
           const [ownerCap, receipt] = tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
             typeArguments: [gateType],
             arguments: [tx.object(characterId), tx.object(target.ownerCapId)],
           });
 
           tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::gate::authorize_extension`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::gate::authorize_extension`,
             typeArguments: [gateAuthType],
             arguments: [tx.object(target.gateId), ownerCap],
           });
@@ -54,7 +55,7 @@ export function useAuthorizeExtension() {
           // Set the in-game DApp URL so players see the permit page automatically
           if (dappBaseUrl) {
             tx.moveCall({
-              target: `${WORLD_PACKAGE_ID}::gate::update_metadata_url`,
+              target: `${WORLD_RUNTIME_PACKAGE_ID}::gate::update_metadata_url`,
               arguments: [
                 tx.object(target.gateId),
                 ownerCap,
@@ -64,7 +65,7 @@ export function useAuthorizeExtension() {
           }
 
           tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
             typeArguments: [gateType],
             arguments: [tx.object(characterId), ownerCap, receipt],
           });
@@ -90,18 +91,18 @@ export function useAuthorizeExtension() {
       setSsuError(null);
       try {
         const tx = new Transaction();
-        const ssuType = `${WORLD_PACKAGE_ID}::storage_unit::StorageUnit`;
+        const ssuType = `${WORLD_ORIGINAL_PACKAGE_ID}::storage_unit::StorageUnit`;
         const tradeAuthType = `${CC_ORIGINAL_PACKAGE_ID}::trade_post::TradeAuth`;
 
         for (const target of targets) {
           const [ownerCap, receipt] = tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
             typeArguments: [ssuType],
             arguments: [tx.object(characterId), tx.object(target.ownerCapId)],
           });
 
           tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::storage_unit::authorize_extension`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::storage_unit::authorize_extension`,
             typeArguments: [tradeAuthType],
             arguments: [tx.object(target.ssuId), ownerCap],
           });
@@ -109,7 +110,7 @@ export function useAuthorizeExtension() {
           // Set the in-game DApp URL so players see the marketplace automatically
           if (dappBaseUrl) {
             tx.moveCall({
-              target: `${WORLD_PACKAGE_ID}::storage_unit::update_metadata_url`,
+              target: `${WORLD_RUNTIME_PACKAGE_ID}::storage_unit::update_metadata_url`,
               arguments: [
                 tx.object(target.ssuId),
                 ownerCap,
@@ -119,7 +120,7 @@ export function useAuthorizeExtension() {
           }
 
           tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
             typeArguments: [ssuType],
             arguments: [tx.object(characterId), ownerCap, receipt],
           });
@@ -145,17 +146,17 @@ export function useAuthorizeExtension() {
       setSsuError(null);
       try {
         const tx = new Transaction();
-        const ssuType = `${WORLD_PACKAGE_ID}::storage_unit::StorageUnit`;
+        const ssuType = `${WORLD_ORIGINAL_PACKAGE_ID}::storage_unit::StorageUnit`;
 
         for (const target of targets) {
           const [ownerCap, receipt] = tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
             typeArguments: [ssuType],
             arguments: [tx.object(characterId), tx.object(target.ownerCapId)],
           });
 
           tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::storage_unit::update_metadata_url`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::storage_unit::update_metadata_url`,
             arguments: [
               tx.object(target.ssuId),
               ownerCap,
@@ -164,7 +165,7 @@ export function useAuthorizeExtension() {
           });
 
           tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
             typeArguments: [ssuType],
             arguments: [tx.object(characterId), ownerCap, receipt],
           });
@@ -195,26 +196,26 @@ export function useAuthorizeExtension() {
       setTurretError(null);
       try {
         const tx = new Transaction();
-        const turretType = `${WORLD_PACKAGE_ID}::turret::Turret`;
+        const turretType = `${WORLD_ORIGINAL_PACKAGE_ID}::turret::Turret`;
         const authType = posture === "defense"
           ? `${CC_PACKAGE_ID}::turret::DefenseAuth`
           : `${CC_PACKAGE_ID}::turret::CommercialAuth`;
 
         for (const target of targets) {
           const [ownerCap, receipt] = tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
             typeArguments: [turretType],
             arguments: [tx.object(characterId), tx.object(target.ownerCapId)],
           });
 
           tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::turret::authorize_extension`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::turret::authorize_extension`,
             typeArguments: [authType],
             arguments: [tx.object(target.turretId), ownerCap],
           });
 
           tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
             typeArguments: [turretType],
             arguments: [tx.object(characterId), ownerCap, receipt],
           });
@@ -240,17 +241,17 @@ export function useAuthorizeExtension() {
       setGateError(null);
       try {
         const tx = new Transaction();
-        const gateType = `${WORLD_PACKAGE_ID}::gate::Gate`;
+        const gateType = `${WORLD_ORIGINAL_PACKAGE_ID}::gate::Gate`;
 
         for (const target of targets) {
           const [ownerCap, receipt] = tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
             typeArguments: [gateType],
             arguments: [tx.object(characterId), tx.object(target.ownerCapId)],
           });
 
           tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::gate::update_metadata_url`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::gate::update_metadata_url`,
             arguments: [
               tx.object(target.gateId),
               ownerCap,
@@ -259,7 +260,7 @@ export function useAuthorizeExtension() {
           });
 
           tx.moveCall({
-            target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
+            target: `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
             typeArguments: [gateType],
             arguments: [tx.object(characterId), ownerCap, receipt],
           });

@@ -20,7 +20,8 @@
 import { Transaction } from "@mysten/sui/transactions";
 import {
   CC_PACKAGE_ID,
-  WORLD_PACKAGE_ID,
+  WORLD_ORIGINAL_PACKAGE_ID,
+  WORLD_RUNTIME_PACKAGE_ID,
   GATE_CONFIG_ID,
 } from "@/constants";
 import type { PostureMode, TurretSwitchTarget, GatePostureTarget } from "@/types/domain";
@@ -54,10 +55,10 @@ export function buildPostureSwitchTx(params: PostureSwitchParams): Transaction {
   const modeValue = targetMode === "defense" ? POSTURE_DEFENSE : POSTURE_COMMERCIAL;
 
   // ─── 1. Per-gate posture changes (PostureChangedEvent per gate) ───
-  const gateType = `${WORLD_PACKAGE_ID}::gate::Gate`;
+  const gateType = `${WORLD_ORIGINAL_PACKAGE_ID}::gate::Gate`;
   for (const gate of gates) {
     const [gateCap, gateReceipt] = tx.moveCall({
-      target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
+      target: `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
       typeArguments: [gateType],
       arguments: [
         tx.object(characterId),
@@ -76,7 +77,7 @@ export function buildPostureSwitchTx(params: PostureSwitchParams): Transaction {
     });
 
     tx.moveCall({
-      target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
+      target: `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
       typeArguments: [gateType],
       arguments: [
         tx.object(characterId),
@@ -87,7 +88,7 @@ export function buildPostureSwitchTx(params: PostureSwitchParams): Transaction {
   }
 
   // ─── 2. Turret extension swaps ───
-  const turretType = `${WORLD_PACKAGE_ID}::turret::Turret`;
+  const turretType = `${WORLD_ORIGINAL_PACKAGE_ID}::turret::Turret`;
   const authType = targetMode === "defense"
     ? `${CC_PACKAGE_ID}::turret::DefenseAuth`
     : `${CC_PACKAGE_ID}::turret::CommercialAuth`;
@@ -95,7 +96,7 @@ export function buildPostureSwitchTx(params: PostureSwitchParams): Transaction {
   for (const turret of turrets) {
     // Borrow OwnerCap<Turret> from Character via Receiving
     const [cap, receipt] = tx.moveCall({
-      target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
+      target: `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
       typeArguments: [turretType],
       arguments: [
         tx.object(characterId),
@@ -105,7 +106,7 @@ export function buildPostureSwitchTx(params: PostureSwitchParams): Transaction {
 
     // Swap turret extension to target posture
     tx.moveCall({
-      target: `${WORLD_PACKAGE_ID}::turret::authorize_extension`,
+      target: `${WORLD_RUNTIME_PACKAGE_ID}::turret::authorize_extension`,
       typeArguments: [authType],
       arguments: [
         tx.object(turret.turretId),
@@ -115,7 +116,7 @@ export function buildPostureSwitchTx(params: PostureSwitchParams): Transaction {
 
     // Return OwnerCap<Turret> to Character
     tx.moveCall({
-      target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
+      target: `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
       typeArguments: [turretType],
       arguments: [
         tx.object(characterId),

@@ -30,9 +30,9 @@ Non-goals:
 
 | Surface | Meaning | Current value | Lives in | Notes |
 |---|---|---|---|---|
-| `WORLD_PACKAGE_ID` | Frontend world package constant | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `src/constants.ts` | One world constant used for PTB targets, type strings, and read-path queries. |
-| `WORLD_RUNTIME_PACKAGE_ID` | Sponsor/config runtime world package | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `config/chain/stillness.ts` | Runtime field already exists here. |
-| `WORLD_ORIGINAL_PACKAGE_ID` | Sponsor/config original/type-origin world package | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `config/chain/stillness.ts` | Original field already exists here. |
+| `WORLD_RUNTIME_PACKAGE_ID` | Frontend and config runtime world package | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `src/constants.ts`, `config/chain/stillness.ts` | Runtime entrypoints, sponsor allowlists, and emitter-sensitive queries follow this. |
+| `WORLD_ORIGINAL_PACKAGE_ID` | Frontend and config original/type-origin world package | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `src/constants.ts`, `config/chain/stillness.ts` | Type strings, exact event types, `StructType` filters, and type tags follow this. |
+| `WORLD_PACKAGE_ID` | Transitional frontend compatibility alias | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `src/constants.ts` | Alias to `WORLD_RUNTIME_PACKAGE_ID`; new code should not use it for new world surfaces. |
 | `CC_PACKAGE_ID` | Current CC runtime package | `0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021` | `src/constants.ts`, `config/chain/stillness.ts`, `contracts/civilization_control/Published.toml` | Stillness v1 fresh publish. |
 | `CC_ORIGINAL_PACKAGE_ID` | Current CC original/type-origin package | `0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021` | same as above | Equal to runtime because Stillness CC has not upgraded yet. |
 | Sponsor allowlist world package | Worker-approved world package | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `config/sponsorship/civilizationControlPolicy.ts`, `workers/sponsor-service/wrangler.toml`, `scripts/validate-sponsor-policy.mjs`, `workers/sponsor-service/src/__tests__/validation.test.ts` | Concrete ID only. |
@@ -47,7 +47,7 @@ Non-goals:
 
 ### Runtime IDs versus original/type-origin IDs
 
-CivilizationControl already handles this distinction for its own package: `CC_PACKAGE_ID` is used for runtime `moveCall` targets, while `CC_ORIGINAL_PACKAGE_ID` is used for type strings, dynamic-field key types, and event parsing. The world package is not modeled that way in the frontend yet. `config/chain/stillness.ts` already has separate runtime/original world fields, but `src/constants.ts` still exposes a single `WORLD_PACKAGE_ID`, which is effectively a Stillness v1 assumption.
+CivilizationControl already handles this distinction for its own package: `CC_PACKAGE_ID` is used for runtime `moveCall` targets, while `CC_ORIGINAL_PACKAGE_ID` is used for type strings, dynamic-field key types, and event parsing. Phase 2 now applies the same split to world surfaces in the app layer: runtime entrypoints use `WORLD_RUNTIME_PACKAGE_ID`, while type-origin-sensitive reads and type strings use `WORLD_ORIGINAL_PACKAGE_ID`. The transitional `WORLD_PACKAGE_ID` alias remains only for compatibility.
 
 ### Current Move dependency model
 
@@ -60,9 +60,9 @@ The Move package does not use MVR today. `contracts/civilization_control/Move.to
 
 ### Existing Stillness v1 assumptions
 
-- `src/constants.ts` exposes only one world package constant
-- `src/lib/suiReader.ts` uses `WORLD_PACKAGE_ID` for both object/type strings and `MoveModule` event queries
-- `src/lib/eventParser.ts` uses `WORLD_PACKAGE_ID` in world event type strings
+- both world constants intentionally still point at the older Stillness package until a deliberate World v2 runtime migration branch is approved
+- sponsor allowlists, worker config, tests, and validation scripts still intentionally target the current runtime package
+- `src/lib/suiReader.ts` keeps world `MoveModule` event queries on runtime/emitter semantics even after the split
 - sponsor allowlists assume the same concrete world package the frontend targets
 - worker validation rejects any package not explicitly allowlisted
 
@@ -221,6 +221,13 @@ Notes:
 - The workflow now uses recursive submodule checkout so the drift checker can read vendored Stillness metadata in CI.
 - The drift checker now emits an actionable missing-vendor-file error instead of a generic internal `ENOENT` when required local metadata is absent.
 - No World v2 migration was performed by this automation. The repo remains intentionally pinned to the older Stillness world package until an explicit later migration branch updates runtime config and sponsor policy together.
+
+## Phase 2 implementation result
+
+- Phase 2 is now implemented in the app layer at `docs/operations/world-runtime-original-split-20260429.md`.
+- `src/constants.ts` now exposes `WORLD_RUNTIME_PACKAGE_ID` and `WORLD_ORIGINAL_PACKAGE_ID` explicitly, while keeping both values pinned to the current Stillness world package `0x28b497...`.
+- Runtime entrypoints now read from the runtime constant, while world type strings, exact event types, `StructType` filters, and deterministic type tags now read from the original/type-origin constant.
+- Sponsor allowlists, worker config, Move dependencies, and vendor files were intentionally left unchanged in Phase 2.
 
 ## 11. Risks and open questions
 

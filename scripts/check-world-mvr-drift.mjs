@@ -378,7 +378,8 @@ async function main() {
   const wranglerPolicies = extractWranglerPolicies(FILES.wrangler);
   const wranglerPolicy = wranglerPolicies[0] ?? null;
   const constants = {
-    worldRuntime: extractTsConstant(FILES.constants, 'WORLD_PACKAGE_ID'),
+    worldRuntime: extractTsConstant(FILES.constants, 'WORLD_RUNTIME_PACKAGE_ID'),
+    worldOriginal: extractTsConstant(FILES.constants, 'WORLD_ORIGINAL_PACKAGE_ID'),
     ccRuntime: extractTsConstant(FILES.constants, 'CC_PACKAGE_ID'),
     ccOriginal: extractTsConstant(FILES.constants, 'CC_ORIGINAL_PACKAGE_ID'),
   };
@@ -435,9 +436,15 @@ async function main() {
   const normalizedWrangler = normalizeTargets(wranglerPolicy?.packages ?? {});
 
   if (constants.worldRuntime === chainWorldRuntime) {
-    record('ok', 'INTERNAL_WORLD_CONSTANT_MATCH', 'src/constants.ts matches config/chain/stillness.ts world runtime package');
+    record('ok', 'INTERNAL_WORLD_RUNTIME_CONSTANT_MATCH', 'src/constants.ts world runtime package matches config/chain/stillness.ts');
   } else {
-    record('fail', 'INTERNAL_WORLD_CONSTANT_MISMATCH', `src/constants.ts WORLD_PACKAGE_ID (${constants.worldRuntime}) does not match config/chain/stillness.ts WORLD_RUNTIME_PACKAGE_ID (${chainWorldRuntime})`);
+    record('fail', 'INTERNAL_WORLD_RUNTIME_CONSTANT_MISMATCH', `src/constants.ts WORLD_RUNTIME_PACKAGE_ID (${constants.worldRuntime}) does not match config/chain/stillness.ts WORLD_RUNTIME_PACKAGE_ID (${chainWorldRuntime})`);
+  }
+
+  if (constants.worldOriginal === chainWorldOriginal) {
+    record('ok', 'INTERNAL_WORLD_ORIGINAL_CONSTANT_MATCH', 'src/constants.ts world original package matches config/chain/stillness.ts');
+  } else {
+    record('fail', 'INTERNAL_WORLD_ORIGINAL_CONSTANT_MISMATCH', `src/constants.ts WORLD_ORIGINAL_PACKAGE_ID (${constants.worldOriginal}) does not match config/chain/stillness.ts WORLD_ORIGINAL_PACKAGE_ID (${chainWorldOriginal})`);
   }
 
   if (constants.ccRuntime === chainCcRuntime) {
@@ -577,7 +584,7 @@ async function main() {
         record('fail', 'STRICT_RUNTIME_NOT_LATEST', `config/chain/stillness.ts WORLD_RUNTIME_PACKAGE_ID (${chainWorldRuntime}) is not aligned to MVR latest (${mvrResult.packageId})`);
       }
       if (constants.worldRuntime !== mvrResult.packageId) {
-        record('fail', 'STRICT_CONSTANT_NOT_LATEST', `src/constants.ts WORLD_PACKAGE_ID (${constants.worldRuntime}) is not aligned to MVR latest (${mvrResult.packageId})`);
+        record('fail', 'STRICT_RUNTIME_CONSTANT_NOT_LATEST', `src/constants.ts WORLD_RUNTIME_PACKAGE_ID (${constants.worldRuntime}) is not aligned to MVR latest (${mvrResult.packageId})`);
       }
       if (policyWorldPackage !== mvrResult.packageId) {
         record('fail', 'STRICT_POLICY_NOT_LATEST', `Sponsor policy world package (${policyWorldPackage ?? 'missing'}) is not aligned to MVR latest (${mvrResult.packageId})`);
@@ -605,10 +612,11 @@ async function main() {
   console.log(`MVR endpoint: ${options.mvrEndpoint ?? baseline.mvrEndpoint}`);
 
   printSection('Current committed runtime package', [
-    `- src/constants.ts WORLD_PACKAGE_ID: ${constants.worldRuntime}`,
+    `- src/constants.ts WORLD_RUNTIME_PACKAGE_ID: ${constants.worldRuntime}`,
     `- config/chain/stillness.ts WORLD_RUNTIME_PACKAGE_ID: ${chainWorldRuntime}`,
   ]);
   printSection('Current committed original/type-origin package', [
+    `- src/constants.ts WORLD_ORIGINAL_PACKAGE_ID: ${constants.worldOriginal}`,
     `- config/chain/stillness.ts WORLD_ORIGINAL_PACKAGE_ID: ${chainWorldOriginal}`,
   ]);
   printSection('Sponsor policy package', [

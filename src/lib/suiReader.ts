@@ -22,7 +22,13 @@ import type {
   InventoryEntry,
   PostureMode,
 } from "@/types/domain";
-import { WORLD_PACKAGE_ID, CC_PACKAGE_ID, CC_ORIGINAL_PACKAGE_ID, GATE_CONFIG_ID } from "@/constants";
+import {
+  WORLD_ORIGINAL_PACKAGE_ID,
+  WORLD_RUNTIME_PACKAGE_ID,
+  CC_PACKAGE_ID,
+  CC_ORIGINAL_PACKAGE_ID,
+  GATE_CONFIG_ID,
+} from "@/constants";
 
 /** Default Sui RPC endpoint for Stillness testnet. */
 const DEFAULT_RPC = "https://fullnode.testnet.sui.io:443";
@@ -45,7 +51,7 @@ export async function fetchPlayerProfile(
   walletAddress: string,
 ): Promise<PlayerProfile | null> {
   const client = getSuiClient();
-  const profileType = `${WORLD_PACKAGE_ID}::character::PlayerProfile`;
+  const profileType = `${WORLD_ORIGINAL_PACKAGE_ID}::character::PlayerProfile`;
 
   const { data } = await client.getOwnedObjects({
     owner: walletAddress,
@@ -584,7 +590,7 @@ export async function fetchRecentEvents(
       limit,
     }),
     client.queryEvents({
-      query: { MoveModule: { package: WORLD_PACKAGE_ID, module: "turret" } },
+      query: { MoveModule: { package: WORLD_RUNTIME_PACKAGE_ID, module: "turret" } },
       order: "descending",
       limit,
     }),
@@ -595,13 +601,13 @@ export async function fetchRecentEvents(
     }),
     // World-level gate events: StatusChangedEvent for gate power on/off
     client.queryEvents({
-      query: { MoveModule: { package: WORLD_PACKAGE_ID, module: "gate" } },
+      query: { MoveModule: { package: WORLD_RUNTIME_PACKAGE_ID, module: "gate" } },
       order: "descending",
       limit,
     }),
     // World-level SSU events: StatusChangedEvent for trade post power on/off
     client.queryEvents({
-      query: { MoveModule: { package: WORLD_PACKAGE_ID, module: "storage_unit" } },
+      query: { MoveModule: { package: WORLD_RUNTIME_PACKAGE_ID, module: "storage_unit" } },
       order: "descending",
       limit,
     }),

@@ -14,16 +14,17 @@
 import { Transaction } from "@mysten/sui/transactions";
 import {
   CC_PACKAGE_ID,
-  WORLD_PACKAGE_ID,
+  WORLD_ORIGINAL_PACKAGE_ID,
+  WORLD_RUNTIME_PACKAGE_ID,
   GATE_CONFIG_ID,
 } from "@/constants";
 import type { ObjectId, TribePolicyEntry, GatePolicyTarget } from "@/types/domain";
 
-const GATE_TYPE = `${WORLD_PACKAGE_ID}::gate::Gate`;
+const GATE_TYPE = `${WORLD_ORIGINAL_PACKAGE_ID}::gate::Gate`;
 
 function borrowOwnerCap(tx: Transaction, characterId: string, ownerCapId: string) {
   return tx.moveCall({
-    target: `${WORLD_PACKAGE_ID}::character::borrow_owner_cap`,
+    target: `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
     typeArguments: [GATE_TYPE],
     arguments: [tx.object(characterId), tx.object(ownerCapId)],
   });
@@ -36,7 +37,7 @@ function returnOwnerCap(
   receipt: ReturnType<typeof borrowOwnerCap>[1],
 ) {
   tx.moveCall({
-    target: `${WORLD_PACKAGE_ID}::character::return_owner_cap`,
+    target: `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
     typeArguments: [GATE_TYPE],
     arguments: [tx.object(characterId), cap, receipt],
   });

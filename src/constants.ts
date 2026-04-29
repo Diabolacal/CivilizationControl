@@ -1,14 +1,22 @@
 /** Live Stillness object IDs for the owner-authorization harness. */
 
-export const WORLD_PACKAGE_ID =
+/** World runtime package for MoveCall targets and emitter-sensitive queries. */
+export const WORLD_RUNTIME_PACKAGE_ID =
   "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c";
+
+/** World original/type-origin package for type strings and type arguments. */
+export const WORLD_ORIGINAL_PACKAGE_ID =
+  "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c";
+
+/** @deprecated Use WORLD_RUNTIME_PACKAGE_ID or WORLD_ORIGINAL_PACKAGE_ID explicitly. */
+export const WORLD_PACKAGE_ID = WORLD_RUNTIME_PACKAGE_ID;
 
 export const CC_PACKAGE_ID =
   "0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021";
 
 /**
- * Original (v1) package address — used for type-based queries (DF keys,
- * event type strings, queryEvents MoveModule filter).  On Sui, struct types
+ * Original (v1) package address — used for type-based queries, dynamic-field
+ * key types, and event type strings. On Sui, struct types
  * are always anchored to the package version where they were FIRST DEFINED.
  * On Stillness this is the same as CC_PACKAGE_ID (fresh v1 publish).
  */

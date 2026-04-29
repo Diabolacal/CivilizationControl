@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Split world runtime and original package IDs
+- Goal: Implement the app-layer Phase 2 split between world runtime targets and original/type-origin surfaces without changing live behavior, sponsor allowlists, Move dependencies, vendor files, or deployments.
+- Files: `src/constants.ts`, `src/lib/gatePolicyTx.ts`, `src/lib/postureSwitchTx.ts`, `src/lib/structurePowerTx.ts`, `src/hooks/useAuthorizeExtension.ts`, `src/lib/suiReader.ts`, `src/lib/eventParser.ts`, `src/lib/objectResolver.ts`, `scripts/check-world-mvr-drift.mjs`, `scripts/validate-sponsor-policy.mjs`, `docs/operations/world-runtime-original-split-20260429.md`, `docs/operations/mvr-world-package-audit-20260429.md`, `docs/llm-reference-guide.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: explicit world runtime/original split across app call sites and validation scripts, plus targeted documentation updates
+- Risk: medium — multi-file refactor across PTB builders, read/event helpers, and validation scripts, but with no package value changes and no sponsor or deployment changes
+- Gates: world:mvr:check ✅ world:mvr:ci ✅ world:mvr:strict expected-fail ✅ sponsor:validate-policy ✅ sponsor:test ✅ sponsor:typecheck ✅ typecheck ✅ build ✅ diff-check ✅
+- Result: `src/constants.ts` now exposes `WORLD_RUNTIME_PACKAGE_ID` and `WORLD_ORIGINAL_PACKAGE_ID`, runtime MoveCall targets and world `MoveModule` queries use the runtime constant, type strings and exact event/type-origin surfaces use the original constant, and both supporting validation scripts now report and validate the split explicitly while the repo remains intentionally pinned to the current Stillness world package.
+- Follow-ups: a future World v2 migration branch should change only runtime-target surfaces, sponsor allowlists, and validation expectations together, while keeping original/type-origin surfaces pinned unless the defining lineage actually changes.
+
 ## 2026-04-29 – Fix world package drift workflow submodule checkout
 - Goal: Fix the GitHub Actions world-package drift check after the first manual run failed on the runner because `vendor/world-contracts/contracts/world/Published.toml` was unavailable, and harden the script so missing required vendor metadata reports a clear actionable error instead of a generic internal `ENOENT`.
 - Files: `.github/workflows/world-package-drift.yml`, `scripts/check-world-mvr-drift.mjs`, `docs/operations/mvr-world-package-audit-20260429.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`

@@ -142,8 +142,13 @@ function main() {
   check(!JSON.stringify(policy).includes(FLAPPY_PACKAGE_ID), 'config policy contains no Flappy package id', results);
 
   check(
-    chain.WORLD_RUNTIME_PACKAGE_ID === extractTsConstant(CONSTANTS_FILE, 'WORLD_PACKAGE_ID'),
+    chain.WORLD_RUNTIME_PACKAGE_ID === extractTsConstant(CONSTANTS_FILE, 'WORLD_RUNTIME_PACKAGE_ID'),
     'WORLD runtime package matches src/constants.ts',
+    results,
+  );
+  check(
+    chain.WORLD_ORIGINAL_PACKAGE_ID === extractTsConstant(CONSTANTS_FILE, 'WORLD_ORIGINAL_PACKAGE_ID'),
+    'WORLD original package matches src/constants.ts',
     results,
   );
   check(

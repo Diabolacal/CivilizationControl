@@ -9,7 +9,7 @@
  *   Turrets:     BouncerTargetingEvent, DefenseTargetingEvent, TurretResponseEvent
  */
 
-import { CC_ORIGINAL_PACKAGE_ID, WORLD_PACKAGE_ID } from "@/constants";
+import { CC_ORIGINAL_PACKAGE_ID, WORLD_ORIGINAL_PACKAGE_ID } from "@/constants";
 import { resolveItemTypeName } from "@/lib/typeCatalog";
 import { resolveTribeName } from "@/lib/tribeCatalog";
 import { formatLux } from "@/lib/currency";
@@ -34,10 +34,10 @@ export const CC_EVENT_TYPES = {
   TURRET_RESPONSE: `${CC_ORIGINAL_PACKAGE_ID}::turret_events::TurretResponseEvent`,
   TURRET_TARGETING: `${CC_ORIGINAL_PACKAGE_ID}::turret::TurretTargetingEvent`,
   // World-level turret events (emitted by world::turret module on extension changes)
-  TURRET_EXT_AUTHORIZED: `${WORLD_PACKAGE_ID}::turret::ExtensionAuthorizedEvent`,
-  TURRET_EXT_REVOKED: `${WORLD_PACKAGE_ID}::turret::ExtensionRevokedEvent`,
+  TURRET_EXT_AUTHORIZED: `${WORLD_ORIGINAL_PACKAGE_ID}::turret::ExtensionAuthorizedEvent`,
+  TURRET_EXT_REVOKED: `${WORLD_ORIGINAL_PACKAGE_ID}::turret::ExtensionRevokedEvent`,
   // World-level status events (emitted via gate::online / gate::offline)
-  STATUS_CHANGED: `${WORLD_PACKAGE_ID}::status::StatusChangedEvent`,
+  STATUS_CHANGED: `${WORLD_ORIGINAL_PACKAGE_ID}::status::StatusChangedEvent`,
 } as const;
 
 /** Shape of a raw event from SuiClient.queryEvents data array. */

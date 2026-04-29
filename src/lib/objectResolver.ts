@@ -9,13 +9,13 @@
 
 import { bcs } from "@mysten/sui/bcs";
 import { deriveObjectID } from "@mysten/sui/utils";
-import { WORLD_PACKAGE_ID } from "../constants";
+import { WORLD_ORIGINAL_PACKAGE_ID } from "../constants";
 
 /** ObjectRegistry singleton on Stillness testnet. Immutable after world deployment. */
 const OBJECT_REGISTRY_ID =
   "0x454a9aa3d37e1d08d3c9181239c1b683781e4087fbbbd48c935d54b6736fd05c";
 
-const TYPE_TAG = `${WORLD_PACKAGE_ID}::in_game_id::TenantItemId`;
+const TYPE_TAG = `${WORLD_ORIGINAL_PACKAGE_ID}::in_game_id::TenantItemId`;
 
 const TenantItemId = bcs.struct("TenantItemId", {
   id: bcs.u64(),
