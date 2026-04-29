@@ -228,6 +228,7 @@ Notes:
 - `src/constants.ts` now exposes `WORLD_RUNTIME_PACKAGE_ID` and `WORLD_ORIGINAL_PACKAGE_ID` explicitly, while keeping both values pinned to the current Stillness world package `0x28b497...`.
 - Runtime entrypoints now read from the runtime constant, while world type strings, exact event types, `StructType` filters, and deterministic type tags now read from the original/type-origin constant.
 - Sponsor allowlists, worker config, Move dependencies, and vendor files were intentionally left unchanged in Phase 2.
+- Planning for the later explicit runtime cutover now lives at `docs/operations/world-v2-runtime-migration-plan-20260429.md`.
 
 ## 11. Risks and open questions
 
@@ -244,4 +245,4 @@ Notes:
 
 ## 12. Recommended next prompt
 
-> Phase 2 is complete. Plan the explicit World v2 runtime migration branch only; do not execute it yet. Define exactly which runtime surfaces must change together when moving `WORLD_RUNTIME_PACKAGE_ID` to the MVR/latest world package: `src/constants.ts`, `config/chain/stillness.ts` runtime field, sponsor policy package, worker wrangler config package, worker validation tests, and validation script expectations. Keep `WORLD_ORIGINAL_PACKAGE_ID` unchanged unless package-lineage evidence proves the defining type origin also changed. Require preview smoke coverage before any production cutover: wallet discovery, owner-cap borrow/return flows, extension authorization, metadata URL updates, safe structure power online/offline checks, signal/event behavior, and one real sponsored preview transaction. `npm run world:mvr:strict` should be expected to pass only after that runtime migration is complete and all aligned runtime surfaces have been updated together.
+> Planning is now complete at `docs/operations/world-v2-runtime-migration-plan-20260429.md`. Next implementation topic only: implement World v2 runtime migration on a feature branch, update runtime package surfaces and sponsor policy together, deploy preview only, and require manual smoke proof before production.

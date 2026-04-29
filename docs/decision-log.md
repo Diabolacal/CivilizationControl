@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Plan world v2 runtime migration
+- Goal: Produce a planning-only World v2 runtime migration document that identifies the exact runtime-target surfaces, preserved original/type-origin surfaces, sponsorship requirements, preview proof, and rollback path without executing any migration.
+- Files: `docs/operations/world-v2-runtime-migration-plan-20260429.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/operations/mvr-world-package-audit-20260429.md`, `docs/decision-log.md`
+- Diff: new planning document plus minimal docs index and future-agent context updates
+- Risk: low — documentation only, no runtime package, sponsor policy, worker config, Move dependency, vendor, or deploy changes
+- Gates: world:mvr:check ✅ world:mvr:ci ✅ world:mvr:strict expected-fail ✅ typecheck ✅ build ✅ diff-check ✅
+- Result: captured the current World v2 migration state, identified direct runtime-target files versus preserved original/type-origin surfaces, documented sponsorship and signal-feed proof requirements, and recommended a narrow preview experiment before any production cutover.
+- Follow-ups: a future implementation branch should use this plan as the source of truth and should not change `WORLD_ORIGINAL_PACKAGE_ID` without explicit lineage evidence.
+
 ## 2026-04-29 – Update world v2 migration next step
 - Goal: Correct the stale follow-up guidance in the MVR world package audit now that Phase 2 runtime/original split work is already complete.
 - Files: `docs/operations/mvr-world-package-audit-20260429.md`, `docs/decision-log.md`
