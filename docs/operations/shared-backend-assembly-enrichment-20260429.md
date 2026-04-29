@@ -251,3 +251,23 @@ If a final human smoke is needed with a real wallet and owned structures:
 8. Confirm the response is a normal envelope with `assemblies` and `missingIds`
 9. Confirm request headers do not include `Authorization` or `X-API-Key`
 10. If a sponsored transaction is tested, confirm the request goes to `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev/sponsor`, not `flappy-frontier-sponsor`
+
+## Manual preview smoke result
+
+The corrected preview was manually tested by the user at:
+
+- `https://e9308288.civilizationcontrol.pages.dev`
+
+Observed manual smoke result:
+
+- wallet connected successfully
+- DevTools Network showed `civilization-control/assemblies` activity
+- sponsor traffic used `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`
+- `flappy-frontier-sponsor` was not observed during the corrected preview smoke
+- no obvious UI change was required for this slice, which remains expected because the current implementation only uses shared-backend data for limited fallback display fields
+
+State boundary at the time of this preview smoke:
+
+- production had not yet been deployed from this branch
+- direct-chain discovery remained authoritative
+- the shared backend remained additive and optional

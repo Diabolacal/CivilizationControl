@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Record shared-backend enrichment preview smoke
+- Goal: Record the user-confirmed manual preview smoke for `feat/shared-backend-assembly-enrichment` after the sponsor URL correction without changing runtime code, sponsor config, package IDs, or deploy targets.
+- Files: `docs/operations/shared-backend-assembly-enrichment-20260429.md`, `docs/decision-log.md`
+- Diff: docs-only preview smoke evidence update
+- Risk: low — documentation only, no code, worker, package, vendor, or deploy changes
+- Gates: corrected preview bundle proof ✅ browser-origin endpoint proof ✅ user manual preview smoke ✅
+- Result: the user manually tested `https://e9308288.civilizationcontrol.pages.dev`, confirmed wallet connection, observed `civilization-control/assemblies` activity in DevTools Network, confirmed sponsor traffic used `civilizationcontrol-sponsor`, did not observe `flappy-frontier-sponsor`, and confirmed that minimal visible UI change remains expected for this additive fallback-only slice. Production had not yet been deployed from this branch at the time of the preview smoke.
+- Follow-ups: rerun the branch validation gates, merge to `master`, deploy production with explicit public env overrides, and then verify the served production bundle.
+
 ## 2026-04-29 – Revalidate shared-backend enrichment preview build
 - Goal: Harden the `feat/shared-backend-assembly-enrichment` preview, confirm the shared-backend browser request path, and correct any stale sponsor URL embedded in the preview bundle without touching production, sponsor worker code, allowlists, package IDs, or Move contracts.
 - Files: `docs/operations/shared-backend-assembly-enrichment-20260429.md`, `docs/decision-log.md`
