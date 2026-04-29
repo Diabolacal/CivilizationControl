@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Fix world package drift workflow submodule checkout
+- Goal: Fix the GitHub Actions world-package drift check after the first manual run failed on the runner because `vendor/world-contracts/contracts/world/Published.toml` was unavailable, and harden the script so missing required vendor metadata reports a clear actionable error instead of a generic internal `ENOENT`.
+- Files: `.github/workflows/world-package-drift.yml`, `scripts/check-world-mvr-drift.mjs`, `docs/operations/mvr-world-package-audit-20260429.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
+- Diff: workflow checkout fix plus script error-hardening and targeted docs updates
+- Risk: low — CI/workflow fix only, no runtime package-ID, sponsor allowlist, Move dependency, vendor, or deploy changes
+- Gates: world:mvr:check ✅ world:mvr:ci ✅ world:mvr:strict expected-fail ✅ diff-check ✅ typecheck ✅ build ✅
+- Result: changed the workflow checkout step to recursive submodules so vendored world metadata is available in GitHub Actions, and changed the drift checker to emit `MISSING_REQUIRED_FILE` with CI/local remediation guidance when required local files are absent.
+- Follow-ups: rerun the GitHub Actions workflow from this branch or after merge to confirm the runner now reaches the expected known-drift report instead of failing before vendor metadata is loaded.
+
 ## 2026-04-29 – Add world package drift automation
 - Goal: Add a read-only Phase 1 drift-check alarm for `@evefrontier/world` that verifies repo-internal package consistency, detects unexpected vendor/MVR baseline drift, and keeps the current known Stillness v1-versus-v2 migration gap warning-only until a deliberate World v2 migration branch.
 - Files: `config/chain/worldMvrBaseline.json`, `scripts/check-world-mvr-drift.mjs`, `.github/workflows/world-package-drift.yml`, `package.json`, `docs/operations/mvr-world-package-audit-20260429.md`, `docs/llm-reference-guide.md`, `docs/README.md`, `docs/decision-log.md`

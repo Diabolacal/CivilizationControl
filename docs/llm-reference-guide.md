@@ -244,6 +244,7 @@ Current environment and IDs:
 - `docs/operations/mvr-world-package-audit-20260429.md` is the planning source of truth for `@evefrontier/world` / MVR adoption.
 - Phase 1 automation now exists at `scripts/check-world-mvr-drift.mjs` with baseline data in `config/chain/worldMvrBaseline.json`.
 - Run `npm run world:mvr:check` before package/runtime work. Scheduled CI now runs `.github/workflows/world-package-drift.yml`, which calls `npm run world:mvr:ci`.
+- The GitHub Actions workflow requires recursive submodule checkout because the drift checker reads required vendored metadata from `vendor/world-contracts/contracts/world/Published.toml`; if that file is missing, the script now raises `MISSING_REQUIRED_FILE` with CI and local remediation guidance.
 - Known Stillness v1-versus-v2 drift is warning-only in normal and CI modes until an explicit World v2 migration branch updates runtime config and sponsor policy together. `npm run world:mvr:strict` is reserved for that later migration branch.
 - No World v2 runtime migration or MVR-based runtime integration has been performed yet. `src/constants.ts` still points at the original Stillness world package `0x28b497...`.
 - Future agents must not blindly replace `WORLD_PACKAGE_ID`, sponsor allowlists, or Move dependencies with `@evefrontier/world` / `0xd2fd...`. Follow the phased strategy in `docs/operations/mvr-world-package-audit-20260429.md` instead.

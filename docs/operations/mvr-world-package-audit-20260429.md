@@ -217,6 +217,9 @@ What it does not catch:
 Notes:
 
 - CI intentionally treats MVR availability as required because the purpose of Phase 1 is an automated alarm bell for live registry drift.
+- The first manual GitHub Actions run failed before reporting known drift because the workflow checked out the repo without submodules, which left `vendor/world-contracts/contracts/world/Published.toml` unavailable on the runner.
+- The workflow now uses recursive submodule checkout so the drift checker can read vendored Stillness metadata in CI.
+- The drift checker now emits an actionable missing-vendor-file error instead of a generic internal `ENOENT` when required local metadata is absent.
 - No World v2 migration was performed by this automation. The repo remains intentionally pinned to the older Stillness world package until an explicit later migration branch updates runtime config and sponsor policy together.
 
 ## 11. Risks and open questions

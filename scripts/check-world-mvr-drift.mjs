@@ -21,6 +21,14 @@ const FILES = {
   vendorPublished: path.join(ROOT, 'vendor/world-contracts/contracts/world/Published.toml'),
 };
 
+class DriftConfigError extends Error {
+  constructor(code, message) {
+    super(message);
+    this.name = 'DriftConfigError';
+    this.code = code;
+  }
+}
+
 function failUsage(message) {
   console.error(message);
   process.exit(64);
@@ -86,7 +94,26 @@ function parseArgs(argv) {
 }
 
 function readText(filePath) {
-  return readFileSync(filePath, 'utf8');
+  try {
+    return readFileSync(filePath, 'utf8');
+  } catch (error) {
+    if (error && typeof error === 'object' && error.code === 'ENOENT') {
+      const relativePath = path.relative(ROOT, filePath).replace(/\\/g, '/');
+      const lines = [
+        `Required file missing: ${relativePath}`,
+      ];
+
+      if (relativePath === 'vendor/world-contracts/contracts/world/Published.toml') {
+        lines.push('Likely cause in CI: git submodules were not checked out.');
+        lines.push('Fix GitHub Actions checkout with actions/checkout and submodules: recursive.');
+        lines.push('Local fix: run git submodule update --init --recursive.');
+      }
+
+      throw new DriftConfigError('MISSING_REQUIRED_FILE', lines.join('\n'));
+    }
+
+    throw error;
+  }
 }
 
 function readJson(filePath) {
@@ -621,6 +648,12 @@ async function main() {
 }
 
 main().catch((error) => {
+  if (error instanceof DriftConfigError) {
+    console.error(`${error.code}: ${error.message}`);
+    process.exitCode = 70;
+    return;
+  }
+
   console.error(`Internal error: ${error instanceof Error ? error.message : String(error)}`);
   process.exitCode = 70;
 });
