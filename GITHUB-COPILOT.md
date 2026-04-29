@@ -1,51 +1,44 @@
-# GITHUB-COPILOT.md — How We Work in This Repo
+# GITHUB-COPILOT.md — Quick Orientation
 
-> **Authoritative source:** `.github/copilot-instructions.md`
-> **Agent quick-load:** `AGENTS.md`
-> **Documentation index:** `docs/README.md`
+> Canonical repo-wide rules: `.github/copilot-instructions.md`
+> Fast pointer surface: `AGENTS.md`
+> Docs map: `docs/README.md`
+> Deep current-state briefing: `docs/llm-reference-guide.md`
 
-This file is a short orientation for Copilot agents. It does **not** override the files above — if anything here conflicts, `copilot-instructions.md` wins.
+This file is orientation only. It does not override the canonical instruction file.
 
-## What this repo is
+## Repo At A Glance
 
-The **CivilizationControl** hackathon submission for the EVE Frontier hackathon (Deepsurge / CCP Games, closes March 31, 2026). A browser-only governance command layer for EVE Frontier tribe leaders, built on Sui Move.
+- CivilizationControl is a governance command layer for EVE Frontier tribe leaders.
+- Frontend: React + TypeScript + Vite on Cloudflare Pages.
+- Contracts: Sui Move package at `contracts/civilization_control/`.
+- Direct-chain reads and writes remain authoritative.
+- Additive services now include the in-repo sponsor worker and optional EF-Map shared-backend enrichment.
+- Production sponsorship uses `civilizationcontrol-sponsor`.
+- World package handling is split between `WORLD_RUNTIME_PACKAGE_ID` and `WORLD_ORIGINAL_PACKAGE_ID`.
 
-**Modules:** GateControl (gate policy authoring + toll collection), TradePost (SSU-backed storefronts with atomic buy), TurretControl (binary state toggle via Posture Presets).
+## Check Before You Change Anything
 
-**Tech stack:** Move (Sui edition 2024.beta), React + TypeScript + Vite, @evefrontier/dapp-kit, Tailwind CSS, Cloudflare Pages.
+- Read `.github/copilot-instructions.md` first.
+- Skim `docs/decision-log.md` for the newest operational truth.
+- Read `docs/operations/sponsor-worker-runbook.md` before sponsorship changes.
+- Read `docs/operations/shared-backend-assembly-enrichment-20260429.md` before EF-Map/shared-backend changes.
+- Read `docs/operations/world-runtime-original-split-20260429.md` before world package-ID changes.
 
-## Verification commands
+## Verification Gates
 
 ```bash
-sui move build --path contracts/civilization_control   # Must compile
-sui move test --path contracts/civilization_control     # Must pass
-sui client active-env                                   # Verify network before any tx
-npm run typecheck                                       # TypeScript (when frontend exists)
-npm run build                                           # Vite build (when frontend exists)
+sui move build --path contracts/civilization_control
+sui move test --path contracts/civilization_control
+sui client active-env
+npm run typecheck
+npm run build
 ```
 
-## Do
+## Working Rules
 
-- Follow the authority hierarchy: `march-11-reimplementation-checklist.md` > `spec.md` > `validation.md` > implementation plan > PTB library.
-- Verify function signatures against current `vendor/world-contracts` before generating call sites.
-- Use `docs/ptb/` patterns as templates — they require revalidation, not blind trust.
-- Append non-trivial decisions to `docs/decision-log.md`.
-- Make the smallest safe change. Prefer guard clauses and helpers over refactors.
-- Use approval tokens for high-risk changes: `CORE CHANGE OK`, `SCHEMA CHANGE OK`.
-
-## Don't
-
-- Edit anything inside `vendor/`. Read-only always.
-- Push without explicit operator approval.
-- Commit secrets, keys, mnemonics, or `.env` files.
-- Assume PTB skeletons are correct — revalidate against latest world-contracts.
-- Rely on events as proof-of-execution for flows that may MoveAbort (events are not emitted on abort).
-
-## Safe edit checklist
-
-- [ ] Plan: summary, files to touch, risk class (Low/Medium/High).
-- [ ] Build: `sui move build` passes.
-- [ ] Test: `sui move test` passes.
-- [ ] Typecheck: `npm run typecheck` passes (when frontend exists).
-- [ ] Smoke: `sui client active-env` confirms expected network.
-- [ ] Decision log: entry appended if non-trivial.
+- Make the smallest safe change.
+- Do not edit or stage `vendor/*` dirt unless the task explicitly owns it.
+- Treat `VITE_*` values as public config, not secrets.
+- Feature branches validate in preview first. Production deploys require explicit operator approval.
+- Append non-trivial behavior or operational changes to `docs/decision-log.md`.

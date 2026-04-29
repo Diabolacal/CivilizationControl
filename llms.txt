@@ -1,34 +1,38 @@
-# CivilizationControl — Documentation Map
+# CivilizationControl
 
-> **Note to Agents:** This file serves as a high-level map to the most important documentation in this repository.
-> For agent guardrails, see `.github/copilot-instructions.md` and `AGENTS.md`.
+> LLM-facing map for the current repo truth. `.github/copilot-instructions.md` is the canonical repo-wide guidance file.
 
-## Critical Entry Points
-- **Agent Rules**: `.github/copilot-instructions.md` (MUST READ)
-- **Agent Context**: `AGENTS.md` (MUST READ)
-- **Security**: `.github/security-guidelines.md`
-- **System Spec**: `docs/core/spec.md`
+Important notes:
 
-## Key Documentation
-- **System Specification**: `docs/core/spec.md`
-- **Implementation Plan**: `docs/core/civilizationcontrol-implementation-plan.md`
-- **Day-1 Checklist**: `docs/core/day1-checklist.md`
-- **Demo Beat Sheet**: `docs/core/civilizationcontrol-demo-beat-sheet.md`
-- **Decision Log**: `docs/decision-log.md`
+- Direct-chain discovery and write eligibility remain authoritative.
+- EF-Map/shared-backend data is additive enrichment only.
+- CivilizationControl owns its sponsor worker in-repo; production sponsorship uses `civilizationcontrol-sponsor`.
+- `WORLD_RUNTIME_PACKAGE_ID` and `WORLD_ORIGINAL_PACKAGE_ID` are intentionally distinct.
+- `VITE_*` values are public browser config, not secrets.
 
-## Architecture
-- **Gate Lifecycle**: `docs/architecture/gate-lifecycle-function-reference.md`
-- **Auth Model**: `docs/architecture/world-contracts-auth-model.md`
-- **Read Provider**: `docs/architecture/read-provider-abstraction.md`
+## Start Here
 
-## PTB Patterns
-- **Library Index**: `docs/ptb/README.md`
-- **Core Patterns**: `docs/ptb/ptb-patterns.md`
+- [Repo-wide instructions](.github/copilot-instructions.md): canonical working rules and deploy/validation policy.
+- [Agent quick context](AGENTS.md): short pointer surface for local agents.
+- [Documentation index](docs/README.md): canonical docs map.
+- [LLM reference guide](docs/llm-reference-guide.md): deep current-state briefing for fresh sessions.
+- [Decision log](docs/decision-log.md): newest-first operational truth.
 
-## Strategy & Voice
-- **Voice & Narrative**: `docs/strategy/civilization-control/civilizationcontrol-voice-and-narrative.md`
-- **Product Vision**: `docs/strategy/civilization-control/civilizationcontrol-product-vision.md`
+## Live Operations
 
-## Operations
-- **Gate Lifecycle Runbook**: `docs/operations/gate-lifecycle-runbook.md`
-- **Decision Template**: `docs/operations/DECISIONS_TEMPLATE.md`
+- [Sponsor worker runbook](docs/operations/sponsor-worker-runbook.md): live sponsorship topology, validation, and secret boundary.
+- [Shared-backend assembly enrichment](docs/operations/shared-backend-assembly-enrichment-20260429.md): additive EF-Map contract and fallback rules.
+- [World runtime/original split](docs/operations/world-runtime-original-split-20260429.md): runtime versus type-origin package-ID model.
+- [MVR world package audit](docs/operations/mvr-world-package-audit-20260429.md): package hygiene and drift automation.
+
+## Design And UX
+
+- [Voice and narrative](docs/strategy/civilization-control/civilizationcontrol-voice-and-narrative.md): player-facing language canon.
+- [Emotional objective](docs/strategy/civilization-control/civilizationcontrol-hackathon-emotional-objective.md): calm-authority design target.
+- [SVG topology spec](docs/ux/svg-topology-layer-spec.md): topology, state, and semantic color rules.
+
+## Deep References
+
+- [World auth model](docs/architecture/world-contracts-auth-model.md): capability and auth reference.
+- [PTB pattern library](docs/ptb/README.md): patterns that require revalidation against current world-contracts.
+- [Security guidelines](.github/security-guidelines.md): deep security reference.

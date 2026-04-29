@@ -524,6 +524,43 @@ Recommendation:
 
 Each should remain a separate branch/task.
 
+## Instruction Refresh Follow-up — Implemented On This Branch
+
+Files changed:
+- `AGENTS.md`
+- `GITHUB-COPILOT.md`
+- `llms.txt`
+- `.github/copilot-instructions.md`
+- `.github/instructions/move.instructions.md`
+- `.github/instructions/typescript-react.instructions.md`
+- `docs/operations/agent-environment-and-guidance-audit-20260429.md`
+- `docs/decision-log.md`
+
+New instruction files added:
+- `.github/instructions/design.instructions.md`
+- `.github/instructions/deployment.instructions.md`
+- `.github/instructions/shared-backend.instructions.md`
+
+Sui TypeScript guidance split:
+- Deferred.
+- The Sui/PTB guidance still targets the same `.ts` and `.tsx` surfaces as the broader React/TypeScript instruction file.
+- Splitting it in this pass would increase overlap and applyTo complexity without a clear reduction in duplication.
+
+Intentionally not changed:
+- No runtime app code.
+- No Move contract source.
+- No sponsor worker runtime code or Cloudflare runtime config.
+- No VS Code settings, extensions, MCP config, or local-tool cleanup.
+- No dependency or toolchain updates.
+- No vendor or submodule files.
+- No archive moves.
+
+Remaining follow-up tasks:
+- Refresh stale deploy skill content under `.github/skills/deploy/SKILL.md`.
+- Decide whether `.vscode/prompts/plan.prompt.md` should move into `.github/prompts/`.
+- Decide whether template/docs secret wording should be tightened in a separate docs pass.
+- Run the later archive pass and local-tool cleanup as separate branches, not in this task.
+
 ## 13. Sources and web references
 
 All web sources accessed on 2026-04-29.

@@ -29,23 +29,27 @@ If stuck: ask for "safer alternative" or "explain tradeoffs". Avoid giving line-
 These rules have the highest precedence. `AGENTS.md` mirrors them in shortened form; if wording differs, this section wins.
 
 1. **Execute commands yourself.** Run CLI/git/HTTP commands directly unless a secret prompt is needed, then launch the command and let the operator paste the secret locally. Summarize results instead of listing commands for the user to run.
-2. **Deploy protocol.** Feature branches must deploy as Cloudflare Pages previews and report the preview URL (never deploy to production from a feature branch). Production deploys only come from `main` after merge. **Deploy commands MUST be run from the project root** to pick up Cloudflare bindings.
-3. **Working memory discipline.** Consider a Working Memory file when: (a) a task spans multiple real-world sessions, (b) VS Code shows "summarizing conversation" or ≥70% context, or (c) operator explicitly asks. For most single-session work, proceed directly — Working Memory is optional, not blocking.
-4. **Decision logging.** Any non-trivial behavior change, data migration, or platform action must be reflected in `docs/decision-log.md`.
-5. **No regressions.** All persistence changes must target the project's current platform abstraction — do not reintroduce deprecated providers.
+2. **Deploy protocol.** Feature branches must deploy as Cloudflare Pages previews and report the preview URL (never deploy to production from a feature branch). Production deploys are separate explicit operator actions. Git workflow still centers on `master`, but Cloudflare Pages production deploys use `--branch main`. **Deploy commands MUST be run from the project root** to pick up Cloudflare bindings, and deploy builds should use explicit public `VITE_*` overrides when sponsor or shared-backend URLs matter.
+3. **Dirty-tree discipline.** Do not stop just because the worktree is dirty. Inspect it, preserve unrelated work in place, and continue unless the next step would discard or overwrite something. Never use `git reset --hard`, `git clean`, or similar destructive cleanup commands in this repo.
+4. **Working memory discipline.** Consider a Working Memory file when: (a) a task spans multiple real-world sessions, (b) VS Code shows "summarizing conversation" or ≥70% context, or (c) operator explicitly asks. For most single-session work, proceed directly — Working Memory is optional, not blocking.
+5. **Decision logging.** Any non-trivial behavior change, data migration, or platform action must be reflected in `docs/decision-log.md`.
+6. **Tracked docs over scratch notes.** Prefer updating `docs/decision-log.md`, an existing operations doc, or `docs/working_memory/` over creating one-off status markdown or untracked scratch notes.
+7. **Runtime truth beats stale assumptions.** Verified live bundle behavior, current worker/runtime config, and active operations docs outrank older planning text when they disagree.
+8. **No regressions.** All persistence changes must target the project's current platform abstraction — do not reintroduce deprecated providers.
 
 ## Git Workflow & Commit Hygiene
 
 > Full conventions: `docs/core/hackathon-repo-conventions.md`. This section is the enforced summary.
 
 - **Branch for all non-trivial work.** Naming: `feat/`, `fix/`, `docs/`, `chore/`, `spike/` + `kebab-case-description`.
-- **Direct-to-main only for:** typo fixes, `.gitignore` tweaks, trivial doc corrections.
-- **Squash merge all feature branches to `main`.** One clean commit per feature. PR title = commit message.
+- **Direct-to-master only for:** typo fixes, `.gitignore` tweaks, trivial doc corrections.
+- **Squash merge all feature branches to `master`.** One clean commit per feature. PR title = commit message.
 - **Commit message format:** `type: Imperative description` (≤72 chars). Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`.
-- **`main` must always be demo-ready.** Never merge broken code.
+- **`master` must always be demo-ready.** Never merge broken code.
 - **Spike branches (`spike/`):** throwaway experiments — never merge to main.
 - **PRs even when solo:** judges browse merged PRs. Minimal body: What / Why / Verified.
-- **Never force-push to `main`.** Linear, append-only history.
+- **Never force-push to `master`.** Linear, append-only history.
+- **Delete feature branches after safe merge** unless the operator explicitly wants to preserve them.
 
 ## Code Organization & File Discipline
 
@@ -64,13 +68,32 @@ These rules have the highest precedence. `AGENTS.md` mirrors them in shortened f
 ## Architecture Overview
 
 - **Frontend:** React + TypeScript + Vite SPA served from Cloudflare Pages
-- **Backend / API:** None — browser-only SPA, all chain reads via Sui JSON-RPC
+- **Backend / API:** No primary CC backend for writes. Direct-chain Sui RPC remains authoritative for discovery, ownership, eligibility, and writes.
+- **Additive services:** The repo-owned sponsor worker and optional EF-Map shared-backend enrichment after direct-chain discovery.
 - **Contracts:** `contracts/civilization_control/` — Sui Move extension package (edition 2024.beta)
-- **Data flow:** Sui JSON-RPC → read provider abstraction → React hooks (via @tanstack/react-query)
+- **Data flow:** Direct-chain Sui JSON-RPC → read provider abstraction → React hooks (via @tanstack/react-query), with optional additive EF-Map merge after discovery.
 - **Wallet:** @evefrontier/dapp-kit (wraps @mysten/dapp-kit-react + VaultProvider)
 - **Styling:** Tailwind CSS
 - **Hosting:** Cloudflare Pages (static)
 - **Key entry points:** `docs/core/spec.md` (system spec), `docs/README.md` (documentation index), `contracts/civilization_control/` (Move package)
+
+## Current Runtime Truth
+
+- Use `WORLD_RUNTIME_PACKAGE_ID` for runtime entrypoints and sponsor allowlists.
+- Use `WORLD_ORIGINAL_PACKAGE_ID` for exact event types, `StructType` filters, deterministic type tags, and other type-origin-sensitive surfaces.
+- Treat `WORLD_PACKAGE_ID` as a legacy compatibility alias, not the model for new work.
+- Production sponsorship uses the repo-owned `civilizationcontrol-sponsor` worker.
+- Run `npm run world:mvr:check` before world-package, sponsor-policy, or runtime-ID work.
+- Run `npm run world:mvr:strict` before merge or deploy when those surfaces change.
+
+## Direct-Chain And Shared-Backend Authority
+
+- Direct-chain discovery remains authoritative for ownership, structure identity, action eligibility, and writes.
+- Shared-backend data is additive enrichment only and must fail open back to direct-chain data on missing or failed responses.
+- Shared-backend data must never drive ownership truth, auth decisions, sponsor eligibility, or write-path behavior.
+- Browser shared-backend calls go to `https://ef-map.com` or the public `VITE_SHARED_BACKEND_URL` override, not raw VPS or internal hosts.
+- Do not add `ASSEMBLY_API_TOKEN`, `Authorization`, or `X-API-Key` headers to the browser v1 assemblies route.
+- Positive-path validation for the assemblies route should come from an allowed browser origin; raw Node-side fetches can false-fail with `403`.
 
 ## Quick Command Reference
 
@@ -81,12 +104,17 @@ sui move test --path contracts/civilization_control       # Run Move tests
 sui client publish --path contracts/civilization_control  # Publish to active network
 sui client active-env                                     # Verify active Sui environment
 
-# Frontend (when available)
+# Frontend
 npm install            # Install dependencies
 npm run dev            # Vite dev server
 npm run typecheck      # TypeScript check
 npm run build          # Production build
 npm run preview        # Preview production build
+npm run world:mvr:check # Check world package/runtime drift
+npm run world:mvr:strict # Strict world package/runtime gate
+npm run sponsor:validate-policy # Validate sponsor allowlists
+npm run sponsor:test   # Sponsor worker tests
+npm run sponsor:typecheck # Sponsor worker typecheck
 
 # Submodule management
 git submodule update --init --recursive   # Initialize all vendor submodules
@@ -101,7 +129,9 @@ npm run build          # Must succeed (when frontend exists)
 ## Key Folders / Files
 
 - `contracts/civilization_control/` — Move extension package (GateControl + TradePost)
-- `src/` — Frontend React application (when created)
+- `src/` — Frontend React application
+- `workers/sponsor-service/` — Live sponsor worker source, tests, and Wrangler config
+- `config/chain/stillness.ts` — Current world runtime/original package IDs
 - `docs/` — Structured documentation (see `docs/README.md` for index)
 - `docs/core/` — Authority documents: spec, implementation plan, demo beat sheet
 - `docs/architecture/` — Technical design and feasibility validation
@@ -260,6 +290,13 @@ The assistant MUST directly run every CLI command that does not require pasting 
 - Providing only a list of commands without executing them.
 - Asking the operator to copy/paste output that can be fetched programmatically.
 
+## Secret Boundary
+
+- Treat every `VITE_*` value as public browser-visible build configuration. Never place private keys, bearer tokens, or durable secrets in `VITE_*` variables.
+- Wrangler and Worker secrets are private runtime-side values. They must never appear in frontend code, chat, docs, screenshots, logs, decision logs, or working-memory files.
+- If a CLI supports interactive secret entry, launch it and let the operator paste locally. Never ask for raw secret values in chat and never place them on the command line.
+- Never print, echo, summarize, derive, or invent secret values. Report only status such as required, present, missing, rotated, or invalid.
+
 ## Context & Memory Protocols
 
 ### Working Memory Documents
@@ -289,8 +326,9 @@ Upon task completion, move Working Memory files to `docs/archive/working_memory/
 1. **Never commit inside submodules.** Do not run `git add`, `git commit`, or `git push` from within any `vendor/` directory.
 2. **Submodule updates via parent only.** `git submodule update --remote vendor/<name>` from the repo root, then commit the updated gitlink.
 3. **No tracked modifications.** Never modify, delete, or create tracked files inside `vendor/*`. Reading for context is always allowed.
-4. **Local-only ignores.** Transient/generated files must be excluded via `vendor/<name>/.git/info/exclude`.
-5. **No secrets in vendor.** Never commit `.env` files, private keys, mnemonics, or wallet configs inside submodules.
+4. **Vendor lockfile churn is not feature work.** Treat generated vendor lockfile changes, including `Move.lock` churn, as submodule dirt unless the task explicitly owns the refresh.
+5. **Local-only ignores.** Transient/generated files must be excluded via `vendor/<name>/.git/info/exclude`.
+6. **No secrets in vendor.** Never commit `.env` files, private keys, mnemonics, or wallet configs inside submodules.
 
 ## High-Risk Surfaces
 

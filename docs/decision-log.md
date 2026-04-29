@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Refresh repo-local agent guidance instructions
+- Goal: Refresh the repo-local instruction layer so future VS Code/Copilot agents start from current project truth and clearer guardrails without changing runtime code, settings, tooling, vendor state, or deploy state.
+- Files: `AGENTS.md`, `GITHUB-COPILOT.md`, `llms.txt`, `.github/copilot-instructions.md`, `.github/instructions/design.instructions.md`, `.github/instructions/deployment.instructions.md`, `.github/instructions/shared-backend.instructions.md`, `.github/instructions/move.instructions.md`, `.github/instructions/typescript-react.instructions.md`, `docs/operations/agent-environment-and-guidance-audit-20260429.md`, `docs/decision-log.md`
+- Diff: docs/instructions-only refresh plus follow-up audit note
+- Risk: low — guidance and documentation only, no runtime/package/sponsor/deploy/settings/vendor changes
+- Gates: diff-check ✅ typecheck ✅ build ✅ sanity grep ✅
+- Result: shortened the pointer surfaces, refreshed the canonical repo-wide instructions with current live architecture and guardrails, added focused design/deployment/shared-backend instruction files, kept Sui TypeScript guidance in the existing TS/React instruction file for now, and verified that stale strings only remain where they are explicitly called out as banned or historical values to avoid.
+- Follow-ups: refresh the deploy skill, decide on prompt-file location cleanup, and handle archive/tool-cleanup follow-ups on separate branches.
+
 ## 2026-04-29 – Audit agent environment and guidance
 - Goal: Create a planning-only tracked audit of repo guidance files, local VS Code/Copilot/tooling surfaces, documentation sprawl, security guidance, and follow-up implementation tasks without changing runtime code, worker code, deploy state, vendor files, settings, or local tooling.
 - Files: `docs/operations/agent-environment-and-guidance-audit-20260429.md`, `docs/README.md`, `docs/decision-log.md`

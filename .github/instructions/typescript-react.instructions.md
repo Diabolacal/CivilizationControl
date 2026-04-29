@@ -7,6 +7,7 @@ applyTo: "**/*.{ts,tsx}"
 
 > Apply these rules when writing or modifying TypeScript and React code.
 > Full rationale and thresholds in `docs/core/hackathon-repo-conventions.md`.
+> For player-facing UI work, also follow `.github/instructions/design.instructions.md`.
 
 ## File Size Guardrails
 
@@ -103,6 +104,10 @@ src/
 ```
 
 Group by feature, not by type. Feature-specific code stays in the feature folder. Promote to shared when used by 2+ features. No cross-feature imports.
+
+## CivilizationControl Data Boundaries
+
+- EF-Map/shared-backend data is additive only: direct-chain data remains authoritative, and backend data must never drive ownership, authorization, or write decisions.
 
 ## Sui TypeScript SDK — Mandatory Packages & Banned Imports
 

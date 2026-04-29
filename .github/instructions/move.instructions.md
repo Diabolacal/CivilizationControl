@@ -1,13 +1,14 @@
 ---
-description: "Sui Move conventions for CivilizationControl hackathon workspace"
+description: "Sui Move conventions for CivilizationControl Move packages"
 applyTo: "**/*.move"
 ---
 
 # Move Code — Workspace Conventions
 
-> **Revalidate against latest world-contracts on hackathon test server (March 11+).**
+> Revalidate against the current vendored `world-contracts` source, package metadata, and live runtime/original guidance before generating call sites.
 > These are agent guardrails, not canonical truth. Authority hierarchy:
-> `vendor/world-contracts` code > SUI docs > spec.md > this file.
+> repo-owned package/config truth (`contracts/civilization_control/Move.toml`, `contracts/civilization_control/Move.lock`, `config/chain/stillness.ts`) and vendored world metadata > Sui docs > EVE Frontier docs > focused repo ops docs > this file.
+> See also: `docs/operations/world-runtime-original-split-20260429.md`, `docs/operations/mvr-world-package-audit-20260429.md`, and `docs/llm-reference-guide.md`.
 
 ## Core Rules
 
@@ -32,7 +33,7 @@ Before generating any new Move module or making significant additions to an exis
 - **Module organization:** Use `// === Section ===` headers. Order: Errors → Structs → Events → `init` → Public → View → Admin → Package → Private → Test.
 - **One core object per module.** Shared primitives go in a `primitives/` subdirectory. If a module exceeds ~500 lines, extract helper logic.
 - **Package naming:** `PascalCase` in `Move.toml` (`name = "CivilizationControl"`), `snake_case` for named address (`civilization_control = "0x0"`).
-- **Always commit `Move.lock`.** Ensures reproducible builds.
+- **Always commit the repo-owned `Move.lock`.** Commit `contracts/civilization_control/Move.lock` for reproducible builds. This rule does not apply to vendor submodule lockfile churn.
 - **Include a `README.md`** in the package root explaining purpose, key objects, and deployment instructions.
 
 ### Naming
@@ -98,7 +99,7 @@ Before generating any new Move module or making significant additions to an exis
 - **Jump auth:** Verify whether `jump_with_permit` requires AdminACL sponsorship and dual-sign.
 - **Extension replacement:** All three assembly types (Gate, SSU, Turret) use the same `authorize_extension<Auth>/swap_or_fill` pattern. Verify whether `authorize_extension` silently replaces an existing extension and whether any event is emitted.
 
-> **v0.0.18 update:** `authorize_extension` now has a freeze guard — if extension config is frozen via `freeze_extension_config()`, further authorize calls revert with `EExtensionConfigFrozen`. This is an anti-rugpull mechanism. Extensions can call `is_extension_frozen()` to check status.
+> **Version-sensitive note:** `authorize_extension` has previously included a freeze guard — if extension config is frozen via `freeze_extension_config()`, further authorize calls revert with `EExtensionConfigFrozen`. Verify the current vendored implementation before relying on this behavior.
 
 - **Turret closed-world constraint:** Turret extension `get_target_priority_list` has a fixed signature (`turret, character, candidates_bcs, receipt`). Extensions cannot access external objects (e.g., ExtensionConfig, dynamic fields). All targeting logic must derive from candidate BCS data alone. Default turret behavior already excludes same-tribe non-aggressors.
 
