@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Record shared-backend enrichment production cutover
+- Goal: Merge `feat/shared-backend-assembly-enrichment` into `master`, push `origin/master`, deploy the production frontend with explicit public sponsor/shared-backend overrides, and record live bundle plus browser-origin endpoint proof without changing sponsor worker code, package IDs, Move code, or write paths.
+- Files: `docs/operations/shared-backend-assembly-enrichment-20260429.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
+- Diff: production deploy evidence and current-truth documentation updates
+- Risk: medium — production Pages deploy plus docs updates, but no runtime code change, no worker policy change, no package ID change, no Move change, and no vendor edit
+- Gates: active-env ✅ typecheck ✅ build ✅ world:mvr:check ✅ world:mvr:ci ✅ world:mvr:strict ✅ sponsor:validate-policy ✅ sponsor:test ✅ sponsor:typecheck ✅ production deploy ✅ production bundle proof ✅ production browser fetch proof ✅
+- Result: fast-forwarded `master` to `d1eea24745e58ec53222011ad4ab47c6aabb3545`, pushed `origin/master`, rebuilt from the repo root with explicit `VITE_SPONSOR_URL=https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`, `VITE_SHARED_BACKEND_URL=https://ef-map.com`, and blank `VITE_SPONSOR_API_KEY`, deployed Pages production on branch `main` to `https://1c96b5a7.civilizationcontrol.pages.dev`, verified that `https://civilizationcontrol.com` and `https://civilizationcontrol.pages.dev` now serve `index-CGzlLlzq.js`, verified that the live asset contains `https://ef-map.com` and `civilizationcontrol-sponsor` and contains neither `flappy-frontier-sponsor` nor `ASSEMBLY_API_TOKEN`, and confirmed from both public browser origins that live `fetch()` calls to `/api/civilization-control/assemblies` returned readable `200` CORS JSON envelopes.
+- Follow-ups: if desired, capture a manual wallet-driven production smoke for this slice, then delete `feat/shared-backend-assembly-enrichment` locally and on origin after confirming no remaining branch-only commits.
+
 ## 2026-04-29 – Record shared-backend enrichment preview smoke
 - Goal: Record the user-confirmed manual preview smoke for `feat/shared-backend-assembly-enrichment` after the sponsor URL correction without changing runtime code, sponsor config, package IDs, or deploy targets.
 - Files: `docs/operations/shared-backend-assembly-enrichment-20260429.md`, `docs/decision-log.md`

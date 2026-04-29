@@ -186,7 +186,8 @@ Shared Frontier backend summary:
 - EF-Map is the original/current primary consumer and operator of that backend, but it is not the only logical consumer. CivilizationControl and future apps should also treat it as shared infrastructure.
 - The active replacement matrix is `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`, which identifies which current CC reads should stay direct-on-chain and which should move toward shared-backend enrichment.
 - Future agents may inspect backend state read-only from the CC workspace when needed, but backend code changes should be made in the backend source repo, currently EF-Map, not by hand-editing the VPS.
-- Current integration status is still awareness and planning only. CivilizationControl does not yet consume shared-backend data at runtime.
+- Current integration status is live and additive: CivilizationControl now derives decimal `assemblyId` values from direct-chain structure discovery and may call `https://ef-map.com/api/civilization-control/assemblies?ids=...` opportunistically at runtime after direct-chain discovery.
+- Production on `https://civilizationcontrol.com` and `https://civilizationcontrol.pages.dev` now serves the shared-backend enrichment bundle `index-CGzlLlzq.js`, which contains `https://ef-map.com`, contains `civilizationcontrol-sponsor`, and contains neither `flappy-frontier-sponsor` nor `ASSEMBLY_API_TOKEN`.
 - Future CC integration should use shaped backend APIs, snapshots, filtered streams, or a CC proxy through provider/client abstractions, not raw DB credentials or direct browser-to-DB access.
 - Do not put DB credentials or bearer tokens into `VITE_*`, and avoid broad player or tribe intelligence surfaces. Prefer assembly-ID keyed enrichment after CC has already discovered ownership on-chain.
 

@@ -271,3 +271,65 @@ State boundary at the time of this preview smoke:
 - production had not yet been deployed from this branch
 - direct-chain discovery remained authoritative
 - the shared backend remained additive and optional
+
+## Production frontend cutover — 2026-04-29
+
+Production cutover was performed only after:
+
+- validating `feat/shared-backend-assembly-enrichment`
+- recording the manual corrected-preview smoke
+- fast-forward merging into `master`
+- revalidating the merged `master` branch
+- pushing `origin/master`
+
+Active Sui environment during the cutover remained:
+
+- `testnet_stillness`
+
+Deploy command shape used from the repo root:
+
+- `VITE_SPONSOR_URL=https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`
+- `VITE_SHARED_BACKEND_URL=https://ef-map.com`
+- `VITE_SPONSOR_API_KEY=`
+- `npm run build`
+- `npx wrangler pages deploy dist --project-name civilizationcontrol --branch main --commit-hash d1eea24745e58ec53222011ad4ab47c6aabb3545 --commit-message "shared backend assembly enrichment production cutover"`
+
+Observed production deployment result:
+
+- unique production deployment URL: `https://1c96b5a7.civilizationcontrol.pages.dev`
+- source commit hash: `d1eea24745e58ec53222011ad4ab47c6aabb3545`
+- built asset: `index-CGzlLlzq.js`
+
+Served production HTML proof:
+
+- `https://civilizationcontrol.com` serves `/assets/index-CGzlLlzq.js`
+- `https://civilizationcontrol.pages.dev` serves `/assets/index-CGzlLlzq.js`
+
+Served production bundle proof:
+
+- both public domains now serve the same production asset
+- `https://ef-map.com` is present in the served asset
+- `civilizationcontrol-sponsor` is present in the served asset
+- `flappy-frontier-sponsor` is absent in the served asset
+- `ASSEMBLY_API_TOKEN` is absent in the served asset
+
+Browser-origin production endpoint proof:
+
+- from `https://civilizationcontrol.com`, a live browser fetch to `https://ef-map.com/api/civilization-control/assemblies?ids=1000000015746` returned `200`, `response.type === "cors"`, `content-type: application/json`, and a readable envelope with `assemblies`, `missingIds`, `fetchedAt`, and `source`
+- from `https://civilizationcontrol.pages.dev`, the same live browser fetch returned the same `200` CORS-readable JSON envelope
+- `access-control-allow-origin` was not script-visible through `fetch().headers.get(...)`, which is acceptable here because the browser fetch succeeded and the response body was readable in both origins
+
+Operational state after cutover:
+
+- production frontend now consumes shared-backend assembly enrichment at runtime
+- direct-chain discovery remains authoritative and is still the fallback on missing or failed backend responses
+- production still uses `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`
+- no browser-visible EF-Map secret or API key was introduced
+- no agent-driven live wallet transaction was executed during this production cutover
+
+If a later production smoke is desired, the operator can use either public origin and confirm:
+
+1. wallet connection succeeds
+2. DevTools Network shows `civilization-control/assemblies` requests to `https://ef-map.com`
+3. sponsored traffic, if exercised, still targets `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`
+4. structures with synthetic names or no manual pin receive the same limited fallback behavior observed in preview
