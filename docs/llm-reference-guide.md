@@ -242,6 +242,9 @@ Current environment and IDs:
 - Current local `WORLD_PACKAGE_ID`: `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`.
 - Upstream `vendor/world-contracts` now records Stillness world v2 with `published-at` `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780` and original/type-origin ID `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`. Do not migrate runtime calls without splitting latest/runtime IDs from original/type-origin IDs.
 - `docs/operations/mvr-world-package-audit-20260429.md` is the planning source of truth for `@evefrontier/world` / MVR adoption.
+- Phase 1 automation now exists at `scripts/check-world-mvr-drift.mjs` with baseline data in `config/chain/worldMvrBaseline.json`.
+- Run `npm run world:mvr:check` before package/runtime work. Scheduled CI now runs `.github/workflows/world-package-drift.yml`, which calls `npm run world:mvr:ci`.
+- Known Stillness v1-versus-v2 drift is warning-only in normal and CI modes until an explicit World v2 migration branch updates runtime config and sponsor policy together. `npm run world:mvr:strict` is reserved for that later migration branch.
 - No World v2 runtime migration or MVR-based runtime integration has been performed yet. `src/constants.ts` still points at the original Stillness world package `0x28b497...`.
 - Future agents must not blindly replace `WORLD_PACKAGE_ID`, sponsor allowlists, or Move dependencies with `@evefrontier/world` / `0xd2fd...`. Follow the phased strategy in `docs/operations/mvr-world-package-audit-20260429.md` instead.
 - Current `CC_PACKAGE_ID`: `0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021`.

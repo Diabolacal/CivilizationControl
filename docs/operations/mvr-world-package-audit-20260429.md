@@ -185,6 +185,40 @@ In short: use MVR first as truth-checking infrastructure, not as a drop-in runti
 | 5. Optional frontend named-package PTB experiment | PTB builders, transaction setup, possibly static MVR resolution config | typecheck, build, targeted preview smoke | compare reliability and latency versus concrete-ID PTBs | runtime lookup availability or performance is worse than explicit IDs |
 | 6. Optional Move.toml MVR dependency experiment | `contracts/civilization_control/Move.toml`, `Move.lock`, related docs | `sui move build --path contracts/civilization_control`, `sui move test --path contracts/civilization_control` | deterministic resolution for the intended environment and acceptable source review | same-chain environment resolution is ambiguous or auditability gets worse |
 
+## Phase 1 automation result
+
+- Added baseline file: `config/chain/worldMvrBaseline.json`
+- Added read-only drift checker: `scripts/check-world-mvr-drift.mjs`
+- Added npm entry points:
+	- `npm run world:mvr:check`
+	- `npm run world:mvr:ci`
+	- `npm run world:mvr:strict`
+- Added scheduled/manual GitHub Action: `.github/workflows/world-package-drift.yml`
+
+Behavior:
+
+- `world:mvr:check` reports the committed world runtime/original packages, sponsor policy package, worker config package, test expectations, vendor `Published.toml` values, and live MVR resolution when available.
+- `world:mvr:ci` fails on internal consistency errors and unexpected vendor/MVR baseline drift, but keeps the current known Stillness v1-versus-v2 migration gap as warning-only.
+- `world:mvr:strict` is reserved for later World v2 migration branches. It fails if the committed runtime package, sponsor policy, worker config, tests, or validation script are not aligned to MVR latest.
+
+What the automation catches:
+
+- repo-internal mismatches across frontend config, chain config, sponsor policy, worker wrangler config, worker validation tests, validation script expectations, and Move dependency mode
+- vendor baseline drift in `vendor/world-contracts/contracts/world/Published.toml`
+- live registry drift for `@evefrontier/world` when the MVR endpoint is reachable
+- divergence between vendor Stillness metadata and live MVR resolution
+
+What it does not catch:
+
+- live gameplay smoke regressions such as owner-cap flows, structure power, signal-feed event behavior, or sponsored preview transactions
+- object-ID drift for non-package shared objects such as `GATE_CONFIG_ID` or `ENERGY_CONFIG_ID`
+- any runtime migration correctness beyond the explicit package relationships it checks
+
+Notes:
+
+- CI intentionally treats MVR availability as required because the purpose of Phase 1 is an automated alarm bell for live registry drift.
+- No World v2 migration was performed by this automation. The repo remains intentionally pinned to the older Stillness world package until an explicit later migration branch updates runtime config and sponsor policy together.
+
 ## 11. Risks and open questions
 
 - unversioned MVR names resolve latest and can change underneath us
@@ -200,4 +234,4 @@ In short: use MVR first as truth-checking infrastructure, not as a drop-in runti
 
 ## 12. Recommended next prompt
 
-> Implement Phase 1 only on a new branch. Add a read-only MVR world-resolution audit script that resolves `@evefrontier/world`, compares the result against `config/chain/stillness.ts`, `src/constants.ts`, `config/sponsorship/civilizationControlPolicy.ts`, `workers/sponsor-service/wrangler.toml`, `workers/sponsor-service/src/__tests__/validation.test.ts`, and `scripts/validate-sponsor-policy.mjs`, then reports drift clearly. Do not change runtime IDs, sponsor allowlists, Move.toml dependencies, vendor files, or deployment config. Update docs only as needed, run `git diff --check`, `npm run typecheck`, and `npm run build`, then commit the docs/script changes on a dedicated branch.
+> Implement Phase 2 only on a new branch. Split the world package model in frontend runtime code so the repo can represent both `WORLD_RUNTIME_PACKAGE_ID` and `WORLD_ORIGINAL_PACKAGE_ID` explicitly without changing live behavior yet. Update `src/constants.ts`, the relevant read/event helpers, and the MVR drift checker so future World v2 migration work can switch runtime targets without reintroducing type-origin bugs. Do not change sponsor allowlists, Move.toml dependencies, vendor files, or deployments. Run `npm run world:mvr:check`, `git diff --check`, `npm run typecheck`, and `npm run build`, then commit the code/docs changes on a dedicated branch.

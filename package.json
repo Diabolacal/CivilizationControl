@@ -11,6 +11,9 @@
     "sponsor:test": "npm --prefix workers/sponsor-service test",
     "sponsor:typecheck": "npm --prefix workers/sponsor-service run typecheck",
     "sponsor:validate-policy": "node scripts/validate-sponsor-policy.mjs",
+    "world:mvr:check": "node scripts/check-world-mvr-drift.mjs",
+    "world:mvr:ci": "node scripts/check-world-mvr-drift.mjs --ci",
+    "world:mvr:strict": "node scripts/check-world-mvr-drift.mjs --strict",
     "generate:solar-systems": "node scripts/fetch-solar-systems.mjs",
     "generate:tribes": "node scripts/fetch-tribes.mjs",
     "generate:types": "node scripts/fetch-types.mjs"

@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Add world package drift automation
+- Goal: Add a read-only Phase 1 drift-check alarm for `@evefrontier/world` that verifies repo-internal package consistency, detects unexpected vendor/MVR baseline drift, and keeps the current known Stillness v1-versus-v2 migration gap warning-only until a deliberate World v2 migration branch.
+- Files: `config/chain/worldMvrBaseline.json`, `scripts/check-world-mvr-drift.mjs`, `.github/workflows/world-package-drift.yml`, `package.json`, `docs/operations/mvr-world-package-audit-20260429.md`, `docs/llm-reference-guide.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: new read-only baseline/script/workflow plus targeted docs updates
+- Risk: medium — new repo automation and CI workflow, but no runtime package-ID, sponsor allowlist, Move dependency, vendor, or deploy changes
+- Gates: world:mvr:check ✅ world:mvr:ci ✅ world:mvr:strict expected-fail ✅ typecheck ✅ build ✅
+- Result: added a baseline-backed `@evefrontier/world` drift checker, npm entry points for default/CI/strict modes, and a scheduled/manual GitHub Action that runs `npm run world:mvr:ci`; the automation fails on internal consistency errors and unexpected vendor/MVR baseline drift, warns on the current known World v2 migration-pending gap, and reserves strict alignment for later migration branches.
+- Follow-ups: Phase 2 should split frontend world runtime versus original/type-origin modeling explicitly before any deliberate World v2 runtime migration branch updates sponsor policy and PTB targets.
+
 ## 2026-04-29 – Audit MVR world package strategy
 - Goal: Audit how CivilizationControl should use Move Registry / MVR for `@evefrontier/world`, compare that against the current Stillness package-ID model, and recommend a safe path without changing runtime IDs, sponsor allowlists, Move dependencies, or deployments.
 - Files: `docs/operations/mvr-world-package-audit-20260429.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
