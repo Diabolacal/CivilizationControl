@@ -1,5 +1,7 @@
 # Must-Work Claim Registry — Comprehensive Extraction
 
+> Archived historical document. Preserved for hackathon validation and demo-proof context. It is no longer current operating guidance. Current guidance lives in `docs/decision-log.md`, `docs/validation/localnet-validation-backlog.md`, and current dated operations docs.
+
 **Retention:** Carry-forward
 
 > Exhaustive registry of every testable "must-work" claim extracted from the 10 specified source documents plus the atomic courier feasibility report.

@@ -1,5 +1,7 @@
 # CivilizationControl Read Path -> EF-Map Indexer Replacement Plan — 2026-04-28
 
+> Status note (2026-04-29): Phase 1 shipped via `docs/operations/shared-backend-assembly-enrichment-20260429.md`. This file remains as later-phase roadmap and historical planning context only.
+
 ## 1. Executive summary
 
 CivilizationControl currently fetches most of its live data itself in the browser. The active app uses direct Sui JSON-RPC for ownership discovery, structure hydration, gate policy and posture reads, listing discovery, SSU inventory reads, and Recent Signals event polling. It also does one browser-side World API tribe refresh and ships bundled static catalogs for item types, tribe names, and solar systems. There is no first-party GraphQL usage in `src/` today.

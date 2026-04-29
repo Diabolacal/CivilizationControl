@@ -89,7 +89,7 @@ cd ../..
 These files are structurally coupled to submodule state and must always be checked:
 
 1. **`docs/research/evefrontier-builder-docs-map.md`** — Update review date, submodule commit SHAs, section summaries, gaps
-2. **`docs/core/march-11-reimplementation-checklist.md`** — Add findings that affect validated patterns, update version refs and call-site signatures
+2. **`docs/llm-reference-guide.md`** — Add findings that affect current package/runtime truth, update version refs, and note call-site signature changes that matter to active guidance
 3. **`docs/strategy/_shared/hackathon-portfolio-roadmap.md`** — Update track status if upstream changes affect feasibility
 4. **`docs/decision-log.md`** — Add entry for the refresh
 

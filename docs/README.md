@@ -67,17 +67,13 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 
 | File | Purpose |
 |------|---------|
-| [core/spec.md](core/spec.md) | **System specification** — boundaries, on-chain model, module architecture, risk model |
-| [core/march-11-reimplementation-checklist.md](core/march-11-reimplementation-checklist.md) | **Execution checklist** — validated patterns, day-1 bootstrap, pitfalls |
-| [core/civilizationcontrol-implementation-plan.md](core/civilizationcontrol-implementation-plan.md) | **Implementation plan** — 45 steps across 7 phases |
-| [core/day1-checklist.md](core/day1-checklist.md) | **Day-1 validation checklist** — 10 structured checks with GO/NO-GO gate |
-| [core/validation.md](core/validation.md) | **Validation procedures** — build gates, runtime expectations, proof moment validation |
+| [core/spec.md](core/spec.md) | **Historical system spec** — original boundaries, on-chain model, module architecture, and risk model |
+| [core/validation.md](core/validation.md) | **Historical validation patterns** — build gates, runtime expectations, and proof-moment checks |
 | [core/memory.md](core/memory.md) | **Working memory template** — structured sprint tracking, proof moment evidence |
 | [core/hackathon-repo-conventions.md](core/hackathon-repo-conventions.md) | **Repo conventions** — git workflow, file discipline, naming, judge legibility |
 | [core/gate-policy-v2-design.md](core/gate-policy-v2-design.md) | **Gate policy v2 design** — multi-tribe presets, posture-aware enforcement, upgrade plan |
-| [core/CARRY_FORWARD_INDEX.md](core/CARRY_FORWARD_INDEX.md) | **Carry-forward index** — definitive file list |
 
-## Architecture
+## Current Architecture / Runtime
 
 | File | Purpose |
 |------|---------|
@@ -107,8 +103,7 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 
 | File | Purpose |
 |------|---------|
-| [analysis/assumption-registry-and-demo-fragility-audit.md](analysis/assumption-registry-and-demo-fragility-audit.md) | **Assumption registry** — 87 material assumptions, beat-by-beat determinism, top 5 risks |
-| [analysis/must-work-claim-registry.md](analysis/must-work-claim-registry.md) | **Must-work claim registry** — 148 testable claims with validation status |
+| [analysis/assumption-registry-and-demo-fragility-audit.md](analysis/assumption-registry-and-demo-fragility-audit.md) | **Historical demo-risk evidence** — assumptions, beat-by-beat determinism, and top demo fragility risks |
 
 ## Validation
 
@@ -140,29 +135,25 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 | [ptb/atomic-settlement-skeleton.md](ptb/atomic-settlement-skeleton.md) | Contract-agnostic settlement skeleton |
 | [ptb/governance-admin-skeletons.md](ptb/governance-admin-skeletons.md) | Governance/admin PTB skeletons |
 
-## Operations
+## Active Operations
 
 | File | Purpose |
 |------|---------|
 | [operations/DECISIONS_TEMPLATE.md](operations/DECISIONS_TEMPLATE.md) | Decision log entry format template |
 | [operations/agent-environment-and-guidance-audit-20260429.md](operations/agent-environment-and-guidance-audit-20260429.md) | **Agent environment and guidance audit** — planning-only inventory of repo instructions, local VS Code/Copilot tooling, MCP overlap, documentation sprawl, security guidance, and follow-up recommendations |
-| [operations/documentation-consolidation-20260428.md](operations/documentation-consolidation-20260428.md) | **Documentation consolidation report** — archive moves, kept-active docs, uncertain items, and future doc-hygiene rule |
+| [operations/stale-docs-archive-20260429.md](operations/stale-docs-archive-20260429.md) | **Stale docs archive pass** — what moved, what stayed active, the live authority chain, and remaining follow-up docs |
 | [operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md](operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md) | **CC read-path replacement plan** — concrete matrix of current browser reads versus the shared Frontier backend currently implemented in the EF-Map repo/runtime, plus safe boundaries and the recommended first slice |
-| [operations/efmap-indexer-awareness-20260428.md](operations/efmap-indexer-awareness-20260428.md) | **Shared Frontier backend awareness** — local backend source/runtime paths, data surfaces, ownership model, and recommended next slice for future CC consumption |
 | [operations/shared-backend-assembly-enrichment-20260429.md](operations/shared-backend-assembly-enrichment-20260429.md) | **Shared-backend assembly enrichment** — production EF-Map endpoint contract, CC join-key source, additive merge rules, and fallback boundary |
 | [operations/gate-lifecycle-runbook.md](operations/gate-lifecycle-runbook.md) | 13-step gate lifecycle procedure with evidence |
 | [operations/submodule-refresh-prompt.md](operations/submodule-refresh-prompt.md) | Reusable submodule refresh procedure |
 | [operations/sui-upgrade-type-origin-guide.md](operations/sui-upgrade-type-origin-guide.md) | **Sui upgrade type-origin guide** — dual package ID model, verification evidence |
 | [operations/extension-freeze-safety-guide.md](operations/extension-freeze-safety-guide.md) | **Extension freeze safety guide** — when/how to freeze, posture-switching constraint |
 | [operations/gate-control-web-capabilities.md](operations/gate-control-web-capabilities.md) | **Structure control web capabilities** — controllability matrix for gates, turrets, SSUs, network nodes |
-| [operations/migrate-to-stillness.md](operations/migrate-to-stillness.md) | **Stillness migration playbook** — compatibility verification, address inventory, migration checklist |
 | [operations/mvr-world-package-audit-20260429.md](operations/mvr-world-package-audit-20260429.md) | **MVR world package audit** — `@evefrontier/world` findings, Phase 1 drift automation, and phased World v2 adoption strategy |
 | [operations/world-runtime-original-split-20260429.md](operations/world-runtime-original-split-20260429.md) | **World runtime/original split** — no-behavior-change Phase 2 refactor that separates runtime targets from type-origin surfaces |
 | [operations/world-v2-runtime-migration-plan-20260429.md](operations/world-v2-runtime-migration-plan-20260429.md) | **World v2 runtime migration plan** — planning-only cutover map for runtime package alignment, preview proof, and rollback |
 | [operations/world-v2-runtime-preview-validation-20260429.md](operations/world-v2-runtime-preview-validation-20260429.md) | **World v2 runtime preview validation** — implementation evidence, preview URLs, worker overlap, bundle proof, and manual smoke checklist |
 | [operations/sponsor-worker-runbook.md](operations/sponsor-worker-runbook.md) | **Sponsor worker runbook** — in-repo worker layout, secrets, validation, and policy update procedure |
-| [operations/post-hackathon-repo-readiness-audit.md](operations/post-hackathon-repo-readiness-audit.md) | **Post-hackathon readiness audit** — cleanup sequence, Stillness risks, stashes, submodules, validation baseline |
-| [operations/submodule-refresh-20260425.md](operations/submodule-refresh-20260425.md) | **Submodule refresh audit** — vendor pointer updates, upstream impact, validation, and follow-up actions |
 
 ## Working Memory
 
@@ -174,6 +165,16 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 
 | File | Purpose |
 |------|---------|
+| [archive/hackathon-2026/core/march-11-reimplementation-checklist.md](archive/hackathon-2026/core/march-11-reimplementation-checklist.md) | Historical March 11 execution checklist and validated hackathon patterns |
+| [archive/hackathon-2026/core/day1-checklist.md](archive/hackathon-2026/core/day1-checklist.md) | Historical day-1 bootstrap and chain validation checklist |
+| [archive/hackathon-2026/core/CARRY_FORWARD_INDEX.md](archive/hackathon-2026/core/CARRY_FORWARD_INDEX.md) | Historical hackathon carry-forward export checklist |
+| [archive/hackathon-2026/core/civilizationcontrol-implementation-plan.md](archive/hackathon-2026/core/civilizationcontrol-implementation-plan.md) | Historical March-window implementation plan |
+| [archive/hackathon-2026/analysis/must-work-claim-registry.md](archive/hackathon-2026/analysis/must-work-claim-registry.md) | Historical mixed-project must-work claim inventory |
+| [archive/hackathon-2026/operations/migrate-to-stillness.md](archive/hackathon-2026/operations/migrate-to-stillness.md) | Historical Stillness v1 migration playbook |
+| [archive/hackathon-2026/operations/efmap-indexer-awareness-20260428.md](archive/hackathon-2026/operations/efmap-indexer-awareness-20260428.md) | Historical EF-Map/shared-backend awareness audit |
+| [archive/hackathon-2026/operations/post-hackathon-repo-readiness-audit.md](archive/hackathon-2026/operations/post-hackathon-repo-readiness-audit.md) | Historical post-hackathon repo readiness audit |
+| [archive/hackathon-2026/operations/submodule-refresh-20260425.md](archive/hackathon-2026/operations/submodule-refresh-20260425.md) | Historical vendor submodule refresh audit |
+| [archive/hackathon-2026/operations/documentation-consolidation-20260428.md](archive/hackathon-2026/operations/documentation-consolidation-20260428.md) | Historical documentation cleanup report |
 | [archive/hackathon-2026/README.md](archive/hackathon-2026/README.md) | Historical hackathon submission, demo production, recordings, and archived scripts |
 | [archive/sponsor-worker-20260428/README.md](archive/sponsor-worker-20260428/README.md) | Sponsor-worker migration and cutover archive — planning, validation, cutover, and CORS-fix evidence bundle |
 | [archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md](archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md) | Superseded sponsor worker handoff — preserved Flappy-owned allowlist history and stale-policy context |

@@ -170,10 +170,10 @@ Important docs paths:
 - `docs/README.md`: documentation index and canonical terminology.
 - `docs/decision-log.md`: newest-first decision history. The 2026-04-01 entries are key for Stillness migration.
 - `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`: concrete replacement matrix for current CC browser-side JSON-RPC, polling, static-catalog, and World API reads versus shared-backend replacement or enrichment candidates, plus the recommended first implementation slice.
-- `docs/operations/efmap-indexer-awareness-20260428.md`: read-only awareness report for the shared EVE Frontier backend currently source-controlled and operated through the EF-Map repo/runtime, including the confirmed local EF-Map repo at `C:/EF-Map-main` and the reachable `ef-map-vps` runtime.
+- `docs/archive/hackathon-2026/operations/efmap-indexer-awareness-20260428.md`: archived background on the initial EF-Map runtime discovery and backend inventory; use `docs/operations/shared-backend-assembly-enrichment-20260429.md` for the live contract.
 - `docs/core/validation.md`: validation procedures, but partially stale because it predates current implementation in places.
 - `docs/archive/hackathon-2026/README.md`: historical hackathon demo, submission, recording, and evidence bundle.
-- `docs/operations/migrate-to-stillness.md`: Stillness migration playbook, useful but time-specific.
+- `docs/archive/hackathon-2026/operations/migrate-to-stillness.md`: archived Stillness v1 migration playbook, useful only as point-in-time historical context.
 - `docs/operations/sponsor-worker-runbook.md`: live sponsor-worker source of truth for current runtime state, validation commands, policy-update flow, and operational guardrails.
 - `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md`: archived sponsor worker handoff, retained for historical allowlist context and stale-failure evidence.
 - `docs/archive/sponsor-worker-20260428/README.md`: archive index for the completed sponsor-worker migration, cutover, validation, and production-fix evidence bundle.
@@ -438,7 +438,7 @@ Stale or conflicting docs:
 - `docs/core/validation.md` is explicitly marked pre-hackathon/provisional and partially stale. It remains useful for validation patterns, not as current implementation truth.
 - `.env.example` labels a Utopia world package, while `src/constants.ts` and `README.md` use Stillness IDs.
 - `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md` contains a section saying several hooks still need rerouting through sponsorship, but current hooks such as `src/hooks/useGatePermit.ts`, `src/hooks/useBuyListing.ts`, `src/hooks/useCreateListing.ts`, and `src/hooks/useCancelListing.ts` already use `useSponsoredExecution`.
-- `docs/operations/migrate-to-stillness.md` records a point-in-time migration state, including limited gate availability, while `README.md` later claims Stillness-live gate validation. Treat the README as newer but revalidate on-chain before using the claim externally.
+- `docs/archive/hackathon-2026/operations/migrate-to-stillness.md` records a point-in-time migration state, including limited gate availability, while `README.md` later claims Stillness-live gate validation. Treat the README as newer but revalidate on-chain before using the claim externally.
 - Root fixtures and diagnostic scripts include Utopia-era or mixed IDs: `gate_obj.json`, `playerprofile.json`, `wallet_objects.txt`, `scripts/test-sponsor.mjs`, and `scripts/test-turret-targeting.mjs`.
 
 On-chain and environment risks:

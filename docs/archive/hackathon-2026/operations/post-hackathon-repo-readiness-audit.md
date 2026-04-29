@@ -1,5 +1,7 @@
 # Post-Hackathon Repo Readiness Audit
 
+> Archived historical document. Preserved for post-hackathon cleanup context. It is no longer current operating guidance. Current repo-state truth lives in `docs/decision-log.md`, `docs/README.md`, and current dated operations docs.
+
 Date: 2026-04-25
 Branch used for this audit: `docs/post-hackathon-readiness-audit`
 Scope: audit/planning only. No stashes were applied or dropped, no submodules were updated, no runtime code was changed, no deploys or Move publishes were run.

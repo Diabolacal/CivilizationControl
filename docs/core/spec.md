@@ -1,17 +1,19 @@
 # CivilizationControl — System Specification
 
+> Historical planning document preserved for February-March 2026 hackathon context. It is no longer current operating authority. Current repo truth lives in `docs/llm-reference-guide.md`, `docs/decision-log.md`, and the current dated operations docs for the relevant surface.
+
 **Retention:** Carry-forward
 
 ## Document Authority
 
 | Role | Document |
 |------|----------|
-| Execution authority | `march-11-reimplementation-checklist.md` |
-| Intent authority | `spec.md` (this document) |
-| Validation authority | `validation.md` |
-| Expanded reference | `civilizationcontrol-implementation-plan.md` |
+| Historical execution checklist | `../archive/hackathon-2026/core/march-11-reimplementation-checklist.md` |
+| Historical intent document | `spec.md` (this document) |
+| Historical validation reference | `validation.md` |
+| Historical expanded reference | `../archive/hackathon-2026/core/civilizationcontrol-implementation-plan.md` |
 
-> If conflicts exist, defer to the March-11 Reimplementation Checklist for execution decisions.
+> If conflicts exist, prefer current repo truth from `docs/llm-reference-guide.md`, `docs/decision-log.md`, and newer dated operations docs over this historical planning document.
 
 > **PRE-HACKATHON PROVISIONAL PLAN**
 > Must be re-audited against live world contracts and documentation before March 11 execution.
@@ -368,8 +370,8 @@ If TradePost UI not ready: 2-minute GateControl-only (Beats 1–5 + close). Drop
 
 | Document | Purpose |
 |----------|---------|
-| [march-11-reimplementation-checklist.md](march-11-reimplementation-checklist.md) | Pattern catalog + Day-1 procedure |
-| [civilizationcontrol-implementation-plan.md](civilizationcontrol-implementation-plan.md) | 45 atomic implementation steps |
+| [Archived March 11 checklist](../archive/hackathon-2026/core/march-11-reimplementation-checklist.md) | Historical pattern catalog + Day-1 procedure |
+| [Archived implementation plan](../archive/hackathon-2026/core/civilizationcontrol-implementation-plan.md) | Historical 45-step implementation sequence |
 | [../archive/hackathon-2026/core/civilizationcontrol-demo-beat-sheet.md](../archive/hackathon-2026/core/civilizationcontrol-demo-beat-sheet.md) | Demo script |
 | [../archive/hackathon-2026/core/civilizationcontrol-claim-proof-matrix.md](../archive/hackathon-2026/core/civilizationcontrol-claim-proof-matrix.md) | Evidence mapping |
 | [../architecture/gatecontrol-feasibility-report.md](../architecture/gatecontrol-feasibility-report.md) | Gate architecture validation |

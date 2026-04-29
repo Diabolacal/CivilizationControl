@@ -1,5 +1,7 @@
 # Migrate to Stillness — Playbook
 
+> Archived historical document. Preserved for the original Stillness v1 migration and point-in-time rollout context. Current runtime guidance lives in `docs/llm-reference-guide.md`, `docs/operations/world-runtime-original-split-20260429.md`, and `docs/decision-log.md`.
+
 **Status:** Executed (preview deployed)  
 **Created:** 2026-04-01  
 **Last updated:** 2026-04-01  

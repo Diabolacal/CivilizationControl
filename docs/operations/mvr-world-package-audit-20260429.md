@@ -68,7 +68,7 @@ The Move package does not use MVR today. `contracts/civilization_control/Move.to
 
 ### Docs already warning about World v2
 
-- `docs/operations/submodule-refresh-20260425.md`
+- `docs/archive/hackathon-2026/operations/submodule-refresh-20260425.md`
 - `docs/operations/sponsor-worker-runbook.md`
 - `docs/llm-reference-guide.md`
 - `docs/archive/superseded/sponsor-worker/stillness-sponsor-worker-handoff.md`
@@ -78,7 +78,7 @@ The Move package does not use MVR today. `contracts/civilization_control/Move.to
 - `vendor/world-contracts/contracts/world/Published.toml` records Stillness/Testnet world as `published-at = 0xd2fd1224...6e4780`, `original-id = 0x28b49755...27448c`, `version = 2`.
 - `vendor/world-contracts/README.md` says the repo is future-facing and not guaranteed to be the exact current in-game contract source. It is still strong evidence for package lineage and source compatibility.
 - There is no separate architectural split into different packages for "world runtime" versus "world API". The meaningful split here is latest runtime (`published-at`) versus original/type-origin (`original-id`), plus separate `world` and `assets` packages.
-- `docs/operations/submodule-refresh-20260425.md` found no relevant source changes in the `world-contracts` modules CivilizationControl uses between the previous reviewed pin and the current submodule pin. The main risk is runtime-ID drift, not known API breakage.
+- `docs/archive/hackathon-2026/operations/submodule-refresh-20260425.md` found no relevant source changes in the `world-contracts` modules CivilizationControl uses between the previous reviewed pin and the current submodule pin. The main risk is runtime-ID drift, not known API breakage.
 - Relevant world functions still exist in the current vendor source: `character::borrow_owner_cap`, `character::return_owner_cap`, `gate::issue_jump_permit`, `gate/storage_unit/turret::authorize_extension`, `gate/storage_unit::update_metadata_url`, assembly `online` / `offline`, and `network_node::online`.
 - What remains unproven before any runtime-ID change: live Stillness target package, shared object IDs such as `GATE_CONFIG_ID` and `ENERGY_CONFIG_ID`, read-path/event-path world runtime versus original semantics, sponsor allowlist alignment, and whether any live runtime surface disagrees with vendor metadata.
 

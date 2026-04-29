@@ -1,5 +1,7 @@
 # Carry-Forward Export Index
 
+> Archived historical document. Preserved for March 2026 hackathon export context. It is no longer current operating guidance. Current guidance lives in `docs/README.md`, `docs/llm-reference-guide.md`, and `docs/decision-log.md`.
+
 **Retention:** Carry-forward
 
 ## Carry-Forward Policy

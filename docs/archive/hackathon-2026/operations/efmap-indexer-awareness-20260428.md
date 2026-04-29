@@ -1,5 +1,7 @@
 # EF-Map Indexer Awareness — 2026-04-28
 
+> Archived historical document. Preserved for initial shared-backend discovery and VPS inventory context. Current shared-backend guidance lives in `docs/operations/shared-backend-assembly-enrichment-20260429.md` and `docs/llm-reference-guide.md`.
+
 ## 1. Executive summary
 
 A shared EVE Frontier data backend already exists. It is currently source-controlled and operated through the EF-Map repo/runtime, with the local checkout found at `C:/EF-Map-main`, the browser app under `C:/EF-Map-main/eve-frontier-map`, and the live runtime reachable through the `ef-map-vps` SSH alias on the VPS under `/opt/ef-map`.

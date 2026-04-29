@@ -19,7 +19,7 @@ These documents capture structural patterns learned from world-contracts analysi
 - **Not canonical spec.** `spec.md` defines what CivilizationControl does. These docs describe how PTBs are assembled generically.
 - **Not verified contract wiring.** Function signatures may have changed since these patterns were drafted. Upstream merges may alter parameters, object types, or auth requirements. Turret extension architecture: posture.move (PostureKey DF), turret_bouncer.move (BouncerAuth), turret_defense.move (DefenseAuth).
 - **Not copy-paste production code.** No TypeScript implementation exists here. These are documentation templates only.
-- **Not execution authority.** The March-11 Reimplementation Checklist (`march-11-reimplementation-checklist.md`) remains the execution authority for all implementation decisions.
+- **Not execution authority.** Current repo truth lives in `docs/llm-reference-guide.md` and `docs/decision-log.md`. The archived March 11 checklist remains useful only for historical hackathon sequencing context.
 
 > **Note:** Patterns validated against world-contracts v0.0.14. Upstream now at v0.0.15 — inventory functions changed (withdraw_item, deposit_item). Gate/turret patterns unchanged. Verify signatures before use.
 
@@ -55,8 +55,8 @@ When generating PTB TypeScript, use the following procedure:
 
 ### Step 1 — Context Bundle
 Provide the LLM with only:
+- `docs/llm-reference-guide.md`
 - `spec.md`
-- `march-11-reimplementation-checklist.md`
 - `docs/ptb/README.md`
 - The relevant skeleton file from `docs/ptb/`
 
@@ -133,9 +133,9 @@ Any of the following events invalidates patterns in this library and requires re
 
 | Role | Document |
 |------|----------|
-| Execution authority | `march-11-reimplementation-checklist.md` |
-| Intent authority | `spec.md` |
-| Validation authority | `validation.md` |
+| Current repo truth | `../llm-reference-guide.md` |
+| Historical checklist | `../archive/hackathon-2026/core/march-11-reimplementation-checklist.md` |
+| Historical validation patterns | `../core/validation.md` |
 | Pattern acceleration (this library) | `docs/ptb/` — subordinate to all of the above |
 
 Pattern libraries accelerate implementation but **never override** checklist, spec, or validation authority.

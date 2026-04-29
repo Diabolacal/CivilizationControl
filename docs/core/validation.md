@@ -1,17 +1,19 @@
 # CivilizationControl — Validation Procedures
 
+> Historical validation-pattern document preserved for hackathon and early post-hackathon context. It is not the current source of implementation truth. Current gates live in `.github/copilot-instructions.md`, `docs/decision-log.md`, and newer dated operations docs.
+
 **Retention:** Carry-forward
 
 ## Document Authority
 
 | Role | Document |
 |------|----------|
-| Execution authority | `march-11-reimplementation-checklist.md` |
-| Intent authority | `spec.md` |
-| Validation authority | `validation.md` (this document) |
-| Expanded reference | `civilizationcontrol-implementation-plan.md` |
+| Historical execution checklist | `../archive/hackathon-2026/core/march-11-reimplementation-checklist.md` |
+| Historical intent reference | `spec.md` |
+| Historical validation patterns | `validation.md` (this document) |
+| Historical expanded reference | `../archive/hackathon-2026/core/civilizationcontrol-implementation-plan.md` |
 
-> If conflicts exist, defer to the March-11 Reimplementation Checklist for execution decisions.
+> If conflicts exist, prefer current repo truth from `docs/llm-reference-guide.md`, `docs/decision-log.md`, and newer dated operations docs over this historical validation reference.
 
 > **PRE-HACKATHON PROVISIONAL PLAN (partially stale)**
 > Written before implementation. Module names, struct names, and event names have evolved.

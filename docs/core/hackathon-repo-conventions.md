@@ -168,7 +168,7 @@ Inclusion is governed by **retention metadata**, not by directory name. Every do
 
 **Why AI infrastructure ships with the repo:** In a vibe-coding workflow, files like `AGENTS.md`, `copilot-instructions.md`, and `.instructions.md` files are **development infrastructure** — equivalent to `tsconfig.json` or `.editorconfig`. They define how the AI agent builds, tests, and maintains the project. Stripping them leaves the agent without guardrails, conventions, or project context for any post-submission work (e.g., Stillness deployment, iteration, bug fixes).
 
-> **Cross-reference:** See `docs/core/CARRY_FORWARD_INDEX.md` for the definitive export checklist and `docs/operations/starter-repo-packaging-recommendation.md` for the full packaging audit.
+> **Cross-reference:** See `docs/archive/hackathon-2026/core/CARRY_FORWARD_INDEX.md` for the archived export checklist and `docs/operations/starter-repo-packaging-recommendation.md` for the full packaging audit.
 
 ---
 
@@ -417,7 +417,7 @@ vendor/     — Third-party submodules
 - Remove dead links. Test every link.
 - Use **retention metadata** to filter: only `Carry-forward` docs ship. `Prep-only`, `Sandbox-only`, and `Archive` docs stay in the planning repo.
 - Decision logs ship with a **fresh start** (empty template) — planning-era entries are evidence-only.
-- Files requiring content rewrite (see `CARRY_FORWARD_INDEX.md`) must be updated for the target project before shipping.
+- Files requiring content rewrite (see archived `docs/archive/hackathon-2026/core/CARRY_FORWARD_INDEX.md`) must be updated for the target project before shipping.
 - AI infrastructure files (`AGENTS.md`, `copilot-instructions.md`) need project-specific rewrites — shared scaffold stays, project facts get updated.
 
 ---

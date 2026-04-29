@@ -1,5 +1,7 @@
 # CivilizationControl — Atomic Implementation Plan
 
+> Archived historical document. Preserved for February-March 2026 hackathon planning context. It is no longer current operating guidance. Current guidance lives in `docs/llm-reference-guide.md`, `docs/decision-log.md`, and current dated operations docs.
+
 **Retention:** Carry-forward
 
 ## Document Authority

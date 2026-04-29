@@ -156,7 +156,7 @@ The read provider abstraction does not increase hackathon implementation complex
 | [read-path-architecture-validation.md](read-path-architecture-validation.md) | Options A/B/C map to RPC/Indexer provider implementations. This doc adds the provider interface concept and the Demo Provider. |
 | [sui-read-path-options-analysis.md](../research/sui-read-path-options-analysis.md) | Technical analysis of RPC/GraphQL/WebSocket/Indexer capabilities. Informs provider implementation details. |
 | [spec.md](../core/spec.md) | §2.2 Read Paths describes the semantic queries. The provider abstraction sits between those queries and the UI. |
-| [civilizationcontrol-implementation-plan.md](../core/civilizationcontrol-implementation-plan.md) | S43 defines the React hooks that form the provider interface boundary. |
+| [archived implementation plan](../archive/hackathon-2026/core/civilizationcontrol-implementation-plan.md) | Historical S43 notes describe the React hooks that originally formed the provider interface boundary. |
 | [civilizationcontrol-ux-architecture-spec.md](../ux/civilizationcontrol-ux-architecture-spec.md) | Data Source Reference appendix maps data elements to sources. The provider abstraction wraps these sources. |
 
 ---

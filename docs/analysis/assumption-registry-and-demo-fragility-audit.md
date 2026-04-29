@@ -3,7 +3,7 @@
 **Retention:** Carry-forward
 
 > Comprehensive registry of material assumptions underlying the CivilizationControl hackathon submission, cross-referenced with a beat-by-beat demo fragility assessment.
-> Sources: spec.md, march-11-reimplementation-checklist.md, gate-lifecycle-runbook.md, civilizationcontrol-implementation-plan.md, civilizationcontrol-demo-beat-sheet.md, hackathon-portfolio-roadmap.md, vendor/world-contracts source analysis.
+> Sources: spec.md, docs/archive/hackathon-2026/core/march-11-reimplementation-checklist.md, gate-lifecycle-runbook.md, docs/archive/hackathon-2026/core/civilizationcontrol-implementation-plan.md, civilizationcontrol-demo-beat-sheet.md, hackathon-portfolio-roadmap.md, vendor/world-contracts source analysis.
 > Last updated: 2026-02-28
 
 ---
@@ -663,9 +663,9 @@ All paths verified against workspace structure as of 2026-02-28.
 | Short Name | Path |
 |------------|------|
 | spec.md | docs/core/spec.md |
-| march-11-checklist | docs/core/march-11-reimplementation-checklist.md |
+| march-11-checklist | docs/archive/hackathon-2026/core/march-11-reimplementation-checklist.md |
 | gate-lifecycle-runbook | docs/operations/gate-lifecycle-runbook.md |
-| implementation-plan | docs/core/civilizationcontrol-implementation-plan.md |
+| implementation-plan | docs/archive/hackathon-2026/core/civilizationcontrol-implementation-plan.md |
 | demo-beat-sheet | docs/core/civilizationcontrol-demo-beat-sheet.md |
 | hackathon-portfolio-roadmap | docs/strategy/hackathon-portfolio-roadmap.md |
 | access_control.move | vendor/world-contracts/contracts/world/sources/access/access_control.move |

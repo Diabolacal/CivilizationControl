@@ -12,7 +12,7 @@
 
 Core Programmable Transaction Block (PTB) assembly patterns for Sui Move. These patterns are contract-agnostic structural templates — not verified wiring for specific world-contracts functions.
 
-For CivilizationControl-specific usage, cross-reference with `spec.md` and `march-11-reimplementation-checklist.md` before implementation.
+For CivilizationControl-specific usage, cross-reference with `spec.md`, `../llm-reference-guide.md`, and the archived `../archive/hackathon-2026/core/march-11-reimplementation-checklist.md` for historical hackathon sequencing context.
 
 ---
 

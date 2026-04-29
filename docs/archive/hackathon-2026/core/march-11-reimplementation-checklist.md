@@ -1,5 +1,7 @@
 # March 11 Reimplementation Checklist
 
+> Archived historical document. Preserved for February-March 2026 hackathon execution context. It is no longer current operating guidance. Current guidance lives in `docs/llm-reference-guide.md`, `docs/decision-log.md`, and the current dated operations docs relevant to the surface.
+
 **Retention:** Carry-forward
 
 ## Document Authority

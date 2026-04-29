@@ -943,7 +943,7 @@ The UI communicates that both gates in a link must share the same extension type
 
 ## Appendix: Data Source Reference
 
-> **Read Provider Abstraction (2026-03-05):** The sources listed below are implementation details of the **RPC Provider** (Day-1 default). All data flows through the [read provider abstraction layer](../architecture/read-provider-abstraction.md), enabling future transport switching (GraphQL, Indexer backend, Demo Provider) without UI component changes. The semantic query interface is defined by the hooks in S43 of the [implementation plan](../core/civilizationcontrol-implementation-plan.md).
+> **Read Provider Abstraction (2026-03-05):** The sources listed below are implementation details of the **RPC Provider** (Day-1 default). All data flows through the [read provider abstraction layer](../architecture/read-provider-abstraction.md), enabling future transport switching (GraphQL, Indexer backend, Demo Provider) without UI component changes. The original semantic query interface notes are preserved in the [archived implementation plan](../archive/hackathon-2026/core/civilizationcontrol-implementation-plan.md).
 
 | Data Element          | Source (RPC Provider)                    | Latency     | Notes                          |
 | --------------------- | ---------------------------------------- | ----------- | ------------------------------ |

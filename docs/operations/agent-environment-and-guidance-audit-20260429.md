@@ -55,9 +55,9 @@ Changes that need manual approval:
 | `llms.txt` | Lightweight LLM-facing repo map | External LLMs, fresh session bootstrap | Active and useful | Keep short and link-heavy; refresh critical entry points to current-truth ops/design docs. |
 | `docs/core/spec.md` | Original system spec and authority anchor | Agent, human contributor | Active but stale | Rewrite to live product truth or demote from the active authority chain. |
 | `docs/core/validation.md` | Validation patterns and rules | Agent, human contributor | Active but stale | Replace with a current validation-gates doc or relabel as historical validation patterns. |
-| `docs/core/march-11-reimplementation-checklist.md` | Hackathon reimplementation execution checklist | Agent, human contributor | Active but stale | Remove from the live authority chain and keep as historical reference only. |
-| `docs/core/day1-checklist.md` | Day-1 hackathon bootstrap guide | Agent, human contributor | Active but stale | Archive later or relabel as historical bootstrap material. |
-| `docs/core/CARRY_FORWARD_INDEX.md` | March carry-forward index | Maintainer | Should be archived or left alone | Keep only as historical evidence if still useful; otherwise archive later. |
+| `docs/archive/hackathon-2026/core/march-11-reimplementation-checklist.md` | Archived hackathon reimplementation execution checklist | Agent, human contributor | Historical evidence | Keep archived; do not treat as live authority. |
+| `docs/archive/hackathon-2026/core/day1-checklist.md` | Archived day-1 hackathon bootstrap guide | Agent, human contributor | Historical evidence | Keep archived; do not treat as live operating guidance. |
+| `docs/archive/hackathon-2026/core/CARRY_FORWARD_INDEX.md` | Archived March carry-forward index | Maintainer | Historical evidence | Keep archived for hackathon export context only. |
 | `docs/strategy/civilization-control/civilizationcontrol-voice-and-narrative.md` | Canonical UI language and label doctrine | Design and frontend agent | Active and useful | Keep as the wording canon and summarize it in a new design instruction file. |
 | `docs/strategy/civilization-control/civilizationcontrol-hackathon-emotional-objective.md` | Emotional target and narrative lens | Design and frontend agent | Should be condensed into a new canonical instruction file | Keep as deep rationale; summarize durable rules in canonical design guidance. |
 | `docs/ux/civilizationcontrol-ux-architecture-spec.md` | UX hierarchy and screen model | Design and frontend agent | Active but stale | Refresh to match implemented IA or demote to planning history. |
@@ -69,9 +69,9 @@ Changes that need manual approval:
 | `docs/operations/mvr-world-package-audit-20260429.md` | World/MVR rationale and drift automation record | Infra agent | Active and useful | Keep active as rationale/audit; do not treat it as the only runtime-status source. |
 | `docs/operations/world-runtime-original-split-20260429.md` | Canonical runtime-vs-original package model | Frontend and infra agent | Active and useful | Keep and link it directly from future world/runtime instructions. |
 | `docs/operations/world-v2-runtime-migration-plan-20260429.md` | Migration history and rollout plan | Infra agent | Active but stale | Keep for historical evidence, but stop treating it as the live runtime-status source. |
-| `docs/operations/efmap-indexer-awareness-20260428.md` | Shared-backend awareness and earlier integration status | Infra agent | Active but stale | Update or archive behind the newer enrichment doc because its status framing is no longer current. |
+| `docs/archive/hackathon-2026/operations/efmap-indexer-awareness-20260428.md` | Archived shared-backend awareness and earlier integration status | Infra agent | Historical evidence | Keep archived behind the newer enrichment doc because its status framing is no longer current. |
 | `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md` | Shared-backend replacement roadmap | Frontend and infra agent | Active but stale | Split already-shipped work from remaining roadmap or archive later. |
-| `docs/operations/post-hackathon-repo-readiness-audit.md` | Earlier repo hygiene audit | Maintainer | Should be archived or left alone | Keep as evidence; do not rely on it as current operating guidance. |
+| `docs/archive/hackathon-2026/operations/post-hackathon-repo-readiness-audit.md` | Archived earlier repo hygiene audit | Maintainer | Historical evidence | Keep as evidence; do not rely on it as current operating guidance. |
 | `docs/operations/submodule-refresh-prompt.md` | Reusable submodule refresh procedure | Operator, infra agent | Active but stale | Keep, but update the inventory from `.gitmodules` and tighten vendor-dirt instructions. |
 | `templates/cloudflare/README.md` | Generic Pages/Workers template docs | Operator, deploy agent | Active but stale | Keep as template-only guidance; refresh stale `pages secret put --branch` and generic `API_TOKEN` wording. |
 | `.vscode/settings.json` | Workspace-level agent/tooling defaults | Agent, human operator | Active and useful | Keep, but fix the missing memory-guidelines reference and review Autopilot/maxRequests defaults. |
@@ -392,21 +392,21 @@ Browser-visible public env vars versus secrets:
 | Path/doc family | Reason it may be stale or noisy | Keep/archive/summarize recommendation | Priority |
 | --- | --- | --- | --- |
 | `docs/core/spec.md` | Still framed around pre-hackathon assumptions and incomplete implementation state | Summarize into `docs/llm-reference-guide.md` after a refresh, then demote as live authority | High |
-| `docs/core/march-11-reimplementation-checklist.md` | March 11 execution authority now injects obsolete assumptions into active guidance | Archive later | High |
-| `docs/core/day1-checklist.md` | First-hours hackathon bootstrap workflow, no longer current operating guidance | Archive later | High |
+| `docs/archive/hackathon-2026/core/march-11-reimplementation-checklist.md` | Archived March 11 execution authority previously injected obsolete assumptions into active guidance | Archived | High |
+| `docs/archive/hackathon-2026/core/day1-checklist.md` | Archived first-hours hackathon bootstrap workflow, no longer current operating guidance | Archived | High |
 | `docs/core/validation.md` | Self-described partial staleness and evolved module/event names | Summarize into a current validation-gates doc | High |
-| `docs/core/CARRY_FORWARD_INDEX.md` | Historical carry-forward export artifact | Archive later | High |
-| `docs/analysis/must-work-claim-registry.md` | High context cost, mixed-product historical validation framing | Archive later | High |
-| `docs/operations/migrate-to-stillness.md` | Executed migration history, not current deployment guidance | Archive later | High |
-| `docs/operations/post-hackathon-repo-readiness-audit.md` | Earlier cleanup audit with superseded state | Leave untouched for historical evidence | Medium |
-| `docs/operations/efmap-indexer-awareness-20260428.md` | Says no integration exists, which is now false | Summarize into `docs/llm-reference-guide.md` or archive behind newer shared-backend docs | High |
+| `docs/archive/hackathon-2026/core/CARRY_FORWARD_INDEX.md` | Historical carry-forward export artifact | Archived | High |
+| `docs/archive/hackathon-2026/analysis/must-work-claim-registry.md` | High context cost, mixed-product historical validation framing | Archived | High |
+| `docs/archive/hackathon-2026/operations/migrate-to-stillness.md` | Executed migration history, not current deployment guidance | Archived | High |
+| `docs/archive/hackathon-2026/operations/post-hackathon-repo-readiness-audit.md` | Earlier cleanup audit with superseded state | Archived historical evidence | Medium |
+| `docs/archive/hackathon-2026/operations/efmap-indexer-awareness-20260428.md` | Said no integration existed before the later shipped enrichment slice | Archived behind newer shared-backend docs | High |
 | `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md` | First slice is already shipped; status framing is outdated | Summarize into `docs/llm-reference-guide.md` after a refresh | High |
-| `docs/core/civilizationcontrol-implementation-plan.md` | Large March-window hackathon plan, mostly historical process detail now | Archive later | Medium |
+| `docs/archive/hackathon-2026/core/civilizationcontrol-implementation-plan.md` | Large March-window hackathon plan, mostly historical process detail now | Archived | Medium |
 | `docs/analysis/assumption-registry-and-demo-fragility-audit.md` | Valuable historical evidence, low current operational value | Leave untouched for historical evidence | Medium |
-| `docs/operations/documentation-consolidation-20260428.md` | Good audit trail, not an evergreen runbook | Leave untouched for historical evidence | Medium |
+| `docs/archive/hackathon-2026/operations/documentation-consolidation-20260428.md` | Good audit trail, not an evergreen runbook | Archived historical evidence | Medium |
 | `docs/operations/mvr-world-package-audit-20260429.md` | Useful current rationale, but partly a dated migration narrative | Keep active | Low |
 | `docs/operations/world-v2-runtime-migration-plan-20260429.md` | Migration planning history after implementation | Leave untouched for historical evidence | Medium |
-| `docs/operations/submodule-refresh-20260425.md` | Good audit trail, not the canonical submodule procedure | Leave untouched for historical evidence | Medium |
+| `docs/archive/hackathon-2026/operations/submodule-refresh-20260425.md` | Good audit trail, not the canonical submodule procedure | Archived historical evidence | Medium |
 | `docs/operations/sponsor-worker-runbook.md` | Current live operational guidance | Keep active | Low |
 | `docs/operations/shared-backend-assembly-enrichment-20260429.md` | Current live contract and fallback boundary | Keep active | Low |
 | `docs/operations/world-runtime-original-split-20260429.md` | Current live runtime/original package model | Keep active | Low |

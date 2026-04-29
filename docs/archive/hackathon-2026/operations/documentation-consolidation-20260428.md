@@ -1,5 +1,7 @@
 # Documentation Consolidation — 2026-04-28
 
+> Archived historical document. Preserved as the earlier documentation cleanup report. The current authority-chain cleanup state now lives in `docs/operations/agent-environment-and-guidance-audit-20260429.md`, `docs/operations/stale-docs-archive-20260429.md`, and `docs/decision-log.md`.
+
 ## Purpose
 
 Reduce context noise in `docs/operations/` by archiving completed sponsor-worker migration and cutover evidence, keeping current operational docs active, and updating the live source-of-truth references for future agents.

@@ -1,5 +1,7 @@
 # Submodule Refresh Audit — 2026-04-25
 
+> Archived historical document. Preserved for the April 25 vendor refresh evidence bundle. Current submodule procedure lives in `docs/operations/submodule-refresh-prompt.md` and current repo-state notes in `docs/decision-log.md`.
+
 Date: 2026-04-25
 Branch: `chore/submodule-refresh-20260425`
 Scope: vendor submodule pointer refresh, upstream impact audit, documentation updates, and baseline validation. No commits were made inside submodules.

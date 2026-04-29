@@ -184,8 +184,8 @@ CivilizationControl/
 
 | Document | Purpose |
 |----------|---------|
-| [System Spec](docs/core/spec.md) | Boundaries, on-chain model, risk model |
-| [Implementation Plan](docs/core/civilizationcontrol-implementation-plan.md) | Build sequence and dependencies |
+| [System Spec](docs/core/spec.md) | Historical system spec and original risk model |
+| [Docs Index](docs/README.md) | Current docs map, active operations, and archive navigation |
 | [Product Vision](docs/strategy/civilization-control/civilizationcontrol-product-vision.md) | Design intent and product thesis |
 | [LLM Reference Guide](docs/llm-reference-guide.md) | Current repo-grounded brief for agents and fresh sessions |
 | [Hackathon Archive](docs/archive/hackathon-2026/README.md) | Historical demo, submission, recording, and evidence materials |
