@@ -166,12 +166,14 @@ export async function fetchStructure(
   if (!response.data) return null;
 
   const content = getObjectContent(response);
+  const assemblyId = resolveAssemblyId(content);
   const status = resolveStatus(content);
   const name = resolveName(content, structureType, objectId);
   const networkNodeId = resolveNetworkNodeId(content);
   const linkedGateId = structureType === "gate" ? resolveLinkedGateId(content) : undefined;
 
   return {
+    assemblyId,
     objectId,
     ownerCapId,
     type: structureType,
@@ -745,6 +747,21 @@ function resolveName(
     network_node: "Network Node",
   };
   return `${typeLabels[type]} ${shortId}`;
+}
+
+function resolveAssemblyId(
+  content: Record<string, unknown> | null,
+): string | undefined {
+  if (!content) return undefined;
+
+  const key = content.key as Record<string, unknown> | undefined;
+  const keyFields = key?.fields as Record<string, unknown> | undefined;
+  const itemId = keyFields?.item_id ?? keyFields?.itemId ?? keyFields?.id;
+
+  if (typeof itemId === "string" && itemId.length > 0) return itemId;
+  if (typeof itemId === "number" && Number.isFinite(itemId)) return String(itemId);
+
+  return undefined;
 }
 
 /**

@@ -14,6 +14,7 @@ import { TagChip } from "@/components/TagChip";
 import { NetworkNodeGlyph } from "@/components/topology/Glyphs";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { useStructurePower } from "@/hooks/useStructurePower";
+import { getAssemblySummarySolarSystemName } from "@/lib/assemblyEnrichment";
 import { fuelTypeLabel, getFuelEfficiency, computeRuntimeMs, formatRuntime } from "@/lib/fuelRuntime";
 import { shortId } from "@/lib/formatAddress";
 import { getSpatialPin } from "@/lib/spatialPins";
@@ -200,8 +201,9 @@ function NodeRow({ node, group }: { node: Structure; group?: NetworkNodeGroup })
       <td className="py-3 px-4">
         {(() => {
           const pin = getSpatialPin(node.objectId);
-          return pin ? (
-            <span className="text-[11px] text-muted-foreground">{pin.solarSystemName}</span>
+          const locationName = pin?.solarSystemName ?? getAssemblySummarySolarSystemName(node);
+          return locationName ? (
+            <span className="text-[11px] text-muted-foreground">{locationName}</span>
           ) : (
             <span className="text-[11px] font-mono text-muted-foreground/50" title={node.objectId}>
               {shortId(node.objectId)}

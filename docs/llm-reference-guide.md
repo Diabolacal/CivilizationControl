@@ -281,9 +281,11 @@ Read/query/event patterns:
 
 - `src/lib/suiReader.ts` creates a `SuiJsonRpcClient` for `https://fullnode.testnet.sui.io:443` and network `testnet`.
 - Asset discovery uses owned-object queries and shared object reads, not a backend indexer.
+- Asset discovery now derives a decimal `assemblyId` from each structure's on-chain `key.fields.item_id` and may call the browser-safe production shared-backend route `https://ef-map.com/api/civilization-control/assemblies?ids=...` opportunistically after direct-chain discovery.
 - Gate policy and posture read dynamic fields from `GateConfig` using type-origin key types built from `CC_ORIGINAL_PACKAGE_ID`.
 - Listing discovery uses event queries and then verifies live listing objects.
 - Signal Feed fetches recent events with `MoveModule` queries across current CC/world runtime modules, then parses type strings in `src/lib/eventParser.ts`.
+- Shared-backend assembly enrichment is additive only: no API key or browser secret is used, direct-chain ownership/action data remains authoritative, endpoint failures must not block the UI, and the current implementation only uses backend name fallback plus solar-system display fallback when no manual pin exists.
 - Important upgrade rule: on Sui, event type strings and dynamic field key types use type-origin package IDs, while `MoveModule` query filters should use the runtime package that emitted via the entry module. On Stillness v1 `CC_PACKAGE_ID` equals `CC_ORIGINAL_PACKAGE_ID`, which hides this distinction. Future upgrades must preserve it.
 
 Ownership and authority assumptions:

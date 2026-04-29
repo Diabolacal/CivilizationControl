@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Enrich structures from shared backend summaries
+- Goal: Consume the production shared-backend assembly summary endpoint from CivilizationControl as an additive read-path enhancement while preserving the existing direct Sui discovery and all authority/write behavior.
+- Files: `src/types/domain.ts`, `src/lib/suiReader.ts`, `src/lib/assemblySummaryClient.ts`, `src/lib/assemblyEnrichment.ts`, `src/hooks/useAssemblySummaryEnrichment.ts`, `src/hooks/useAssetDiscovery.ts`, `src/components/StructureDetailHeader.tsx`, `src/screens/GateListScreen.tsx`, `src/screens/NetworkNodeListScreen.tsx`, `src/screens/TradePostListScreen.tsx`, `src/screens/TurretListScreen.tsx`, `src/vite-env.d.ts`, `docs/operations/shared-backend-assembly-enrichment-20260429.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`, `docs/README.md`
+- Diff: additive shared-backend client, optional structure enrichment, minimal location fallback, and docs
+- Risk: medium — new browser read-path integration, but no write-path, sponsorship, package ID, Move, or vendor changes
+- Gates: pending
+- Result: derived decimal `assemblyId` from each structure's on-chain `TenantItemId`, added a browser-safe client for `https://ef-map.com/api/civilization-control/assemblies`, chunked and validated requests defensively, merged shared-backend summaries only after direct-chain discovery, preserved direct-chain fallback on missing/failed backend responses, and limited visible UI use to safe name/location fallback surfaces.
+- Follow-ups: validate the live request path on preview with a connected wallet, then consider later additive slices such as network-node summaries or filtered recent-activity enrichment.
+
 ## 2026-04-29 – Record world v2 production smoke success
 - Goal: Record the operator-confirmed manual production smoke result after the World v2 runtime cutover without changing runtime code, package IDs, sponsor policy, or deploy state.
 - Files: `docs/operations/world-v2-runtime-preview-validation-20260429.md`, `docs/operations/world-v2-runtime-migration-plan-20260429.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`

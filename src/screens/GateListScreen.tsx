@@ -17,6 +17,7 @@ import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import { usePostureState } from "@/hooks/usePosture";
 import { useBatchTreasuryMutation } from "@/hooks/useGatePolicyMutation";
+import { getAssemblySummarySolarSystemName } from "@/lib/assemblyEnrichment";
 import { shortId } from "@/lib/formatAddress";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, GateAuthTarget } from "@/types/domain";
@@ -241,6 +242,7 @@ function GateRow({ gate, structures }: { gate: Structure; structures: Structure[
     ? structures.find((s) => s.objectId === gate.networkNodeId && s.type === "network_node")
     : undefined;
   const pin = parentNode ? getSpatialPin(parentNode.objectId) : undefined;
+  const locationName = pin?.solarSystemName ?? getAssemblySummarySolarSystemName(gate);
 
   const linkedGate = gate.linkedGateId
     ? structures.find((s) => s.objectId === gate.linkedGateId)
@@ -282,8 +284,8 @@ function GateRow({ gate, structures }: { gate: Structure; structures: Structure[
         )}
       </td>
       <td className="py-3 px-4">
-        {pin ? (
-          <span className="text-[11px] text-muted-foreground">{pin.solarSystemName}</span>
+        {locationName ? (
+          <span className="text-[11px] text-muted-foreground">{locationName}</span>
         ) : (
           <span className="text-[11px] text-muted-foreground/40">—</span>
         )}

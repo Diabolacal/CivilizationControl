@@ -7,6 +7,7 @@
 
 import { StatusDot } from "@/components/StatusDot";
 import { StructureGlyph } from "@/components/topology/Glyphs";
+import { getAssemblySummarySolarSystemName } from "@/lib/assemblyEnrichment";
 import { shortId } from "@/lib/formatAddress";
 import type { Structure } from "@/types/domain";
 
@@ -19,6 +20,8 @@ interface StructureDetailHeaderProps {
 }
 
 export function StructureDetailHeader({ structure, solarSystemName, headerRight }: StructureDetailHeaderProps) {
+  const resolvedSolarSystemName = solarSystemName ?? getAssemblySummarySolarSystemName(structure);
+
   return (
     <div className="flex items-start gap-4 pb-4">
       <div className="text-muted-foreground mt-0.5">
@@ -32,9 +35,9 @@ export function StructureDetailHeader({ structure, solarSystemName, headerRight 
           <StatusDot status={structure.status} size="md" />
         </div>
         <div className="flex items-center gap-3 flex-wrap">
-          {solarSystemName && (
+          {resolvedSolarSystemName && (
             <span className="text-[11px] text-muted-foreground/70">
-              {solarSystemName}
+              {resolvedSolarSystemName}
             </span>
           )}
           <span className="text-[10px] font-mono text-muted-foreground/40" title={structure.objectId}>

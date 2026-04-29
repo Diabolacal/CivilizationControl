@@ -16,6 +16,7 @@ import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { usePostureState } from "@/hooks/usePosture";
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
 import { useStructurePower } from "@/hooks/useStructurePower";
+import { getAssemblySummarySolarSystemName } from "@/lib/assemblyEnrichment";
 import { shortId } from "@/lib/formatAddress";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, PostureMode, TurretSwitchTarget } from "@/types/domain";
@@ -209,6 +210,7 @@ function TurretRow({ turret, posture, structures }: { turret: Structure; posture
     ? structures.find((s) => s.objectId === turret.networkNodeId && s.type === "network_node")
     : undefined;
   const pin = parentNode ? getSpatialPin(parentNode.objectId) : undefined;
+  const locationName = pin?.solarSystemName ?? getAssemblySummarySolarSystemName(turret);
 
   return (
     <tr className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors">
@@ -240,8 +242,8 @@ function TurretRow({ turret, posture, structures }: { turret: Structure; posture
         )}
       </td>
       <td className="py-3 px-4">
-        {pin ? (
-          <span className="text-[11px] text-muted-foreground">{pin.solarSystemName}</span>
+        {locationName ? (
+          <span className="text-[11px] text-muted-foreground">{locationName}</span>
         ) : (
           <span className="text-[11px] font-mono text-muted-foreground/50" title={turret.objectId}>
             {shortId(turret.objectId)}

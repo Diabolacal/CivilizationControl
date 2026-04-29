@@ -20,6 +20,21 @@ export type StructureType = "gate" | "storage_unit" | "turret" | "network_node";
 /** Operational status derived from on-chain state. */
 export type StructureStatus = "online" | "warning" | "offline" | "neutral";
 
+/** Optional shared-backend assembly summary keyed by decimal assembly ID. */
+export interface AssemblySummary {
+  assemblyId: string;
+  assemblyType: string;
+  typeId: number;
+  name: string;
+  status: string;
+  fuelAmount: string | null;
+  solarSystemId: string | null;
+  energySourceId: string | null;
+  url: string | null;
+  lastUpdated: string | null;
+  typeName: string | null;
+}
+
 /** Player profile resolved from wallet connection. */
 export interface PlayerProfile {
   objectId: ObjectId;
@@ -37,6 +52,8 @@ export interface OwnerCapInfo {
 
 /** A resolved on-chain structure (gate, SSU, turret, or network node). */
 export interface Structure {
+  /** Decimal in-game assembly ID from the on-chain TenantItemId key. */
+  assemblyId?: string;
   objectId: ObjectId;
   ownerCapId: ObjectId;
   type: StructureType;
@@ -48,6 +65,8 @@ export interface Structure {
   fuel?: FuelState;
   /** Linked destination gate ID — only present for linked gates. */
   linkedGateId?: ObjectId;
+  /** Optional shared-backend enrichment; direct-chain fields remain authoritative. */
+  summary?: AssemblySummary;
   /**
    * Extension authorization status:
    * - "authorized" — extension matches the current CC package witness type

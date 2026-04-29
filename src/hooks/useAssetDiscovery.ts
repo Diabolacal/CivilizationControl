@@ -7,6 +7,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useConnection } from "@evefrontier/dapp-kit";
+import { useAssemblySummaryEnrichment } from "@/hooks/useAssemblySummaryEnrichment";
 import { discoverAssets } from "@/lib/suiReader";
 import type {
   NetworkNodeGroup,
@@ -17,7 +18,7 @@ import type {
 export function useAssetDiscovery() {
   const { walletAddress, isConnected } = useConnection();
 
-  const query = useQuery({
+  const discoveryQuery = useQuery({
     queryKey: ["assetDiscovery", walletAddress],
     queryFn: () => discoverAssets(walletAddress!),
     enabled: !!walletAddress,
@@ -26,8 +27,9 @@ export function useAssetDiscovery() {
     refetchOnWindowFocus: false,
   });
 
-  const structures = query.data?.structures ?? [];
-  const profile = query.data?.profile ?? null;
+  const discoveredStructures = discoveryQuery.data?.structures ?? [];
+  const profile = discoveryQuery.data?.profile ?? null;
+  const { structures } = useAssemblySummaryEnrichment(discoveredStructures);
 
   // Group structures by network node
   const nodeGroups = groupByNetworkNode(structures);
@@ -38,11 +40,11 @@ export function useAssetDiscovery() {
     structures,
     nodeGroups,
     metrics,
-    isLoading: query.isLoading,
+    isLoading: discoveryQuery.isLoading,
     isConnected: isConnected ?? false,
-    isError: query.isError,
-    error: query.error,
-    refetch: query.refetch,
+    isError: discoveryQuery.isError,
+    error: discoveryQuery.error,
+    refetch: discoveryQuery.refetch,
   };
 }
 

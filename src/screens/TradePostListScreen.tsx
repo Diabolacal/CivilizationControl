@@ -14,6 +14,7 @@ import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { TradePostGlyph } from "@/components/topology/Glyphs";
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
 import { useStructurePower } from "@/hooks/useStructurePower";
+import { getAssemblySummarySolarSystemName } from "@/lib/assemblyEnrichment";
 import { shortId } from "@/lib/formatAddress";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, SsuAuthTarget } from "@/types/domain";
@@ -188,6 +189,7 @@ function PostRow({ post, structures }: { post: Structure; structures: Structure[
     ? structures.find((s) => s.objectId === post.networkNodeId && s.type === "network_node")
     : undefined;
   const pin = parentNode ? getSpatialPin(parentNode.objectId) : undefined;
+  const locationName = pin?.solarSystemName ?? getAssemblySummarySolarSystemName(post);
 
   return (
     <tr className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors">
@@ -216,8 +218,8 @@ function PostRow({ post, structures }: { post: Structure; structures: Structure[
         )}
       </td>
       <td className="py-3 px-4">
-        {pin ? (
-          <span className="text-[11px] text-muted-foreground">{pin.solarSystemName}</span>
+        {locationName ? (
+          <span className="text-[11px] text-muted-foreground">{locationName}</span>
         ) : (
           <span className="text-[11px] font-mono text-muted-foreground/50" title={post.objectId}>
             {shortId(post.objectId)}
