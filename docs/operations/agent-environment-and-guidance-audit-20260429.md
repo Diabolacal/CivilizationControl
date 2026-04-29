@@ -28,7 +28,7 @@ Immediate low-risk changes:
 - Refresh stale architecture and deployment-truth bullets in `AGENTS.md`, `.github/copilot-instructions.md`, and `GITHUB-COPILOT.md`.
 - Add a short dirty-tree/destructive-git rule to the always-on instruction layer.
 - Add one short design instruction file under `.github/instructions/`.
-- Fix the stale/missing references in `.vscode/settings.json`, `.github/prompts/vibe-bootstrap.prompt.md`, and template docs.
+- Fix the stale/missing references in `.vscode/settings.json`, retire the stale scaffold-era bootstrap prompt, and tighten template docs.
 - Add this audit to the docs index and use it as the implementation brief for follow-up branches.
 
 Changes that need manual approval:
@@ -78,7 +78,7 @@ Changes that need manual approval:
 | `.vscode/extensions.json` | Workspace recommendations and unwanted extensions | Human operator | Active and useful | Keep; current recommendations are narrow and sensible. |
 | `.github/prompts/plan.prompt.md` | Shared planning prompt | Human operator, agent | Active and useful | Keep in the shared workspace prompt path as the planning-only repo prompt. |
 | `.github/prompts/rehydrate.prompt.md` | Context-recovery prompt | Human operator, agent | Active and useful | Keep; small and purpose-specific. |
-| `.github/prompts/vibe-bootstrap.prompt.md` | Bootstrap/scaffold prompt | Human operator, agent | Active but stale | Refresh or relocate to a scaffold repo; current references imply missing files. |
+| `.github/prompts/archive/vibe-bootstrap.prompt.md` | Archived bootstrap/scaffold prompt | Human operator, agent | Historical only | Keep archived for context only; do not surface it as an active repo prompt. |
 | `.github/skills/deploy/SKILL.md` | Deployment workflow skill | Agent | Active but stale | Refresh to repo-root deploy rules, `master`/Pages `main` mapping, and live preview practices. |
 | `.github/skills/docker-ops/SKILL.md` | Generic Docker workflow skill | Agent | Active but stale | Either replace placeholders with real repo services or archive/remove later. |
 
@@ -557,7 +557,6 @@ Intentionally not changed:
 
 Remaining follow-up tasks:
 - Refresh stale deploy skill content under `.github/skills/deploy/SKILL.md`.
-- Refresh or retire `.github/prompts/vibe-bootstrap.prompt.md`, which still points at missing scaffold-era files.
 - Decide whether template/docs secret wording should be tightened in a separate docs pass.
 - Run the later archive pass and local-tool cleanup as separate branches, not in this task.
 
@@ -566,7 +565,7 @@ Remaining follow-up tasks:
 Prompt files found before cleanup:
 - `.vscode/prompts/plan.prompt.md`
 - `.github/prompts/rehydrate.prompt.md`
-- `.github/prompts/vibe-bootstrap.prompt.md`
+- shared scaffold-era bootstrap prompt (now archived at `.github/prompts/archive/vibe-bootstrap.prompt.md`)
 
 Decision made:
 - Standardize shared repo prompts under `.github/prompts/`.
@@ -585,8 +584,27 @@ Files changed:
 - `docs/decision-log.md`
 
 What remains for later:
-- Refresh or relocate `.github/prompts/vibe-bootstrap.prompt.md`, which still assumes missing scaffold-era files.
 - Leave `.vscode/settings.json` unchanged unless a later local VS Code/tooling review decides the prompt recommendation behavior itself should change.
+
+## Vibe Bootstrap Prompt Retirement — Implemented
+
+Decision made:
+- Archive the stale shared bootstrap prompt instead of refreshing it.
+- Preserve it at `.github/prompts/archive/vibe-bootstrap.prompt.md` with a clear historical banner.
+- Keep the active prompt surface limited to `.github/prompts/plan.prompt.md` and `.github/prompts/rehydrate.prompt.md`.
+
+Why:
+- The prompt is scaffold-era and still assumes missing files such as `docs/PRD.md`, `docs/ARCHITECTURE_DRAFT.md`, `docs/NEXT_STEPS.md`, and `docs/WORKSPACE_ABSTRACT.md`.
+- It is not a fit for the current CivilizationControl repo, which is already an established project rather than a bootstrap workspace.
+
+Files changed:
+- `.github/prompts/archive/vibe-bootstrap.prompt.md`
+- `docs/README.md`
+- `docs/operations/agent-environment-and-guidance-audit-20260429.md`
+- `docs/decision-log.md`
+
+What remains for later:
+- Keep local VS Code/tooling review separate.
 
 ## Deploy and Secret Guidance Cleanup — Implemented
 
@@ -649,7 +667,7 @@ All web sources accessed on 2026-04-29.
 2. Do you want canonical design guidance as an agent-only instruction file, or also as a human-facing `docs/ux/` companion document?
 3. Do you want a dedicated `deployment.instructions.md`, or should deployment guidance stay only in the canonical repo-wide file plus runbooks?
 4. Do you want a dedicated `shared-backend.instructions.md`, or should those rules live only in `.github/copilot-instructions.md`?
-5. Do you want `.github/prompts/vibe-bootstrap.prompt.md` refreshed for this repo, or should it move into a separate scaffold/bootstrap repo later?
+5. Do you want archived prompt files under `.github/prompts/archive/` kept long-term for historical reference, or pruned later if they remain unused?
 6. Do you want to reduce workspace token/noise risk by adjusting Autopilot and/or `chat.agent.maxRequests`, or leave the current defaults alone?
 7. Do you want a separate cleanup task for duplicate global extensions, or should that stay outside this repo entirely?
 8. Do you want stale March-era core docs archived, or simply demoted from the authority chain and left in place for historical evidence?

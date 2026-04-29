@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Retire stale bootstrap prompt
+- Goal: Remove the misleading scaffold-era bootstrap prompt from the active repo prompt surface without changing runtime code or VS Code settings.
+- Files: `.github/prompts/archive/vibe-bootstrap.prompt.md`, `docs/README.md`, `docs/operations/agent-environment-and-guidance-audit-20260429.md`, `docs/decision-log.md`
+- Diff: prompt archival banner plus small docs/index cleanup
+- Risk: low — prompt/docs only, no runtime/package/settings/vendor/submodule changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: archived `vibe-bootstrap.prompt.md` under `.github/prompts/archive/`, added a banner telling agents not to use it for CivilizationControl work, kept the active prompt surface limited to `plan.prompt.md` and `rehydrate.prompt.md`, and updated the live docs to stop presenting the bootstrap prompt as active.
+- Follow-ups: keep the local VS Code/tooling review separate from prompt cleanup; consider pruning archived prompt files later only if preserving the historical prompt surface stops being useful.
+
 ## 2026-04-29 – Standardize prompt path guidance
 - Goal: Make the reusable repo prompt surface easier to find by moving the hidden local planning prompt into the shared `.github/prompts/` path and updating the live guidance that points people at prompt files.
 - Files: `.github/prompts/plan.prompt.md`, `AGENTS.md`, `GITHUB-COPILOT.md`, `llms.txt`, `docs/README.md`, `docs/core/hackathon-repo-conventions.md`, `docs/operations/agent-environment-and-guidance-audit-20260429.md`, `docs/decision-log.md`
@@ -11,7 +20,7 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 - Risk: low — prompt/docs only, no runtime/package/settings/vendor/submodule changes
 - Gates: diff-check ✅ typecheck ✅ build ✅
 - Result: moved `plan.prompt.md` from `.vscode/prompts/` to `.github/prompts/`, rewrote it as a concise planning-only prompt that defers to canonical repo instructions, surfaced `.github/prompts/` in the live orientation docs, and stopped treating `.vscode/prompts/` as a shared repo prompt surface.
-- Follow-ups: refresh or relocate `.github/prompts/vibe-bootstrap.prompt.md`, which still references scaffold-era files that do not exist in this repo; keep local VS Code/tooling review separate.
+- Follow-ups: stale bootstrap-prompt handling now lives in the later retirement pass; keep local VS Code/tooling review separate.
 
 ## 2026-04-29 – Archive stale authority docs
 - Goal: Reduce agent and maintainer context noise by moving high-confidence stale March-era and superseded docs out of the live authority chain while keeping historical evidence and current runbooks easy to find.
