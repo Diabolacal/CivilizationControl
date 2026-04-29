@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Record world v2 production smoke success
+- Goal: Record the operator-confirmed manual production smoke result after the World v2 runtime cutover without changing runtime code, package IDs, sponsor policy, or deploy state.
+- Files: `docs/operations/world-v2-runtime-preview-validation-20260429.md`, `docs/operations/world-v2-runtime-migration-plan-20260429.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
+- Diff: targeted documentation update only
+- Risk: low — documentation only, no runtime/package/sponsor/deploy changes
+- Gates: operator production smoke ✅ digest unavailable-but-not-invented ✅
+- Result: recorded that a wallet-driven production transaction succeeded after the World v2 frontend cutover, sponsor wallet payment was observed, fallback-to-player-paid was not observed, no digest was provided so none is recorded, and the temporary old World runtime allowlist remains in place during soak.
+- Follow-ups: after soak, remove the temporary old World runtime allowlist only after confirming no live frontend bundle still targets it; capture a future digest if one becomes available.
+
 ## 2026-04-29 – Record world v2 production cutover
 - Goal: Merge the validated World v2 runtime branch into `master`, push `origin/master`, deploy the production frontend with the repo-owned sponsor worker URL explicitly overridden at build time, and record bundle/CORS proof without performing a live wallet transaction from the agent.
 - Files: `docs/operations/world-v2-runtime-preview-validation-20260429.md`, `docs/operations/world-v2-runtime-migration-plan-20260429.md`, `docs/operations/mvr-world-package-audit-20260429.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`

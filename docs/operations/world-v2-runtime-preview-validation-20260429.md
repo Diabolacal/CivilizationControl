@@ -140,7 +140,8 @@ Operational state after cutover:
 - production frontend now targets the World v2 runtime bundle
 - `WORLD_ORIGINAL_PACKAGE_ID` remains unchanged
 - the sponsor worker still allows both old and new world runtime packages during soak
-- production manual wallet smoke is still pending in this transcript
+- production manual wallet smoke is now operator-confirmed: a wallet-driven production transaction succeeded, sponsor wallet payment was observed, fallback-to-player-paid was not observed, and no digest was provided so none is recorded here
+- recommended later cleanup: remove the temporary old World runtime allowlist only after soak and after confirming no live frontend bundle still targets it
 
 ## Rollback
 
@@ -161,6 +162,6 @@ If worker behavior itself regresses for existing runtime traffic:
 
 ## Open risks
 
-- production manual wallet smoke is still pending, so the agent has not independently observed the live post-cutover transaction path
+- transcript-grade digest evidence for the manual production smoke is still unavailable, so future claims should continue to avoid inventing one
 - Recent Signals and explicit raw-event parity were not manually re-verified after the production cutover in this transcript
 - the local untracked `.env` remains stale for preview builds; future preview or production builds should not rely on it implicitly until it is corrected out of band

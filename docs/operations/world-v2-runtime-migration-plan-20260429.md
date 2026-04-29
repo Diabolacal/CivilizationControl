@@ -4,7 +4,7 @@
 
 World v2 is the newer Stillness/Testnet runtime publish of the external EVE Frontier World package. That runtime migration is now implemented: production frontend targets World v2 runtime `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780`, `WORLD_ORIGINAL_PACKAGE_ID` remains anchored to `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`, and the shared sponsor worker temporarily allows both world runtime packages during soak.
 
-This document remains active as the planning record that led to that cutover. Use it for the reasoning behind the runtime/original split, sponsorship sequencing, and rollback constraints. Use `docs/operations/world-v2-runtime-preview-validation-20260429.md` for preview evidence, production deploy evidence, and the remaining manual smoke gap.
+This document remains active as the planning record that led to that cutover. Use it for the reasoning behind the runtime/original split, sponsorship sequencing, and rollback constraints. Use `docs/operations/world-v2-runtime-preview-validation-20260429.md` for preview evidence, production deploy evidence, and the recorded manual production smoke result.
 
 ## 2. Current state
 
@@ -21,7 +21,7 @@ This document remains active as the planning record that led to that cutover. Us
 | Current Sui active env | `testnet_stillness` | `sui client active-env` returned this successfully |
 | Strict-mode status | passing | `world:mvr:strict` now passes on `master` after runtime and sponsor surfaces aligned |
 
-Preview and production cutover are complete. Production manual wallet smoke is still pending.
+Preview and production cutover are complete. Production manual wallet smoke is now operator-confirmed, no digest was provided so none is recorded, and the temporary old-runtime sponsor allowlist should remain until soak ends and no live frontend bundle still targets it.
 
 ## 3. Why this migration matters
 
