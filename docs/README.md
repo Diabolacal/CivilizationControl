@@ -187,6 +187,7 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 |------|---------|
 | [AGENTS.md](../AGENTS.md) | Agent context — auto-loaded by VS Code |
 | [.github/copilot-instructions.md](../.github/copilot-instructions.md) | Authoritative guardrails and patterns |
+| [.github/prompts/](../.github/prompts/) | Shared reusable prompt files for planning, rehydration, and other repo chat workflows |
 | [GITHUB-COPILOT.md](../GITHUB-COPILOT.md) | Copilot-specific playbook |
 | [llms.txt](../llms.txt) | AI-readable documentation pointer |
 | [templates/cloudflare/](../templates/cloudflare/) | Cloudflare Pages/Workers config templates |

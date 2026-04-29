@@ -20,6 +20,7 @@ This file is orientation only. It does not override the canonical instruction fi
 ## Check Before You Change Anything
 
 - Read `.github/copilot-instructions.md` first.
+- Shared reusable prompt files live under `.github/prompts/`.
 - Skim `docs/decision-log.md` for the newest operational truth.
 - Read `docs/operations/sponsor-worker-runbook.md` before sponsorship changes.
 - Read `docs/operations/shared-backend-assembly-enrichment-20260429.md` before EF-Map/shared-backend changes.

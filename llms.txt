@@ -14,6 +14,7 @@ Important notes:
 
 - [Repo-wide instructions](.github/copilot-instructions.md): canonical working rules and deploy/validation policy.
 - [Agent quick context](AGENTS.md): short pointer surface for local agents.
+- [Workspace prompts](.github/prompts/): shared reusable prompt files for planning and context recovery.
 - [Documentation index](docs/README.md): canonical docs map.
 - [LLM reference guide](docs/llm-reference-guide.md): deep current-state briefing for fresh sessions.
 - [Decision log](docs/decision-log.md): newest-first operational truth.

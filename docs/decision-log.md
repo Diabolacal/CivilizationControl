@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Standardize prompt path guidance
+- Goal: Make the reusable repo prompt surface easier to find by moving the hidden local planning prompt into the shared `.github/prompts/` path and updating the live guidance that points people at prompt files.
+- Files: `.github/prompts/plan.prompt.md`, `AGENTS.md`, `GITHUB-COPILOT.md`, `llms.txt`, `docs/README.md`, `docs/core/hackathon-repo-conventions.md`, `docs/operations/agent-environment-and-guidance-audit-20260429.md`, `docs/decision-log.md`
+- Diff: docs and prompt-surface cleanup only
+- Risk: low — prompt/docs only, no runtime/package/settings/vendor/submodule changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: moved `plan.prompt.md` from `.vscode/prompts/` to `.github/prompts/`, rewrote it as a concise planning-only prompt that defers to canonical repo instructions, surfaced `.github/prompts/` in the live orientation docs, and stopped treating `.vscode/prompts/` as a shared repo prompt surface.
+- Follow-ups: refresh or relocate `.github/prompts/vibe-bootstrap.prompt.md`, which still references scaffold-era files that do not exist in this repo; keep local VS Code/tooling review separate.
+
 ## 2026-04-29 – Archive stale authority docs
 - Goal: Reduce agent and maintainer context noise by moving high-confidence stale March-era and superseded docs out of the live authority chain while keeping historical evidence and current runbooks easy to find.
 - Files: `README.md`, `docs/README.md`, `docs/core/spec.md`, `docs/core/validation.md`, `docs/llm-reference-guide.md`, `docs/analysis/assumption-registry-and-demo-fragility-audit.md`, `docs/architecture/read-provider-abstraction.md`, `docs/architecture/sui-playground-capabilities.md`, `docs/ux/civilizationcontrol-ux-architecture-spec.md`, `docs/ptb/README.md`, `docs/ptb/ptb-patterns.md`, `docs/strategy/civilization-control/civilizationcontrol-strategy-memo.md`, `docs/core/hackathon-repo-conventions.md`, `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`, `docs/operations/submodule-refresh-prompt.md`, `docs/operations/mvr-world-package-audit-20260429.md`, `docs/operations/agent-environment-and-guidance-audit-20260429.md`, `docs/operations/stale-docs-archive-20260429.md`, `docs/archive/hackathon-2026/core/march-11-reimplementation-checklist.md`, `docs/archive/hackathon-2026/core/day1-checklist.md`, `docs/archive/hackathon-2026/core/CARRY_FORWARD_INDEX.md`, `docs/archive/hackathon-2026/core/civilizationcontrol-implementation-plan.md`, `docs/archive/hackathon-2026/analysis/must-work-claim-registry.md`, `docs/archive/hackathon-2026/operations/migrate-to-stillness.md`, `docs/archive/hackathon-2026/operations/efmap-indexer-awareness-20260428.md`, `docs/archive/hackathon-2026/operations/post-hackathon-repo-readiness-audit.md`, `docs/archive/hackathon-2026/operations/submodule-refresh-20260425.md`, `docs/archive/hackathon-2026/operations/documentation-consolidation-20260428.md`, `docs/decision-log.md`

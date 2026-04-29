@@ -48,6 +48,7 @@ Purpose: fast pointer surface for VS Code agents. If anything here conflicts wit
 
 - Prefer the smallest safe diff.
 - Use subagents by default for multi-file or research-heavy work.
+- Shared reusable prompt files live under `.github/prompts/`; do not rely on `.vscode/prompts/` as repo-canonical prompt storage.
 - Run the relevant gates yourself and summarize the results.
 - Keep feature branches short-lived and delete them after safe merge unless the operator asks to preserve them.
 - Prefer built-in browser tools over external browser MCP for routine web checks.

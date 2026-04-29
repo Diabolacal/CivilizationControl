@@ -76,7 +76,7 @@ Changes that need manual approval:
 | `templates/cloudflare/README.md` | Generic Pages/Workers template docs | Operator, deploy agent | Active but stale | Keep as template-only guidance; refresh stale `pages secret put --branch` and generic `API_TOKEN` wording. |
 | `.vscode/settings.json` | Workspace-level agent/tooling defaults | Agent, human operator | Active and useful | Keep, but fix the missing memory-guidelines reference and review Autopilot/maxRequests defaults. |
 | `.vscode/extensions.json` | Workspace recommendations and unwanted extensions | Human operator | Active and useful | Keep; current recommendations are narrow and sensible. |
-| `.vscode/prompts/plan.prompt.md` | Local planning prompt | Human operator, agent | Too hidden/not referenced enough | Either move to `.github/prompts/plan.prompt.md` or add an explicit prompt-path strategy later. |
+| `.github/prompts/plan.prompt.md` | Shared planning prompt | Human operator, agent | Active and useful | Keep in the shared workspace prompt path as the planning-only repo prompt. |
 | `.github/prompts/rehydrate.prompt.md` | Context-recovery prompt | Human operator, agent | Active and useful | Keep; small and purpose-specific. |
 | `.github/prompts/vibe-bootstrap.prompt.md` | Bootstrap/scaffold prompt | Human operator, agent | Active but stale | Refresh or relocate to a scaffold repo; current references imply missing files. |
 | `.github/skills/deploy/SKILL.md` | Deployment workflow skill | Agent | Active but stale | Refresh to repo-root deploy rules, `master`/Pages `main` mapping, and live preview practices. |
@@ -488,7 +488,7 @@ Recommendation:
 
 - Keep `workbench.browser.enableChatTools = true` and continue preferring built-in browser tools for routine checks.
 - Do not add a shared `.vscode/mcp.json` until a repeated workflow proves a real need.
-- Standardize prompt discovery later by moving `.vscode/prompts/plan.prompt.md` into `.github/prompts/plan.prompt.md` or by deliberately documenting a custom prompt-path strategy.
+- Prompt discovery is now standardized under `.github/prompts/`; `.vscode/prompts/` is no longer part of the repo-canonical prompt surface.
 - Review whether `chat.autopilot.enabled = true` and `chat.agent.maxRequests = 100` are worth the extra noise for this repo.
 - Keep the current workspace search/vendor exclusions and AGENTS/instruction discovery settings.
 
@@ -557,9 +557,36 @@ Intentionally not changed:
 
 Remaining follow-up tasks:
 - Refresh stale deploy skill content under `.github/skills/deploy/SKILL.md`.
-- Decide whether `.vscode/prompts/plan.prompt.md` should move into `.github/prompts/`.
+- Refresh or retire `.github/prompts/vibe-bootstrap.prompt.md`, which still points at missing scaffold-era files.
 - Decide whether template/docs secret wording should be tightened in a separate docs pass.
 - Run the later archive pass and local-tool cleanup as separate branches, not in this task.
+
+## Prompt Path Cleanup — Implemented
+
+Prompt files found before cleanup:
+- `.vscode/prompts/plan.prompt.md`
+- `.github/prompts/rehydrate.prompt.md`
+- `.github/prompts/vibe-bootstrap.prompt.md`
+
+Decision made:
+- Standardize shared repo prompts under `.github/prompts/`.
+- Move the hidden local planning prompt into `.github/prompts/plan.prompt.md`.
+- Rewrite the plan prompt as a planning-only reusable prompt that points back to canonical repo guidance instead of duplicating it.
+- Stop treating `.vscode/prompts/` as a shared repo prompt surface.
+
+Files changed:
+- `.github/prompts/plan.prompt.md`
+- `AGENTS.md`
+- `GITHUB-COPILOT.md`
+- `llms.txt`
+- `docs/README.md`
+- `docs/core/hackathon-repo-conventions.md`
+- `docs/operations/agent-environment-and-guidance-audit-20260429.md`
+- `docs/decision-log.md`
+
+What remains for later:
+- Refresh or relocate `.github/prompts/vibe-bootstrap.prompt.md`, which still assumes missing scaffold-era files.
+- Leave `.vscode/settings.json` unchanged unless a later local VS Code/tooling review decides the prompt recommendation behavior itself should change.
 
 ## Deploy and Secret Guidance Cleanup — Implemented
 
@@ -622,7 +649,7 @@ All web sources accessed on 2026-04-29.
 2. Do you want canonical design guidance as an agent-only instruction file, or also as a human-facing `docs/ux/` companion document?
 3. Do you want a dedicated `deployment.instructions.md`, or should deployment guidance stay only in the canonical repo-wide file plus runbooks?
 4. Do you want a dedicated `shared-backend.instructions.md`, or should those rules live only in `.github/copilot-instructions.md`?
-5. Do you want `.vscode/prompts/plan.prompt.md` standardized into `.github/prompts/`, or should it remain a local-only prompt surface?
+5. Do you want `.github/prompts/vibe-bootstrap.prompt.md` refreshed for this repo, or should it move into a separate scaffold/bootstrap repo later?
 6. Do you want to reduce workspace token/noise risk by adjusting Autopilot and/or `chat.agent.maxRequests`, or leave the current defaults alone?
 7. Do you want a separate cleanup task for duplicate global extensions, or should that stay outside this repo entirely?
 8. Do you want stale March-era core docs archived, or simply demoted from the authority chain and left in place for historical evidence?

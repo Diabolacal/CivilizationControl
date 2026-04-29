@@ -117,8 +117,7 @@ Trivial PRs (single-file doc fix): title-only is fine.
 ├── .vscode/
 │   ├── settings.json
 │   ├── extensions.json
-│   ├── tasks.json
-│   └── prompts/
+│   └── tasks.json
 ├── contracts/                 # Sui Move smart contracts
 │   ├── <package>/
 │   │   ├── Move.toml
@@ -154,7 +153,7 @@ Inclusion is governed by **retention metadata**, not by directory name. Every do
 **Include (Carry-forward):**
 - Any file tagged `**Retention:** Carry-forward` — regardless of its parent folder
 - AI orchestration infrastructure: `AGENTS.md`, `.github/copilot-instructions.md`, `.github/instructions/`, `.github/prompts/`, `.github/skills/`, `.github/security-guidelines.md`
-- Agent configuration: `.vscode/settings.json`, `.vscode/extensions.json`, `.vscode/tasks.json`, `.vscode/prompts/`
+- Agent configuration: `.vscode/settings.json`, `.vscode/extensions.json`, `.vscode/tasks.json`
 - LLM index: `llms.txt`, `GITHUB-COPILOT.md` (rewrite content for target project)
 - Assets: `assets/icons/` (entire tree)
 - Templates: `templates/cloudflare/`
@@ -532,7 +531,7 @@ The following files form the agent's development environment. They ship with the
 | `AGENTS.md` | Agent context, boundaries, guardrails — read on every session start |
 | `.github/copilot-instructions.md` | Repo-wide conventions, interaction protocol, quality gates |
 | `.github/instructions/*.instructions.md` | Language-specific coding conventions (auto-applied by path match) |
-| `.github/prompts/*.prompt.md` | Reusable chat prompts (context recovery, planning) |
+| `.github/prompts/*.prompt.md` | Canonical shared chat prompts (context recovery, planning, other reusable workflows) |
 | `.github/skills/*/SKILL.md` | Domain-specific playbooks (deploy, Docker ops) |
 | `.github/security-guidelines.md` | OWASP baseline, security rules |
 | `llms.txt` | LLM-readable project index |
