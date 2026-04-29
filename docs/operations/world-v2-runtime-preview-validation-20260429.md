@@ -88,18 +88,22 @@ Validated in `dist/assets/index-MUH2Qmi3.js` after the explicit preview rebuild:
 - `https://1fa70e47.civilizationcontrol.pages.dev`
 - `https://feat-world-v2-runtime-previe.civilizationcontrol.pages.dev`
 
-## Manual preview smoke checklist
+## Manual preview smoke status
 
-Not yet executed in this transcript. A real wallet session is still required.
+Preview smoke is now operator-confirmed.
 
-1. Open the unique preview URL and confirm the app shell loads without runtime errors.
-2. Connect an operator wallet that owns at least one gate or trade post and confirm structure discovery succeeds.
-3. Confirm no sponsor fallback warning appears in the browser console before testing a write.
-4. Run the lowest-risk sponsored world-touching write: Gate or TradePost `Set On-Chain` metadata URL update.
-5. Capture the digest and verify sponsor-paid gas rather than player-paid fallback.
-6. Confirm the worker logs show sponsor approval for the same request or digest.
-7. Perform one safe power or posture action on preview and confirm Recent Signals updates within the expected polling window.
-8. Compare the resulting digest's raw events with the Signal Feed row so runtime/emitter queries and original/type-origin parsing still agree.
+- the user manually tested the preview deployment with a real wallet
+- the preview app loaded and the wallet-driven action succeeded
+- sponsor wallet payment was observed for the transaction
+- fallback-to-player-paid was not observed by the user
+- no transaction digest was captured in this transcript or current local docs, so none is recorded here
+- production frontend had not yet been deployed at the time of the preview smoke
+
+Remaining recommended evidence, still not captured in this transcript:
+
+1. retain a future digest when available
+2. confirm worker log correlation for the same request or digest
+3. perform one explicit Recent Signals or raw-event parity check on the same preview runtime path
 
 ## Rollback
 

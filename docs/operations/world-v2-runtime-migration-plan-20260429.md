@@ -131,6 +131,7 @@ Strongest sponsor-gas proof is a preview transaction from a wallet that cannot s
 - Shared object IDs such as `GATE_CONFIG_ID` and `ENERGY_CONFIG_ID` are internally consistent across repo surfaces today, but there is no read-only proof yet that they remain correct after a runtime-only World v2 cutover.
 - There is no read-only evidence that the older runtime package has stopped working. Current evidence frames the migration as coordinated alignment and future-proofing work rather than a proven live break.
 - The main unresolved question is live event/query semantics for world `MoveModule` polling after a package upgrade. The code model is plausible, but preview proof is still required.
+- A later operator-driven preview smoke on `feat/world-v2-runtime-preview` succeeded with a real wallet-driven action and sponsor wallet payment observed, but no digest was captured in current local docs or transcript.
 
 ## 9. Preview smoke test plan
 
@@ -207,4 +208,4 @@ Justification:
 - the material uncertainty is not module names; it is live event/query behavior plus sponsorship proof after the runtime package changes
 - preview can answer those uncertainties safely without changing `WORLD_ORIGINAL_PACKAGE_ID`, production sponsor policy, or production Pages immediately
 
-If preview proof is clean, then a dedicated implementation branch can proceed with the explicit World v2 runtime cutover. If preview proof is not clean, defer production migration and keep the repo on the current runtime package until the blocking evidence is resolved.
+Preview proof is now clean enough to justify merge and explicit production frontend cutover, but production deployment still has to happen separately because this repo uses manual Cloudflare Pages deployment. If later production or event/query proof is not clean, defer further rollout work and keep rollback ready while the shared worker overlap preserves old-runtime sponsorship during soak.

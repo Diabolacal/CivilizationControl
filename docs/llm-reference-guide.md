@@ -253,7 +253,7 @@ Current environment and IDs:
 - `WORLD_PACKAGE_ID` remains only as a compatibility alias to `WORLD_RUNTIME_PACKAGE_ID`; new code should choose runtime versus original explicitly.
 - Future agents must not blindly replace world runtime/original constants, sponsor allowlists, or Move dependencies with `@evefrontier/world` / `0xd2fd...`. Follow the phased strategy in `docs/operations/mvr-world-package-audit-20260429.md` instead.
 - Future agents must change runtime targets and original/type-origin surfaces separately. Runtime entrypoints and sponsor allowlists follow `WORLD_RUNTIME_PACKAGE_ID`; type strings, exact event types, `StructType` filters, and deterministic type tags follow `WORLD_ORIGINAL_PACKAGE_ID`.
-- Production cutover still has not happened in this branch. The current state is preview-only: `npm run world:mvr:strict` now passes locally, the shared worker overlap keeps old-runtime sponsorship available, and manual preview sponsorship plus signal/event proof is still required before any production deployment.
+- Production cutover still has not happened in this branch. The current state is preview-only: `npm run world:mvr:strict` now passes locally, the shared worker overlap keeps old-runtime sponsorship available, and operator-confirmed preview smoke now exists for one real wallet-driven action with sponsor wallet payment observed. No digest was captured in current local docs or transcript, and production manual smoke is still pending.
 - Current `CC_PACKAGE_ID`: `0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021`.
 - Current `CC_ORIGINAL_PACKAGE_ID`: same as `CC_PACKAGE_ID` because Stillness is a fresh v1 publish.
 - Current shared `GATE_CONFIG_ID`: `0xad76aec886fb85d8e0daad5e375b110cdadd48a8b3439ff76e9601ae39ebe08e`.

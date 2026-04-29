@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Record world v2 preview smoke success
+- Goal: Record the operator-confirmed preview smoke result for the World v2 runtime experiment before merge and production frontend cutover.
+- Files: `docs/operations/world-v2-runtime-preview-validation-20260429.md`, `docs/operations/world-v2-runtime-migration-plan-20260429.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
+- Diff: targeted documentation update only
+- Risk: low — documentation only, no runtime, sponsor policy, worker config, Move dependency, vendor, or deploy changes
+- Gates: operator preview smoke ✅ digest unavailable-but-not-invented ✅
+- Result: recorded that the preview deployment was manually tested with a real wallet, the wallet-driven action succeeded, sponsor wallet payment was observed, fallback-to-player-paid was not observed, no digest was captured in current local docs or transcript, and production frontend had not yet been deployed at the time of smoke.
+- Follow-ups: validate the branch, merge to `master`, deploy the production frontend with explicit `VITE_SPONSOR_URL`, verify the served bundle, and then capture a later production manual smoke separately.
+
 ## 2026-04-29 – Run world v2 runtime preview experiment
 - Goal: Implement the preview-only World v2 runtime migration experiment on `feat/world-v2-runtime-preview`, keep original/type-origin handling pinned to the old Stillness lineage, preserve old-runtime sponsorship compatibility on the shared worker, deploy preview only, and stop before any production cutover.
 - Files: `src/constants.ts`, `config/chain/stillness.ts`, `config/sponsorship/civilizationControlPolicy.ts`, `workers/sponsor-service/wrangler.toml`, `workers/sponsor-service/src/__tests__/validation.test.ts`, `scripts/validate-sponsor-policy.mjs`, `scripts/check-world-mvr-drift.mjs`, `docs/operations/world-v2-runtime-preview-validation-20260429.md`, `docs/operations/sponsor-worker-runbook.md`, `docs/README.md`, `docs/decision-log.md`
