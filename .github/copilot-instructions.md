@@ -46,7 +46,7 @@ These rules have the highest precedence. `AGENTS.md` mirrors them in shortened f
 - **Squash merge all feature branches to `master`.** One clean commit per feature. PR title = commit message.
 - **Commit message format:** `type: Imperative description` (≤72 chars). Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `test`.
 - **`master` must always be demo-ready.** Never merge broken code.
-- **Spike branches (`spike/`):** throwaway experiments — never merge to main.
+- **Spike branches (`spike/`):** throwaway experiments — never merge to master.
 - **PRs even when solo:** judges browse merged PRs. Minimal body: What / Why / Verified.
 - **Never force-push to `master`.** Linear, append-only history.
 - **Delete feature branches after safe merge** unless the operator explicitly wants to preserve them.

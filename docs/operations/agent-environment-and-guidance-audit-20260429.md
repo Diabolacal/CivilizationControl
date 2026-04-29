@@ -561,6 +561,42 @@ Remaining follow-up tasks:
 - Decide whether template/docs secret wording should be tightened in a separate docs pass.
 - Run the later archive pass and local-tool cleanup as separate branches, not in this task.
 
+## Deploy and Secret Guidance Cleanup — Implemented
+
+Files changed:
+- `.github/skills/deploy/SKILL.md`
+- `.github/skills/docker-ops/SKILL.md`
+- `.github/instructions/deployment.instructions.md`
+- `.github/copilot-instructions.md`
+- `templates/cloudflare/README.md`
+- `.env.example`
+- `docs/operations/agent-environment-and-guidance-audit-20260429.md`
+- `docs/decision-log.md`
+
+Cloudflare docs checked on 2026-04-29:
+- Wrangler Pages commands: `pages deploy` and `pages secret put`
+- Pages Direct Upload
+- Pages branch deployment controls
+- Pages preview deployments
+- Pages Functions Wrangler configuration
+- Workers environment variables and secrets
+
+What changed:
+- Refreshed the repo-local deploy skill with CivilizationControl-specific repo-root, preview, approval, and explicit-public-env rules.
+- Tightened the generic Cloudflare template wording to separate public build vars, project secrets, and local CLI credentials.
+- Removed the stale implication that `wrangler pages secret put` supports a `--branch` flag in this template guidance.
+- Tightened `.env.example` intro wording so it clearly documents public frontend overrides only.
+- Added a minimal non-authoritative warning to the generic Docker skill instead of inventing repo-specific Docker workflows.
+- Corrected the one stale `main` reference in `.github/copilot-instructions.md` so the git-branch wording is internally consistent.
+
+Docker skill status:
+- Updated lightly, not fully rewritten.
+- It now warns that it is generic and non-authoritative unless a task explicitly involves Docker, containers, or VPS operations.
+
+Remaining for later:
+- Decide whether `templates/cloudflare/env.example` should get the same explicit public-versus-secret boundary wording in a later template pass.
+- Refresh any stale deploy framing in `README.md` and `docs/llm-reference-guide.md` during a broader docs/archive cleanup, not in this targeted task.
+
 ## 13. Sources and web references
 
 All web sources accessed on 2026-04-29.

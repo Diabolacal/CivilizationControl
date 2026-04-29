@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Clarify deploy and secret guidance
+- Goal: Refresh repo-local deploy guidance, Cloudflare template wording, and secret-handling instructions so future agents distinguish public `VITE_*` config from Wrangler or Worker secrets without changing runtime code, deploy state, settings, or vendor state.
+- Files: `.github/skills/deploy/SKILL.md`, `.github/skills/docker-ops/SKILL.md`, `.github/instructions/deployment.instructions.md`, `.github/copilot-instructions.md`, `templates/cloudflare/README.md`, `.env.example`, `docs/operations/agent-environment-and-guidance-audit-20260429.md`, `docs/decision-log.md`
+- Diff: docs and instructions only
+- Risk: low — wording and template guidance only, no runtime/package/deploy/settings/vendor changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: aligned the deploy skill with repo-root preview and production rules, clarified that `VITE_*` values are public browser config, tightened the Cloudflare template so `pages secret put` is documented without a stale `--branch` flag, added a small non-authoritative disclaimer to the generic Docker skill, recorded the Cloudflare docs recheck in the audit trail, and kept the existing large-chunk frontend build warning as unchanged non-blocking build output.
+- Follow-ups: later decide whether to refresh `templates/cloudflare/env.example`, `README.md`, and `docs/llm-reference-guide.md` in a broader docs cleanup pass.
+
 ## 2026-04-29 – Refresh repo-local agent guidance instructions
 - Goal: Refresh the repo-local instruction layer so future VS Code/Copilot agents start from current project truth and clearer guardrails without changing runtime code, settings, tooling, vendor state, or deploy state.
 - Files: `AGENTS.md`, `GITHUB-COPILOT.md`, `llms.txt`, `.github/copilot-instructions.md`, `.github/instructions/design.instructions.md`, `.github/instructions/deployment.instructions.md`, `.github/instructions/shared-backend.instructions.md`, `.github/instructions/move.instructions.md`, `.github/instructions/typescript-react.instructions.md`, `docs/operations/agent-environment-and-guidance-audit-20260429.md`, `docs/decision-log.md`

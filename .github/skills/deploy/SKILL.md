@@ -1,64 +1,54 @@
 # Deploy Skill
 
-This skill handles deployments for the project.
+Purpose: operational guidance for CivilizationControl preview and production deploy tasks.
 
 ## When to use this skill
 
-- Deploying feature branches to preview environments
-- Deploying production builds from the main branch
-- Verifying deployment status and URLs
-- Troubleshooting deployment or cache issues
+- Deploying a feature branch to a Cloudflare Pages preview
+- Performing a production deploy after merge and explicit operator approval
+- Verifying the served bundle and preview or production URLs
+- Troubleshooting stale deploy output, cache, or wrong public endpoint embedding
 
-## Critical Rules
+## CivilizationControl Rules
 
-### Always deploy from the correct directory
+- Run Pages deploys from the repo root, not a frontend subdirectory, unless a repo doc explicitly says otherwise.
+- Prefer `npx wrangler` or the project-local Wrangler when available.
+- Feature branches deploy only to preview URLs.
+- Production deploys require explicit user approval and remain a separate action after merge to git `master`.
+- Git workflow centers on `master`, but Cloudflare Pages production deploys use `--branch main`.
+- Do not trust ambient local `.env` when sponsor or shared-backend endpoints matter.
+- Use explicit public deploy-time overrides when endpoint targets matter:
+	- `VITE_SPONSOR_URL=https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`
+	- `VITE_SHARED_BACKEND_URL=https://ef-map.com`
+	- `VITE_SPONSOR_API_KEY=` unless explicitly required
+- `VITE_*` values are browser-visible. Never place private keys, bearer tokens, database URLs, Cloudflare API tokens, or worker secrets in `VITE_*` values.
+- Enter runtime secrets only through interactive Wrangler secret prompts or the Cloudflare dashboard. Never paste secret values into chat, docs, logs, screenshots, or checked-in files.
+- Validate the served bundle after deploy. Check the unique preview URL before any alias when possible.
+- Record deploy evidence in the relevant operations doc and add a newest-first entry to `docs/decision-log.md`.
 
-> **Note:** This sandbox workspace has no deployed frontend. Deploy skills apply after March 11 in hackathon submission repos.
+## Standard Flow
 
-```bash
-cd <frontend-dir>
-npm run build
-<deploy-command> --branch <branch-name>
-```
+### Preview deploys
 
-### Feature branches use preview deploys
+- Build and deploy from the repo root.
+- Use `wrangler pages deploy ... --branch <feature-branch>` for preview routing.
+- Report the unique preview URL and verify the live served bundle from that host.
 
-```bash
-# For feature branches (creates preview deployment)
-<deploy-command> --branch feature/my-branch
+### Production deploys
 
-# ALWAYS report the preview URL to the user for testing
-# Do NOT rely on alias URLs if they may have stale cache
-```
+- Only after merge to `master` and explicit operator approval.
+- Deploy from the repo root with `--branch main`.
+- Verify the served bundle and public origins after deploy.
 
-### Production deploys only from main
+## Validation reminders
 
-```bash
-# Only after merge to main AND explicit approval
-git checkout main
-cd <frontend-dir> && npm run build
-<deploy-command> --branch main
-```
-
-### Verification steps
-
-After any deployment:
-1. Run deployment list command to confirm successful deploy
-2. Test a critical endpoint on the preview URL
-3. Verify expected content is returned (not an HTML fallback)
-
-## Common issues
-
-### Cache issues
-
-Deployment alias URLs may serve stale cached content from previous deployments. Always test on the **random/unique preview URL** first.
-
-### Missing bindings
-
-If API routes return errors, verify bindings in the project configuration match the correct resource IDs.
+- Confirm the expected sponsor URL is present.
+- Confirm the expected shared-backend URL is present when used.
+- Confirm stale `flappy-frontier-sponsor` is absent.
+- Confirm browser-visible assets do not expose `ASSEMBLY_API_TOKEN`, private keys, or other runtime secrets.
 
 ## Related files
 
-- Project deployment configuration (e.g., `wrangler.json`, `vercel.json`, `netlify.toml`)
-- Worker / API entry point
+- `.github/instructions/deployment.instructions.md`
+- `templates/cloudflare/README.md`
 - `docs/decision-log.md`

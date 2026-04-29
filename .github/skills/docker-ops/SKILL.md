@@ -2,6 +2,8 @@
 
 This skill covers SSH-based or local Docker container management for the project.
 
+> CivilizationControl note: this file is generic and non-authoritative unless the task explicitly involves Docker, container, or VPS operations. Prefer repo-specific operations docs over inventing Docker workflows for normal frontend, Move, Pages, or sponsor-worker tasks.
+
 ## When to use this skill
 
 - Checking container status and logs

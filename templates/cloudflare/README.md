@@ -2,6 +2,8 @@
 
 This folder contains example configuration files for deploying a project with Cloudflare Pages and Workers.
 
+Use project-local `npx wrangler` when available. Treat this file as generic template guidance, then apply your repo-specific deploy rules on top.
+
 ## Quick Start
 
 1. **Copy template files** to your project root or frontend directory:
@@ -16,20 +18,21 @@ This folder contains example configuration files for deploying a project with Cl
    - `{{COMPATIBILITY_DATE}}` → today's date (e.g., `2026-02-14`)
    - Remove any binding sections you don't need (R2, Durable Objects, etc.)
 
-3. **Set secrets** (never commit these):
+3. **Set runtime secrets** (never commit these):
    ```bash
-   wrangler pages secret put API_TOKEN --project-name my-project
+   npx wrangler pages secret put SERVICE_API_KEY --project-name my-project
    ```
+   Enter secret values only through the interactive prompt or Cloudflare dashboard. Do not put secret values in tracked files, terminal transcripts, screenshots, or chat.
 
 4. **Deploy**:
    ```bash
    # Preview deploy (feature branches)
    npm run build
-   wrangler pages deploy dist --project-name my-project --branch feature/my-branch
+   npx wrangler pages deploy dist --project-name my-project --branch feature/my-branch
 
-   # Production deploy (main branch only)
+   # Production deploy (use your configured production branch)
    npm run build
-   wrangler pages deploy dist --project-name my-project --branch main
+   npx wrangler pages deploy dist --project-name my-project --branch main
    ```
 
 ## Key Concepts
@@ -49,49 +52,54 @@ This folder contains example configuration files for deploying a project with Cl
 - Projects linked to GitHub auto-deploy on push to configured branches
 - When using CLI-created projects: **you must run `wrangler pages deploy` manually after each push**
 
+### Public build vars vs secrets
+- `VITE_*` and other frontend build variables are browser-visible configuration.
+- Keep public build vars separate from runtime secrets and local CLI credentials.
+- Put local CLI auth such as `CF_API_TOKEN` and `CLOUDFLARE_ACCOUNT_ID` only in untracked local env files or shell state.
+- Put runtime secrets in Wrangler or Cloudflare secret storage, never in frontend code or `VITE_*` variables.
+
 ### KV Namespaces
 ```bash
 # Create a namespace
-wrangler kv namespace create MY_NAMESPACE
+npx wrangler kv namespace create MY_NAMESPACE
 
 # List keys
-wrangler kv key list --namespace-id <id>
+npx wrangler kv key list --namespace-id <id>
 
 # Read/write
-wrangler kv key get <key> --namespace-id <id>
-wrangler kv key put <key> <value> --namespace-id <id>
+npx wrangler kv key get <key> --namespace-id <id>
+npx wrangler kv key put <key> <value> --namespace-id <id>
 ```
 
 ### Secrets Management
 ```bash
-# Set secret for all environments
-wrangler pages secret put SECRET_NAME --project-name my-project
-
-# Set secret for specific branch (preview env)
-wrangler pages secret put SECRET_NAME --project-name my-project --branch feature/xyz
+# Set a Pages project secret
+npx wrangler pages secret put WORKER_SERVICE_TOKEN --project-name my-project
 ```
+
+As of 2026-04-29, Cloudflare's official `wrangler pages secret put` reference documents a project-level command with `--project-name`; it does not document a `--branch` flag for this command. Treat Pages deploy routing as branch-driven and secret storage as project or environment driven.
 
 ## Common Wrangler Commands
 
 ```bash
 # Authentication
-wrangler login
-wrangler whoami
+npx wrangler login
+npx wrangler whoami
 
 # Deployments
-wrangler pages deployment list --project-name my-project
-wrangler pages deploy dist --project-name my-project --branch <branch>
+npx wrangler pages deployment list --project-name my-project
+npx wrangler pages deploy dist --project-name my-project --branch <branch>
 
 # KV inspection
-wrangler kv namespace list
-wrangler kv key list --namespace-id <id>
-wrangler kv key get <key> --namespace-id <id>
+npx wrangler kv namespace list
+npx wrangler kv key list --namespace-id <id>
+npx wrangler kv key get <key> --namespace-id <id>
 
 # Version check
-wrangler --version
+npx wrangler --version
 ```
 
 ## Related Files
 - `wrangler.example.jsonc` — Annotated Wrangler configuration template
-- `env.example` — Environment variable placeholders
+- `env.example` — Local CLI credentials and placeholder examples only; do not treat it as a frontend secret store
 - See project `AGENTS.md` and `.github/copilot-instructions.md` for deployment protocols
