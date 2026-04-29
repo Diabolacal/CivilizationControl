@@ -105,3 +105,149 @@ Reasonable future additive slices:
 - timeout is bounded per request chunk
 - no browser Authorization header or EF-Map internal secret is used
 - direct-chain fallback remains available even when the shared backend is unavailable
+
+## Diff audit
+
+Branch diff against `master`: `16` files.
+
+Classification:
+
+- shared-backend client
+	- `src/lib/assemblySummaryClient.ts`
+- assembly ID extraction
+	- `src/lib/suiReader.ts`
+	- `src/types/domain.ts`
+- enrichment hook and integration
+	- `src/hooks/useAssemblySummaryEnrichment.ts`
+	- `src/hooks/useAssetDiscovery.ts`
+	- `src/lib/assemblyEnrichment.ts`
+- UI fallback usage
+	- `src/components/StructureDetailHeader.tsx`
+	- `src/screens/GateListScreen.tsx`
+	- `src/screens/NetworkNodeListScreen.tsx`
+	- `src/screens/TradePostListScreen.tsx`
+	- `src/screens/TurretListScreen.tsx`
+- docs
+	- `docs/README.md`
+	- `docs/decision-log.md`
+	- `docs/llm-reference-guide.md`
+	- `docs/operations/shared-backend-assembly-enrichment-20260429.md`
+- public env typing
+	- `src/vite-env.d.ts`
+- tests/scripts
+	- none
+- unexpected
+	- none in the feature diff
+
+Explicit confirmations from this audit:
+
+- no sponsor worker source changed
+- no sponsor allowlist or worker policy file changed
+- no package ID file changed
+- no Move source or Move manifest file changed
+- no transaction builder or write-path file changed
+- no EF-Map token or API key was added
+- no `ASSEMBLY_API_TOKEN` appears in frontend code
+
+## Hardening and preview revalidation
+
+### Unrelated dirt left untouched
+
+The only unrelated dirt found during this pass remained inside the `vendor/world-contracts` submodule:
+
+- file: `vendor/world-contracts/contracts/world/Move.lock`
+- shape: line-ending and path-quote churn only
+- example: `subdir = "crates/sui-framework/packages/..."` rewritten locally as single-quoted backslash paths
+
+This dirt was not staged, not committed, and not included in the feature branch work.
+
+### Preview sponsor mismatch root cause
+
+The first preview revalidation found that the branch alias was still serving a stale bundle:
+
+- stale alias asset: `index-COLKeVim.js`
+- stale sponsor reference present: `https://flappy-frontier-sponsor.michael-davis-home.workers.dev`
+- shared-backend reference already correct: `https://ef-map.com`
+
+Root cause was not this branch's code diff. The local untracked `.env` on the machine running the build still contained:
+
+- `VITE_SPONSOR_URL=https://flappy-frontier-sponsor.michael-davis-home.workers.dev`
+
+That means a plain local `npm run build` can still produce a stale sponsor target unless the public build vars are overridden explicitly.
+
+### Corrected preview redeploy
+
+The preview was rebuilt and redeployed with explicit public overrides only:
+
+- `VITE_SPONSOR_URL=https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`
+- `VITE_SHARED_BACKEND_URL=https://ef-map.com`
+- `VITE_SPONSOR_API_KEY=` (blank)
+
+No production deploy was performed.
+
+Corrected preview evidence:
+
+- unique preview URL: `https://e9308288.civilizationcontrol.pages.dev`
+- branch alias URL: `https://feat-shared-backend-assembly.civilizationcontrol.pages.dev`
+- corrected served asset: `index-CGzlLlzq.js`
+
+Bundle proof after redeploy:
+
+- unique preview serves `index-CGzlLlzq.js`
+- branch alias also serves `index-CGzlLlzq.js`
+- `civilizationcontrol-sponsor` is present in the served asset
+- `flappy-frontier-sponsor` is absent in the served asset
+- `https://ef-map.com` is present in the served asset
+- `VITE_SHARED_BACKEND_URL` is the only shared-backend override symbol embedded
+- `ASSEMBLY_API_TOKEN` is absent from the served asset
+- no EF-Map bearer token, `Authorization` header string, or `X-API-Key` path was found in the shared-backend client path or the served preview bundle
+
+### Browser-origin endpoint proof
+
+Browser-origin validation was performed from the corrected unique preview host.
+
+Observed request target:
+
+- `https://ef-map.com/api/civilization-control/assemblies?ids=1000000015746`
+
+Observed result:
+
+- HTTP `200`
+- response body envelope shape was valid
+- payload returned `assemblies: []`, `missingIds: ["1000000015746"]`, and `source: "shared-frontier-backend"`
+
+Observed request headers:
+
+- `Origin: https://e9308288.civilizationcontrol.pages.dev`
+- `Referer: https://e9308288.civilizationcontrol.pages.dev/`
+- no `Authorization`
+- no `Bearer`
+- no `X-API-Key`
+
+This is the correct browser validation surface for the integration. A raw Node-side fetch can return `403` for this route even while the browser-origin path is healthy.
+
+### Why UI change may be minimal
+
+Minimal visible change is correct for this slice.
+
+The current implementation only uses shared-backend data for:
+
+- replacing synthetic fallback names when the direct-chain name is still type + short object ID
+- resolving a solar-system label when no manual spatial pin exists
+
+If a wallet's discovered structures already have meaningful on-chain names or manual pin assignments, the operator may see little or no visible UI change even when enrichment is working correctly.
+
+### Manual wallet-connected validation steps
+
+If a final human smoke is needed with a real wallet and owned structures:
+
+1. Open `https://e9308288.civilizationcontrol.pages.dev`
+2. Connect the wallet that owns structures
+3. Open DevTools Network
+4. Filter for `civilization-control/assemblies`
+5. Refresh or trigger structure discovery
+6. Confirm the request goes to `https://ef-map.com/api/civilization-control/assemblies?...`
+7. Confirm status `200`
+8. Confirm the response is a normal envelope with `assemblies` and `missingIds`
+9. Confirm request headers do not include `Authorization` or `X-API-Key`
+10. If a sponsored transaction is tested, confirm the request goes to `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev/sponsor`, not `flappy-frontier-sponsor`

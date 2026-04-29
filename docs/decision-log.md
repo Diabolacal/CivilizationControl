@@ -4,14 +4,23 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Revalidate shared-backend enrichment preview build
+- Goal: Harden the `feat/shared-backend-assembly-enrichment` preview, confirm the shared-backend browser request path, and correct any stale sponsor URL embedded in the preview bundle without touching production, sponsor worker code, allowlists, package IDs, or Move contracts.
+- Files: `docs/operations/shared-backend-assembly-enrichment-20260429.md`, `docs/decision-log.md`
+- Diff: docs-only validation evidence plus preview redeploy record
+- Risk: low — preview-only Pages redeploy and docs update, no code, worker policy, package, vendor, or production changes
+- Gates: typecheck ✅ build ✅ world:mvr:check ✅ world:mvr:ci ✅ world:mvr:strict ✅ sponsor:validate-policy ✅ sponsor:test ✅ sponsor:typecheck ✅ diff-check ✅ preview redeploy ✅ browser-origin endpoint check ✅
+- Result: found that the first preview alias still served `index-COLKeVim.js` with `flappy-frontier-sponsor` because the local untracked `.env` still set `VITE_SPONSOR_URL` to the old worker; rebuilt with explicit public overrides for `VITE_SPONSOR_URL=https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` and `VITE_SHARED_BACKEND_URL=https://ef-map.com`; redeployed preview to `https://e9308288.civilizationcontrol.pages.dev` with alias `https://feat-shared-backend-assembly.civilizationcontrol.pages.dev`; verified both served `index-CGzlLlzq.js`; confirmed the served bundle contains `civilizationcontrol-sponsor`, contains `https://ef-map.com`, contains no `flappy-frontier-sponsor`, contains no `ASSEMBLY_API_TOKEN`, and the browser-origin request to `/api/civilization-control/assemblies` returned `200` with no `Authorization` or `X-API-Key` header.
+- Follow-ups: perform one wallet-connected human smoke on the corrected preview if desired, then merge to `master` when satisfied.
+
 ## 2026-04-29 – Enrich structures from shared backend summaries
 - Goal: Consume the production shared-backend assembly summary endpoint from CivilizationControl as an additive read-path enhancement while preserving the existing direct Sui discovery and all authority/write behavior.
 - Files: `src/types/domain.ts`, `src/lib/suiReader.ts`, `src/lib/assemblySummaryClient.ts`, `src/lib/assemblyEnrichment.ts`, `src/hooks/useAssemblySummaryEnrichment.ts`, `src/hooks/useAssetDiscovery.ts`, `src/components/StructureDetailHeader.tsx`, `src/screens/GateListScreen.tsx`, `src/screens/NetworkNodeListScreen.tsx`, `src/screens/TradePostListScreen.tsx`, `src/screens/TurretListScreen.tsx`, `src/vite-env.d.ts`, `docs/operations/shared-backend-assembly-enrichment-20260429.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`, `docs/README.md`
 - Diff: additive shared-backend client, optional structure enrichment, minimal location fallback, and docs
 - Risk: medium — new browser read-path integration, but no write-path, sponsorship, package ID, Move, or vendor changes
-- Gates: pending
+- Gates: typecheck ✅ build ✅ world:mvr:check ✅ world:mvr:ci ✅ world:mvr:strict ✅ sponsor:validate-policy ✅ sponsor:test ✅ sponsor:typecheck ✅ diff-check ✅ preview browser request ✅
 - Result: derived decimal `assemblyId` from each structure's on-chain `TenantItemId`, added a browser-safe client for `https://ef-map.com/api/civilization-control/assemblies`, chunked and validated requests defensively, merged shared-backend summaries only after direct-chain discovery, preserved direct-chain fallback on missing/failed backend responses, and limited visible UI use to safe name/location fallback surfaces.
-- Follow-ups: validate the live request path on preview with a connected wallet, then consider later additive slices such as network-node summaries or filtered recent-activity enrichment.
+- Follow-ups: if desired, do one wallet-connected smoke on the corrected preview branch alias before merging, then consider later additive slices such as network-node summaries or filtered recent-activity enrichment.
 
 ## 2026-04-29 – Record world v2 production smoke success
 - Goal: Record the operator-confirmed manual production smoke result after the World v2 runtime cutover without changing runtime code, package IDs, sponsor policy, or deploy state.
