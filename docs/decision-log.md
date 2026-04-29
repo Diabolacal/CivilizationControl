@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Run world v2 runtime preview experiment
+- Goal: Implement the preview-only World v2 runtime migration experiment on `feat/world-v2-runtime-preview`, keep original/type-origin handling pinned to the old Stillness lineage, preserve old-runtime sponsorship compatibility on the shared worker, deploy preview only, and stop before any production cutover.
+- Files: `src/constants.ts`, `config/chain/stillness.ts`, `config/sponsorship/civilizationControlPolicy.ts`, `workers/sponsor-service/wrangler.toml`, `workers/sponsor-service/src/__tests__/validation.test.ts`, `scripts/validate-sponsor-policy.mjs`, `scripts/check-world-mvr-drift.mjs`, `docs/operations/world-v2-runtime-preview-validation-20260429.md`, `docs/operations/sponsor-worker-runbook.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: runtime/policy alignment for preview plus preview deploy evidence and rollback/smoke documentation
+- Risk: medium — shared worker redeploy and preview frontend deploy, but no production frontend deploy, no Move dependency change, no vendor edit, no contract publish, and no change to original/type-origin surfaces
+- Gates: active-env ✅ world:mvr:check ✅ world:mvr:strict ✅ sponsor:validate-policy ✅ sponsor:test ✅ sponsor:typecheck ✅ typecheck ✅ build ✅
+- Result: moved frontend runtime targets to World v2 `0xd2fd1224...` while keeping `WORLD_ORIGINAL_PACKAGE_ID` on `0x28b497...`, updated sponsor policy/wrangler/tests/validators to accept both world runtimes plus CC, redeployed `civilizationcontrol-sponsor` as version `82c2ef52-aad8-4f8d-8ee8-a7bcf118acd1`, rebuilt preview with explicit `VITE_SPONSOR_URL=https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`, deployed preview to `https://1fa70e47.civilizationcontrol.pages.dev` with alias `https://feat-world-v2-runtime-previe.civilizationcontrol.pages.dev`, and verified CORS plus bundle proof.
+- Follow-ups: run the real preview sponsored smoke, capture digest and gas-payer proof, verify Recent Signals against raw events, and only then consider any production rollout.
+
 ## 2026-04-29 – Plan world v2 runtime migration
 - Goal: Produce a planning-only World v2 runtime migration document that identifies the exact runtime-target surfaces, preserved original/type-origin surfaces, sponsorship requirements, preview proof, and rollback path without executing any migration.
 - Files: `docs/operations/world-v2-runtime-migration-plan-20260429.md`, `docs/README.md`, `docs/llm-reference-guide.md`, `docs/operations/mvr-world-package-audit-20260429.md`, `docs/decision-log.md`

@@ -1,6 +1,6 @@
 # Sponsor Worker Runbook
 
-Purpose: operate the in-repo CivilizationControl sponsor worker without changing runtime package IDs or deploying from documentation alone.
+Purpose: operate the in-repo CivilizationControl sponsor worker with deliberate, coordinated policy/runtime updates rather than ad hoc allowlist edits.
 
 ## File layout
 
@@ -23,7 +23,7 @@ CivilizationControl now owns the worker source, deployment config, and committed
 
 Current committed config is CivilizationControl-only:
 
-- Stillness v1 runtime package targets only
+- shared worker currently accepts both World v2 runtime and the prior Stillness world runtime during the preview compatibility window on `feat/world-v2-runtime-preview`
 - one app policy id: `civilization-control`
 - no Flappy Frontier origins or app policy entries in committed config
 - explicit allowed origins for `https://civilizationcontrol.com`, `https://www.civilizationcontrol.com`, `https://civilizationcontrol.pages.dev`, and local dev
@@ -40,6 +40,7 @@ Current committed config is CivilizationControl-only:
 - Manual production smoke after the custom-domain CORS fix confirmed sponsor-paid transactions by sponsor-wallet observation
 - Production digest evidence was not captured in the agent transcript
 - `flappy-frontier-sponsor` remains rollback-only during soak and is not yet retired
+- preview branch `feat/world-v2-runtime-preview` redeployed the shared worker with both world runtime package IDs allowed so preview can target World v2 without breaking old-runtime sponsorship
 
 ## Environment variables and secrets
 
@@ -148,9 +149,16 @@ The dated migration, cutover, validation, and diagnostic records for the 2026-04
 
 Do not update the worker to the upstream Stillness world v2 runtime package in isolation.
 
-When the separate world v2 runtime-ID task happens later:
+Current preview-branch status:
 
-1. update frontend runtime package targets deliberately
-2. update worker world runtime allowlists in the same change window
-3. keep original or type-origin IDs distinct from runtime IDs in docs and config
-4. rerun policy validation and preview sponsorship smoke before rollout
+1. `src/constants.ts` and `config/chain/stillness.ts` now point `WORLD_RUNTIME_PACKAGE_ID` at World v2 on `feat/world-v2-runtime-preview`
+2. `WORLD_ORIGINAL_PACKAGE_ID` remains pinned to the original Stillness lineage
+3. the shared worker temporarily accepts both world runtime package IDs to avoid breaking existing runtime traffic while preview is active
+4. production frontend was not redeployed as part of this preview experiment
+
+If this overlap is maintained later:
+
+1. keep original or type-origin IDs distinct from runtime IDs in docs and config
+2. rerun policy validation and preview sponsorship smoke before rollout
+3. prove sponsor-paid preview execution before any production frontend deploy
+4. remove the temporary old-runtime worker allowlist entry only after no live preview bundle still targets it

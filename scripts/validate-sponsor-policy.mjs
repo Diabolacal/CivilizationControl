@@ -5,6 +5,9 @@ import process from 'node:process';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const FLAPPY_PACKAGE_ID = '0xde1554bde721b2a256ea6b3b21ed08b174308a676216e11df8c651f34353e4eb';
+const WORLD_RUNTIME_PACKAGE = '0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780';
+const WORLD_COMPAT_RUNTIME_PACKAGE = '0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c';
+const CC_PACKAGE = '0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021';
 
 const CHAIN_FILE = path.join(ROOT, 'config/chain/stillness.ts');
 const POLICY_FILE = path.join(ROOT, 'config/sponsorship/civilizationControlPolicy.ts');
@@ -22,15 +25,18 @@ const SOURCE_FILES = [
   'src/hooks/useAuthorizeExtension.ts',
 ].map((filePath) => path.join(ROOT, filePath));
 
+const EXPECTED_WORLD_TARGETS = {
+  character: ['borrow_owner_cap', 'return_owner_cap'],
+  gate: ['authorize_extension', 'update_metadata_url', 'online', 'offline'],
+  storage_unit: ['authorize_extension', 'update_metadata_url', 'online', 'offline'],
+  turret: ['authorize_extension', 'online', 'offline'],
+  network_node: ['online'],
+};
+
 const EXPECTED_TARGETS = {
-  '0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c': {
-    character: ['borrow_owner_cap', 'return_owner_cap'],
-    gate: ['authorize_extension', 'update_metadata_url', 'online', 'offline'],
-    storage_unit: ['authorize_extension', 'update_metadata_url', 'online', 'offline'],
-    turret: ['authorize_extension', 'online', 'offline'],
-    network_node: ['online'],
-  },
-  '0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021': {
+  [WORLD_RUNTIME_PACKAGE]: EXPECTED_WORLD_TARGETS,
+  [WORLD_COMPAT_RUNTIME_PACKAGE]: EXPECTED_WORLD_TARGETS,
+  [CC_PACKAGE]: {
     gate_control: [
       'set_policy_preset',
       'remove_policy_preset',
@@ -106,6 +112,10 @@ function normalizeTargets(targets) {
   }
 
   return normalized;
+}
+
+function uniqueSorted(values) {
+  return [...new Set(values)].sort();
 }
 
 function pushResult(results, ok, message) {
@@ -209,11 +219,15 @@ function main() {
   check(policy.maxCommands === 200, 'config policy maxCommands is 200', results);
   check(wranglerPolicy.maxCommands === 200, 'wrangler policy maxCommands is 200', results);
 
+  const expectedPackageIds = uniqueSorted([
+    chain.CC_PACKAGE_ID.toLowerCase(),
+    chain.WORLD_RUNTIME_PACKAGE_ID.toLowerCase(),
+    chain.WORLD_ORIGINAL_PACKAGE_ID.toLowerCase(),
+  ]);
   const packageIds = Object.keys(normalizedPolicy).sort();
   check(
-    JSON.stringify(packageIds) ===
-      JSON.stringify([chain.CC_PACKAGE_ID.toLowerCase(), chain.WORLD_RUNTIME_PACKAGE_ID.toLowerCase()].sort()),
-    'policy package ids are exactly the current world runtime and CC runtime packages',
+    JSON.stringify(packageIds) === JSON.stringify(expectedPackageIds),
+    'policy package ids are exactly the current world runtime, world compatibility, and CC runtime packages',
     results,
   );
 

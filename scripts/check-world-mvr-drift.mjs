@@ -165,6 +165,17 @@ function extractJsConstant(filePath, constantName) {
   return normalizePackageId(match[1]);
 }
 
+function extractOptionalJsConstant(filePath, constantName) {
+  const source = readText(filePath);
+  const pattern = new RegExp(`const ${constantName}\\s*=\\s*["']([^"']+)["'];`);
+  const match = source.match(pattern);
+  if (!match) {
+    return null;
+  }
+
+  return normalizePackageId(match[1]);
+}
+
 function extractPublishedSection(filePath, sectionName) {
   const source = readText(filePath);
   const sectionMatch = source.match(new RegExp(`\\[${sectionName.replace('.', '\\.')}\\]([\\s\\S]*?)(?:\\n\\[|$)`));
@@ -201,17 +212,14 @@ function extractWranglerPolicies(filePath) {
   return JSON.parse(match[1]);
 }
 
-function extractValidationExpectedPackageIds(filePath) {
-  const source = readText(filePath);
-  const blockMatch = source.match(/const EXPECTED_TARGETS = \{([\s\S]*?)\n};/);
-  if (!blockMatch) {
-    throw new Error(`Could not locate EXPECTED_TARGETS in ${path.relative(ROOT, filePath)}`);
-  }
-
+function extractRuntimePackageIdsFromScript(filePath) {
   return uniqueSorted(
-    [...blockMatch[1].matchAll(/['"]?(0x[a-f0-9]{64})['"]?\s*:/gi)].map((match) =>
-      normalizePackageId(match[1]),
-    ),
+    [
+      extractOptionalJsConstant(filePath, 'WORLD_RUNTIME_PACKAGE'),
+      extractOptionalJsConstant(filePath, 'WORLD_COMPAT_RUNTIME_PACKAGE'),
+      extractOptionalJsConstant(filePath, 'WORLD_PACKAGE'),
+      extractOptionalJsConstant(filePath, 'CC_PACKAGE'),
+    ].filter(Boolean),
   );
 }
 
@@ -268,9 +276,8 @@ function normalizeTargets(targets) {
   return normalized;
 }
 
-function getWorldPolicyPackageId(packageIds, ccPackageId) {
-  const ids = packageIds.filter((packageId) => packageId !== ccPackageId);
-  return ids.length === 1 ? ids[0] : null;
+function getWorldPolicyPackageIds(packageIds, ccPackageId) {
+  return packageIds.filter((packageId) => packageId !== ccPackageId);
 }
 
 function compareArrays(a, b) {
@@ -383,11 +390,8 @@ async function main() {
     ccRuntime: extractTsConstant(FILES.constants, 'CC_PACKAGE_ID'),
     ccOriginal: extractTsConstant(FILES.constants, 'CC_ORIGINAL_PACKAGE_ID'),
   };
-  const tests = {
-    worldRuntime: extractJsConstant(FILES.workerTest, 'WORLD_PACKAGE'),
-    ccRuntime: extractJsConstant(FILES.workerTest, 'CC_PACKAGE'),
-  };
-  const validationExpectedPackageIds = extractValidationExpectedPackageIds(FILES.sponsorValidation);
+  const testPackageIds = extractRuntimePackageIdsFromScript(FILES.workerTest);
+  const validationExpectedPackageIds = extractRuntimePackageIdsFromScript(FILES.sponsorValidation);
   const moveDependencyModes = extractMoveDependencyModes(FILES.moveToml);
   const moveLockSources = extractMoveLockSources(FILES.moveLock);
   const vendor = extractPublishedSection(FILES.vendorPublished, 'published.testnet_stillness');
@@ -401,8 +405,8 @@ async function main() {
   const wranglerPackageIds = uniqueSorted(
     Object.keys(wranglerPolicy?.packages ?? {}).map((value) => normalizePackageId(value)),
   );
-  const policyWorldPackage = getWorldPolicyPackageId(policyPackageIds, chainCcRuntime);
-  const wranglerWorldPackage = getWorldPolicyPackageId(wranglerPackageIds, chainCcRuntime);
+  const policyWorldPackages = getWorldPolicyPackageIds(policyPackageIds, chainCcRuntime);
+  const wranglerWorldPackages = getWorldPolicyPackageIds(wranglerPackageIds, chainCcRuntime);
 
   const checks = [];
   const errors = [];
@@ -431,7 +435,7 @@ async function main() {
     return ciSeverity;
   };
 
-  const expectedRuntimeIds = uniqueSorted([chainWorldRuntime, chainCcRuntime]);
+  const expectedRuntimeIds = uniqueSorted([chainWorldRuntime, chainWorldOriginal, chainCcRuntime]);
   const normalizedPolicy = normalizeTargets(policy.packages);
   const normalizedWrangler = normalizeTargets(wranglerPolicy?.packages ?? {});
 
@@ -483,10 +487,10 @@ async function main() {
     record('fail', 'INTERNAL_WRANGLER_MATCH', 'Worker wrangler APP_POLICIES does not match config/sponsorship/civilizationControlPolicy.ts');
   }
 
-  if (tests.worldRuntime === chainWorldRuntime && tests.ccRuntime === chainCcRuntime) {
-    record('ok', 'INTERNAL_TEST_EXPECTATIONS', 'Worker validation tests expect the committed world and CC runtime packages');
+  if (compareArrays(testPackageIds, expectedRuntimeIds)) {
+    record('ok', 'INTERNAL_TEST_EXPECTATIONS', 'Worker validation tests expect the committed runtime, compatibility, and CC packages');
   } else {
-    record('fail', 'INTERNAL_TEST_EXPECTATIONS', `Worker validation tests expect world=${tests.worldRuntime} cc=${tests.ccRuntime}, but committed runtime is world=${chainWorldRuntime} cc=${chainCcRuntime}`);
+    record('fail', 'INTERNAL_TEST_EXPECTATIONS', `Worker validation tests expect ${testPackageIds.join(', ')}, but committed package set is ${expectedRuntimeIds.join(', ')}`);
   }
 
   if (compareArrays(validationExpectedPackageIds, expectedRuntimeIds)) {
@@ -580,23 +584,24 @@ async function main() {
     if (!mvrResult.ok) {
       record('fail', 'STRICT_MVR_UNAVAILABLE', 'Strict mode requires live MVR resolution');
     } else {
+      const strictExpectedPackageIds = uniqueSorted([mvrResult.packageId, chainWorldOriginal, chainCcRuntime]);
       if (chainWorldRuntime !== mvrResult.packageId) {
         record('fail', 'STRICT_RUNTIME_NOT_LATEST', `config/chain/stillness.ts WORLD_RUNTIME_PACKAGE_ID (${chainWorldRuntime}) is not aligned to MVR latest (${mvrResult.packageId})`);
       }
       if (constants.worldRuntime !== mvrResult.packageId) {
         record('fail', 'STRICT_RUNTIME_CONSTANT_NOT_LATEST', `src/constants.ts WORLD_RUNTIME_PACKAGE_ID (${constants.worldRuntime}) is not aligned to MVR latest (${mvrResult.packageId})`);
       }
-      if (policyWorldPackage !== mvrResult.packageId) {
-        record('fail', 'STRICT_POLICY_NOT_LATEST', `Sponsor policy world package (${policyWorldPackage ?? 'missing'}) is not aligned to MVR latest (${mvrResult.packageId})`);
+      if (!compareArrays(policyPackageIds, strictExpectedPackageIds)) {
+        record('fail', 'STRICT_POLICY_NOT_LATEST', `Sponsor policy packages (${policyPackageIds.join(', ')}) are not aligned to strict expected set (${strictExpectedPackageIds.join(', ')})`);
       }
-      if (wranglerWorldPackage !== mvrResult.packageId) {
-        record('fail', 'STRICT_WRANGLER_NOT_LATEST', `Worker wrangler world package (${wranglerWorldPackage ?? 'missing'}) is not aligned to MVR latest (${mvrResult.packageId})`);
+      if (!compareArrays(wranglerPackageIds, strictExpectedPackageIds)) {
+        record('fail', 'STRICT_WRANGLER_NOT_LATEST', `Worker wrangler packages (${wranglerPackageIds.join(', ')}) are not aligned to strict expected set (${strictExpectedPackageIds.join(', ')})`);
       }
-      if (tests.worldRuntime !== mvrResult.packageId) {
-        record('fail', 'STRICT_TEST_NOT_LATEST', `Worker validation tests still expect world package ${tests.worldRuntime}, not MVR latest ${mvrResult.packageId}`);
+      if (!compareArrays(testPackageIds, strictExpectedPackageIds)) {
+        record('fail', 'STRICT_TEST_NOT_LATEST', `Worker validation tests still expect ${testPackageIds.join(', ')}, not strict expected set ${strictExpectedPackageIds.join(', ')}`);
       }
-      if (!compareArrays(validationExpectedPackageIds, uniqueSorted([mvrResult.packageId, chainCcRuntime]))) {
-        record('fail', 'STRICT_VALIDATION_SCRIPT_NOT_LATEST', `scripts/validate-sponsor-policy.mjs still expects ${validationExpectedPackageIds.join(', ')}, not world=${mvrResult.packageId} cc=${chainCcRuntime}`);
+      if (!compareArrays(validationExpectedPackageIds, strictExpectedPackageIds)) {
+        record('fail', 'STRICT_VALIDATION_SCRIPT_NOT_LATEST', `scripts/validate-sponsor-policy.mjs still expects ${validationExpectedPackageIds.join(', ')}, not strict expected set ${strictExpectedPackageIds.join(', ')}`);
       }
     }
   }
@@ -620,14 +625,14 @@ async function main() {
     `- config/chain/stillness.ts WORLD_ORIGINAL_PACKAGE_ID: ${chainWorldOriginal}`,
   ]);
   printSection('Sponsor policy package', [
-    `- config/sponsorship/civilizationControlPolicy.ts world package: ${policyWorldPackage ?? '(missing)'}`,
+    `- config/sponsorship/civilizationControlPolicy.ts world packages: ${policyWorldPackages.join(', ') || '(missing)'}`,
   ]);
   printSection('Worker config package', [
-    `- workers/sponsor-service/wrangler.toml world package: ${wranglerWorldPackage ?? '(missing)'}`,
+    `- workers/sponsor-service/wrangler.toml world packages: ${wranglerWorldPackages.join(', ') || '(missing)'}`,
   ]);
   printSection('Test package expectations', [
-    `- workers/sponsor-service/src/__tests__/validation.test.ts WORLD_PACKAGE: ${tests.worldRuntime}`,
-    `- scripts/validate-sponsor-policy.mjs EXPECTED_TARGETS world package: ${validationExpectedPackageIds.find((value) => value !== chainCcRuntime) ?? '(missing)'}`,
+    `- workers/sponsor-service/src/__tests__/validation.test.ts package ids: ${testPackageIds.join(', ') || '(missing)'}`,
+    `- scripts/validate-sponsor-policy.mjs package ids: ${validationExpectedPackageIds.join(', ') || '(missing)'}`,
   ]);
   printSection('Vendor Published.toml latest/original', [
     `- ${baseline.vendorPublishedSection} published-at: ${vendor.publishedAt}`,

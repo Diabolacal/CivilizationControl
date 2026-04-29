@@ -10,26 +10,30 @@ import {
 
 type Command = { $kind: string; [key: string]: unknown };
 
-const WORLD_PACKAGE = '0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c';
+const WORLD_RUNTIME_PACKAGE = '0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780';
+const WORLD_COMPAT_RUNTIME_PACKAGE = '0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c';
 const CC_PACKAGE = '0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021';
 const OTHER_PACKAGE = '0x1111111111111111111111111111111111111111111111111111111111111111';
 const BAD_PACKAGE = '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeef';
+
+const WORLD_TARGETS = new Map([
+  ['character', new Set(['borrow_owner_cap', 'return_owner_cap'])],
+  ['gate', new Set(['authorize_extension', 'update_metadata_url', 'online', 'offline'])],
+  ['storage_unit', new Set(['authorize_extension', 'update_metadata_url', 'online', 'offline'])],
+  ['turret', new Set(['authorize_extension', 'online', 'offline'])],
+  ['network_node', new Set(['online'])],
+]);
 
 const CC_POLICY: AppPolicy = {
   id: 'civilization-control',
   packages: new Map([
     [
-      WORLD_PACKAGE.toLowerCase(),
-      new Map([
-        ['character', new Set(['borrow_owner_cap', 'return_owner_cap'])],
-        ['gate', new Set(['authorize_extension', 'update_metadata_url', 'online', 'offline'])],
-        [
-          'storage_unit',
-          new Set(['authorize_extension', 'update_metadata_url', 'online', 'offline']),
-        ],
-        ['turret', new Set(['authorize_extension', 'online', 'offline'])],
-        ['network_node', new Set(['online'])],
-      ]),
+      WORLD_RUNTIME_PACKAGE.toLowerCase(),
+      new Map(WORLD_TARGETS),
+    ],
+    [
+      WORLD_COMPAT_RUNTIME_PACKAGE.toLowerCase(),
+      new Map(WORLD_TARGETS),
     ],
     [
       CC_PACKAGE.toLowerCase(),
@@ -156,7 +160,8 @@ describe('parseAppPolicies', () => {
       {
         id: 'civilization-control',
         packages: {
-          [WORLD_PACKAGE]: { gate: ['online'] },
+          [WORLD_RUNTIME_PACKAGE]: { gate: ['online'] },
+          [WORLD_COMPAT_RUNTIME_PACKAGE]: { gate: ['offline'] },
           [CC_PACKAGE]: { posture: ['set_posture'] },
         },
         maxCommands: 999,
@@ -164,7 +169,7 @@ describe('parseAppPolicies', () => {
     ]);
 
     expect(policies).toHaveLength(1);
-    expect(policies[0].packages.size).toBe(2);
+    expect(policies[0].packages.size).toBe(3);
     expect(policies[0].maxCommands).toBe(ABSOLUTE_MAX_COMMANDS);
   });
 
@@ -183,7 +188,15 @@ describe('validateCommands happy path', () => {
 
   it('accepts a world-only MoveCall', () => {
     const result = validateCommands(
-      [makeMoveCall(WORLD_PACKAGE, 'gate', 'online')],
+      [makeMoveCall(WORLD_RUNTIME_PACKAGE, 'gate', 'online')],
+      [CC_POLICY],
+    );
+    expect(result.valid).toBe(true);
+  });
+
+  it('accepts a compatibility-world MoveCall', () => {
+    const result = validateCommands(
+      [makeMoveCall(WORLD_COMPAT_RUNTIME_PACKAGE, 'gate', 'offline')],
       [CC_POLICY],
     );
     expect(result.valid).toBe(true);
@@ -191,10 +204,10 @@ describe('validateCommands happy path', () => {
 
   it('accepts a multi-package governance PTB', () => {
     const commands = [
-      makeMoveCall(WORLD_PACKAGE, 'character', 'borrow_owner_cap'),
-      makeMoveCall(WORLD_PACKAGE, 'turret', 'authorize_extension'),
+      makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
+      makeMoveCall(WORLD_COMPAT_RUNTIME_PACKAGE, 'turret', 'authorize_extension'),
       makeMoveCall(CC_PACKAGE, 'posture', 'set_posture'),
-      makeMoveCall(WORLD_PACKAGE, 'character', 'return_owner_cap'),
+      makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap'),
     ];
 
     const result = validateCommands(commands, [CC_POLICY]);

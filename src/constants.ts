@@ -2,7 +2,7 @@
 
 /** World runtime package for MoveCall targets and emitter-sensitive queries. */
 export const WORLD_RUNTIME_PACKAGE_ID =
-  "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c";
+  "0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780";
 
 /** World original/type-origin package for type strings and type arguments. */
 export const WORLD_ORIGINAL_PACKAGE_ID =

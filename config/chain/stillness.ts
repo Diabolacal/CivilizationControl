@@ -1,16 +1,16 @@
 /**
  * Stillness chain and package metadata used by the in-repo sponsor worker.
  *
- * WORLD runtime and original package IDs are intentionally the same current
- * Stillness v1 target. A future world-v2 runtime migration must update the
- * runtime ID deliberately without changing current frontend behavior here.
+ * WORLD runtime follows the preview World v2 runtime target, while
+ * WORLD original remains pinned to the original Stillness lineage for
+ * type-origin-sensitive reads and tags.
  */
 
 export const STILLNESS_CHAIN_JSON = `{
   "CHAIN_KEY": "stillness",
   "CHAIN_ID": "4c78adac",
   "SUI_RPC_URL": "https://fullnode.testnet.sui.io:443",
-  "WORLD_RUNTIME_PACKAGE_ID": "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c",
+  "WORLD_RUNTIME_PACKAGE_ID": "0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780",
   "WORLD_ORIGINAL_PACKAGE_ID": "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c",
   "CC_PACKAGE_ID": "0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021",
   "CC_ORIGINAL_PACKAGE_ID": "0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021",

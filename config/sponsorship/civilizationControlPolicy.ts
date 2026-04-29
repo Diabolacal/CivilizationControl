@@ -7,6 +7,13 @@ export const CIVILIZATION_CONTROL_POLICY_JSON = `{
   "id": "civilization-control",
   "maxCommands": 200,
   "packages": {
+    "0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780": {
+      "character": ["borrow_owner_cap", "return_owner_cap"],
+      "gate": ["authorize_extension", "update_metadata_url", "online", "offline"],
+      "storage_unit": ["authorize_extension", "update_metadata_url", "online", "offline"],
+      "turret": ["authorize_extension", "online", "offline"],
+      "network_node": ["online"]
+    },
     "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c": {
       "character": ["borrow_owner_cap", "return_owner_cap"],
       "gate": ["authorize_extension", "update_metadata_url", "online", "offline"],
