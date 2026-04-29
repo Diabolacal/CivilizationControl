@@ -2,28 +2,26 @@
 
 ## 1. Executive summary
 
-World v2 is the newer Stillness/Testnet runtime publish of the external EVE Frontier World package. CivilizationControl currently keeps both `WORLD_RUNTIME_PACKAGE_ID` and `WORLD_ORIGINAL_PACKAGE_ID` pinned to the older Stillness world package `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`, while live MVR resolution and vendored Stillness metadata point to World v2 runtime `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780` with original/type-origin still anchored to `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`.
+World v2 is the newer Stillness/Testnet runtime publish of the external EVE Frontier World package. That runtime migration is now implemented: production frontend targets World v2 runtime `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780`, `WORLD_ORIGINAL_PACKAGE_ID` remains anchored to `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`, and the shared sponsor worker temporarily allows both world runtime packages during soak.
 
-Migration does not appear urgent enough for an immediate production cutover. The vendored World source still exposes the module and function names CivilizationControl calls today, there is no read-only evidence that the older runtime package has stopped working, and strict-mode failure is still an intentional signal rather than a live outage. But the migration also should not be treated as trivial bookkeeping: runtime package drift already exists, sponsorship is pinned to the old world runtime, and Recent Signals still depends on runtime/emitter-oriented `MoveModule` queries that need live proof on preview before production.
-
-Recommended next action: run a narrow preview experiment first. Keep this document as the source of truth for that later feature branch, update all runtime-target surfaces together, preserve original/type-origin surfaces unless lineage evidence changes, and require preview sponsorship plus signal-feed proof before any production deploy.
+This document remains active as the planning record that led to that cutover. Use it for the reasoning behind the runtime/original split, sponsorship sequencing, and rollback constraints. Use `docs/operations/world-v2-runtime-preview-validation-20260429.md` for preview evidence, production deploy evidence, and the remaining manual smoke gap.
 
 ## 2. Current state
 
 | Surface | Current value | Notes |
 |---|---|---|
-| `src/constants.ts` `WORLD_RUNTIME_PACKAGE_ID` | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | Frontend runtime package still pinned to older Stillness world |
+| `src/constants.ts` `WORLD_RUNTIME_PACKAGE_ID` | `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780` | Frontend runtime package now targets World v2 |
 | `src/constants.ts` `WORLD_ORIGINAL_PACKAGE_ID` | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | Type-origin package remains on original Stillness lineage |
 | MVR/latest `@evefrontier/world` | `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780` | Resolved live by `npm run world:mvr:check` and `npm run world:mvr:ci` |
 | Vendored Stillness world original-id | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | Matches current original/type-origin package |
-| Sponsor policy world package | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `config/sponsorship/civilizationControlPolicy.ts` |
-| Worker wrangler world package | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `workers/sponsor-service/wrangler.toml` |
-| Worker validation test world package | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `workers/sponsor-service/src/__tests__/validation.test.ts` |
-| Validation script expected world package | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `scripts/validate-sponsor-policy.mjs` |
+| Sponsor policy world packages | `0xd2fd1224...` and `0x28b497...` | Shared worker overlap keeps old-runtime sponsorship available during soak |
+| Worker wrangler world packages | `0xd2fd1224...` and `0x28b497...` | `workers/sponsor-service/wrangler.toml` |
+| Worker validation test package set | `0xd2fd1224...`, `0x28b497...`, and CC runtime | `workers/sponsor-service/src/__tests__/validation.test.ts` |
+| Validation script expected package set | `0xd2fd1224...`, `0x28b497...`, and CC runtime | `scripts/validate-sponsor-policy.mjs` |
 | Current Sui active env | `testnet_stillness` | `sui client active-env` returned this successfully |
-| Strict-mode status | failing by design | Fails only because runtime config, sponsor policy, wrangler config, tests, and validation expectations still target old world runtime |
+| Strict-mode status | passing | `world:mvr:strict` now passes on `master` after runtime and sponsor surfaces aligned |
 
-No World v2 runtime migration has happened yet.
+Preview and production cutover are complete. Production manual wallet smoke is still pending.
 
 ## 3. Why this migration matters
 

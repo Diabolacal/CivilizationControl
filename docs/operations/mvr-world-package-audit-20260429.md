@@ -1,6 +1,6 @@
 # MVR / World Package Audit — 2026-04-29
 
-Status: planning/audit only. No runtime IDs, sponsor allowlists, Move manifests, vendor files, or deployments were changed in this task.
+Status: audit/history plus follow-through note. The runtime migration and production frontend cutover were later completed on 2026-04-29; use this document for the MVR rationale and `docs/operations/world-v2-runtime-preview-validation-20260429.md` for deploy evidence.
 
 Scope:
 - investigate how CivilizationControl should use Move Registry / MVR for `@evefrontier/world`
@@ -19,8 +19,8 @@ Non-goals:
 ## 1. Executive summary
 
 - MVR gives CivilizationControl two new capabilities it does not use today: registry-backed latest-package resolution for `@evefrontier/world`, and named-package support in Move and TypeScript tooling.
-- Public MVR and `vendor/world-contracts/contracts/world/Published.toml` currently agree that Stillness/Testnet world v2 is `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780`, while the app and sponsor policy still target `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c`.
-- That mismatch does not justify an immediate swap. The repo still models world as one frontend constant, while sponsorship, event queries, object-type strings, and transaction builders remain concrete-ID based.
+- Public MVR and `vendor/world-contracts/contracts/world/Published.toml` agree that Stillness/Testnet world v2 is `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780`.
+- The audit-time mismatch has now been resolved in live repo state: production frontend targets World v2 runtime, `WORLD_ORIGINAL_PACKAGE_ID` remains `0x28b497...`, and the sponsor worker temporarily allows both world runtime packages during soak.
 - Safest path: use MVR first for audit/validation, keep runtime config concrete and committed, explicitly model world runtime versus world original/type-origin IDs, then handle World v2 in a separate high-risk branch.
 - Recommended first implementation slice: add a read-only MVR resolution/check script that compares `@evefrontier/world` against `config/chain/stillness.ts`, `src/constants.ts`, `config/sponsorship/civilizationControlPolicy.ts`, `workers/sponsor-service/wrangler.toml`, and `scripts/validate-sponsor-policy.mjs`, then fails loudly on drift.
 
@@ -30,12 +30,12 @@ Non-goals:
 
 | Surface | Meaning | Current value | Lives in | Notes |
 |---|---|---|---|---|
-| `WORLD_RUNTIME_PACKAGE_ID` | Frontend and config runtime world package | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `src/constants.ts`, `config/chain/stillness.ts` | Runtime entrypoints, sponsor allowlists, and emitter-sensitive queries follow this. |
+| `WORLD_RUNTIME_PACKAGE_ID` | Frontend and config runtime world package | `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780` | `src/constants.ts`, `config/chain/stillness.ts` | Runtime entrypoints and emitter-sensitive queries follow this. |
 | `WORLD_ORIGINAL_PACKAGE_ID` | Frontend and config original/type-origin world package | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `src/constants.ts`, `config/chain/stillness.ts` | Type strings, exact event types, `StructType` filters, and type tags follow this. |
-| `WORLD_PACKAGE_ID` | Transitional frontend compatibility alias | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `src/constants.ts` | Alias to `WORLD_RUNTIME_PACKAGE_ID`; new code should not use it for new world surfaces. |
+| `WORLD_PACKAGE_ID` | Transitional frontend compatibility alias | `0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780` | `src/constants.ts` | Alias to `WORLD_RUNTIME_PACKAGE_ID`; new code should not use it for new world surfaces. |
 | `CC_PACKAGE_ID` | Current CC runtime package | `0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021` | `src/constants.ts`, `config/chain/stillness.ts`, `contracts/civilization_control/Published.toml` | Stillness v1 fresh publish. |
 | `CC_ORIGINAL_PACKAGE_ID` | Current CC original/type-origin package | `0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021` | same as above | Equal to runtime because Stillness CC has not upgraded yet. |
-| Sponsor allowlist world package | Worker-approved world package | `0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c` | `config/sponsorship/civilizationControlPolicy.ts`, `workers/sponsor-service/wrangler.toml`, `scripts/validate-sponsor-policy.mjs`, `workers/sponsor-service/src/__tests__/validation.test.ts` | Concrete ID only. |
+| Sponsor allowlist world packages | Worker-approved world packages during soak | `0xd2fd1224...` and `0x28b497...` | `config/sponsorship/civilizationControlPolicy.ts`, `workers/sponsor-service/wrangler.toml`, `scripts/validate-sponsor-policy.mjs`, `workers/sponsor-service/src/__tests__/validation.test.ts` | Temporary dual allowlist while old-runtime support remains available. |
 | Sponsor allowlist CC package | Worker-approved CC package | `0x902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021` | same as above | Concrete ID only. |
 
 ### Where package IDs matter now
@@ -60,8 +60,8 @@ The Move package does not use MVR today. `contracts/civilization_control/Move.to
 
 ### Existing Stillness v1 assumptions
 
-- both world constants intentionally still point at the older Stillness package until a deliberate World v2 runtime migration branch is approved
-- sponsor allowlists, worker config, tests, and validation scripts still intentionally target the current runtime package
+- `WORLD_RUNTIME_PACKAGE_ID` now points at World v2 while `WORLD_ORIGINAL_PACKAGE_ID` remains pinned to the original Stillness package
+- sponsor allowlists, worker config, tests, and validation scripts now accept both the current runtime package and the previous runtime package during soak
 - `src/lib/suiReader.ts` keeps world `MoveModule` event queries on runtime/emitter semantics even after the split
 - sponsor allowlists assume the same concrete world package the frontend targets
 - worker validation rejects any package not explicitly allowlisted
@@ -200,6 +200,7 @@ Behavior:
 - `world:mvr:check` reports the committed world runtime/original packages, sponsor policy package, worker config package, test expectations, vendor `Published.toml` values, and live MVR resolution when available.
 - `world:mvr:ci` fails on internal consistency errors and unexpected vendor/MVR baseline drift, but keeps the current known Stillness v1-versus-v2 migration gap as warning-only.
 - `world:mvr:strict` is reserved for later World v2 migration branches. It fails if the committed runtime package, sponsor policy, worker config, tests, or validation script are not aligned to MVR latest.
+- After the 2026-04-29 migration and production cutover, `world:mvr:strict` now passes on `master` because runtime config, sponsor surfaces, tests, and validation expectations align to MVR latest while preserving old-runtime worker compatibility during soak.
 
 What the automation catches:
 

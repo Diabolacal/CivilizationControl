@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-04-29 – Record world v2 production cutover
+- Goal: Merge the validated World v2 runtime branch into `master`, push `origin/master`, deploy the production frontend with the repo-owned sponsor worker URL explicitly overridden at build time, and record bundle/CORS proof without performing a live wallet transaction from the agent.
+- Files: `docs/operations/world-v2-runtime-preview-validation-20260429.md`, `docs/operations/world-v2-runtime-migration-plan-20260429.md`, `docs/operations/mvr-world-package-audit-20260429.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
+- Diff: production cutover evidence and current-truth documentation updates
+- Risk: medium — production Pages deploy plus docs updates, but no Move dependency change, no vendor edit, no contract publish, no original/type-origin change, and no worker removal of old-runtime support
+- Gates: world:mvr:check ✅ world:mvr:ci ✅ world:mvr:strict ✅ sponsor:validate-policy ✅ sponsor:test ✅ sponsor:typecheck ✅ typecheck ✅ build ✅ production deploy ✅ production bundle proof ✅ production CORS proof ✅
+- Result: fast-forwarded `master` to `feat/world-v2-runtime-preview`, pushed `origin/master`, deployed Pages production on branch `main` from commit `ebc052d91d93ef545a95f7decf81de49a3740721` to `https://7f8cbcd7.civilizationcontrol.pages.dev`, verified that `https://civilizationcontrol.com` and `https://civilizationcontrol.pages.dev` now serve `index-MUH2Qmi3.js`, verified that the served asset contains World v2 runtime `0xd2fd1224...`, preserves world original/type-origin `0x28b497...`, uses `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`, and contains no `flappy-frontier-sponsor` reference, and confirmed worker CORS `204` responses for `https://civilizationcontrol.com`, `https://www.civilizationcontrol.com`, and `https://civilizationcontrol.pages.dev`.
+- Follow-ups: capture the manual production wallet smoke, including digest if available, then decide when the temporary old-runtime sponsor allowlist entry can be removed in a separate soak-exit task.
+
 ## 2026-04-29 – Record world v2 preview smoke success
 - Goal: Record the operator-confirmed preview smoke result for the World v2 runtime experiment before merge and production frontend cutover.
 - Files: `docs/operations/world-v2-runtime-preview-validation-20260429.md`, `docs/operations/world-v2-runtime-migration-plan-20260429.md`, `docs/llm-reference-guide.md`, `docs/decision-log.md`
