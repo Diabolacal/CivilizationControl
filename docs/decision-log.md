@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-05-01 – Refine network node icon plan after user review
+- Goal: Refine the network-node posture planning document so iconography, badge grammar, and legend requirements are locked before any drilldown-shell implementation work.
+- Files: `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md`, `docs/decision-log.md`
+- Diff: docs-only refinement of the existing plan
+- Risk: low — planning/docs only, no runtime/package/deploy/vendor/submodule changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: reclassified families into first-wave, provisional-but-important, and deferred groups; promoted Shelter / Heavy Shelter into an explicit provisional hangar family; deferred field variants; added compact legend requirements; and changed the next implementation slice from drilldown-shell-first to icon-catalogue-first.
+- Follow-ups: merge the refined planning branch to `master`, then start a dedicated implementation branch for the icon catalogue/components and static icon/legend preview.
+
 ## 2026-05-01 – Plan network node posture icons
 - Goal: Produce an implementation-ready planning document for network-node-level structure icons and node-local posture drilldown without changing runtime code, sponsorship, package IDs, Move contracts, or vendor state.
 - Files: `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md`, `docs/README.md`, `docs/decision-log.md`
