@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!--
+    Refinery — Industry diamond with a centered horizontal split line.
+    Horizontal line distinguishes Refinery from Printer's vertical line.
+  -->
+  <polygon
+    points="12,3 20,12 12,21 4,12"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="2"
+    stroke-linejoin="miter"
+  />
+  <path
+    d="M 8 12 H 16"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="2"
+    stroke-linecap="butt"
+  />
+</svg>

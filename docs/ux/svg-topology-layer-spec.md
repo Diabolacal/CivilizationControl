@@ -5,7 +5,7 @@
 > Canonical design specification for the Strategic Network Map symbol grammar, state system, color doctrine, motion protocol, and layout rules.
 > Sources: UX Architecture Spec §9, Spatial Embed Requirements, Demo Beat Sheet v2, Product Vision, Voice & Narrative Guide, Hackathon Emotional Objective.
 > Validated against: ISA-101 HMI design principles, IEC 60073 color coding, MIL-STD-2525D/APP-6(D) symbology, EEMUA 191 alarm management, High Performance HMI (Hollifield/Habibi), Gestalt perceptual principles.
-> Last updated: 2026-03-03 (rev 4 — demo video resilience: badge hold extension, link compression advisory)
+> Last updated: 2026-05-01 (rev 5 — node-level catalogue extension)
 
 ---
 
@@ -41,7 +41,9 @@ The Strategic Network Map is a **governance topology schematic** — not a star 
 - **Nodes** represent structures (Network Nodes, Gates, Trade Posts)
 - **Edges** represent gate links (passage corridors between linked gate pairs)
 - **State overlays** encode runtime condition (online, offline, armed, Revenue event, etc.)
-- **Layout** is operator-curated (manual spatial pins), not coordinate-derived\n\n> **2026-03-10 update:** `LocationRegistry` now stores plain-text coordinates on-chain for revealed structures. Layout can potentially be auto-derived from on-chain data instead of requiring manual pins. Manual pins remain as fallback/override.", "oldString": "- **Layout** is operator-curated (manual spatial pins), not coordinate-derived
+- **Layout** is operator-curated (manual spatial pins), not coordinate-derived
+
+> **2026-03-10 update:** `LocationRegistry` now stores plain-text coordinates on-chain for revealed structures. Layout can potentially be auto-derived from on-chain data instead of requiring manual pins. Manual pins remain as fallback/override.
 
 This spec defines the complete visual language for this schematic. All implementation must conform to this document. Where this spec and the UX Architecture Spec §9 overlap, this document is canonical for visual language; the UX spec remains canonical for interaction patterns and screen hierarchy.
 
@@ -109,6 +111,23 @@ Links connect **Gate-to-Gate pairs** (linked gates) and **Structure-to-NetworkNo
 - Link lines connect center-to-center of the respective glyphs.
 - Link lines route behind (z-order below) all glyphs and state overlays.
 - No arrowheads on links in neutral state. Directional indicators are a P3 stretch feature (see [Spatial Embed Requirements §3](../architecture/spatial-embed-requirements.md)).
+
+### 2.6 Node-Level Catalogue Extension
+
+The macro strategic map remains limited to the canonical four macro families defined above: Network Node, Gate, Turret, and Trade Post. The node-level catalogue added on 2026-05-01 extends the visual language for a static reference route and future node-local drilldown work without changing the macro map geometry.
+
+Node-level extension rules:
+
+- All node-level glyphs use the same `24 x 24` grid and keep the occupied body inside the centered `20 x 20` zone so badges, pips, and halos remain compatible.
+- Base glyphs remain stroke-only or mostly stroke-only. The extension does not introduce filled body silhouettes, gradients, or decorative glow states.
+- Size badges `M` and `H` remain React-layer overlays anchored to the north-east corner. Warning/status pips may use other corners, but they do not move the size badge from the north-east default.
+- Printer = industry diamond with one vertical interior line.
+- Refinery = industry diamond with one horizontal interior line.
+- Assembler = industry diamond with a composite / interlocking interior mark.
+- Shelter / Heavy Shelter = circular shell with one upper opening line; `H` is the only size badge used in that family.
+- Nursery and Nest remain provisional arch / cradle families. Nursery uses one lower support line; Nest uses a double lower cradle line.
+- Amber remains reserved for warning, defense, or degraded examples. Neutral catalogue samples should default to gray unless the reference surface is intentionally demonstrating state grammar.
+- Macro glyph geometry remains unchanged. The catalogue is an extension of the topology doctrine, not a replacement for the macro symbol set.
 
 ---
 

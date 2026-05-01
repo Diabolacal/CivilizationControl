@@ -22,6 +22,7 @@ import { TurretListScreen } from "@/screens/TurretListScreen";
 import { TurretDetailScreen } from "@/screens/TurretDetailScreen";
 import { NetworkNodeListScreen } from "@/screens/NetworkNodeListScreen";
 import { NetworkNodeDetailScreen } from "@/screens/NetworkNodeDetailScreen";
+import { NodeIconCatalogueScreen } from "@/screens/NodeIconCatalogueScreen";
 import { ActivityFeedScreen } from "@/screens/ActivityFeedScreen";
 import { NodeLocationPanel } from "@/components/NodeLocationPanel";
 import { LogoBadge } from "@/components/LogoBadge";
@@ -39,6 +40,7 @@ export default function App() {
         <Route path="/gate" element={<GatePermitPage />} />
         <Route path="/ssu/:ssuId" element={<SsuMarketplacePage />} />
         <Route path="/ssu" element={<SsuMarketplacePage />} />
+        <Route path="/dev/node-icon-catalogue" element={<NodeIconCatalogueScreen />} />
         {/* Operator dashboard */}
         <Route path="/*" element={<OperatorShell />} />
       </Routes>

@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="24" height="24">
+  <!--
+    Relay — Utility mast / pylon silhouette with short signal arms.
+    No size-badge ladder; state is communicated by runtime overlays.
+  -->
+  <path
+    d="M 12 5 V 19 M 8 10 L 12 6 L 16 10 M 9 14 H 15 M 10 18 H 14"
+    stroke="currentColor"
+    fill="none"
+    stroke-width="2"
+    stroke-linecap="butt"
+    stroke-linejoin="miter"
+  />
+</svg>

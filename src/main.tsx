@@ -1,9 +1,6 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
-import { QueryClient } from "@tanstack/react-query";
-import { EveFrontierProvider } from "@evefrontier/dapp-kit";
 import { ErrorBoundary } from "./components/ErrorBoundary.tsx";
-import App from "./App.tsx";
 import "./styles/index.css";
 
 // Known-benign wallet / extension errors that should not surface visually.
@@ -51,14 +48,34 @@ function showRuntimeError(msg: string) {
   el.textContent = msg;
 }
 
-const queryClient = new QueryClient();
+const STATIC_PREVIEW_PATHS = new Set(["/dev/node-icon-catalogue"]);
+const isStaticPreviewRoute = STATIC_PREVIEW_PATHS.has(window.location.pathname);
+const root = ReactDOM.createRoot(document.getElementById("root")!);
 
-ReactDOM.createRoot(document.getElementById("root")!).render(
-  <React.StrictMode>
-    <ErrorBoundary>
-      <EveFrontierProvider queryClient={queryClient}>
-        <App />
-      </EveFrontierProvider>
-    </ErrorBoundary>
-  </React.StrictMode>,
-);
+function renderApp(content: React.ReactNode) {
+  root.render(
+    <React.StrictMode>
+      <ErrorBoundary>{content}</ErrorBoundary>
+    </React.StrictMode>,
+  );
+}
+
+async function bootstrapApp() {
+  if (isStaticPreviewRoute) {
+    const { NodeIconCatalogueScreen } = await import("./screens/NodeIconCatalogueScreen.tsx");
+    renderApp(<NodeIconCatalogueScreen />);
+    return;
+  }
+
+  const [{ QueryClient }, { EveFrontierProvider }, { default: App }] = await Promise.all([
+    import("@tanstack/react-query"),
+    import("@evefrontier/dapp-kit"),
+    import("./App.tsx"),
+  ]);
+  const queryClient = new QueryClient();
+  const appTree = <App />;
+
+  renderApp(<EveFrontierProvider queryClient={queryClient}>{appTree}</EveFrontierProvider>);
+}
+
+void bootstrapApp();

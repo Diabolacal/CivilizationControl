@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-05-01 – Finalize node icon catalogue reference
+- Goal: Finalize the node icon catalogue/reference branch by tracking the raw node-level SVG glyphs, landing the isolated `/dev/node-icon-catalogue` reference route, and updating the SVG audit/spec docs without changing strategic-map runtime behavior, transactions, sponsorship, package IDs, Move code, or vendor state.
+- Files: `assets/icons/glyphs/printer.svg`, `assets/icons/glyphs/refinery.svg`, `assets/icons/glyphs/assembler.svg`, `assets/icons/glyphs/berth.svg`, `assets/icons/glyphs/relay.svg`, `assets/icons/glyphs/nursery.svg`, `assets/icons/glyphs/hangar.svg`, `assets/icons/glyphs/nest.svg`, `assets/icons/README.md`, `src/main.tsx`, `src/App.tsx`, `src/screens/NodeIconCatalogueScreen.tsx`, `src/components/topology/node-icon-catalogue/NodeCatalogueGlyphs.tsx`, `src/components/topology/node-icon-catalogue/NodeIconPreviewGlyph.tsx`, `src/components/topology/node-icon-catalogue/NodeIconLegend.tsx`, `src/components/topology/node-icon-catalogue/NodeIconCard.tsx`, `src/components/topology/node-icon-catalogue/NodeIconCatalogueSection.tsx`, `src/components/topology/node-icon-catalogue/nodeIconCatalogueData.ts`, `docs/ux/svg-asset-audit.md`, `docs/ux/svg-topology-layer-spec.md`, `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: node-level catalogue assets/components plus docs refresh and isolated static-route bootstrap
+- Risk: medium — multi-file frontend/docs slice, but limited to the static reference surface and no write-path or sponsor/package changes
+- Gates: typecheck ✅ build ✅ move build ✅ move test ✅ static-route isolation ✅
+- Result: tracked the new raw node-level SVG glyphs, added the static `/dev/node-icon-catalogue` reference surface with isolated bootstrap behavior, kept macro glyph geometry unchanged, confirmed the reference route avoids wallet/Sui/backend calls, and refreshed the SVG asset audit/spec docs so the node-level catalogue is no longer undocumented.
+- Follow-ups: merge `feat/node-icon-catalogue-preview` to `master` if the branch stays clean, then use the now-tracked icon catalogue/reference as the visual foundation for the next node-local drilldown planning/implementation branch.
+
 ## 2026-05-01 – Clarify network node icon taxonomy precision pass
 - Goal: Make one final precision pass on the network-node icon plan so turret handling, amber state doctrine, shelter geometry, and SVG acceptance criteria are internally consistent before any implementation branch starts.
 - Files: `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md`, `docs/decision-log.md`

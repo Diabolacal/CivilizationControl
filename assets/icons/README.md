@@ -36,3 +36,22 @@ All visual language decisions are defined in:
 [docs/ux/svg-topology-layer-spec.md](../../docs/ux/svg-topology-layer-spec.md)
 
 Do not add assets that deviate from the spec without updating the spec first.
+
+## Node-Level Catalogue Extension
+
+The node icon catalogue/reference branch adds raw SVG glyphs for node-level families under `assets/icons/glyphs/`:
+
+- `printer.svg`
+- `refinery.svg`
+- `assembler.svg`
+- `berth.svg`
+- `relay.svg`
+- `nursery.svg`
+- `hangar.svg`
+- `nest.svg`
+
+These assets stay on the same `24x24` grid, use `currentColor`, keep base geometry stroke-first, and leave corner padding for badge/pip/halo overlays.
+
+The live static reference route at `/dev/node-icon-catalogue` renders mirrored React SVG components from `src/components/topology/node-icon-catalogue/NodeCatalogueGlyphs.tsx` alongside the existing macro glyphs. Badge text, warning pips, and selection halos remain React-layer concerns rather than baked SVG text.
+
+No raster assets were added for this catalogue.

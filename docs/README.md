@@ -120,8 +120,8 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 | File | Purpose |
 |------|---------|
 | [ux/civilizationcontrol-ux-architecture-spec.md](ux/civilizationcontrol-ux-architecture-spec.md) | UX architecture — screen hierarchy, rule composer, MVP vs stretch |
-| [ux/svg-topology-layer-spec.md](ux/svg-topology-layer-spec.md) | SVG topology layer — symbol grammar, state system, color doctrine |
-| [ux/svg-asset-audit.md](ux/svg-asset-audit.md) | SVG asset audit — 19 primitives checked against spec |
+| [ux/svg-topology-layer-spec.md](ux/svg-topology-layer-spec.md) | SVG topology layer — symbol grammar, state system, color doctrine, and node-level catalogue extension |
+| [ux/svg-asset-audit.md](ux/svg-asset-audit.md) | SVG asset audit — baseline primitives plus node-level catalogue addendum |
 | [ux/ui-polish-reference-brief.md](ux/ui-polish-reference-brief.md) | UI polish reference — hierarchy, sizing, noise reduction rules for demo capture |
 | [ux/strategic-network-map-implementation-audit.md](ux/strategic-network-map-implementation-audit.md) | **Strategic Network Map audit** — current-state implementation vs spec gap analysis, asset usage, recommended slices |
 

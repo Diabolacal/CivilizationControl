@@ -17,6 +17,13 @@ This document does not implement runtime code, map behavior changes, transaction
 - Icon silhouettes should be functional operator symbols, not literal copies of in-game meshes that may drift during alpha.
 - The future node view needs a compact legend / key so unfamiliar families remain legible without turning the diagram into a help panel.
 
+### 2026-05-01 implementation status update
+- Phase 1 icon catalogue/reference work is now implemented on `feat/node-icon-catalogue-preview`.
+- The static reference route is `/dev/node-icon-catalogue`.
+- The branch adds node-level raw SVG glyphs plus React SVG catalogue components while keeping the macro strategic map unchanged.
+- No drilldown shell, map click navigation, presets, write actions, or backend relationship discovery were added in Phase 1.
+- The next phase remains node-local drilldown planning/implementation, not preset or write-path expansion.
+
 ## 2. Current product context
 ### Hackathon macro-posture model
 The shipped product centers on macro infrastructure posture:

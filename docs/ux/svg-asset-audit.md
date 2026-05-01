@@ -5,8 +5,51 @@
 Strict audit of all SVG primitives in `assets/icons/` against `docs/ux/svg-topology-layer-spec.md` (rev 3) and internal doctrine.
 
 **Audit date:** 2026-03-03
-**SVG count:** 19 files across 7 directories
+**Addendum date:** 2026-05-01
+**SVG count:** 19 baseline primitives across 7 directories, plus 8 node-level catalogue glyphs added on 2026-05-01
 **Spec reference:** svg-topology-layer-spec.md §2 (Symbol Grammar), §3 (State System), §4 (Palette), §5 (Motion), §6.14 (Aggregate), §7 (Export), §9 (Anti-patterns)
+
+---
+
+## 2026-05-01 Addendum - Node-Level Catalogue Extension
+
+The original 2026-03-03 audit remains valid for the shipped macro topology primitives and overlays. This addendum records the node-level catalogue work introduced on `feat/node-icon-catalogue-preview`, which expands the visual surface in two coordinated forms:
+
+- raw SVG glyphs under `assets/icons/glyphs/`
+- React SVG component mirrors under `src/components/topology/node-icon-catalogue/NodeCatalogueGlyphs.tsx`
+
+The branch also adds a static reference surface at `/dev/node-icon-catalogue` using `src/screens/NodeIconCatalogueScreen.tsx` plus the supporting `src/components/topology/node-icon-catalogue/` module. The macro strategic map remains unchanged.
+
+### Raw SVG inventory added on 2026-05-01
+
+| File | Family | viewBox | Stroke width | Fill / stroke policy | Badge / overlay compatibility | 24x24 grid | Color policy |
+|---|---|---|---|---|---|---|---|
+| `printer.svg` | Printer | `0 0 24 24` | 2 | Stroke-only diamond + vertical line | Occupies centered body; outer padding reserved for M/H badges, pips, halos | ✅ | `currentColor` stroke, `fill="none"` |
+| `refinery.svg` | Refinery | `0 0 24 24` | 2 | Stroke-only diamond + horizontal line | Same badge-safe padding as Printer | ✅ | `currentColor` stroke, `fill="none"` |
+| `assembler.svg` | Assembler | `0 0 24 24` | 2 outer, 1.5 inner | Mostly stroke-only diamond + composite interior marks | Same badge-safe padding as Printer / Refinery | ✅ | `currentColor` stroke, `fill="none"` |
+| `berth.svg` | Berth | `0 0 24 24` | 2 outer, 1.5 keel bar | Stroke-only cradle / dock silhouette | Centered 20x20 body preserves overlay padding | ✅ | `currentColor` stroke, `fill="none"` |
+| `relay.svg` | Relay | `0 0 24 24` | 2 | Stroke-only mast / pylon silhouette | No size badge ladder, but padding still preserved for status overlays | ✅ | `currentColor` stroke, `fill="none"` |
+| `nursery.svg` | Nursery | `0 0 24 24` | 2 arch, 1.5 baseline | Stroke-only cradle / incubation family | Keeps the base silhouette compact enough for badge/pip compatibility if needed later | ✅ | `currentColor` stroke, `fill="none"` |
+| `hangar.svg` | Shelter / Heavy Shelter | `0 0 24 24` | 2 circle, 1.5 slot | Stroke-only circular shell + upper opening line | Centered circle leaves corner room for the `H` badge | ✅ | `currentColor` stroke, `fill="none"` |
+| `nest.svg` | Nest | `0 0 24 24` | 2 arch, 1.5 cradle lines | Stroke-only cradle family with double lower support line | Same overlay-safe footprint as Nursery | ✅ | `currentColor` stroke, `fill="none"` |
+
+### React catalogue component inventory
+
+Node-level catalogue families are also implemented as React SVG components in `src/components/topology/node-icon-catalogue/NodeCatalogueGlyphs.tsx` so the static reference surface can render these families alongside the existing macro glyphs from `src/components/topology/Glyphs.tsx` without changing the live strategic map.
+
+| Module | Families covered | Notes |
+|---|---|---|
+| `src/components/topology/node-icon-catalogue/NodeCatalogueGlyphs.tsx` | Printer, Refinery, Assembler, Berth, Relay, Nursery, Hangar, Nest | Mirrors the raw SVG geometry on the same 24x24 grid and the same stroke-first doctrine |
+| `src/components/topology/node-icon-catalogue/NodeIconPreviewGlyph.tsx` | Macro + node-level families in the reference route | Applies tone overlays, top-right M/H badges, warning pips, and selection halos without mutating base geometry |
+| `src/screens/NodeIconCatalogueScreen.tsx` | Static reference route `/dev/node-icon-catalogue` | Durable icon reference surface; no drilldown shell or write behavior |
+
+### Addendum conclusions
+
+- The older 19-file inventory remains valid for the shipped macro topology primitives and overlays.
+- It is no longer the full visual surface: node-level catalogue families now exist both as raw SVG assets and as React SVG mirrors for the static reference route.
+- All new node-level glyphs stay on the `24 x 24` grid, use `currentColor`, remain stroke-only or mostly stroke-only, and preserve the outer padding needed for badge/pip/halo overlays.
+- M/H size badges remain a React-layer concern anchored to the north-east corner; no badge text is baked into SVG paths.
+- No raster assets were added for this branch.
 
 ---
 
