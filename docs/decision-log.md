@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-05-02 – Refine network node drilldown plan after review
+- Goal: Tighten the node drilldown implementation plan after user review so family ordering better matches likely live base density, turret-heavy layouts are handled explicitly, support structures are grouped more practically, and the first implementation branch is scoped as one usable render-only slice.
+- Files: `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
+- Diff: docs-only refinement of the existing implementation plan
+- Risk: low — planning/docs only, no runtime/package/deploy/vendor/submodule changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: revised the default family ordering around industry, logistics, defense, corridor, and support bands; added explicit high-count turret layout rules; grouped relay, nursery, nest, and shelter families into a compact support band by default; and combined the first implementation slice into one practical render-only dashboard-local shell with the lower list, inspector placeholder, and selection sync.
+- Follow-ups: start a feature branch for the combined first implementation slice: render-only node-local shell, entry and exit, lower structure list, inspector placeholder, and SVG or list selection sync, with no writes, no presets, no drag persistence, and no broader hydration.
+
 ## 2026-05-01 – Plan network node drilldown implementation
 - Goal: Produce a detailed implementation-ready plan for the next network-node-local drilldown UX slice after the icon catalogue/reference work merged, without changing runtime code, routes, transactions, sponsorship, package IDs, Move contracts, EF-Map, VPS services, or vendor state.
 - Files: `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md`, `docs/README.md`, `docs/decision-log.md`

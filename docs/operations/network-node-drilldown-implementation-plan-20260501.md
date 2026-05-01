@@ -126,10 +126,13 @@ Recommended lower-region layout:
 
 - left 2/3: `Attached Structures` table or list
 - right 1/3: `Selection Inspector` for the selected structure or selected node
+- the first implementation branch should include both surfaces, even if the inspector is still a placeholder and the list remains read-only
 
 Macro telemetry and attention content should be hidden while node-local mode is active. They should return when the operator exits back to macro mode.
 
 This is the cleanest behavior because it avoids mixing two scopes in one surface. If node-local telemetry is desirable later, it should arrive as a node-scoped inspector detail, not as the macro panels squeezed into node-local mode.
+
+This same-dashboard swap is also an important validation aid. A node-local SVG without the paired structure list and inspector would be hard to evaluate because the operator would have no grounded secondary surface for confirming selection, naming, and future action placement.
 
 ### 4.8 Selection and context actions
 
@@ -164,14 +167,21 @@ The family order should be stable even before all families are hydrated. Recomme
 2. refineries
 3. assemblers
 4. storage or trade posts
-5. turrets
-6. berths
-7. relays
-8. nursery or nest
-9. shelters
-10. gates
+5. berths
+6. turrets
+7. gates
+8. support band: relay, nursery, nest, shelters
 
 Current render-only phases should only render the families present in the live data model. Empty future families should not render placeholder icons.
+
+This order is intentional rather than generic:
+
+- printers and refineries are expected to be the highest-density and highest-interest repeated industry rows
+- assemblers remain their own family because they are meaningful but usually lower-count than printers or refineries
+- storage or trade posts and berths form the logistics layer beneath industry
+- turrets get their own dedicated defensive treatment because they may become the largest repeated family in real bases
+- gates remain distinct at the edge because they imply outward corridor relationships
+- relay, nursery, nest, and shelter-like families should default to a compact support band rather than consuming full-height priority rows
 
 ### 5.4 In-family ordering
 
@@ -189,14 +199,40 @@ This preserves visual predictability and avoids icon shuffle between refreshes.
 - if a family exceeds the row capacity, wrap within the same family before moving to the next family
 - do not collapse individual structures into counts in node-local mode
 - hidden structures are excluded from the map layout but retained in the structure list
+- support structures stay grouped in a combined support band by default; they only earn separate rows later if real hydrated counts justify it
 
-### 5.6 Special handling for turrets and gates
+### 5.6 Special handling for turrets, gates, and support structures
 
-Turrets and gates should remain visually distinct from passive support rows.
+Turrets, gates, and support structures should remain visually distinct from the main industry and logistics rows.
 
-- turrets should occupy an outer defensive band around the right side of the node-local composition so they still read as perimeter defense
-- gates should occupy the far-right rail of the composition because they are the likely future carriers of outward relationships
-- this keeps support and industry rows visually readable while preserving defense and corridor semantics
+- turrets should occupy a dedicated defensive block on the right side of the node-local composition so they still read as perimeter defense without crushing the industry rows
+- gates should occupy the far-right rail or corridor edge because they are the likely future carriers of outward relationships
+- support structures should sit below the logistics rows in a compact support band, still as individual icons but with lower visual priority than industry, logistics, defense, and corridor families
+- this keeps the structure hierarchy readable while preserving room for later relationship links and hide or unhide controls
+
+#### Turret high-count rule
+
+Real operator bases may have many turrets: 20, 30, 50, or more. The default layout must treat turret density as a first-class constraint.
+
+- turrets remain individual selectable icons in the first node-local view
+- turret order is `Mini`, then standard, then `Heavy`, then label, then object ID fallback
+- the defensive block should use wrapped rows or a dense-grid perimeter block rather than a single unbounded row
+- the block should reserve minimum spacing for halo visibility and individual selection targets
+- industry and logistics rows keep their own vertical budget; turret rows should expand within the defensive block before they are allowed to steal the center rows
+- when turret count exceeds the comfortable single-band capacity, the layout should create additional wrapped turret rows inside the same right-side defensive block
+- if turret count exceeds the available right-side block height, the layout should tighten horizontal and vertical turret spacing down to a minimum readable threshold before shrinking the industry or logistics block
+- if even the dense defensive block cannot fit the live turret count cleanly, the layout should still render all individual turrets in the first implementation and accept a denser block rather than introducing early aggregation
+
+Possible later option only if real player bases prove too dense: optional turret aggregation or paging. That should remain explicitly out of scope for the first implementation.
+
+#### Support-band rule
+
+Relay, nursery, nest, and shelter-like families should default to a combined support band.
+
+- keep individual icons, not counts
+- sort within the support band by family, then size where relevant, then label or object ID
+- keep the band visually secondary and lower in the composition than industry, logistics, defense, and gates
+- plan later hide or unhide controls carefully because support structures are likely to become the visually noisy families operators most often suppress
 
 ### 5.7 Centering logic
 
@@ -205,11 +241,12 @@ The layout should center the visible structure block intentionally instead of re
 Recommended logic:
 
 - filter hidden structures out of the visual set first
-- compute the number of visible family rows after wrapping
-- compute maximum row width across visible rows
-- compute `startY` so the total row block is vertically centered inside the map footprint
+- compute the number of visible industry, logistics, support, and gate rows after wrapping
+- compute turret block width and height separately because turret density can dominate the composition
+- compute the left-side content block and right-side defensive block independently, then center them as one intentional composition around the selected node anchor
 - compute each row's starting `x` from the available family band width so short rows do not hug the left edge awkwardly
-- if the family block would overflow height, reduce row gap and icon gap down to a minimum threshold before creating a secondary lower-right column
+- if the left-side family block would overflow height, reduce row gap and icon gap down to a minimum threshold before creating a secondary lower-right column for non-turret families
+- if the turret block would overflow height, tighten turret spacing first before borrowing vertical space from the support band or left-side rows
 
 ### 5.8 Future relationship compatibility
 
@@ -234,7 +271,7 @@ This preserves dashboard rhythm while changing the content meaningfully.
 
 The structure list should plan for one row per structure with these columns or data cells:
 
-- visibility toggle
+- visibility toggle later
 - structure icon
 - display name or local label
 - structure family or type
@@ -242,6 +279,14 @@ The structure list should plan for one row per structure with these columns or d
 - online or offline status where available
 - optional relationship note, for example linked gate destination later
 - action cell reserved for future safe actions
+
+For the first implementation branch:
+
+- rows should remain read-only
+- status display may be read-only text or badge only
+- action cells may be omitted, reserved, or visibly disabled
+- local label editing should remain deferred
+- online or offline controls should remain deferred
 
 ### 6.3 Selection sync
 
@@ -269,6 +314,8 @@ The first implementation branch should not edit any of these. It should only res
 - the list becomes the place to unhide them
 - hidden state is UI-only and local, not chain truth
 
+Hide and unhide is important for later phases, especially for the compact support band, but it should remain deferred out of the first implementation branch.
+
 ### 6.6 Action placement
 
 Keep the compact context menu intentionally small. The main control surface for actions should be the list row or inspector, not the right-click menu.
@@ -291,8 +338,7 @@ The surface should leave room for later:
 
 ### 7.1 Persistence strategy by phase
 
-- Phase B render-only drilldown: persist nothing except optional URL state
-- Phase C selection sync: selection can remain ephemeral
+- Phase B render-only drilldown shell plus selection sync: persist nothing except optional URL state
 - Phase D and later: persist hide state and layout overrides
 - local labels, if introduced, should be a separate later persistence slice
 
@@ -479,13 +525,12 @@ The plan should keep four layers distinct:
 
 Recommended sequence:
 
-1. render-only node-local drilldown using current `NetworkNodeGroup` data
-2. selection sync between SVG and list
-3. local hide or unhide and deterministic local layout overrides
-4. supported single-structure online or offline actions from inspector or list
-5. local preset drafting and save flow, still without execution
-6. broader connected-structure discovery for future family coverage
-7. future preset execution and richer industry-linked behavior only after the above is proven stable
+1. render-only node-local shell using current `NetworkNodeGroup` data, including node entry and exit, the lower Attached Structures list, an inspector placeholder, and SVG or list selection sync
+2. local hide or unhide and deterministic local layout overrides
+3. supported single-structure online or offline actions from inspector or list
+4. local preset drafting and save flow, still without execution
+5. broader connected-structure discovery for future family coverage
+6. future preset execution and richer industry-linked behavior only after the above is proven stable
 
 ### 9.3 Existing write actions that can eventually be reused
 
@@ -522,23 +567,14 @@ The first implementation should be UI shell first, write actions later. That mat
 - Manual preview checklist: none.
 - Rollback risk: low.
 
-### Phase B - render-only node-local mode
+### Phase B - render-only node-local shell plus selection sync
 
-- Scope: enter node-local mode from the strategic map, swap the map header to `Node Control`, keep the dashboard shell and hero cards unchanged, render a node-local map and lower structure surface using only current live `NetworkNodeGroup` families.
+- Scope: enter node-local mode from the strategic map, swap the map header to `Node Control`, keep the dashboard shell and hero cards unchanged, render a node-local map and lower structure surface using only current live `NetworkNodeGroup` families, include a read-only `Attached Structures` list, include a basic `Selection Inspector` placeholder, wire icon-to-row and row-to-icon selection sync, and provide an explicit `Back to Strategic Network` action.
 - Files likely touched: `src/screens/Dashboard.tsx`, `src/components/topology/StrategicMapPanel.tsx`, a new node-local drilldown surface component, and optionally `src/App.tsx` or `src/screens/NetworkNodeDetailScreen.tsx` for state mirroring or reuse.
-- Out of scope: write actions, presets, drag persistence, broader family discovery, sponsor changes, route overhaul.
+- Out of scope: write actions, presets, drag persistence, hide or unhide persistence, broader family discovery, sponsor changes, route overhaul.
 - Validation: `npm run typecheck`, `npm run build`, interaction smoke for enter and exit, no regression in macro map camera behavior.
-- Manual preview checklist: click a network node, confirm the shell stays intact, confirm the map footprint stays fixed, confirm macro families remain unchanged, confirm exiting returns telemetry and attention panels.
+- Manual preview checklist: click a network node, confirm the shell stays intact, confirm the map footprint stays fixed, confirm macro families remain unchanged, confirm the lower list and inspector placeholder appear, confirm icon selection highlights the matching row, confirm row selection highlights the matching icon, and confirm exiting returns telemetry and attention panels.
 - Rollback risk: low to medium.
-
-### Phase C - selection sync between SVG and list
-
-- Scope: single selected structure state, icon and row sync, calm orange halo treatment, inspector wiring, keyboard focus and `Escape` behavior.
-- Files likely touched: the new node-local map component, the structure list component, selection hooks or state helpers, and light changes to `Dashboard.tsx`.
-- Out of scope: writes, local persistence, presets, broader discovery.
-- Validation: `npm run typecheck`, `npm run build`, selection smoke for icon-to-row, row-to-icon, clear-selection, and keyboard focus order.
-- Manual preview checklist: select icon, verify matching row highlight; select row, verify matching icon highlight; `Escape` clears selection before leaving node-local mode.
-- Rollback risk: low.
 
 ### Phase D - local hide or unhide and layout persistence
 
@@ -589,12 +625,14 @@ The first implementation should be UI shell first, write actions later. That mat
 
 The recommended first implementation branch is:
 
-`Render-only node-local mode inside the existing dashboard map footprint and lower-panel shell, using current live NetworkNodeGroup data and the tracked icon catalogue, with entry by clicking a Network Node and exit back to macro view. No write actions, no presets, no drag persistence yet.`
+`Render-only node-local shell inside the existing dashboard map footprint and lower-panel shell, using current live NetworkNodeGroup data and the tracked icon catalogue, with node entry and exit inside the same dashboard, a read-only Attached Structures list, a basic Selection Inspector placeholder, icon-to-row and row-to-icon selection sync, and an explicit Back to Strategic Network action. No write actions, no presets, no drag persistence, no hide or unhide persistence, and no broader family hydration yet.`
 
 This is the right first branch because:
 
 - it matches the user's same-dashboard drill-in intent exactly
 - it stays within current proven data coverage
+- it includes enough lower-surface structure to validate the drilldown usefully instead of shipping an isolated SVG experiment
+- it pairs selection with a concrete list and inspector surface immediately, which reduces ambiguity about later action placement
 - it avoids mixing UI-shell work with transaction risk
 - it preserves the macro map and existing sponsor or Move boundaries
 - it creates the stable operator surface that later hide, write, and preset work can attach to
@@ -602,6 +640,8 @@ This is the right first branch because:
 ## 12. Risks and open questions
 
 - broader family coverage is not yet hydrated in the current live data model
+- very high turret counts may force a denser defensive block earlier than expected, and real player bases may determine whether a later aggregation fallback is necessary
+- the combined support band may work well for low-count relay, nursery, nest, and shelter families, but that assumption should be revalidated once broader discovery is live
 - dense nodes may force row wrapping and inspector tradeoffs sooner than expected
 - drag-and-persist behavior can become messy if introduced before the default layout is proven useful
 - right-click discoverability competes with the existing camera interaction model if it leaks back into macro mode
@@ -674,7 +714,9 @@ This is the right first branch because:
 
 - macro map still behaves the same in orbit, pan, zoom, reset, and lock
 - clicking a node enters node-local mode without changing the surrounding dashboard shell
+- macro mode still shows only network nodes, gates, trade posts or storage units, and turrets
 - back action and Browser Back both return to macro mode predictably
+- node-local mode shows the lower Attached Structures list and inspector placeholder
 - lower telemetry and attention panels return when macro mode returns
 - direct-chain data remains enough to render node-local mode even if shared-backend enrichment is unavailable
 
