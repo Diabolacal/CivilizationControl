@@ -62,7 +62,7 @@ The canonical topology grammar is already defined and should remain the visual b
 - stroke-only glyphs in neutral state
 - state expressed by color, pips, badges, halos, and link treatment rather than by changing the base silhouette
 - charcoal / near-black background with subdued grid
-- color doctrine: gray baseline, muted teal for online/healthy, amber for warning/defense, red for offline/denied, green for economic confirmation only, orange only as sparse accent / selection
+- color doctrine remains exception-first: gray baseline, muted teal for online/healthy, amber only for warning/defense/degraded, red for offline/denied, green for economic confirmation only, orange only as sparse accent / selection
 
 Current live glyphs are inline React SVG components rather than imported asset files:
 - `NetworkNodeGlyph`: hexagon + center dot
@@ -122,7 +122,7 @@ Evidence shorthand used below:
 | Network Node | Network Node 88092 | None | Yes | First-wave | Online today; offline later via hot-potato flow | CC current code/docs + itemTypes + world modules | High |
 | Gate family | Mini Gate 88086, Heavy Gate 84955 | Two-size ladder: M/H | Yes | First-wave | Current web PTB already supports online/offline | CC current code/docs + itemTypes + gate list | High |
 | Storage / Trade Post family | Mini Storage 88082, Storage 88083, Heavy Storage 77917 | M/blank/H | Yes | First-wave | Current web PTB already supports online/offline | CC current code/docs + itemTypes + energy list | High |
-| Turret family | Smart Turret 84556, Mini Turret 92279, Turret 92401, Heavy Turret 92404 | Size ladder M/blank/H; Smart is subtype, not size rung | Yes | First-wave | Current web PTB already supports online/offline | CC current code/docs + itemTypes + energy list | High |
+| Turret family | Smart Turret 84556, Mini Turret 92279, Turret 92401, Heavy Turret 92404 | Size ladder is M/blank/H for Mini/Turret/Heavy; Smart Turret remains an unresolved catalogue/platform entry, not a settled size rung | Yes | First-wave | Current web PTB already supports the shared turret family; current source truth does not justify separate Smart Turret icon handling | CC current code/docs + itemTypes + energy list + turret docs | High for family / Medium for Smart Turret distinction |
 
 ### 4.2 Provisional but important families
 | Family | Concrete types / IDs | Size ladder | Power / operational note | Planned treatment | Evidence | Confidence |
@@ -143,8 +143,9 @@ Evidence shorthand used below:
 ### 4.4 Catalogue takeaways
 - The live app currently exposes only four macro families. Those remain the strict first-wave node-drilldown families.
 - Printer, refinery, assembler, berth, relay, nursery, and hangar families should be designed now so the icon language stays stable later, but they should not be pushed onto the macro map.
-- Shelter and Heavy Shelter are no longer dismissed; they are explicit provisional hangar/storage families with operator importance even before power semantics are proven.
+- Shelter and Heavy Shelter are no longer dismissed; they are explicit provisional hangar families with operator importance even before power semantics are proven.
 - Field variants remain deferred until stronger source truth proves they belong in the same node-local structure universe.
+- Smart Turret should not drive a separate icon subtype in the plan; until stronger source truth exists, turret visual grammar is driven by size and state, not by a `smart` marker.
 
 ## 5. Proposed network-node icon taxonomy
 Shared rules:
@@ -152,9 +153,12 @@ Shared rules:
 - Interior mark = subtype or function refinement.
 - Badge = size only when size materially matters.
 - Status = overlay, pip, halo, or stroke treatment; do not mutate the base silhouette.
+- Color remains exception-first: gray is the neutral baseline, muted teal marks verified online/healthy, red marks offline/denied, amber is reserved for warning/defense/degraded examples, green stays economic-confirmation-only, and orange stays selection/focus only.
 - Hover = restrained stroke lift only.
 - Selection = sparse orange halo only.
 - Icons are stable operator symbols, not literal copies of current in-game model silhouettes.
+
+For provisional families, the first static icon preview should default to neutral gray. Teal, red, or amber examples should appear only when the preview is explicitly demonstrating a known state example rather than implying a fully wired runtime matrix.
 
 Use the current four macro silhouettes unchanged. Reserve the shared industry diamond only for true process / manufacturing families. Do not let the diamond become the generic fallback for every new structure type.
 
@@ -163,14 +167,14 @@ Use the current four macro silhouettes unchanged. Reserve the shared industry di
 | Network Node | Existing hexagon + core dot | Core dot only | None | Health-driven stroke; low-fuel amber pip only | Standard hover and sparse orange selection halo | Already the canonical hub / power anchor |
 | Gate family | Existing aperture ring | None | `M` for Mini Gate, `H` for Heavy Gate | Corridor state stays mostly on links, not inside the ring | Hover may emphasize linked corridor with the ring | Unique passage silhouette even at small size |
 | Storage / Trade Post family | Existing square with inner square | Inner square only | `M` / blank / `H` | Green remains transient commerce confirmation only | Standard hover / selection; no persistent green glow | Strong container / commerce read and high contrast to node/gate/turret |
-| Turret family | Existing outward triangle | Smart Turret gets one slot mark | `M` / blank / `H`; Smart uses mark, not badge | Amber defense read and armed halo stay consistent with macro map | Standard hover / selection; preserve outward orientation | Only directional threat silhouette in the set |
-| Printer family | Shared industry diamond | One strong vertical platen mark | `M` / blank / `H` | Standard teal / amber / red overlays | Standard hover / selection | Clear fabrication cue without copying in-game mesh |
-| Refinery family | Shared industry diamond | Lower basin / split-trough mark | Blank / `H` | Standard teal / amber / red overlays | Standard hover / selection | Reads as processing rather than printing |
-| Assembler | Shared industry diamond | Interlocking bracket / block mark | None | Standard teal / amber / red overlays | Standard hover / selection | Fits manufacturing family without another silhouette |
-| Berth family | Separate open cradle / dock-bay silhouette | One dock rail / keel bar | `M` / blank / `H` | Standard teal / amber / red overlays | Standard hover / selection | Docking / shipyard read is different from process industry |
-| Relay | Separate mast / pylon silhouette | Mast with short side ticks | None | Standard teal / amber / red overlays | Standard hover / selection; dependency line may be emphasized | Reads as utility / signal rather than manufacturing |
-| Nursery | Separate pod / incubation-cell silhouette | Nested ring / seed mark | None | Standard teal / amber / red overlays | Standard hover / selection | Distinct from printer/refinery and avoids overusing the diamond |
-| Hangar / Shelter family | Separate roofed bay / vaulted shelter silhouette | Shelter stays clean; Nest gets nested arch or hatch mark | Shelter blank / `H`; Nest unbadged | Neutral-first until power semantics are proven; if later powered, use the standard doctrine | Standard hover / selection | Reads as protected ship storage rather than processor or cargo box |
+| Turret family | Existing outward triangle | None in the base plan | `M` / blank / `H` for Mini/Turret/Heavy only | Teal when online, red when offline, amber only for defense or warning examples; do not invent a Smart Turret marker without stronger source truth | Standard hover / selection; preserve outward orientation | Only directional threat silhouette in the set, with size and runtime state doing the real work |
+| Printer family | Shared industry diamond | One strong vertical platen mark | `M` / blank / `H` | Neutral by default in the first preview; later inherits the shared state grammar only when runtime meaning is wired | Standard hover / selection | Clear fabrication cue without copying in-game mesh |
+| Refinery family | Shared industry diamond | Lower basin / split-trough mark | Blank / `H` | Neutral by default in the first preview; amber appears only in explicit blocked / warning examples | Standard hover / selection | Reads as processing rather than printing |
+| Assembler | Shared industry diamond | Interlocking bracket / block mark | None | Neutral by default in the first preview; later inherits shared state grammar if runtime meaning is wired | Standard hover / selection | Fits manufacturing family without another silhouette |
+| Berth family | Separate open cradle / dock-bay silhouette | One dock rail / keel bar | `M` / blank / `H` | Neutral by default in the first preview; later inherits shared state grammar if runtime meaning is wired | Standard hover / selection | Docking / shipyard read is different from process industry |
+| Relay | Separate mast / pylon silhouette | Mast with short side ticks | None | Neutral by default in the first preview; later inherits shared state grammar if runtime meaning is wired | Standard hover / selection; dependency line may be emphasized | Reads as utility / signal rather than manufacturing |
+| Nursery | Separate pod / incubation-cell silhouette | Nested ring / seed mark | None | Neutral by default in the first preview; later inherits shared state grammar if runtime meaning is wired | Standard hover / selection | Distinct from printer/refinery and avoids overusing the diamond |
+| Hangar / Shelter family | Separate rounded / vaulted hangar-bay silhouette | Shelter stays clean; Nest gets a nested bay / hatch mark only if later surfaced | Shelter blank / `H`; Nest unbadged | Neutral-first until power semantics are proven; if later powered, use the shared doctrine without collapsing it into storage or industry grammar | Standard hover / selection | Reads as protected ship storage rather than processor or cargo box |
 | Deferred field variants | Inherit closest parent family silhouette in catalogue only | Parent-family mark | No field badge in first-wave preview | Keep provisional; no first-wave behavior assumptions | Standard hover / selection if ever previewed later | Avoids premature icon sprawl |
 
 ## 6. Size variant rules
@@ -178,7 +182,7 @@ Use the current four macro silhouettes unchanged. Reserve the shared industry di
 | Family | Badge logic | Notes |
 |---|---|---|
 | Storage | `M` = Mini Storage, blank = Storage, `H` = Heavy Storage | Required at node scale |
-| Turret | `M` = Mini Turret, blank = Turret, `H` = Heavy Turret | Smart Turret uses interior mark, not size badge |
+| Turret | `M` = Mini Turret, blank = Turret, `H` = Heavy Turret | Do not add a Smart Turret mark or badge until source truth proves a stable visual distinction |
 | Printer | `M` = Mini Printer, blank = Printer, `H` = Heavy Printer | Required at node scale |
 | Berth | `M` = Mini Berth, blank = Berth, `H` = Heavy Berth | Required at node scale |
 | Gate | `M` = Mini Gate, `H` = Heavy Gate | Two-size ladder today; reserve blank for any future standard gate |
@@ -193,10 +197,50 @@ Use the current four macro silhouettes unchanged. Reserve the shared industry di
 
 ### 6.3 What not to badge
 - Do not badge network nodes.
-- Do not badge one-off special variants such as Smart Turret, Relay, Assembler, or Nursery; use interior marks or inspector labels instead.
+- Do not badge one-off special variants such as Relay, Assembler, Nursery, or Nest; use interior marks or inspector labels instead.
+- Do not create a Smart Turret badge or interior mark until stronger source truth proves a stable visual difference from the normal turret family.
 - Do not let size badges outrank status overlays or selection.
 
-## 7. Node-view legend / key requirements
+## 7. SVG icon acceptance criteria
+### 7.1 Geometry and compatibility contract
+- Every node-level family glyph should use a `24 x 24` viewBox and keep its occupied body inside the center `20 x 20` area so the outer padding remains available for badges, pips, and halos.
+- The current macro glyphs must remain geometry-compatible with the live inline SVGs in `src/components/topology/Glyphs.tsx`: network node hexagon + core dot, gate aperture ring, turret triangle, and trade-post square-with-inner-square.
+- The next implementation branch may replace the render source with a catalogue, but it must not change live strategic-map geometry, slotting, corridor routing, orbit camera behavior, or current map-state semantics.
+
+### 7.2 Stroke, fill, and silhouette rules
+- Neutral glyphs are stroke-only or mostly stroke. Use a 2-unit stroke on the 24-unit grid and keep rendered strokes at or above about `1.5px` so the catalogue stays visually consistent with the live map.
+- Fill usage stays limited to small semantic elements that already exist in the topology grammar, such as the node core dot, warning pips, or badge backgrounds. Do not introduce filled body silhouettes, gradients, or decorative glows.
+- No literal copying of in-game 3D meshes. Icon silhouettes should stay functional, schematic, and stable even if in-game art shifts during alpha.
+
+### 7.3 Readability and minimum preview size
+- A family glyph must remain readable by silhouette alone at `24px`, which remains the minimum operational size for the first static preview and for dense legend rows.
+- `32px` detail previews are acceptable for inspection cards or catalogue callouts, but anything smaller than `24px` should be treated as aggregate / mini territory and should suppress fine badge or interior-mark detail.
+- The current macro glyphs remain unchanged; new family work should feel like a compatible expansion of the topology grammar rather than a second icon language.
+
+### 7.4 Badge, pip, and overlay hierarchy
+- Default badge position is north-east, using a small badge class sized to the same outer-padding zone the live spec reserves for overlays.
+- If the north-east corner is already occupied by a warning pip, revenue badge, or another live-priority marker, move the size badge to north-west instead of stacking multiple overlays in one corner.
+- Status pips and warning pips outrank size badges only when they represent a real current-state condition.
+- Selection halos sit behind the glyph body; badges and pips stay above the glyph; hover should not become a second halo.
+
+### 7.5 State and color limits
+- Color stays exception-first: gray = neutral baseline, muted teal = verified online or healthy, red = offline or denied, amber = warning / defense / degraded only, green = economic confirmation only, orange = selected / focused only.
+- The first static icon preview should default families to neutral gray and only show amber in explicitly labeled warning or defense examples.
+- Do not imply that every family ships with a full teal / amber / red state matrix in the first preview, especially for provisional families that are not yet in the live discovery model.
+- Network-node body color remains health-driven; low fuel remains a small amber pip rather than a full-node recolor.
+
+### 7.6 Hover and legend density
+- Hover treatment stays restrained: stroke lift, subtle opacity lift, or similarly quiet emphasis only. The preview must not depend on tooltip-heavy hover behavior.
+- Legend rows should stay compact: one `20-24px` icon cell plus a short single-line label, shown only for the families present in the preview surface.
+- The legend must stay subordinate to the diagram. No full dictionary panel, no long prose blocks, and no over-coloring just to make the legend feel active.
+
+### 7.7 Explicit non-goals for Phase 1
+- No live strategic-map behavior change.
+- No permanent amber sweeps across the catalogue.
+- No requirement to adopt non-live overlays or interaction states on the current macro map.
+- No production deploy implied by the icon-catalogue branch; a preview route or dev-only component is sufficient.
+
+## 8. Node-view legend / key requirements
 ### Placement
 - Default placement is a slim vertical key along the left edge of the future node-view diagram shell.
 - If that edge becomes visually crowded for a specific layout, allow a quiet corner fallback, but keep the key off the selected node and out of major corridor paths.
@@ -205,7 +249,7 @@ Use the current four macro silhouettes unchanged. Reserve the shared industry di
 ### Contents
 - One row per family currently present in the node view: icon plus short label only.
 - One shared line explaining size: `M = Mini`, `H = Heavy`, blank = Standard.
-- One compact line for status grammar only when needed: teal online, amber warning / defense, red offline / denied, orange halo selected, pip = persistent micro-status.
+- One compact line for status grammar only when needed: gray neutral, muted teal online/healthy, amber warning / defense only, red offline / denied, orange halo selected, pip = persistent micro-status.
 
 ### Density rules
 - Show only families present in the current node view, not the entire long-term catalogue.
@@ -219,7 +263,7 @@ Use the current four macro silhouettes unchanged. Reserve the shared industry di
 - No raw chain / backend diagnostics.
 - No full badge dictionary or motion timing guide.
 
-## 8. Network-node drilldown UX concept
+## 9. Network-node drilldown UX concept
 The eventual node drilldown still follows the same calm operator-facing direction, but it is now a later phase rather than the next branch.
 
 ### Entry and exit
@@ -244,7 +288,7 @@ The eventual node drilldown still follows the same calm operator-facing directio
 - online/offline actions from the node view
 - preset authoring or persistence
 
-## 9. Data requirements
+## 10. Data requirements
 ### What current direct-chain discovery already provides
 Current direct-chain discovery already gives the future drilldown enough for later phases involving today's known families:
 - structure object ID
@@ -292,7 +336,7 @@ The following can be implemented without any new backend or indexer work:
 - missing or partial enrichment must leave future node surfaces usable with direct-chain data only
 - no write-path or action decision may depend on enrichment availability
 
-## 10. Implementation phases
+## 11. Implementation phases
 ### Phase 0 - Specification lock
 - Scope: refine and freeze the node-drilldown type catalogue, silhouette rules, M/H badge grammar, legend requirements, and static-preview acceptance criteria in docs.
 - Likely files: this plan, and later canonical docs such as `docs/ux/svg-topology-layer-spec.md` and `assets/icons/README.md` if the catalogue becomes canonical there.
@@ -303,11 +347,12 @@ The following can be implemented without any new backend or indexer work:
 
 ### Phase 1 - Icon catalogue and static icon / legend preview only
 - Scope: implement the node-level SVG icon catalogue, M/H badge treatment, and a static icon/legend preview only.
+- Acceptable preview surface: a visual test route, preview route, or dev-only component is acceptable, as long as it remains isolated from live strategic-map behavior.
 - Likely files: `src/components/topology/Glyphs.tsx`, a new preview-only component or screen, and optional spec/audit doc updates.
 - Validation: `npm run typecheck`, `npm run build`.
 - Manual preview checklist: confirm every first-wave family and every provisional-important family renders clearly; confirm M/H badges are readable; confirm the legend stays compact; confirm the live strategic map remains behaviorally unchanged.
 - Rollback notes: isolated UI rollback only.
-- What not to do yet: no drilldown shell, no map click navigation, no backend relationship discovery, no online/offline actions, no presets.
+- What not to do yet: no drilldown shell, no map click navigation, no backend relationship discovery, no online/offline actions, no presets, and no production deploy unless explicitly requested later.
 
 ### Phase 2 - Render-only node drilldown shell with current live families
 - Scope: extend the existing `/nodes/:id` surface into a render-only node-local layout using current `NetworkNodeGroup` data and the approved icon set.
@@ -357,10 +402,12 @@ The following can be implemented without any new backend or indexer work:
 - Rollback notes: medium because this changes the additive read path.
 - What not to do yet: no backend ownership discovery, no write authority from backend, no sponsor or package-ID changes.
 
-## 11. First implementation slice recommendation
+## 12. First implementation slice recommendation
 The recommended next implementation prompt after this refinement is:
 
 > Implement the node-level SVG icon catalogue and a static icon/legend preview only. Do not add a node drilldown shell. Do not add map click navigation. Do not add backend relationship discovery. Do not add online/offline actions. Do not add presets.
+
+A preview route, visual test surface, or dev-only component is acceptable for this slice. Production deploy is explicitly out of scope unless requested in a later task.
 
 Why this is now the right first slice:
 - iconography is the blocking item after user review
@@ -368,16 +415,18 @@ Why this is now the right first slice:
 - shelter / hangar treatment needs visible review before it is buried inside a larger drilldown branch
 - the macro map and existing route behavior stay untouched while the visual grammar is locked
 
-## 12. Risks and open questions
+## 13. Risks and open questions
 - **Incomplete type catalogue risk.** The live app still discovers only four families. The broader powered catalogue is real, but still needs future runtime confirmation at the node-relationship level.
+- **Smart Turret catalogue ambiguity.** `Smart Turret (84556)` exists in the type catalogue, but current source truth does not prove a stable user-facing icon distinction from the normal turret family. The plan should keep it unresolved rather than inventing a marker.
 - **Shelter / hangar semantics.** Shelter and Heavy Shelter are important enough to design now, but current source truth does not yet justify first-wave power-control assumptions.
 - **Field variant membership.** Field Printer / Refinery / Storage remain deferred because the current source set does not prove they belong in the same powered-node universe.
 - **Diamond overuse risk.** If too many families inherit the industry diamond, the node drilldown will lose silhouette-first readability.
+- **Amber overuse risk.** If the first preview paints every family teal / amber / red by default, the icon catalogue will break the existing exception-first topology doctrine.
 - **Legend noise risk.** The key is necessary, but it must remain quieter than the node diagram itself.
 - **Badge collision risk.** M/H, warning pips, revenue badges, and selection halos all need explicit precedence rules.
 - **Online/offline write safety.** Per-structure drilldown actions should reuse existing power flows first. Network-node offline remains specifically risky because of the connected-assembly hot-potato flow.
 
-## 13. Sources inspected
+## 14. Sources inspected
 ### CivilizationControl source and docs
 - `src/types/domain.ts`
 - `src/hooks/useAssetDiscovery.ts`

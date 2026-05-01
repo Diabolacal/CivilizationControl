@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-05-01 – Clarify network node icon taxonomy precision pass
+- Goal: Make one final precision pass on the network-node icon plan so turret handling, amber state doctrine, shelter geometry, and SVG acceptance criteria are internally consistent before any implementation branch starts.
+- Files: `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md`, `docs/decision-log.md`
+- Diff: docs-only precision refinement of the existing plan
+- Risk: low — planning/docs only, no runtime/package/deploy/vendor/submodule changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: removed unsupported Smart Turret icon treatment, tightened amber to reserved warning/defense usage, clarified shelters as a rounded/vaulted hangar family, and added explicit SVG icon acceptance criteria for the icon-catalogue/static-preview branch.
+- Follow-ups: merge the finalized planning branch to `master`, then open the dedicated icon-catalogue implementation branch for the static icon/legend preview work.
+
 ## 2026-05-01 – Refine network node icon plan after user review
 - Goal: Refine the network-node posture planning document so iconography, badge grammar, and legend requirements are locked before any drilldown-shell implementation work.
 - Files: `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md`, `docs/decision-log.md`
