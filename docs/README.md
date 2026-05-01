@@ -156,6 +156,7 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 | [operations/world-v2-runtime-migration-plan-20260429.md](operations/world-v2-runtime-migration-plan-20260429.md) | **World v2 runtime migration plan** — planning-only cutover map for runtime package alignment, preview proof, and rollback |
 | [operations/world-v2-runtime-preview-validation-20260429.md](operations/world-v2-runtime-preview-validation-20260429.md) | **World v2 runtime preview validation** — implementation evidence, preview URLs, worker overlap, bundle proof, and manual smoke checklist |
 | [operations/sponsor-worker-runbook.md](operations/sponsor-worker-runbook.md) | **Sponsor worker runbook** — in-repo worker layout, secrets, validation, and policy update procedure |
+| [operations/network-node-posture-icon-and-drilldown-plan-20260429.md](operations/network-node-posture-icon-and-drilldown-plan-20260429.md) | **Network-node posture icon and drilldown plan** — structure catalogue, icon taxonomy, node-local UX concept, and phased implementation sequence for the next operator-control surface |
 
 ## Working Memory
 

@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-05-01 – Plan network node posture icons
+- Goal: Produce an implementation-ready planning document for network-node-level structure icons and node-local posture drilldown without changing runtime code, sponsorship, package IDs, Move contracts, or vendor state.
+- Files: `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: docs-only planning memo, docs index update, and decision-log note
+- Risk: low — planning/docs only, no runtime/package/deploy/vendor/submodule changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: catalogued the current macro-map constraints, enumerated the strong-set and provisional node-connected structure families, defined a future icon taxonomy and calm node-drilldown UX, and proposed a narrow phased implementation path anchored to the existing `/nodes/:id` route and direct-chain authority.
+- Follow-ups: hand the recommended first implementation slice to a separate feature branch without changing strategic-map behavior or write paths in the same prompt.
+
 ## 2026-05-01 – Review VS Code 1.118 workspace tooling
 - Goal: Review official VS Code 1.118 release notes against the current CivilizationControl VS Code/Copilot workflow, apply only safe repo-level tooling changes, and document manual guidance for prompt/instruction analysis without touching runtime code.
 - Files: `.vscode/extensions.json`, `docs/operations/vscode-1-118-tooling-review-20260501.md`, `docs/README.md`, `docs/decision-log.md`
