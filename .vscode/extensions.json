@@ -1,7 +1,7 @@
 {
   // ─────────────────────────────────────────────────────────────────────────
   // Workspace – Recommended Extensions
-  // Updated for VS Code 1.109 (Jan 2026)
+  // Updated for VS Code 1.118 (May 2026)
   // ─────────────────────────────────────────────────────────────────────────
   //
   // Note: VS Code 1.109 deprecated the standalone "GitHub Copilot" extension.
@@ -12,6 +12,9 @@
     // AI & Copilot (required for agentic workflows)
     // ─────────────────────────────────────────────────────────────────────────
     "GitHub.copilot-chat",
+
+    // Analyze workspace prompt and instructions files with diagnostics
+    "ms-vscode.vscode-chat-customizations-evaluations",
 
     // ─────────────────────────────────────────────────────────────────────────
     // Developer Tools (add project-specific extensions below)
