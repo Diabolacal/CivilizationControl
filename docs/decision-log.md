@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-05-01 – Plan network node drilldown implementation
+- Goal: Produce a detailed implementation-ready plan for the next network-node-local drilldown UX slice after the icon catalogue/reference work merged, without changing runtime code, routes, transactions, sponsorship, package IDs, Move contracts, EF-Map, VPS services, or vendor state.
+- Files: `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: docs-only implementation plan plus status, index, and decision-log updates
+- Risk: low — planning/docs only, no runtime/package/deploy/vendor/submodule changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: captured the intended same-dashboard drill-in model, kept the macro Strategic Network map intentionally simplified, defined the node-local map and lower-panel control surface, documented local persistence and preset staging, and recommended a render-only dashboard-local first implementation branch before any write or preset execution work.
+- Follow-ups: start the first implementation branch with render-only node-local mode inside the existing dashboard shell and map footprint, using current `NetworkNodeGroup` data and the tracked node icon catalogue, with no write actions, no presets, and no drag persistence in the first slice.
+
 ## 2026-05-01 – Finalize node icon catalogue reference
 - Goal: Finalize the node icon catalogue/reference branch by tracking the raw node-level SVG glyphs, landing the isolated `/dev/node-icon-catalogue` reference route, and updating the SVG audit/spec docs without changing strategic-map runtime behavior, transactions, sponsorship, package IDs, Move code, or vendor state.
 - Files: `assets/icons/glyphs/printer.svg`, `assets/icons/glyphs/refinery.svg`, `assets/icons/glyphs/assembler.svg`, `assets/icons/glyphs/berth.svg`, `assets/icons/glyphs/relay.svg`, `assets/icons/glyphs/nursery.svg`, `assets/icons/glyphs/hangar.svg`, `assets/icons/glyphs/nest.svg`, `assets/icons/README.md`, `src/main.tsx`, `src/App.tsx`, `src/screens/NodeIconCatalogueScreen.tsx`, `src/components/topology/node-icon-catalogue/NodeCatalogueGlyphs.tsx`, `src/components/topology/node-icon-catalogue/NodeIconPreviewGlyph.tsx`, `src/components/topology/node-icon-catalogue/NodeIconLegend.tsx`, `src/components/topology/node-icon-catalogue/NodeIconCard.tsx`, `src/components/topology/node-icon-catalogue/NodeIconCatalogueSection.tsx`, `src/components/topology/node-icon-catalogue/nodeIconCatalogueData.ts`, `docs/ux/svg-asset-audit.md`, `docs/ux/svg-topology-layer-spec.md`, `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md`, `docs/README.md`, `docs/decision-log.md`

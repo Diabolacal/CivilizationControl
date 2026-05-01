@@ -18,11 +18,16 @@ This document does not implement runtime code, map behavior changes, transaction
 - The future node view needs a compact legend / key so unfamiliar families remain legible without turning the diagram into a help panel.
 
 ### 2026-05-01 implementation status update
-- Phase 1 icon catalogue/reference work is now implemented on `feat/node-icon-catalogue-preview`.
+- Phase 1 icon catalogue/reference work is now complete and merged to `master`.
 - The static reference route is `/dev/node-icon-catalogue`.
 - The branch adds node-level raw SVG glyphs plus React SVG catalogue components while keeping the macro strategic map unchanged.
 - No drilldown shell, map click navigation, presets, write actions, or backend relationship discovery were added in Phase 1.
 - The next phase remains node-local drilldown planning/implementation, not preset or write-path expansion.
+
+### 2026-05-01 follow-on planning note
+- The detailed follow-on implementation brief now lives in `docs/operations/network-node-drilldown-implementation-plan-20260501.md`.
+- That brief locks the recommended first implementation slice to a render-only, dashboard-local node drilldown using the current `NetworkNodeGroup` read model and the tracked node icon catalogue.
+- The first branch should keep the macro Strategic Network view unchanged and should defer write actions, user-named presets, drag persistence, and broader family hydration until the drilldown shell is stable.
 
 ## 2. Current product context
 ### Hackathon macro-posture model
