@@ -4,6 +4,15 @@ Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
 
 ---
 
+## 2026-05-02 – Add node drilldown scenario-lab plan
+- Goal: Refine the node drilldown implementation plan so the first implementation branch includes a dev-only synthetic scenario lab for layout validation, because current Stillness live data is too sparse to prove dense node layouts on wallet-owned infrastructure alone.
+- Files: `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
+- Diff: docs-only refinement of the existing implementation plan
+- Risk: low — planning/docs only, no runtime/package/deploy/vendor/submodule changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: added a dev-only `/dev/node-drilldown-lab` planning section, required the node-local renderer to stay data-driven so live and synthetic data can share the same components, folded the synthetic lab into the recommended first implementation branch and Phase B, expanded manual validation to cover preset dense scenarios, and documented the fixture-drift and fake-data boundary risks.
+- Follow-ups: start the first implementation branch for render-only node-local shell plus selection sync and a dev-only scenario lab, with no writes, no presets, no drag persistence, no hide or unhide persistence, and no broader live hydration.
+
 ## 2026-05-02 – Refine network node drilldown plan after review
 - Goal: Tighten the node drilldown implementation plan after user review so family ordering better matches likely live base density, turret-heavy layouts are handled explicitly, support structures are grouped more practically, and the first implementation branch is scoped as one usable render-only slice.
 - Files: `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`

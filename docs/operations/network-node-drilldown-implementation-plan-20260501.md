@@ -37,6 +37,17 @@ The intended experience is a same-dashboard drilldown, not a hard jump to a seco
 - That shape is sufficient for a first render-only drilldown using the current live families.
 - That shape is not sufficient for the broader future family set without later data-model and read-path expansion.
 
+### Recommended renderer boundary
+
+The node-local renderer should be data-driven.
+
+- it should accept a normalized node-local structure list or view model instead of reaching into wallet-discovery state internally
+- the production dashboard can then pass normalized data derived from live `NetworkNodeGroup` state
+- a dev-only scenario lab can pass normalized synthetic fixture data through the same renderer
+- a later broader-hydration phase can pass richer future family data without rewriting the renderer contract
+
+This is a planning requirement for the first implementation branch because real Stillness ownership is too sparse to validate dense and future-like layouts using wallet data alone.
+
 ### Read-path and authority boundaries
 
 - `src/lib/suiReader.ts` remains the direct-chain authority for ownership, structure identity, node linkage, OwnerCap discovery, fuel state, and write eligibility.
@@ -625,7 +636,7 @@ The first implementation should be UI shell first, write actions later. That mat
 
 The recommended first implementation branch is:
 
-`Render-only node-local shell inside the existing dashboard map footprint and lower-panel shell, using current live NetworkNodeGroup data and the tracked icon catalogue, with node entry and exit inside the same dashboard, a read-only Attached Structures list, a basic Selection Inspector placeholder, icon-to-row and row-to-icon selection sync, and an explicit Back to Strategic Network action. No write actions, no presets, no drag persistence, no hide or unhide persistence, and no broader family hydration yet.`
+`Render-only node-local shell plus selection sync, with both live dashboard entry and a dev-only node drilldown lab for synthetic layout validation. The first branch should keep the same dashboard shell and map footprint, use current live NetworkNodeGroup data for real node entry and exit, provide a read-only Attached Structures list, provide a basic Selection Inspector placeholder, support icon-to-row and row-to-icon selection sync, provide an explicit Back to Strategic Network action, and include a dev-only /dev/node-drilldown-lab surface or equivalent that reuses the same layout and rendering components with synthetic scenario data. No write actions, no presets, no drag persistence, no hide or unhide persistence, and no broader family hydration yet.`
 
 This is the right first branch because:
 
@@ -633,16 +644,120 @@ This is the right first branch because:
 - it stays within current proven data coverage
 - it includes enough lower-surface structure to validate the drilldown usefully instead of shipping an isolated SVG experiment
 - it pairs selection with a concrete list and inspector surface immediately, which reduces ambiguity about later action placement
+- it gives the implementation a believable dense-layout validation path even when the operator does not own enough real Stillness infrastructure to stress the renderer
 - it avoids mixing UI-shell work with transaction risk
 - it preserves the macro map and existing sponsor or Move boundaries
 - it creates the stable operator surface that later hide, write, and preset work can attach to
 
-## 12. Risks and open questions
+## 12. Dev-only scenario validation surface
+
+### 12.1 Why it is needed
+
+Live wallet-connected drilldown is necessary but not sufficient for the first implementation branch.
+
+The operator currently has limited infrastructure on Stillness, which means real ownership data is unlikely to expose the dense or mixed structure counts needed to validate:
+
+- high printer and refinery density
+- mixed industry plus logistics layouts
+- very high turret counts such as 20, 30, or 50
+- support-band clutter
+- readability of the lower list and inspector against dense synthetic layouts
+
+Without a synthetic validation surface, the first branch could look correct on a sparse live node while still failing on realistic or future-like bases.
+
+### 12.2 Recommended route and visibility
+
+Recommended dev-only route:
+
+- `/dev/node-drilldown-lab`
+
+Requirements:
+
+- not linked from primary app navigation
+- clearly marked as dev-only or synthetic
+- used for local preview and validation only
+- not treated as a player-facing production feature
+
+### 12.3 Runtime boundaries
+
+The dev lab should be isolated from production dependencies.
+
+- no wallet connection requirement
+- no Sui RPC calls
+- no EF-Map or shared-backend calls
+- no sponsor-worker calls
+- no transaction execution
+- no mutation hooks
+
+The goal is pure layout, list, inspector, and selection validation.
+
+### 12.4 Component reuse requirement
+
+The dev lab should reuse the same node-local rendering surfaces as the real drilldown where practical.
+
+- same node-local SVG renderer
+- same lower Attached Structures list component
+- same Selection Inspector placeholder component
+- same selection state model
+- same layout algorithm and family-band rules
+
+The dev lab should not become a second independent implementation of the node-local view. It exists specifically to prove the real renderer against synthetic but believable structure sets.
+
+### 12.5 Synthetic data model
+
+The lab should feed normalized synthetic node-local structure data into the same renderer contract planned for production.
+
+That keeps the renderer reusable across:
+
+- real dashboard entry using live `NetworkNodeGroup`-derived data
+- the dev-only scenario lab using fixture data
+- later broader family hydration when richer structure sets are available
+
+### 12.6 Scenario presets and configurator
+
+The dev lab may use either preset scenarios, a compact configurator, or both. The cleanest first implementation is:
+
+- a small scenario selector with a handful of preset scenarios
+- optional compact count controls only if they stay lightweight and do not bloat the lab
+
+Preset scenarios to include in the plan:
+
+- `Sparse Solo Node`
+- `Industry Node`
+- `Defense Heavy Node`
+- `Mixed Operating Base`
+- `Turret Stress Test`
+- `Support Clutter Test`
+
+Suggested configurable counts or fixture inputs:
+
+- printers count
+- refineries count
+- assemblers count
+- storage or trade post count
+- berth count
+- turret count, including high-count cases like 20, 30, and 50
+- gate count
+- support count covering relay, nursery, nest, and shelters
+
+### 12.7 Lab purpose and non-goals
+
+The dev lab is for preview and local validation only.
+
+- it should help prove layout density, selection sync, row readability, and support-band behavior
+- it should not become a source of product logic or authoritative game data
+- it should not be used to justify write actions before dense synthetic and sparse live cases are both visually stable
+
+## 13. Risks and open questions
 
 - broader family coverage is not yet hydrated in the current live data model
 - very high turret counts may force a denser defensive block earlier than expected, and real player bases may determine whether a later aggregation fallback is necessary
 - the combined support band may work well for low-count relay, nursery, nest, and shelter families, but that assumption should be revalidated once broader discovery is live
 - dense nodes may force row wrapping and inspector tradeoffs sooner than expected
+- synthetic fixture drift is a real risk; the dev lab must not quietly diverge from the real renderer contract or realistic structure distributions
+- fake data must not be mistaken for chain truth; the route should stay unlinked or clearly marked as synthetic
+- scenario fixtures should not become product logic or a hidden dependency of the live drilldown behavior
+- high-density layout should be proven in the dev lab before any write actions are added to the node-local surface
 - drag-and-persist behavior can become messy if introduced before the default layout is proven useful
 - right-click discoverability competes with the existing camera interaction model if it leaks back into macro mode
 - operators may confuse local labels with on-chain rename unless the distinction is explicit in the UI
@@ -652,13 +767,14 @@ This is the right first branch because:
 - browser localStorage can corrupt, leak across users, or go stale unless keys are scoped tightly and recovered defensively
 - the same-dashboard drilldown model needs responsive discipline on narrower widths so the lower structure surface does not become unreadable
 
-## 13. Files likely touched
+## 14. Files likely touched
 
 ### Dashboard and screen surfaces
 
 - `src/screens/Dashboard.tsx`
 - `src/App.tsx` only if URL mirroring or route reuse is added
 - `src/screens/NetworkNodeDetailScreen.tsx` as a later compatibility wrapper or shared surface consumer
+- new dev-only screen such as `src/screens/NodeDrilldownLabScreen.tsx`
 
 ### Topology components
 
@@ -676,6 +792,8 @@ This is the right first branch because:
 
 - `src/types/domain.ts` for later broader family work only
 - `src/hooks/useAssetDiscovery.ts` for later broader family grouping only
+- normalized node-local view-model helpers so live and synthetic data can flow through the same renderer contract
+- synthetic fixture helpers or scenario definitions for the dev lab
 - new local helper such as `src/lib/nodeDrilldownStorage.ts`
 - new local hook such as `src/hooks/useNodeDrilldownLayout.ts`
 
@@ -694,7 +812,7 @@ This is the right first branch because:
 - vendor and submodule content under `vendor/`
 - package-ID and world-runtime constants unless a later unrelated task explicitly owns them
 
-## 14. Validation and manual testing plan
+## 15. Validation and manual testing plan
 
 ### Planning task validation
 
@@ -719,6 +837,16 @@ This is the right first branch because:
 - node-local mode shows the lower Attached Structures list and inspector placeholder
 - lower telemetry and attention panels return when macro mode returns
 - direct-chain data remains enough to render node-local mode even if shared-backend enrichment is unavailable
+- load `/dev/node-drilldown-lab`
+- test `Sparse Solo Node`
+- test `Industry Node`
+- test `Defense Heavy Node`
+- test `Mixed Operating Base`
+- test `Turret Stress Test` with 50 turrets
+- test `Support Clutter Test`
+- verify selection sync still works in the dev lab between SVG and list
+- verify the lower list and inspector remain readable under dense synthetic scenarios
+- verify no wallet, Sui, shared-backend, or sponsor calls happen in the dev lab
 
 ### Later write-enabled smoke
 
@@ -734,7 +862,7 @@ This is the right first branch because:
 - corrupted localStorage records fail open and regenerate defaults
 - reset action restores default layout cleanly
 
-## 15. Source notes
+## 16. Source notes
 
 Primary repo sources inspected for this plan:
 
