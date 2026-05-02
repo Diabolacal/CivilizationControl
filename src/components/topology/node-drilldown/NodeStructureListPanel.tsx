@@ -98,12 +98,12 @@ function NodeStructureListContent({
                     : "border-transparent hover:border-border/70 hover:bg-muted/10",
               )}
             >
-              <button
-                type="button"
-                onClick={() => onSelectStructure(structure.id)}
-                className="flex w-full items-center justify-between text-left"
-              >
-                <div className="flex min-w-0 items-center gap-3">
+              <div className="flex items-start justify-between gap-3">
+                <button
+                  type="button"
+                  onClick={() => onSelectStructure(structure.id)}
+                  className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                >
                   <NodeIconPreviewGlyph
                     family={structure.iconFamily}
                     badge={structure.badge}
@@ -112,36 +112,35 @@ function NodeStructureListContent({
                     warningPip={structure.warningPip}
                     size={20}
                   />
-                  <div className="min-w-0">
+                  <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{structure.displayName}</p>
                     <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
+                    {isHidden ? (
+                      <span className="mt-1.5 inline-flex rounded border border-border/50 bg-background/60 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground/75">
+                        Hidden from map
+                      </span>
+                    ) : null}
                   </div>
-                </div>
+                </button>
 
-                <div className="ml-3 flex shrink-0 flex-col items-end gap-1">
+                <div className="ml-1 flex w-[116px] shrink-0 flex-col items-end gap-1 text-right">
                   <span className="text-[11px] uppercase tracking-wide text-muted-foreground/80">
                     {formatNodeLocalStatus(structure.status)}
                   </span>
                   <span className="font-mono text-[10px] text-muted-foreground/60">
                     {shortStructureReference(structure)}
                   </span>
+                  {isHidden ? (
+                    <button
+                      type="button"
+                      onClick={() => onUnhideStructure(structure.canonicalDomainKey)}
+                      className="mt-1 rounded border border-border/60 px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:border-primary/50 hover:text-primary"
+                    >
+                      Unhide
+                    </button>
+                  ) : null}
                 </div>
-              </button>
-
-              {isHidden ? (
-                <div className="mt-2 flex items-center justify-between gap-3 border-t border-border/40 pt-2">
-                  <span className="text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground/70">
-                    Hidden from map
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => onUnhideStructure(structure.canonicalDomainKey)}
-                    className="rounded border border-border/60 px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:border-primary/50 hover:text-primary"
-                  >
-                    Unhide
-                  </button>
-                </div>
-              ) : null}
+              </div>
             </div>
           );
         })}

@@ -122,7 +122,7 @@ function NodeSelectionInspectorContent({
             <InspectorRow label="Family" value={selectedStructure.familyLabel} />
             <InspectorRow label="Size" value={formatNodeLocalSize(selectedStructure.sizeVariant) ?? "Not tagged"} />
             <InspectorRow label="Status" value={formatNodeLocalStatus(selectedStructure.status)} />
-            <InspectorRow label="Map" value={isSelectedStructureHidden ? "Hidden from map" : "Visible in node view"} />
+            <InspectorRow label="Node View" value={isSelectedStructureHidden ? "Hidden from map (local only)" : "Visible in node view"} />
             <InspectorRow label="Source" value={formatStructureSource(selectedStructure)} />
             <InspectorRow label="Authority" value={formatStructureAuthority(selectedStructure)} />
             <InspectorRow label="Object ID" value={selectedStructure.objectId ?? "Unavailable in rendered row"} />
@@ -167,7 +167,7 @@ function NodeSelectionInspectorContent({
         {selectedStructure && isSelectedStructureHidden ? (
           <div className="flex items-center justify-between gap-4">
             <p className="text-xs text-muted-foreground">
-              This structure is hidden from the node map only. Membership, authority, and future actions remain unchanged.
+              This local UI state hides the structure from the node map only. Membership, authority, and future actions remain unchanged.
             </p>
             <button
               type="button"

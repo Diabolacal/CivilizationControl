@@ -10,6 +10,19 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Phase D hide or unhide polish follow-up - 2026-05-02
+
+The same branch now includes a narrow UI-only follow-up on top of the accepted hide or unhide slice.
+
+- the node-local structure context menu is now fully compact: it keeps only the single `Hide from Node View` action row while preserving the existing right-click, keyboard invocation, `Escape`, outside-click, route-change, node-exit, and action-close behavior
+- hidden rows in `Attached Structures` now preserve their normal icon, identity, family, size, status, and reference details while demoting visually to the bottom of the list; `Hidden from map` now reads as secondary local-state metadata and `Unhide` now sits in a stable right-aligned action rail sized to accept later row-local controls without changing row identity layout again
+- the `Selection Inspector` now labels hidden state as `Node View` with `Hidden from map (local only)` and keeps explicit copy that membership, authority, and future actions do not change
+- `Configuration` now exposes a restrained `DevTools` section with origin-relative links to `/dev/node-drilldown-lab` and `/dev/node-icon-catalogue`; those links intentionally use standalone navigation so both current-origin dev routes boot through their existing standalone entry seams
+- local validation re-confirmed `npm run typecheck`, `npm run build`, `git diff --check`, `npx tsx scripts/check-node-drilldown-reconciliation.mts`, `/settings`, both `DevTools` links, the compact context menu, hidden-row action rail, hidden-row inspector state, and the dev-lab no-external-request guarantee
+- preview evidence for this polish pass was captured on `https://c4c674d8.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+- deployed preview validation confirmed `/settings` on both unique and alias URLs, confirmed both `DevTools` links boot their standalone routes, and re-confirmed preview-lab hide or unhide behavior with the compact menu plus hidden-row action rail
+- served-bundle proof fetched every deployed preview JS asset from the unique preview host and confirmed `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`, `https://ef-map.com`, and `civilizationcontrol-sponsor`; it also confirmed no `flappy-frontier-sponsor`, `ASSEMBLY_API_TOKEN`, or `X-API-Key`, and no `Authorization` string within or near the shared-backend browser path logic. A raw `Authorization` string still exists elsewhere in bundled dependency text, but not in the shared-backend browser path that this deployment check guards
+
 ### Phase D local hide or unhide implementation - 2026-05-02
 
 Phase D is now implemented on `feat/node-drilldown-render-shell`.

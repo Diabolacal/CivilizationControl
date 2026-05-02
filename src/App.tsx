@@ -242,6 +242,39 @@ function ConfigurationScreen({
         onAssignPin={onAssignPin}
         onRemovePin={onRemovePin}
       />
+
+      <section className="rounded-lg border border-border/50 bg-card/20 px-4 py-4">
+        <div className="border-b border-border/40 pb-3">
+          <h2 className="text-sm font-semibold text-foreground">DevTools</h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Dev-only validation routes for the current origin. These links intentionally use standalone navigation.
+          </p>
+        </div>
+
+        <div className="mt-3 grid gap-2 sm:grid-cols-2">
+          <a
+            href="/dev/node-drilldown-lab"
+            className="flex items-center justify-between rounded border border-border/60 bg-background/40 px-3 py-2 transition-colors hover:border-primary/50 hover:text-primary"
+          >
+            <div>
+              <p className="text-sm font-medium text-foreground">Node Drilldown Lab</p>
+              <p className="text-[11px] font-mono text-muted-foreground">/dev/node-drilldown-lab</p>
+            </div>
+            <span className="text-xs font-medium text-muted-foreground/75">Open</span>
+          </a>
+
+          <a
+            href="/dev/node-icon-catalogue"
+            className="flex items-center justify-between rounded border border-border/60 bg-background/40 px-3 py-2 transition-colors hover:border-primary/50 hover:text-primary"
+          >
+            <div>
+              <p className="text-sm font-medium text-foreground">Node Icon Catalogue</p>
+              <p className="text-[11px] font-mono text-muted-foreground">/dev/node-icon-catalogue</p>
+            </div>
+            <span className="text-xs font-medium text-muted-foreground/75">Open</span>
+          </a>
+        </div>
+      </section>
     </div>
   );
 }
