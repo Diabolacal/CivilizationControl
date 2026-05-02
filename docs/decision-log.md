@@ -1,6 +1,15 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-02 – Normalize node drilldown icon scale
+- Goal: Remove the remaining node-local icon-scale inconsistencies so Mini, standard, and Heavy structures all use one shared operational glyph size in the map, and tighten the visible band layout so sparse and medium scenarios center cleanly without adding writes, presets, persistence, broader hydration, sponsor changes, package changes, or production deploys.
+- Files: `src/lib/nodeDrilldownLayout.ts`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
+- Diff: targeted node-local layout refinement plus refreshed preview evidence
+- Risk: medium — focused frontend UI refinement with preview redeploy evidence, but no read-path expansion, no write-path change, no dependency change, no vendor edit, no Move change, and no production deploy
+- Gates: typecheck ✅ build ✅ diff-check ✅ local browser regression smoke ✅ preview deploy ✅ served preview bundle proof ✅
+- Result: removed the remaining map icon-size coupling from the node-local layout so all attached structures now render at one shared operational size and only the M or H badge communicates Mini or Heavy state; compacted the left-side industry, logistics, and support stack so the visible structure block recenters inside the fixed topology body; revalidated all six lab scenarios with a single `38 x 38` rendered structure-button size across every scenario; revalidated icon-to-row and row-to-icon selection sync plus `Back to app`; confirmed the lab still makes no wallet/RPC/shared-backend/sponsor resource calls; redeployed preview to `https://54c29a74.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`; and confirmed the served preview assets `App-C6t_wgPg.js` and `SmartObjectProvider-DTPRxqCd.js` still expose `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` and `https://ef-map.com` while exposing neither `flappy-frontier-sponsor` nor `ASSEMBLY_API_TOKEN`.
+- Follow-ups: do one manual visual and interaction review on the refreshed preview, especially with live wallet-owned node data if available, then either make one more focused polish pass or finalize the branch for merge.
+
 
 ---
 

@@ -37,6 +37,22 @@ The same branch now includes a visual-only refinement pass that preserves the fi
 - local browser validation re-confirmed all six synthetic scenarios, preserved selection sync and `Back to app`, and confirmed the dev lab still makes no wallet, Sui RPC, shared-backend, or sponsor resource calls
 - refreshed preview evidence was captured on `https://62259499.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
 
+### Icon scale and centering refinement - 2026-05-02
+
+The same branch now includes a second visual-only refinement pass focused on node-local icon scale discipline and vertical centering.
+
+- all attached-structure map icons now use one shared operational glyph box that matches the node icon catalogue/reference doctrine, rather than varying by Mini, standard, Heavy, family, or defense-density case
+- M and H badges remain the only visible size-variant signal in the node-local map; the glyph body no longer shrinks or grows for Mini or Heavy structures
+- the left-side node-local layout now compacts around the visible industry, logistics, and support families instead of forcing sparse or medium scenarios onto low fixed rails
+- the support and logistics layers now read as compact combined bands, which keeps `Industry Node`, `Mixed Operating Base`, and `Support Clutter Test` centered inside the fixed map body while preserving the readable high-count turret block
+- local browser validation re-confirmed all six synthetic scenarios with one uniform `38 x 38` rendered structure button size in the map for every scenario, preserved selection sync, preserved `Back to app`, and confirmed the dev lab still makes no wallet, Sui RPC, shared-backend, or sponsor resource calls
+- refreshed preview evidence was captured on `https://54c29a74.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+
+Known remaining visual review questions for human review:
+
+- whether the live dashboard node-local composition still feels balanced with real wallet-owned node data once a connected environment is available
+- whether the current `Node Control` anchor and label placement need any final polish after the icon-scale normalization pass
+
 ## 2. Product intent
 
 The intended experience is a same-dashboard drilldown, not a hard jump to a second product surface.

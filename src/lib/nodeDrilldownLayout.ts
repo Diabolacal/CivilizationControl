@@ -15,18 +15,18 @@ export interface NodeLocalLayoutResult {
 }
 
 const ANCHOR = { xPercent: 38, yPercent: 52 };
+const MAP_BODY_HEIGHT_PX = 440;
+const OPERATIONAL_ICON_SIZE = 24;
 const CORRIDOR_START_X = 14;
 const LEFT_FRAME_START_X = 55.5;
 const DEFENSE_START_X = 77.5;
 const INDUSTRY_START_Y = 21;
-const LOGISTICS_MIN_Y = 53;
-const SUPPORT_MIN_Y = 77;
+const VISIBLE_BLOCK_CENTER_Y = 50;
+const VISIBLE_TOP_MARGIN = 10;
+const VISIBLE_BOTTOM_MARGIN = 90;
 
-function iconSizeForItem(item: NodeLocalStructure, baseIconSize: number): number {
-  if (item.family === "turret") return baseIconSize;
-  if (item.sizeVariant === "heavy") return baseIconSize + 2;
-  if (item.sizeVariant === "mini") return baseIconSize - 2;
-  return baseIconSize;
+function iconHalfPercent(iconSize: number): number {
+  return (iconSize / MAP_BODY_HEIGHT_PX) * 50;
 }
 
 function gridPositions(
@@ -37,21 +37,21 @@ function gridPositions(
     id: item.id,
     xPercent: config.startX + (index % config.columns) * config.stepX,
     yPercent: config.startY + Math.floor(index / config.columns) * config.stepY,
-    iconSize: iconSizeForItem(item, config.iconSize),
+    iconSize: config.iconSize,
   }));
 }
 
 function getDefenseConfig(count: number) {
   if (count >= 42) {
-    return { columns: 6, stepX: 3.9, stepY: 6.5, iconSize: 18, startY: 20, bucketGap: 2.4 };
+    return { columns: 6, stepX: 3.9, stepY: 6.5, iconSize: OPERATIONAL_ICON_SIZE, startY: 20, bucketGap: 2.4 };
   }
   if (count >= 24) {
-    return { columns: 5, stepX: 4.4, stepY: 7.1, iconSize: 20, startY: 20, bucketGap: 2.6 };
+    return { columns: 5, stepX: 4.4, stepY: 7.1, iconSize: OPERATIONAL_ICON_SIZE, startY: 20, bucketGap: 2.6 };
   }
   if (count >= 12) {
-    return { columns: 4, stepX: 4.8, stepY: 8, iconSize: 21, startY: 21, bucketGap: 2.8 };
+    return { columns: 4, stepX: 4.8, stepY: 8, iconSize: OPERATIONAL_ICON_SIZE, startY: 21, bucketGap: 2.8 };
   }
-  return { columns: 3, stepX: 5.2, stepY: 8.6, iconSize: 22, startY: 22, bucketGap: 3 };
+  return { columns: 3, stepX: 5.2, stepY: 8.6, iconSize: OPERATIONAL_ICON_SIZE, startY: 22, bucketGap: 3 };
 }
 
 function createFamilyRows(
@@ -91,6 +91,11 @@ function createFamilyRows(
   return { items: positioned, bottomY: cursorY };
 }
 
+function nextBandStart(startY: number, itemCount: number, columns: number, stepY: number, gap: number): number {
+  if (itemCount === 0) return startY;
+  return startY + Math.ceil(itemCount / columns) * stepY + gap;
+}
+
 function bucketBySize(items: NodeLocalStructure[]) {
   const matches = (sizeVariant: NodeLocalSizeVariant) =>
     items.filter((item) => {
@@ -126,6 +131,56 @@ function layoutDefenseBand(items: NodeLocalStructure[]): NodeLocalLayoutItem[] {
   return positioned;
 }
 
+function measureVisibleBounds(items: NodeLocalLayoutItem[]) {
+  if (items.length === 0) {
+    return {
+      top: VISIBLE_BLOCK_CENTER_Y,
+      bottom: VISIBLE_BLOCK_CENTER_Y,
+      center: VISIBLE_BLOCK_CENTER_Y,
+      height: 0,
+    };
+  }
+
+  let top = Infinity;
+  let bottom = -Infinity;
+
+  for (const item of items) {
+    const halfIconPercent = iconHalfPercent(item.iconSize);
+    top = Math.min(top, item.yPercent - halfIconPercent);
+    bottom = Math.max(bottom, item.yPercent + halfIconPercent);
+  }
+
+  return {
+    top,
+    bottom,
+    center: (top + bottom) / 2,
+    height: bottom - top,
+  };
+}
+
+function translateItemsY(items: NodeLocalLayoutItem[], deltaY: number): NodeLocalLayoutItem[] {
+  if (Math.abs(deltaY) < 0.01) return items;
+
+  return items.map((item) => ({
+    ...item,
+    yPercent: item.yPercent + deltaY,
+  }));
+}
+
+function centerVisibleBlock(items: NodeLocalLayoutItem[]): NodeLocalLayoutItem[] {
+  const bounds = measureVisibleBounds(items);
+  if (items.length === 0 || bounds.height >= VISIBLE_BOTTOM_MARGIN - VISIBLE_TOP_MARGIN) {
+    return items;
+  }
+
+  const desiredDelta = VISIBLE_BLOCK_CENTER_Y - bounds.center;
+  const minDelta = VISIBLE_TOP_MARGIN - bounds.top;
+  const maxDelta = VISIBLE_BOTTOM_MARGIN - bounds.bottom;
+  const deltaY = Math.min(maxDelta, Math.max(minDelta, desiredDelta));
+
+  return translateItemsY(items, deltaY);
+}
+
 export function layoutNodeDrilldown(viewModel: NodeLocalViewModel): NodeLocalLayoutResult {
   const sorted = sortNodeLocalStructures(viewModel.structures);
   const corridor = sorted.filter((structure) => structure.band === "corridor");
@@ -139,41 +194,52 @@ export function layoutNodeDrilldown(viewModel: NodeLocalViewModel): NodeLocalLay
     startY: INDUSTRY_START_Y,
     columns: 4,
     stepX: 6.2,
-    stepY: 10.8,
-    iconSize: 22,
-    familyGap: 4.8,
+    stepY: 9.4,
+    iconSize: OPERATIONAL_ICON_SIZE,
+    familyGap: 3.4,
   });
 
-  const logisticsStartY = Math.max(LOGISTICS_MIN_Y, industryRows.bottomY);
-  const logisticsRows = createFamilyRows(logistics, ["tradePost", "berth"], {
+  const logisticsStartY = industryRows.items.length > 0 ? industryRows.bottomY : INDUSTRY_START_Y;
+  const logisticsItems = gridPositions(logistics, {
     startX: LEFT_FRAME_START_X,
     startY: logisticsStartY,
     columns: 4,
     stepX: 6.2,
-    stepY: 10.4,
-    iconSize: 22,
-    familyGap: 4.6,
+    stepY: 9.4,
+    iconSize: OPERATIONAL_ICON_SIZE,
   });
 
-  const supportStartY = Math.max(SUPPORT_MIN_Y, logisticsRows.bottomY);
-  const supportRows = createFamilyRows(support, ["relay", "nursery", "nest", "shelter"], {
+  const supportStartY = logisticsItems.length > 0
+    ? nextBandStart(logisticsStartY, logistics.length, 4, 9.4, 4.2)
+    : industryRows.items.length > 0
+      ? industryRows.bottomY
+      : INDUSTRY_START_Y;
+  const supportItems = gridPositions(support, {
     startX: LEFT_FRAME_START_X,
     startY: supportStartY,
     columns: 4,
     stepX: 5.8,
-    stepY: 9.2,
-    iconSize: 20,
-    familyGap: 3.8,
+    stepY: 8.8,
+    iconSize: OPERATIONAL_ICON_SIZE,
   });
+
+  const structures = centerVisibleBlock([
+    ...gridPositions(corridor, {
+      startX: CORRIDOR_START_X,
+      startY: 28,
+      columns: 2,
+      stepX: 8.6,
+      stepY: 12.2,
+      iconSize: OPERATIONAL_ICON_SIZE,
+    }),
+    ...industryRows.items,
+    ...logisticsItems,
+    ...supportItems,
+    ...layoutDefenseBand(defense),
+  ]);
 
   return {
     anchor: ANCHOR,
-    structures: [
-      ...gridPositions(corridor, { startX: CORRIDOR_START_X, startY: 28, columns: 2, stepX: 8.6, stepY: 12.2, iconSize: 22 }),
-      ...industryRows.items,
-      ...logisticsRows.items,
-      ...supportRows.items,
-      ...layoutDefenseBand(defense),
-    ],
+    structures,
   };
 }
