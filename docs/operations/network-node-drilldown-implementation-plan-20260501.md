@@ -99,6 +99,21 @@ The same branch now includes a last polish-only follow-up that resolves the rema
 
 The real macro hover tooltip and live macro-to-node body swap still need one wallet-connected smoke against owned network-node data because the disconnected preview root had no hydrated macro nodes available to hover or enter.
 
+### Broader node-local hydration implementation - 2026-05-02
+
+The next runtime slice from the broader-hydration plan is now wired on the same branch as an additive read-only node-local expansion.
+
+- `Dashboard` now calls `GET /api/civilization-control/node-assemblies?networkNodeId=<selectedNodeObjectId>` through a browser-safe client whenever a live network node is selected for `Node Control`
+- the request uses the existing public `VITE_SHARED_BACKEND_URL` pattern, a bounded `5s` timeout, no auth header, and canonicalized object-ID validation before the request is made
+- the selected-node view model now merges direct-chain live families with backend-observed linked structures only inside `Node Control`; direct-chain rows stay primary on overlap and macro `Strategic Network` remains limited to the current owned-family topology
+- backend-only rows render through the accepted node-local shell as quiet `Observed` entries in the attached-structures list, selection inspector, and topology tooltip, but they remain explicitly read-only and non-actionable
+- the dev-only `/dev/node-drilldown-lab` route remains isolated from this backend lane and continues to load only local static assets
+- fail-open behavior remains in place: if the node-local endpoint is unavailable, invalid, partial, or empty, `Node Control` falls back to the current direct-chain live families without widening macro state or action eligibility
+- this implementation fetches on selected-node entry and node changes only; periodic polling and event-driven freshness remain deferred to the later freshness pass so the accepted shell can be validated first without adding reorder pressure from timed refetches
+- refreshed preview evidence was captured on `https://99919c87.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+
+The intended live wallet smoke for this slice remains pending in this environment. The deployed preview exposes the wallet connector, but the browser session available to this agent could not establish a working wallet connection, so a real in-app node selection and browser-observed `node-assemblies` request could not be completed here.
+
 Known remaining visual review questions for human review:
 
 - whether the live dashboard node-local composition still feels balanced with real wallet-owned node data once a connected environment is available

@@ -9,6 +9,21 @@ interface NodeSelectionInspectorProps {
   embedded?: boolean;
 }
 
+function formatObservedTimestamp(value: string | null | undefined): string | null {
+  if (!value) return null;
+
+  const parsed = Date.parse(value);
+  if (Number.isNaN(parsed)) return null;
+
+  return new Intl.DateTimeFormat(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  }).format(parsed);
+}
+
 function InspectorRow({ label, value }: { label: string; value: string }) {
   return (
     <div className="flex items-start justify-between gap-3 border-b border-border/40 py-2 last:border-b-0">
@@ -33,19 +48,51 @@ function NodeSelectionInspectorContent({
             <InspectorRow label="Type" value={selectedStructure.typeLabel} />
             <InspectorRow label="Family" value={selectedStructure.familyLabel} />
             <InspectorRow label="Size" value={formatNodeLocalSize(selectedStructure.sizeVariant) ?? "Not tagged"} />
-            <InspectorRow label="Status" value={formatNodeLocalStatus(selectedStructure.status)} />
+            <InspectorRow label={selectedStructure.source === "backendObserved" ? "Observed Status" : "Status"} value={formatNodeLocalStatus(selectedStructure.status)} />
             <InspectorRow label="Object ID" value={selectedStructure.objectId ?? "Synthetic fixture"} />
             <InspectorRow label="Assembly ID" value={selectedStructure.assemblyId ?? "Unavailable in this slice"} />
+            {selectedStructure.source === "backendObserved" ? (
+              <>
+                <InspectorRow label="Source" value={selectedStructure.source === "backendObserved" ? "Shared backend observation" : "Direct chain"} />
+                <InspectorRow label="Authority" value="Read-only • Non-actionable" />
+                {selectedStructure.lastUpdated || selectedStructure.fetchedAt ? (
+                  <InspectorRow
+                    label="Freshness"
+                    value={formatObservedTimestamp(selectedStructure.lastUpdated) ?? formatObservedTimestamp(selectedStructure.fetchedAt) ?? "Observed"}
+                  />
+                ) : null}
+              </>
+            ) : null}
           </>
         ) : (
           <>
             <InspectorRow label="Node" value={viewModel.node.displayName} />
             <InspectorRow label="Status" value={formatNodeLocalStatus(viewModel.node.status)} />
-            <InspectorRow label="Source" value={viewModel.source === "live" ? "Current live NetworkNodeGroup" : "Synthetic scenario"} />
-            <InspectorRow label="Coverage" value={viewModel.coverage === "current-live-families" ? "Current live families only" : "Expanded synthetic families"} />
+            <InspectorRow
+              label="Source"
+              value={viewModel.source === "synthetic"
+                ? "Synthetic scenario"
+                : viewModel.coverage === "live-plus-backend-observed"
+                  ? "Current live node plus backend observations"
+                  : "Current live NetworkNodeGroup"}
+            />
+            <InspectorRow
+              label="Coverage"
+              value={viewModel.coverage === "current-live-families"
+                ? "Current live families only"
+                : viewModel.coverage === "live-plus-backend-observed"
+                  ? "Live families plus backend-observed structures"
+                  : "Expanded synthetic families"}
+            />
             <InspectorRow label="Structures" value={`${viewModel.structures.length}`} />
             <InspectorRow label="Families" value={summarizeNodeLocalFamilies(viewModel) || "None attached"} />
             <InspectorRow label="Fuel" value={viewModel.node.fuelSummary ?? "Not surfaced in this slice"} />
+            {viewModel.coverage === "live-plus-backend-observed" ? (
+              <InspectorRow
+                label="Observed"
+                value={`${viewModel.structures.filter((structure) => structure.source === "backendObserved").length} read-only structure${viewModel.structures.filter((structure) => structure.source === "backendObserved").length === 1 ? "" : "s"}`}
+              />
+            ) : null}
           </>
         )}
       </div>

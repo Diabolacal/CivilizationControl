@@ -35,6 +35,47 @@ export interface AssemblySummary {
   typeName: string | null;
 }
 
+/** Provenance metadata for backend-observed node-local discovery rows. */
+export interface NodeAssemblyProvenance {
+  source: string | null;
+  provenance: string | null;
+}
+
+/** Selected network node summary returned by the node-local backend discovery endpoint. */
+export interface NodeAssemblyNode {
+  objectId: ObjectId;
+  name: string | null;
+  status: string | null;
+  assemblyId: string | null;
+  solarSystemId: string | null;
+  energySourceId: string | null;
+}
+
+/** Backend-observed linked assembly returned for a selected network node. */
+export interface NodeAssemblySummary extends NodeAssemblyProvenance {
+  objectId: ObjectId | null;
+  assemblyId: string | null;
+  linkedGateId: ObjectId | null;
+  assemblyType: string | null;
+  typeId: number | null;
+  name: string | null;
+  status: string | null;
+  fuelAmount: string | null;
+  solarSystemId: string | null;
+  energySourceId: string | null;
+  url: string | null;
+  lastUpdated: string | null;
+  typeName: string | null;
+}
+
+/** Browser-safe node-local discovery response keyed by selected network-node object ID. */
+export interface NodeAssembliesResponse {
+  node: NodeAssemblyNode;
+  assemblies: NodeAssemblySummary[];
+  fetchedAt: string | null;
+  source: string | null;
+}
+
 /** Player profile resolved from wallet connection. */
 export interface PlayerProfile {
   objectId: ObjectId;

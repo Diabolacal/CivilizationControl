@@ -1,6 +1,6 @@
 import type { Structure, StructureStatus } from "@/types/domain";
 
-export type NodeLocalSource = "live" | "synthetic";
+export type NodeLocalSource = "live" | "backendObserved" | "synthetic";
 
 export type NodeLocalFamily =
   | "networkNode"
@@ -38,7 +38,20 @@ export type NodeLocalBadge = "M" | "H" | null;
 
 export type NodeLocalSizeVariant = "mini" | "standard" | "heavy" | null;
 
-export interface NodeLocalNode {
+export interface NodeLocalObservationMeta {
+  backendSource?: string | null;
+  provenance?: string | null;
+  fetchedAt?: string | null;
+  lastUpdated?: string | null;
+  isReadOnly: boolean;
+  isActionable: boolean;
+  url?: string | null;
+  solarSystemId?: string | null;
+  energySourceId?: string | null;
+  fuelAmount?: string | null;
+}
+
+export interface NodeLocalNode extends NodeLocalObservationMeta {
   id: string;
   objectId?: string;
   displayName: string;
@@ -52,7 +65,7 @@ export interface NodeLocalNode {
   isSyntheticContainer?: boolean;
 }
 
-export interface NodeLocalStructure {
+export interface NodeLocalStructure extends NodeLocalObservationMeta {
   id: string;
   objectId?: string;
   assemblyId?: string;
@@ -79,7 +92,7 @@ export interface NodeLocalViewModel {
   structures: NodeLocalStructure[];
   source: NodeLocalSource;
   layoutAlgorithm: "family-bands-v1";
-  coverage: "current-live-families" | "synthetic-expanded";
+  coverage: "current-live-families" | "live-plus-backend-observed" | "synthetic-expanded";
 }
 
 export interface NodeLocalScenario {

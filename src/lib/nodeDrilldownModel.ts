@@ -1,5 +1,6 @@
 import type { NetworkNodeGroup, Structure, StructureStatus } from "@/types/domain";
 import { getItemTypeById, getItemTypeByName } from "@/lib/typeCatalog";
+import { normalizeCanonicalObjectId, type NodeAssembliesLookupResult } from "@/lib/nodeAssembliesClient";
 
 import type {
   NodeLocalBand,
@@ -171,6 +172,15 @@ function cleanStructureName(structure: Structure): string {
   return structure.name.replace(/\s+[0-9a-f]{8}$/i, "").trim() || DEFAULT_TYPE_LABELS[LIVE_FAMILY_MAP[structure.type]];
 }
 
+function cleanObservedName(
+  structure: Structure,
+  observed?: { name: string | null },
+): string {
+  const observedName = observed?.name?.trim();
+  if (observedName) return observedName;
+  return cleanStructureName(structure);
+}
+
 function resolveTypeLabel(
   family: NodeLocalFamily,
   explicitTypeLabel?: string | null,
@@ -219,6 +229,16 @@ function createNodeLocalStructure(
     | "status"
     | "source"
     | "extensionStatus"
+    | "isReadOnly"
+    | "isActionable"
+    | "backendSource"
+    | "fetchedAt"
+    | "lastUpdated"
+    | "provenance"
+    | "url"
+    | "solarSystemId"
+    | "energySourceId"
+    | "fuelAmount"
   > & {
     typeLabel?: string | null;
     typeId?: number;
@@ -247,6 +267,16 @@ function createNodeLocalStructure(
     warningPip: structure.warningPip ?? structure.status === "warning",
     source: structure.source,
     extensionStatus: structure.extensionStatus,
+    backendSource: structure.backendSource,
+    fetchedAt: structure.fetchedAt,
+    lastUpdated: structure.lastUpdated,
+    provenance: structure.provenance,
+    url: structure.url,
+    solarSystemId: structure.solarSystemId,
+    energySourceId: structure.energySourceId,
+    fuelAmount: structure.fuelAmount,
+    isReadOnly: structure.isReadOnly,
+    isActionable: structure.isActionable,
     sortLabel: structure.displayName.toLowerCase(),
   };
 }
@@ -278,10 +308,34 @@ export function sortNodeLocalStructures(structures: NodeLocalStructure[]): NodeL
 }
 
 export function buildLiveNodeLocalViewModel(group: NetworkNodeGroup): NodeLocalViewModel {
+  return buildLiveNodeLocalViewModelWithObserved(group);
+}
+
+export function buildLiveNodeLocalViewModelWithObserved(
+  group: NetworkNodeGroup,
+  observedLookup?: NodeAssembliesLookupResult | null,
+): NodeLocalViewModel {
+  const observedEntries = observedLookup?.status === "success" ? observedLookup.assemblies : [];
+  const observedByKey = new Map<string, (typeof observedEntries)[number]>();
+
+  for (const observed of observedEntries) {
+    if (observed.objectId) {
+      observedByKey.set(`object:${observed.objectId}`, observed);
+    }
+    if (observed.assemblyId) {
+      observedByKey.set(`assembly:${observed.assemblyId}`, observed);
+    }
+  }
+
+  const liveStructures = [...group.gates, ...group.storageUnits, ...group.turrets];
   const structures = sortNodeLocalStructures(
-    [...group.gates, ...group.storageUnits, ...group.turrets].map((structure) => {
+    [
+      ...liveStructures.map((structure) => {
+        const observed =
+          observedByKey.get(`object:${normalizeCanonicalObjectId(structure.objectId) ?? structure.objectId}`) ??
+          (structure.assemblyId ? observedByKey.get(`assembly:${structure.assemblyId}`) : undefined);
       const family = LIVE_FAMILY_MAP[structure.type];
-      const typeLabel = structure.summary?.typeName ?? DEFAULT_TYPE_LABELS[family];
+      const typeLabel = observed?.typeName ?? structure.summary?.typeName ?? DEFAULT_TYPE_LABELS[family];
       const sizeVariant = deriveSizeVariant(typeLabel);
       const needsExtensionWarning =
         (structure.type === "gate" || structure.type === "turret") &&
@@ -291,19 +345,33 @@ export function buildLiveNodeLocalViewModel(group: NetworkNodeGroup): NodeLocalV
         id: structure.objectId,
         objectId: structure.objectId,
         assemblyId: structure.assemblyId,
-        linkedGateId: structure.linkedGateId,
-        displayName: cleanStructureName(structure),
+        linkedGateId: structure.linkedGateId ?? observed?.linkedGateId ?? undefined,
+        displayName: cleanObservedName(structure, observed),
         family,
         sizeVariant,
         status: structure.status,
         source: "live",
         extensionStatus: structure.extensionStatus,
         typeLabel,
-        typeId: structure.summary?.typeId,
+        typeId: observed?.typeId ?? structure.summary?.typeId,
         warningPip: structure.status === "warning" || needsExtensionWarning,
+        backendSource: observed?.source ?? observedLookup?.source ?? null,
+        fetchedAt: observedLookup?.fetchedAt,
+        lastUpdated: observed?.lastUpdated,
+        provenance: observed?.provenance ?? null,
+        url: observed?.url ?? structure.summary?.url ?? null,
+        solarSystemId: observed?.solarSystemId ?? structure.summary?.solarSystemId ?? null,
+        energySourceId: observed?.energySourceId ?? structure.summary?.energySourceId ?? null,
+        fuelAmount: observed?.fuelAmount ?? structure.summary?.fuelAmount ?? null,
+        isReadOnly: false,
+        isActionable: true,
       });
-    }),
+      }),
+      ...buildBackendObservedStructures(liveStructures, observedEntries, observedLookup),
+    ],
   );
+
+  const hasBackendObservedStructures = structures.some((structure) => structure.source === "backendObserved");
 
   return {
     node: {
@@ -318,12 +386,158 @@ export function buildLiveNodeLocalViewModel(group: NetworkNodeGroup): NodeLocalV
       extensionStatus: group.node.extensionStatus,
       solarSystemName: group.node.summary?.solarSystemId ?? (group.solarSystemId != null ? `System ${group.solarSystemId}` : null),
       isSyntheticContainer: group.node.objectId === "unassigned",
+      backendSource: hasBackendObservedStructures ? observedLookup?.source ?? null : null,
+      fetchedAt: observedLookup?.fetchedAt,
+      lastUpdated: null,
+      provenance: hasBackendObservedStructures ? "node-local-indexer" : null,
+      url: null,
+      solarSystemId: group.node.summary?.solarSystemId ?? null,
+      energySourceId: null,
+      fuelAmount: group.node.fuel?.quantity?.toString() ?? null,
+      isReadOnly: false,
+      isActionable: true,
     },
     structures,
     source: "live",
     layoutAlgorithm: "family-bands-v1",
-    coverage: "current-live-families",
+    coverage: hasBackendObservedStructures ? "live-plus-backend-observed" : "current-live-families",
   };
+}
+
+function buildBackendObservedStructures(
+  liveStructures: Structure[],
+  observedEntries: NonNullable<NodeAssembliesLookupResult>["assemblies"],
+  observedLookup?: NodeAssembliesLookupResult | null,
+): NodeLocalStructure[] {
+  const liveObjectIds = new Set(
+    liveStructures
+      .map((structure) => normalizeCanonicalObjectId(structure.objectId))
+      .filter((value): value is string => value != null),
+  );
+  const liveAssemblyIds = new Set(
+    liveStructures
+      .map((structure) => structure.assemblyId)
+      .filter((value): value is string => value != null),
+  );
+
+  return observedEntries.flatMap((observed) => {
+    if ((observed.objectId && liveObjectIds.has(observed.objectId)) || (observed.assemblyId && liveAssemblyIds.has(observed.assemblyId))) {
+      return [];
+    }
+
+    const family = resolveObservedFamily(observed);
+    if (!family || family === "networkNode") {
+      return [];
+    }
+
+    const typeLabel = observed.typeName ?? resolveObservedTypeLabel(family, observed.typeId);
+    const sizeVariant = deriveSizeVariant(typeLabel ?? undefined) ?? "standard";
+    const displayName = normalizeObservedDisplayName(observed, family, typeLabel, observed.objectId, observed.assemblyId);
+    const status = normalizeObservedStatus(observed.status);
+    const id = observed.objectId ?? `assembly:${observed.assemblyId}`;
+
+    return createNodeLocalStructure({
+      id,
+      objectId: observed.objectId ?? undefined,
+      assemblyId: observed.assemblyId ?? undefined,
+      linkedGateId: observed.linkedGateId ?? undefined,
+      displayName,
+      family,
+      sizeVariant,
+      status,
+      source: "backendObserved",
+      typeLabel,
+      typeId: observed.typeId ?? undefined,
+      warningPip: status === "warning",
+      backendSource: observed.source ?? observedLookup?.source ?? null,
+      fetchedAt: observedLookup?.fetchedAt,
+      lastUpdated: observed.lastUpdated,
+      provenance: observed.provenance,
+      url: observed.url,
+      solarSystemId: observed.solarSystemId,
+      energySourceId: observed.energySourceId,
+      fuelAmount: observed.fuelAmount,
+      isReadOnly: true,
+      isActionable: false,
+    });
+  });
+}
+
+function resolveObservedFamily(observed: { assemblyType: string | null; typeId: number | null; typeName: string | null }): NodeLocalFamily | null {
+  const itemType = observed.typeId != null ? getItemTypeById(observed.typeId) : undefined;
+  const candidates = [
+    itemType?.name,
+    itemType?.groupName,
+    itemType?.categoryName,
+    observed.typeName,
+    observed.assemblyType,
+  ]
+    .filter((value): value is string => Boolean(value))
+    .map((value) => value.toLowerCase());
+
+  if (candidates.some((value) => value.includes("printer"))) return "printer";
+  if (candidates.some((value) => value.includes("refiner") || value.includes("refinery"))) return "refinery";
+  if (candidates.some((value) => value.includes("assembler"))) return "assembler";
+  if (candidates.some((value) => value.includes("berth"))) return "berth";
+  if (candidates.some((value) => value.includes("relay"))) return "relay";
+  if (candidates.some((value) => value.includes("nursery"))) return "nursery";
+  if (candidates.some((value) => value.includes("nest"))) return "nest";
+  if (candidates.some((value) => value.includes("shelter") || value.includes("hangar") || value.includes("smart_hangar"))) return "shelter";
+  if (candidates.some((value) => value.includes("trade post") || value.includes("trade_post") || value.includes("storage") || value.includes("storage_unit"))) return "tradePost";
+  if (candidates.some((value) => value.includes("turret"))) return "turret";
+  if (candidates.some((value) => value.includes("gate"))) return "gate";
+
+  return null;
+}
+
+function resolveObservedTypeLabel(family: NodeLocalFamily, typeId: number | null): string {
+  if (typeId != null) {
+    const itemType = getItemTypeById(typeId);
+    if (itemType) {
+      return itemType.name;
+    }
+  }
+
+  return DEFAULT_TYPE_LABELS[family];
+}
+
+function normalizeObservedDisplayName(
+  observed: { name: string | null },
+  family: NodeLocalFamily,
+  typeLabel: string | null,
+  objectId: string | null,
+  assemblyId: string | null,
+): string {
+  const explicitName = observed.name?.trim();
+  if (explicitName) return explicitName;
+
+  const suffixSource = objectId ?? assemblyId;
+  if (suffixSource) {
+    const trimmed = suffixSource.replace(/^0x/, "");
+    const suffix = trimmed.length > 8 ? trimmed.slice(0, 8) : trimmed;
+    return `${typeLabel ?? DEFAULT_TYPE_LABELS[family]} ${suffix}`;
+  }
+
+  return typeLabel ?? DEFAULT_TYPE_LABELS[family];
+}
+
+function normalizeObservedStatus(status: string | null): StructureStatus {
+  const normalized = status?.trim().toLowerCase();
+  if (!normalized) return "neutral";
+
+  if (["online", "active", "powered", "running"].includes(normalized)) {
+    return "online";
+  }
+
+  if (["offline", "inactive", "unpowered"].includes(normalized)) {
+    return "offline";
+  }
+
+  if (["warning", "degraded", "low_fuel", "damaged"].includes(normalized)) {
+    return "warning";
+  }
+
+  return "neutral";
 }
 
 export function buildSyntheticNodeLocalViewModel(
@@ -344,6 +558,16 @@ export function buildSyntheticNodeLocalViewModel(
         typeLabel: structure.typeLabel,
         warningPip: structure.warningPip,
         linkedGateId: structure.linkedGateId,
+        backendSource: null,
+        fetchedAt: null,
+        lastUpdated: null,
+        provenance: null,
+        url: null,
+        solarSystemId: null,
+        energySourceId: null,
+        fuelAmount: null,
+        isReadOnly: true,
+        isActionable: false,
       });
     }),
   );
@@ -357,6 +581,16 @@ export function buildSyntheticNodeLocalViewModel(
       warningPip: input.nodeWarningPip ?? false,
       source: "synthetic",
       solarSystemName: input.solarSystemName ?? null,
+      backendSource: null,
+      fetchedAt: null,
+      lastUpdated: null,
+      provenance: null,
+      url: null,
+      solarSystemId: null,
+      energySourceId: null,
+      fuelAmount: null,
+      isReadOnly: true,
+      isActionable: false,
     },
     structures,
     source: "synthetic",

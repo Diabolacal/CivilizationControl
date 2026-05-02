@@ -54,6 +54,7 @@ function buildStructureTooltip(
     ...tooltipPlacement(xPercent, yPercent),
     title: structure.displayName,
     detail: buildButtonLabel([structure.typeLabel, sizeLabel, formatTitleCase(structure.status)]),
+    meta: structure.source === "backendObserved" ? "Observed via shared backend" : undefined,
   };
 }
 

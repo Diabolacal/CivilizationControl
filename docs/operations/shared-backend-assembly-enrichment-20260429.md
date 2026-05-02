@@ -12,6 +12,19 @@ CivilizationControl now consumes the production shared-backend assembly summary 
 
 This is an additive read-path enhancement only. No write path, wallet flow, sponsorship flow, package ID, or Move contract behavior changes.
 
+## Status update - 2026-05-02
+
+CivilizationControl now also consumes a second production shared-backend route for selected-node-local discovery inside `Node Control`:
+
+- endpoint: `https://ef-map.com/api/civilization-control/node-assemblies?networkNodeId=<canonical-network-node-object-id>`
+- caller: live `Dashboard` node-local mode only; the dev-only node drilldown lab remains isolated from this route
+- auth model: no API key, no browser Authorization header, no browser-visible secret
+- authority model: direct-chain live discovery remains authoritative while backend-only rows are read-only node-local observations only
+- UI scope: broader backend-observed rows appear only inside `Node Control`; macro `Strategic Network`, macro metrics, ownership truth, OwnerCap truth, and write eligibility remain unchanged
+- freshness scope: the current implementation fetches on selected-node entry or change only; interval polling and any event-driven invalidation remain deferred to the later node-local freshness pass
+
+This sibling node-local route does not replace the exact-ID `assemblies?ids=` enrichment path documented below. The exact-ID route still handles additive metadata for already-known structures, while the node-local route handles selected-node broader discovery for read-only display only.
+
 ## Endpoint contract consumed
 
 - base URL default: `https://ef-map.com`

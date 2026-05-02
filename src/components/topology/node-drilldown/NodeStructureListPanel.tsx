@@ -35,7 +35,12 @@ function NodeStructureListContent({
       <div className="space-y-1.5">
         {structures.map((structure) => {
           const sizeLabel = formatNodeLocalSize(structure.sizeVariant);
-          const meta = [structure.typeLabel, structure.familyLabel, sizeLabel].filter(Boolean).join(" • ");
+          const meta = [
+            structure.typeLabel,
+            structure.familyLabel,
+            sizeLabel,
+            structure.source === "backendObserved" ? "Observed" : null,
+          ].filter(Boolean).join(" • ");
 
           return (
             <button

@@ -33,9 +33,10 @@ import { NodeSelectionInspector } from "@/components/topology/node-drilldown/Nod
 import { NodeStructureListPanel } from "@/components/topology/node-drilldown/NodeStructureListPanel";
 import { SignalEventRow } from "@/components/SignalEventRow";
 import { useSignalFeed } from "@/hooks/useSignalFeed";
+import { useNodeAssemblies } from "@/hooks/useNodeAssemblies";
 import { formatLux, formatEve } from "@/lib/currency";
 import { computeRuntimeMs, getFuelEfficiency, formatRuntime } from "@/lib/fuelRuntime";
-import { buildLiveNodeLocalViewModel } from "@/lib/nodeDrilldownModel";
+import { buildLiveNodeLocalViewModelWithObserved } from "@/lib/nodeDrilldownModel";
 import type { NetworkNodeGroup, NetworkMetrics, SpatialPin, Structure } from "@/types/domain";
 
 interface DashboardProps {
@@ -82,9 +83,12 @@ export function Dashboard({
     () => nodeGroups.find((group) => group.node.objectId === selectedNodeId) ?? null,
     [nodeGroups, selectedNodeId],
   );
+  const { lookup: selectedNodeAssembliesLookup } = useNodeAssemblies(selectedNodeGroup?.node.objectId ?? null);
   const selectedNodeViewModel = useMemo(
-    () => (selectedNodeGroup ? buildLiveNodeLocalViewModel(selectedNodeGroup) : null),
-    [selectedNodeGroup],
+    () => (selectedNodeGroup
+      ? buildLiveNodeLocalViewModelWithObserved(selectedNodeGroup, selectedNodeAssembliesLookup)
+      : null),
+    [selectedNodeAssembliesLookup, selectedNodeGroup],
   );
   const handleExitNodeControl = useCallback(() => {
     setSelectedStructureId(null);
