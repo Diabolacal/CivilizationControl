@@ -156,9 +156,38 @@ function tooltipPlacementFromSvg(svgX: number, svgY: number) {
   return {
     xPercent,
     yPercent,
-    horizontalAlign: xPercent <= 24 ? "left" : xPercent >= 76 ? "right" : "center",
-    verticalAlign: yPercent <= 24 ? "below" : "above",
+    horizontalAlign: "center",
+    verticalAlign: "above",
   } as const;
+}
+
+function tooltipPlacementFromRenderedSvg(
+  svgElement: SVGSVGElement | null,
+  containerElement: HTMLDivElement | null,
+  svgX: number,
+  svgY: number,
+) {
+  if (svgElement && containerElement) {
+    const matrix = svgElement.getScreenCTM();
+    const containerRect = containerElement.getBoundingClientRect();
+
+    if (matrix && containerRect.width > 0 && containerRect.height > 0) {
+      const point = svgElement.createSVGPoint();
+      point.x = svgX;
+      point.y = svgY;
+
+      const renderedPoint = point.matrixTransform(matrix);
+
+      return {
+        xPercent: ((renderedPoint.x - containerRect.left) / containerRect.width) * 100,
+        yPercent: ((renderedPoint.y - containerRect.top) / containerRect.height) * 100,
+        horizontalAlign: "center",
+        verticalAlign: "above",
+      } as const;
+    }
+  }
+
+  return tooltipPlacementFromSvg(svgX, svgY);
 }
 
 function macroStructureTypeLabel(kind: HoverTarget["kind"]): string {
@@ -192,6 +221,7 @@ export function StrategicMapPanel({
   });
   const [hoverTarget, setHoverTarget] = useState<HoverTarget | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
   const diagCanvasRef = useRef<HTMLCanvasElement>(null);
   const pointerStateRef = useRef({
     startX: 0,
@@ -420,7 +450,12 @@ export function StrategicMapPanel({
     if (!group) return null;
 
     const pin = pinMap.get(hoverTarget.nodeId);
-    const placement = tooltipPlacementFromSvg(hoverTarget.svgX, hoverTarget.svgY);
+    const placement = tooltipPlacementFromRenderedSvg(
+      svgRef.current,
+      canvasRef.current,
+      hoverTarget.svgX,
+      hoverTarget.svgY,
+    );
 
     if (hoverTarget.kind === "node") {
       return {
@@ -534,6 +569,7 @@ export function StrategicMapPanel({
         />
 
         <svg
+          ref={svgRef}
           viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
           className="absolute inset-0 w-full h-full"
           preserveAspectRatio="xMidYMid meet"

@@ -9,7 +9,7 @@
 .wrapper {
   position: fixed;
   bottom: 10px;
-  left: calc(var(--operator-sidebar-width, 16rem) + var(--operator-main-gutter, 1.5rem));
+  left: 10px;
   z-index: 20;
   pointer-events: auto;
 }

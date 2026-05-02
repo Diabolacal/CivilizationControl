@@ -54,6 +54,9 @@ function OperatorShell() {
     "--operator-sidebar-width": "16rem",
     "--operator-main-gutter": "1.5rem",
   } as CSSProperties;
+  const mainScrollStyle = {
+    scrollbarGutter: "stable",
+  } as CSSProperties;
   const { profile, structures, nodeGroups, metrics, isLoading, isConnected } =
     useAssetDiscovery();
   const { pins, assignPin, removePin } = useSpatialPins();
@@ -67,7 +70,7 @@ function OperatorShell() {
         <Header characterName={profile?.characterName} />
         <Sidebar structures={structures} isConnected={isConnected} isLoading={isLoading} />
         <LogoBadge />
-        <main className="ml-64 h-screen overflow-y-auto pt-[5.5rem] px-6 pb-6">
+        <main className="ml-64 h-screen overflow-y-auto px-6 pb-6 pt-[5.5rem]" style={mainScrollStyle}>
           <div className="max-w-[1760px] mx-auto">
             <Routes>
               <Route

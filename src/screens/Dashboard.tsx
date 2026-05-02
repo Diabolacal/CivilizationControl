@@ -65,6 +65,7 @@ export function Dashboard({
   const [postureTransitioning, setPostureTransitioning] = useState(false);
   const handlePostureTransitionChange = useCallback((t: boolean) => setPostureTransitioning(t), []);
   const PREVIEW_COUNT = 6;
+  const TRANSITION_DURATION_MS = 520;
   const { signals: recentSignals } = useSignalFeed({
     limit: 10,
     ownedObjectIds,
@@ -191,10 +192,10 @@ export function Dashboard({
           title={topologyTitle}
           subtitle={topologySubtitle}
           headerAction={topologyHeaderAction}
-          headerActionClassName="flex w-[240px] justify-end"
+          headerActionClassName={selectedNodeViewModel ? "flex w-[240px] justify-end" : "flex justify-end whitespace-nowrap"}
           bodyClassName="select-none"
         >
-          <TopologyPanelFade key={topologyModeKey} durationMs={260}>
+          <TopologyPanelFade contentKey={topologyModeKey} durationMs={TRANSITION_DURATION_MS}>
             {selectedNodeViewModel ? (
               <NodeDrilldownSurface
                 embedded
@@ -236,7 +237,7 @@ export function Dashboard({
               </Link>
             )}
           >
-            <TopologyPanelFade key={`lower-left-${topologyModeKey}`} durationMs={260} className="h-auto">
+            <TopologyPanelFade contentKey={`lower-left-${topologyModeKey}`} durationMs={TRANSITION_DURATION_MS} className="h-auto">
               {selectedNodeViewModel ? (
                 <NodeStructureListPanel
                   embedded
@@ -273,7 +274,7 @@ export function Dashboard({
             title={selectedNodeViewModel ? "Selection Inspector" : "Attention Required"}
             subtitle={selectedNodeViewModel ? "Placeholder for later controls" : "Operational risks requiring review"}
           >
-            <TopologyPanelFade key={`lower-right-${topologyModeKey}`} durationMs={260} className="h-auto">
+            <TopologyPanelFade contentKey={`lower-right-${topologyModeKey}`} durationMs={TRANSITION_DURATION_MS} className="h-auto">
               {selectedNodeViewModel ? (
                 <NodeSelectionInspector
                   embedded

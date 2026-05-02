@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 
 import { Network } from "lucide-react";
 
@@ -17,6 +17,25 @@ interface TopologyPanelFadeProps {
   children: ReactNode;
   className?: string;
   durationMs?: number;
+  contentKey?: string;
+}
+
+const STATIC_FADE_KEY = "__topology-panel-static__";
+
+function usePrefersReducedMotion() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updatePreference = () => setPrefersReducedMotion(mediaQuery.matches);
+
+    updatePreference();
+
+    mediaQuery.addEventListener("change", updatePreference);
+    return () => mediaQuery.removeEventListener("change", updatePreference);
+  }, []);
+
+  return prefersReducedMotion;
 }
 
 export function TopologyPanelFrame({
@@ -49,16 +68,57 @@ export function TopologyPanelFrame({
   );
 }
 
-export function TopologyPanelFade({ children, className, durationMs = 260 }: TopologyPanelFadeProps) {
-  const [isVisible, setIsVisible] = useState(false);
+export function TopologyPanelFade({
+  children,
+  className,
+  durationMs = 260,
+  contentKey,
+}: TopologyPanelFadeProps) {
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const normalizedKey = contentKey ?? STATIC_FADE_KEY;
+  const [renderedKey, setRenderedKey] = useState(normalizedKey);
+  const [renderedChildren, setRenderedChildren] = useState(children);
+  const [isVisible, setIsVisible] = useState(true);
+  const phaseDurationMs = contentKey ? Math.max(180, Math.round(durationMs / 2)) : durationMs;
 
   useEffect(() => {
-    const frameId = window.requestAnimationFrame(() => {
+    if (prefersReducedMotion) {
+      setRenderedKey(normalizedKey);
+      setRenderedChildren(children);
       setIsVisible(true);
-    });
+      return undefined;
+    }
 
-    return () => window.cancelAnimationFrame(frameId);
-  }, []);
+    if (normalizedKey === renderedKey) {
+      setRenderedChildren((currentChildren) => (currentChildren === children ? currentChildren : children));
+      setIsVisible(true);
+      return undefined;
+    }
+
+    let frameId = 0;
+    setIsVisible(false);
+
+    const swapTimer = window.setTimeout(() => {
+      setRenderedKey(normalizedKey);
+      setRenderedChildren(children);
+      frameId = window.requestAnimationFrame(() => {
+        setIsVisible(true);
+      });
+    }, phaseDurationMs);
+
+    return () => {
+      window.clearTimeout(swapTimer);
+      window.cancelAnimationFrame(frameId);
+    };
+  }, [children, normalizedKey, phaseDurationMs, prefersReducedMotion, renderedKey]);
+
+  const transitionStyle = useMemo(
+    () => ({
+      transitionDuration: `${phaseDurationMs}ms`,
+      transitionTimingFunction: "cubic-bezier(0.22, 1, 0.36, 1)",
+    }),
+    [phaseDurationMs],
+  );
 
   return (
     <div
@@ -67,9 +127,9 @@ export function TopologyPanelFade({ children, className, durationMs = 260 }: Top
         isVisible ? "opacity-100" : "opacity-0",
         className,
       )}
-      style={{ transitionDuration: `${durationMs}ms` }}
+      style={transitionStyle}
     >
-      {children}
+      {renderedChildren}
     </div>
   );
 }

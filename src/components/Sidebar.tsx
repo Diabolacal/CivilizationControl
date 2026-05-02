@@ -109,8 +109,8 @@ export function Sidebar({ structures = [], isConnected = false, isLoading = fals
   const nodes = structures.filter((s) => s.type === "network_node");
 
   return (
-    <aside className="fixed left-0 top-16 bottom-0 w-64 bg-[var(--sidebar)] border-r border-border overflow-y-auto">
-      <nav className="p-4">
+    <aside className="fixed left-0 top-16 bottom-0 w-64 overflow-y-auto border-r border-border bg-[var(--sidebar)]">
+      <nav className="p-4 pb-32">
         {/* Primary navigation */}
         <div className="space-y-1 mb-6">
           {navItems.map((item) => {

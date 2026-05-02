@@ -84,6 +84,21 @@ The same branch now includes a final continuity-only polish pass so macro `Strat
 
 The live dashboard `Back to Strategic Network` path and real macro node entry still remain unexercised in this environment because the disconnected preview root had no wallet-owned network-node inventory to select.
 
+### Transition and shell polish follow-up - 2026-05-02
+
+The same branch now includes a last polish-only follow-up that resolves the remaining human-review defects without widening scope into writes, presets, persistence, broader hydration, package changes, Move changes, vendor changes, or production deploy.
+
+- the floating CivilizationControl badge now sits at the bottom-left inside the fixed sidebar rail rather than in the left content gutter, and the sidebar navigation now reserves bottom safe space so the structure inventory cannot scroll underneath the badge
+- the shared shell `main` scroller now uses `scrollbar-gutter: stable`, which removed the macro-to-node horizontal jerk at the shell seam; local and deployed measurements confirmed the `main` box stayed at `x = 256` with width `932` on both `/` and `/settings` while the scrollable root route changed from `scrollHeight = 1052` to the non-scrolling `scrollHeight = 918`
+- the topology header now keeps the `240px` header-action clamp only in node-local mode, so macro `Commercial` or `Defensive` controls and `Save Preset` can keep intrinsic width; local and deployed DOM checks confirmed `Save Preset` now renders on one line with `white-space: nowrap` and no native browser `title` tooltip
+- macro tooltip placement now converts the hovered SVG anchor through the rendered SVG transform before positioning the shared HTML tooltip shell, which corrects the previous offset caused by `xMidYMid meet` letterboxing; this code path still needs one wallet-connected macro-node smoke because the disconnected preview root had no nodes to hover
+- `TopologyPanelFade` now performs a reduced-motion-safe two-phase fade-out and fade-in body swap over `520ms` total while the outer topology and lower-card frames stay mounted, so the macro-to-node and lower-panel transitions no longer cut immediately between keyed bodies
+- local browser validation re-confirmed the disconnected root shell, stable shell geometry across `/` and `/settings`, one-line `Save Preset` with no native title tooltip, and that `/dev/node-drilldown-lab` still loads cleanly as a static synthetic route
+- refreshed preview evidence was captured on `https://fcff71aa.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+- deployed preview validation re-confirmed the rail-anchored badge, stable shell gutter on `/` and `/settings`, one-line `Save Preset` with `title = null`, and that the browser-served assets `App-DlB6OVKu.js` and `SmartObjectProvider-BzfeNlay.js` still contain `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` and `https://ef-map.com` while containing neither `flappy-frontier-sponsor`, `ASSEMBLY_API_TOKEN`, `Authorization`, nor `X-API-Key`
+
+The real macro hover tooltip and live macro-to-node body swap still need one wallet-connected smoke against owned network-node data because the disconnected preview root had no hydrated macro nodes available to hover or enter.
+
 Known remaining visual review questions for human review:
 
 - whether the live dashboard node-local composition still feels balanced with real wallet-owned node data once a connected environment is available
