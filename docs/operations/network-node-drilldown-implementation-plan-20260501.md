@@ -132,6 +132,44 @@ Backend payload audit note for this pass:
 - the locally accessible wallet-owned node IDs available to this agent returned empty `assemblies` arrays, so the exact non-empty assembler payload seen during human wallet-connected testing could not be re-captured in this environment
 - because of that, the assembler gray-state root cause could not be proven as stale backend data versus an unmapped live literal from a non-empty payload; this pass therefore fixes the clear frontend normalization gap and leaves any remaining stale-data question to the follow-on wallet-connected review
 
+### Real duplicate follow-up and debug seam - 2026-05-02
+
+Human wallet-connected review showed that the prior reconciliation pass was not sufficient on real preview data.
+
+- observed live node counts still doubled in the real wallet session: the affected node should show `4` storage rows and `2` turret rows, but the preview still showed `8` storage-like rows and `4` turret-like rows
+- the visible duplicates resolved to the same assembly identity in the inspector, which meant the remaining bug was still an end-to-end identity problem rather than a pure shell or layout regression
+- the confirmed frontend root cause in this pass was that `buildLiveNodeLocalViewModelWithObserved(...)` only reconciled overlapping observed rows before concatenation. The final candidate row list still had no last-boundary domain-identity invariant, and direct-chain discovery also had no dedupe, so any duplicate that survived earlier pairwise matching could still land in the final `viewModel.structures` array and be rendered by both the list and the canvas
+
+Current implementation after this pass:
+
+- every final node-local structure now receives a `canonicalDomainKey`
+- the final candidate row set is collapsed by domain-identity alias overlap immediately before `Node Control` returns its `viewModel.structures` array to layout/list/inspector consumers
+- domain identity is explicitly not the same as row ID. The invariant prefers normalized decimal `assemblyId`, then canonical `objectId`, and only consults render IDs when a render ID literally encodes one of those domain identifiers
+- the invariant now catches live/live, live/backend, and backend/backend duplicates at the last safe model boundary instead of relying only on earlier pairwise observed merging
+- backend display enrichment is still preserved on the surviving live row, while backend-only rows remain read-only and non-actionable
+
+Regression proof added in this pass:
+
+- deterministic probe: `npx tsx scripts/check-node-drilldown-reconciliation.mts`
+- proof shape: one live storage row plus one backend `Mini Storage` row for the same assembly, one live turret row plus one backend `Mini Turret` row for the same assembly, plus backend-only assembler and printer rows
+- expected result: `4` final rows total, with one merged storage row, one merged turret row, and only the backend-only assembler/printer left as observed rows
+
+Real-preview debug seam added in this pass:
+
+- add `?debugNodeDrilldown=1` to the preview URL
+- connect wallet, enter `Node Control`, and inspect `window.__CC_NODE_DRILLDOWN_DEBUG__.latest` in browser DevTools
+- the exported snapshot includes `liveRows`, `backendRows`, `candidateRows`, `candidateBuckets`, `duplicateBuckets`, `finalRows`, and `finalRenderIds`
+- this path is browser-only, query-param-gated, does not call new endpoints, and does not alter the normal UI when the debug flag is absent
+
+Current validation state:
+
+- local deterministic probe passes
+- local root dashboard still loads
+- dev-only lab still loads, stays isolated from shared-backend traffic, and all eight synthetic scenarios still render
+- served unique preview now lives at `https://add42d05.civilizationcontrol.pages.dev`
+- served preview bundle still contains `https://ef-map.com` and `civilizationcontrol-sponsor`, and does not contain `flappy-frontier-sponsor` or `ASSEMBLY_API_TOKEN`
+- real wallet-connected duplicate collapse is still not verified in this environment because the agent cannot operate the required live wallet session; human validation on the fresh preview remains mandatory before claiming the real duplicate bug is fully closed
+
 Known remaining visual review questions for human review:
 
 - whether the live dashboard node-local composition still feels balanced with real wallet-owned node data once a connected environment is available

@@ -67,6 +67,7 @@ export interface NodeLocalNode extends NodeLocalObservationMeta {
 
 export interface NodeLocalStructure extends NodeLocalObservationMeta {
   id: string;
+  canonicalDomainKey: string;
   objectId?: string;
   assemblyId?: string;
   linkedGateId?: string;

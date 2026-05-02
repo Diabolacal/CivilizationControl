@@ -36,7 +36,7 @@ import { useSignalFeed } from "@/hooks/useSignalFeed";
 import { useNodeAssemblies } from "@/hooks/useNodeAssemblies";
 import { formatLux, formatEve } from "@/lib/currency";
 import { computeRuntimeMs, getFuelEfficiency, formatRuntime } from "@/lib/fuelRuntime";
-import { buildLiveNodeLocalViewModelWithObserved } from "@/lib/nodeDrilldownModel";
+import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapshot } from "@/lib/nodeDrilldownModel";
 import type { NetworkNodeGroup, NetworkMetrics, SpatialPin, Structure } from "@/types/domain";
 
 interface DashboardProps {
@@ -95,6 +95,12 @@ export function Dashboard({
     setSelectedNodeId(null);
   }, []);
   const topologyModeKey = selectedNodeViewModel ? `node-${selectedNodeViewModel.node.id}` : "macro";
+  const isNodeDrilldownDebugEnabled = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const value = new URLSearchParams(window.location.search).get("debugNodeDrilldown");
+    if (value == null) return false;
+    return value !== "0" && value.toLowerCase() !== "false";
+  }, []);
   const topologyTitle = selectedNodeViewModel ? "Node Control" : "Strategic Network";
   const topologySubtitle = selectedNodeViewModel
     ? `${selectedNodeViewModel.node.displayName} • Read-only local topology`
@@ -142,6 +148,34 @@ export function Dashboard({
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleExitNodeControl, selectedNodeViewModel]);
+
+  useEffect(() => {
+    if (!isNodeDrilldownDebugEnabled) {
+      if (window.__CC_NODE_DRILLDOWN_DEBUG__) {
+        window.__CC_NODE_DRILLDOWN_DEBUG__.clear();
+      }
+      return;
+    }
+
+    const controller = window.__CC_NODE_DRILLDOWN_DEBUG__ ?? {
+      enabled: true,
+      latest: null,
+      clear: () => {
+        if (!window.__CC_NODE_DRILLDOWN_DEBUG__) return;
+        window.__CC_NODE_DRILLDOWN_DEBUG__.latest = null;
+      },
+    };
+
+    controller.enabled = true;
+    controller.latest = selectedNodeGroup
+      ? buildNodeDrilldownDebugSnapshot(selectedNodeGroup, selectedNodeAssembliesLookup)
+      : null;
+    window.__CC_NODE_DRILLDOWN_DEBUG__ = controller;
+
+    if (selectedNodeGroup) {
+      console.info("[node-drilldown-debug] window.__CC_NODE_DRILLDOWN_DEBUG__.latest updated");
+    }
+  }, [isNodeDrilldownDebugEnabled, selectedNodeAssembliesLookup, selectedNodeGroup]);
 
   return (
     <div>

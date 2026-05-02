@@ -1,6 +1,18 @@
 import type { NetworkNodeGroup, Structure, StructureStatus } from "@/types/domain";
 import { getItemTypeById, getItemTypeByName } from "@/lib/typeCatalog";
 import { normalizeCanonicalObjectId, type NodeAssembliesLookupResult } from "@/lib/nodeAssembliesClient";
+import {
+  bucketByNodeDrilldownDomainIdentity,
+  createNodeDrilldownIdentityAliases,
+  describeLiveNodeDrilldownIdentity,
+  describeObservedNodeDrilldownIdentity,
+  describeRenderedNodeDrilldownIdentity,
+  normalizeNodeDrilldownAssemblyId,
+  selectCanonicalNodeDrilldownDomainKey,
+  summarizeNodeDrilldownIdentityBuckets,
+  type NodeDrilldownDebugSnapshot,
+  type NodeDrilldownIdentityBucket,
+} from "@/lib/nodeDrilldownIdentity";
 
 import type {
   NodeLocalBand,
@@ -130,6 +142,18 @@ interface ObservedAssemblyIndex {
   aliasToCanonicalKey: Map<string, string>;
 }
 
+interface FinalizedNodeLocalStructures {
+  structures: NodeLocalStructure[];
+  candidateBuckets: NodeDrilldownIdentityBucket<NodeLocalStructure>[];
+}
+
+interface LiveNodeLocalBuildArtifacts {
+  liveStructures: Structure[];
+  observedEntries: ObservedAssembly[];
+  candidateStructures: NodeLocalStructure[];
+  finalization: FinalizedNodeLocalStructures;
+}
+
 const GENERIC_DISPLAY_NAME_ALIASES: Partial<Record<NodeLocalFamily, string[]>> = {
   networkNode: ["network node"],
   gate: ["gate"],
@@ -188,56 +212,18 @@ function deriveSizeVariant(typeLabel?: string | null): NodeLocalSizeVariant {
   return null;
 }
 
-function normalizeAssemblyId(value: string | null | undefined): string | null {
-  if (typeof value !== "string") return null;
-
-  const trimmed = value.trim();
-  if (trimmed.length === 0) return null;
-
-  if (!/^\d+$/.test(trimmed)) {
-    return trimmed;
-  }
-
-  try {
-    return BigInt(trimmed).toString();
-  } catch {
-    return trimmed;
-  }
-}
-
 function createAssemblyIdentityAliases(identity: {
   objectId?: string | null;
   assemblyId?: string | null;
 }): string[] {
-  const aliases: string[] = [];
-  const canonicalObjectId = normalizeCanonicalObjectId(identity.objectId);
-  const normalizedAssemblyId = normalizeAssemblyId(identity.assemblyId);
-
-  if (canonicalObjectId) {
-    aliases.push(`object:${canonicalObjectId}`);
-  }
-
-  if (normalizedAssemblyId) {
-    aliases.push(`assembly:${normalizedAssemblyId}`);
-  }
-
-  return aliases;
+  return createNodeDrilldownIdentityAliases(identity);
 }
 
 function selectCanonicalAssemblyKey(
   identity: { objectId?: string | null; assemblyId?: string | null },
   fallbackAliases: Iterable<string> = [],
 ): string | null {
-  const preferredAliases = createAssemblyIdentityAliases(identity);
-  if (preferredAliases.length > 0) {
-    return preferredAliases[0];
-  }
-
-  for (const alias of fallbackAliases) {
-    return alias;
-  }
-
-  return null;
+  return selectCanonicalNodeDrilldownDomainKey(identity, fallbackAliases);
 }
 
 function mergeObservedAssemblyEntry(
@@ -347,7 +333,7 @@ function buildIdentitySuffix(
   objectId?: string | null,
   assemblyId?: string | null,
 ): string | null {
-  const source = normalizeCanonicalObjectId(objectId) ?? normalizeAssemblyId(assemblyId);
+  const source = normalizeCanonicalObjectId(objectId) ?? normalizeNodeDrilldownAssemblyId(assemblyId);
   if (!source) return null;
 
   const trimmed = source.replace(/^0x/, "");
@@ -447,6 +433,7 @@ function createNodeLocalStructure(
   structure: Pick<
     NodeLocalStructure,
     | "id"
+    | "canonicalDomainKey"
     | "objectId"
     | "assemblyId"
     | "linkedGateId"
@@ -477,6 +464,7 @@ function createNodeLocalStructure(
 
   return {
     id: structure.id,
+    canonicalDomainKey: structure.canonicalDomainKey,
     objectId: structure.objectId,
     assemblyId: structure.assemblyId,
     linkedGateId: structure.linkedGateId,
@@ -505,6 +493,214 @@ function createNodeLocalStructure(
     isReadOnly: structure.isReadOnly,
     isActionable: structure.isActionable,
     sortLabel: structure.displayName.toLowerCase(),
+  };
+}
+
+function typeSpecificityScore(structure: NodeLocalStructure): number {
+  let score = 0;
+
+  if (structure.typeId != null) score += 4;
+  if (structure.sizeVariant === "mini" || structure.sizeVariant === "heavy") score += 3;
+  if (structure.typeLabel !== structure.familyLabel) score += 1;
+  if (structure.displayName !== structure.typeLabel) score += 1;
+  if (structure.source === "backendObserved") score += 1;
+
+  return score;
+}
+
+function preferDisplayStructure(
+  left: NodeLocalStructure,
+  right: NodeLocalStructure,
+): NodeLocalStructure {
+  const leftScore = typeSpecificityScore(left);
+  const rightScore = typeSpecificityScore(right);
+
+  if (rightScore > leftScore) return right;
+  if (rightScore < leftScore) return left;
+
+  if (left.source === "live" && right.source !== "live") {
+    return right;
+  }
+
+  return left;
+}
+
+function pickFirstDefined<T>(values: Array<T | null | undefined>): T | undefined {
+  return values.find((value): value is T => value != null);
+}
+
+function pickLatestTimestamp(values: Array<string | null | undefined>): string | null {
+  let latestValue: string | null = null;
+  let latestTimestamp = -Infinity;
+
+  for (const value of values) {
+    if (!value) continue;
+
+    const parsed = Date.parse(value);
+    if (!Number.isFinite(parsed)) {
+      if (latestValue == null) {
+        latestValue = value;
+      }
+      continue;
+    }
+
+    if (parsed > latestTimestamp) {
+      latestTimestamp = parsed;
+      latestValue = value;
+    }
+  }
+
+  return latestValue;
+}
+
+function mergeCollapsedStructureStatus(rows: NodeLocalStructure[]): StructureStatus {
+  const liveStatus = rows.find((row) => row.source === "live" && row.status !== "neutral")?.status;
+  if (liveStatus) {
+    return liveStatus;
+  }
+
+  return rows.find((row) => row.status !== "neutral")?.status ?? "neutral";
+}
+
+function mergeNodeLocalStructureBucket(
+  bucket: NodeDrilldownIdentityBucket<NodeLocalStructure>,
+): NodeLocalStructure {
+  const liveRow = bucket.entries.find((entry) => entry.source === "live");
+  const authoritativeRow = liveRow ?? bucket.entries.find((entry) => entry.source === "backendObserved") ?? bucket.entries[0];
+  const displayRow = bucket.entries.reduce(preferDisplayStructure, authoritativeRow);
+  const mergedSource = liveRow
+    ? "live"
+    : bucket.entries.some((entry) => entry.source === "backendObserved")
+      ? "backendObserved"
+      : "synthetic";
+
+  const objectId = pickFirstDefined(bucket.entries.map((entry) => entry.objectId));
+  const assemblyId = normalizeNodeDrilldownAssemblyId(
+    pickFirstDefined(bucket.entries.map((entry) => entry.assemblyId)),
+  ) ?? undefined;
+  const renderId = liveRow?.id
+    ?? objectId
+    ?? (assemblyId ? `assembly:${assemblyId}` : authoritativeRow.id);
+  const status = mergeCollapsedStructureStatus(bucket.entries);
+  const sizeVariant = displayRow.sizeVariant ?? deriveSizeVariant(displayRow.typeLabel) ?? authoritativeRow.sizeVariant;
+
+  return createNodeLocalStructure({
+    id: renderId,
+    canonicalDomainKey: bucket.canonicalDomainKey,
+    objectId,
+    assemblyId,
+    linkedGateId: pickFirstDefined(bucket.entries.map((entry) => entry.linkedGateId)),
+    displayName: displayRow.displayName,
+    family: liveRow?.family ?? authoritativeRow.family,
+    sizeVariant,
+    status,
+    source: mergedSource,
+    extensionStatus: liveRow?.extensionStatus ?? authoritativeRow.extensionStatus,
+    typeLabel: displayRow.typeLabel,
+    typeId: displayRow.typeId ?? authoritativeRow.typeId,
+    warningPip: bucket.entries.some((entry) => entry.warningPip) || status === "warning",
+    backendSource: pickFirstDefined(bucket.entries.map((entry) => entry.backendSource ?? undefined)) ?? null,
+    fetchedAt: pickLatestTimestamp(bucket.entries.map((entry) => entry.fetchedAt)) ?? null,
+    lastUpdated: pickLatestTimestamp(bucket.entries.map((entry) => entry.lastUpdated)) ?? null,
+    provenance: pickFirstDefined(bucket.entries.map((entry) => entry.provenance ?? undefined)) ?? null,
+    url: pickFirstDefined(bucket.entries.map((entry) => entry.url ?? undefined)) ?? null,
+    solarSystemId: pickFirstDefined(bucket.entries.map((entry) => entry.solarSystemId ?? undefined)) ?? null,
+    energySourceId: pickFirstDefined(bucket.entries.map((entry) => entry.energySourceId ?? undefined)) ?? null,
+    fuelAmount: pickFirstDefined(bucket.entries.map((entry) => entry.fuelAmount ?? undefined)) ?? null,
+    isReadOnly: mergedSource !== "live",
+    isActionable: mergedSource === "live",
+  });
+}
+
+function finalizeNodeLocalStructures(
+  candidateStructures: NodeLocalStructure[],
+): FinalizedNodeLocalStructures {
+  const candidateBuckets = bucketByNodeDrilldownDomainIdentity(candidateStructures, (structure) => ({
+    objectId: structure.objectId,
+    assemblyId: structure.assemblyId,
+    renderId: structure.id,
+    source: structure.source,
+  }));
+
+  return {
+    candidateBuckets,
+    structures: sortNodeLocalStructures(candidateBuckets.map(mergeNodeLocalStructureBucket)),
+  };
+}
+
+function buildLiveNodeLocalArtifacts(
+  group: NetworkNodeGroup,
+  observedLookup?: NodeAssembliesLookupResult | null,
+): LiveNodeLocalBuildArtifacts {
+  const observedEntries = observedLookup?.status === "success" ? observedLookup.assemblies : [];
+  const observedIndex = createObservedAssemblyIndex(observedEntries);
+
+  const liveStructures = [...group.gates, ...group.storageUnits, ...group.turrets];
+  const liveIdentityAliases = new Set(
+    liveStructures.flatMap((structure) =>
+      createAssemblyIdentityAliases({ objectId: structure.objectId, assemblyId: structure.assemblyId }),
+    ),
+  );
+
+  const candidateStructures = [
+    ...liveStructures.map((structure) => {
+      const observed = findObservedAssembly(observedIndex, {
+        objectId: structure.objectId,
+        assemblyId: structure.assemblyId,
+      });
+      const family = LIVE_FAMILY_MAP[structure.type];
+      const resolvedType = resolveTypeLabel(
+        family,
+        observed?.typeName ?? structure.summary?.typeName ?? null,
+        observed?.typeId ?? structure.summary?.typeId,
+        null,
+      );
+      const sizeVariant = deriveSizeVariant(resolvedType.typeLabel);
+      const status = mergeLiveStructureStatus(structure.status, observed?.status);
+      const needsExtensionWarning =
+        (structure.type === "gate" || structure.type === "turret") &&
+        structure.extensionStatus !== "authorized";
+
+      return createNodeLocalStructure({
+        id: structure.objectId,
+        canonicalDomainKey: selectCanonicalNodeDrilldownDomainKey({
+          objectId: structure.objectId,
+          assemblyId: normalizeNodeDrilldownAssemblyId(structure.assemblyId),
+          renderId: structure.objectId,
+          source: "live",
+        }) ?? `unresolved:${structure.objectId}`,
+        objectId: structure.objectId,
+        assemblyId: normalizeNodeDrilldownAssemblyId(structure.assemblyId) ?? undefined,
+        linkedGateId: structure.linkedGateId ?? observed?.linkedGateId ?? undefined,
+        displayName: resolveLiveDisplayName(structure, family, resolvedType.typeLabel, observed),
+        family,
+        sizeVariant,
+        status,
+        source: "live",
+        extensionStatus: structure.extensionStatus,
+        typeLabel: resolvedType.typeLabel,
+        typeId: resolvedType.typeId,
+        warningPip: status === "warning" || needsExtensionWarning,
+        backendSource: observed?.source ?? observedLookup?.source ?? null,
+        fetchedAt: observedLookup?.fetchedAt,
+        lastUpdated: observed?.lastUpdated,
+        provenance: observed?.provenance ?? null,
+        url: observed?.url ?? structure.summary?.url ?? null,
+        solarSystemId: observed?.solarSystemId ?? structure.summary?.solarSystemId ?? null,
+        energySourceId: observed?.energySourceId ?? structure.summary?.energySourceId ?? null,
+        fuelAmount: observed?.fuelAmount ?? structure.summary?.fuelAmount ?? null,
+        isReadOnly: false,
+        isActionable: true,
+      });
+    }),
+    ...buildBackendObservedStructures(liveIdentityAliases, observedIndex, observedLookup),
+  ];
+
+  return {
+    liveStructures,
+    observedEntries,
+    candidateStructures,
+    finalization: finalizeNodeLocalStructures(candidateStructures),
   };
 }
 
@@ -542,64 +738,8 @@ export function buildLiveNodeLocalViewModelWithObserved(
   group: NetworkNodeGroup,
   observedLookup?: NodeAssembliesLookupResult | null,
 ): NodeLocalViewModel {
-  const observedEntries = observedLookup?.status === "success" ? observedLookup.assemblies : [];
-  const observedIndex = createObservedAssemblyIndex(observedEntries);
-
-  const liveStructures = [...group.gates, ...group.storageUnits, ...group.turrets];
-  const liveIdentityAliases = new Set(
-    liveStructures.flatMap((structure) =>
-      createAssemblyIdentityAliases({ objectId: structure.objectId, assemblyId: structure.assemblyId }),
-    ),
-  );
-  const structures = sortNodeLocalStructures(
-    [
-      ...liveStructures.map((structure) => {
-        const observed = findObservedAssembly(observedIndex, {
-          objectId: structure.objectId,
-          assemblyId: structure.assemblyId,
-        });
-        const family = LIVE_FAMILY_MAP[structure.type];
-        const resolvedType = resolveTypeLabel(
-          family,
-          observed?.typeName ?? structure.summary?.typeName ?? null,
-          observed?.typeId ?? structure.summary?.typeId,
-          null,
-        );
-        const sizeVariant = deriveSizeVariant(resolvedType.typeLabel);
-        const status = mergeLiveStructureStatus(structure.status, observed?.status);
-        const needsExtensionWarning =
-          (structure.type === "gate" || structure.type === "turret") &&
-          structure.extensionStatus !== "authorized";
-
-        return createNodeLocalStructure({
-          id: structure.objectId,
-          objectId: structure.objectId,
-          assemblyId: normalizeAssemblyId(structure.assemblyId) ?? undefined,
-          linkedGateId: structure.linkedGateId ?? observed?.linkedGateId ?? undefined,
-          displayName: resolveLiveDisplayName(structure, family, resolvedType.typeLabel, observed),
-          family,
-          sizeVariant,
-          status,
-          source: "live",
-          extensionStatus: structure.extensionStatus,
-          typeLabel: resolvedType.typeLabel,
-          typeId: resolvedType.typeId,
-          warningPip: status === "warning" || needsExtensionWarning,
-          backendSource: observed?.source ?? observedLookup?.source ?? null,
-          fetchedAt: observedLookup?.fetchedAt,
-          lastUpdated: observed?.lastUpdated,
-          provenance: observed?.provenance ?? null,
-          url: observed?.url ?? structure.summary?.url ?? null,
-          solarSystemId: observed?.solarSystemId ?? structure.summary?.solarSystemId ?? null,
-          energySourceId: observed?.energySourceId ?? structure.summary?.energySourceId ?? null,
-          fuelAmount: observed?.fuelAmount ?? structure.summary?.fuelAmount ?? null,
-          isReadOnly: false,
-          isActionable: true,
-        });
-      }),
-      ...buildBackendObservedStructures(liveIdentityAliases, observedIndex, observedLookup),
-    ],
-  );
+  const { finalization } = buildLiveNodeLocalArtifacts(group, observedLookup);
+  const { structures } = finalization;
 
   const hasBackendObservedStructures = structures.some((structure) => structure.source === "backendObserved");
 
@@ -634,6 +774,38 @@ export function buildLiveNodeLocalViewModelWithObserved(
   };
 }
 
+export function buildNodeDrilldownDebugSnapshot(
+  group: NetworkNodeGroup,
+  observedLookup?: NodeAssembliesLookupResult | null,
+): NodeDrilldownDebugSnapshot {
+  const artifacts = buildLiveNodeLocalArtifacts(group, observedLookup);
+  const candidateBuckets = summarizeNodeDrilldownIdentityBuckets(
+    artifacts.finalization.candidateBuckets,
+    (structure) => ({
+      objectId: structure.objectId,
+      assemblyId: structure.assemblyId,
+      renderId: structure.id,
+      source: structure.source,
+    }),
+  );
+
+  return {
+    nodeId: group.node.objectId,
+    lookupStatus: observedLookup?.status ?? "none",
+    coverage: artifacts.finalization.structures.some((structure) => structure.source === "backendObserved")
+      ? "live-plus-backend-observed"
+      : "current-live-families",
+    fetchedAt: observedLookup?.fetchedAt ?? null,
+    liveRows: artifacts.liveStructures.map(describeLiveNodeDrilldownIdentity),
+    backendRows: artifacts.observedEntries.map(describeObservedNodeDrilldownIdentity),
+    candidateRows: artifacts.candidateStructures.map(describeRenderedNodeDrilldownIdentity),
+    candidateBuckets,
+    duplicateBuckets: candidateBuckets.filter((bucket) => bucket.renderIds.length > 1),
+    finalRows: artifacts.finalization.structures.map(describeRenderedNodeDrilldownIdentity),
+    finalRenderIds: artifacts.finalization.structures.map((structure) => structure.id),
+  };
+}
+
 function buildBackendObservedStructures(
   liveIdentityAliases: ReadonlySet<string>,
   observedIndex: ObservedAssemblyIndex,
@@ -665,12 +837,19 @@ function buildBackendObservedStructures(
       observed.assemblyId,
     );
     const status = normalizeObservedStatus(observed.status);
-    const id = observed.objectId ?? `assembly:${observed.assemblyId}`;
+    const normalizedAssemblyId = normalizeNodeDrilldownAssemblyId(observed.assemblyId);
+    const id = observed.objectId ?? (normalizedAssemblyId ? `assembly:${normalizedAssemblyId}` : "assembly:missing");
 
     return createNodeLocalStructure({
       id,
+      canonicalDomainKey: selectCanonicalNodeDrilldownDomainKey({
+        objectId: observed.objectId,
+        assemblyId: normalizedAssemblyId,
+        renderId: id,
+        source: "backendObserved",
+      }) ?? `unresolved:${id}`,
       objectId: observed.objectId ?? undefined,
-      assemblyId: normalizeAssemblyId(observed.assemblyId) ?? undefined,
+      assemblyId: normalizedAssemblyId ?? undefined,
       linkedGateId: observed.linkedGateId ?? undefined,
       displayName,
       family,
@@ -765,6 +944,10 @@ export function buildSyntheticNodeLocalViewModel(
 
       return createNodeLocalStructure({
         id: `${input.nodeId}:${family}:${index + 1}`,
+        canonicalDomainKey: selectCanonicalNodeDrilldownDomainKey({
+          renderId: `${input.nodeId}:${family}:${index + 1}`,
+          source: "synthetic",
+        }) ?? `synthetic:${input.nodeId}:${family}:${index + 1}`,
         displayName: structure.displayName,
         family,
         sizeVariant,

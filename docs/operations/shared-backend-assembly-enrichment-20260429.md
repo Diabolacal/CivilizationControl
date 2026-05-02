@@ -37,6 +37,22 @@ The first follow-up to the node-local route corrected how CivilizationControl co
 - selected-node polling was intentionally deferred in this pass, because the current node-local ordering still needs live human review before interval refetch can be added without visible churn
 - browser-origin inspection from preview confirmed healthy `200` responses from the node-local route and a `cache-control: public, max-age=60` policy, but the accessible wallet-owned nodes in this environment returned empty `assemblies` arrays, so the non-empty assembler payload from human preview testing could not be re-captured here
 
+## Identity invariant update - 2026-05-02
+
+The previous node-local reconciliation pass did not fully solve the real wallet-preview duplicate bug. A second pass was required to correct the end-to-end identity boundary.
+
+- previous failure mode: the earlier merge only collapsed overlapping observed rows before concatenation; the final candidate node-local structure array still had no last-boundary domain-identity invariant
+- why that mattered: if a duplicate row survived earlier pairwise matching, or if direct-chain discovery already carried a duplicate live row, both copies could still enter the single final `Node Control` structure array and be rendered by the map and list together
+- current rule: every rendered `Node Control` row now carries a `canonicalDomainKey`, and the final candidate row set is collapsed by alias overlap before it reaches layout or UI surfaces
+- canonical identity preference: normalized decimal `assemblyId` first, canonical `objectId` second, with render IDs only consulted when they literally encode one of those domain identifiers
+- authority rule unchanged: surviving live rows keep direct-chain ownership and action eligibility, while backend metadata can still enrich type, display name, size, freshness, and observed status when chain data is neutral or generic
+- backend-only rows remain read-only and non-actionable
+- browser debug aid added: with `?debugNodeDrilldown=1`, the preview publishes `window.__CC_NODE_DRILLDOWN_DEBUG__.latest` so a human can inspect selected-node `liveRows`, `backendRows`, `candidateRows`, `candidateBuckets`, `duplicateBuckets`, `finalRows`, and `finalRenderIds` without any new endpoint or visible UI change
+- deterministic regression probe added: `npx tsx scripts/check-node-drilldown-reconciliation.mts`
+- refreshed preview evidence for this pass: `https://add42d05.civilizationcontrol.pages.dev`
+
+Human wallet-connected validation is still required on that preview because the agent environment cannot drive the live wallet session that reproduces the non-empty node-local backend payload.
+
 ## Endpoint contract consumed
 
 - base URL default: `https://ef-map.com`
