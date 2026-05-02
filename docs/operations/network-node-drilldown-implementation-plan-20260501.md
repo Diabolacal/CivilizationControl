@@ -104,6 +104,48 @@ Known remaining visual review questions for human review:
 - whether the live dashboard node-local composition still feels balanced with real wallet-owned node data once a connected environment is available
 - whether gate-present live nodes still feel balanced once the composition-derived anchor replaces the old fixed corridor assumptions
 
+### Broader hydration and event freshness planning - 2026-05-02
+
+The accepted shell on `feat/node-drilldown-render-shell` is now the baseline for the next major slice.
+
+- the same-dashboard `Node Control` entry and exit, stable topology footprint, accepted lower-panel framing, accepted `Node Key` and tooltip behavior, accepted icon sizing, and the dev-only lab remain in place
+- current live limitation: `Node Control` still renders only the current `NetworkNodeGroup` families, so a real wallet-owned node can show only `gates`, `storageUnits`, and `turrets` around the selected `network_node`
+- the richer family vocabulary already exists in the normalized node-local renderer, but it is synthetic-only today; live `buildLiveNodeLocalViewModel()` never receives printers, refineries, assemblers, berths, relays, nursery or nest, shelters, or other future node-local families
+- the target for the next pass is richer node-connected visibility inside `Node Control` only; macro `Strategic Network` must stay limited to network nodes, gates, trade posts or storage units, and turrets
+
+Recommended read authority model for that pass:
+
+- direct-chain discovery remains authoritative for wallet-owned structure discovery, owner-cap resolution, node linkage, linked gates, fuel state, extension status, live power state, and any future write eligibility
+- CivilizationControl should expand the direct-chain owned-structure lane first wherever `suiReader` and `inferStructureType()` can prove broader families through the existing wallet path
+- the existing `GET /api/civilization-control/assemblies?ids=...` contract remains additive only; it can enrich already-known structures with labels, type metadata, observed status, fuel, `energySourceId`, `lastUpdated`, `fetchedAt`, and `source`, but it cannot discover additional node members because it accepts known assembly IDs only
+- true node-connected discovery beyond the current wallet-discovered lane requires new EF-Map/shared-backend work. The recommended contract is a CC-safe filtered node-local summary endpoint keyed by the selected network-node object ID or equivalent `energySourceId`, returning only assemblies whose relationship to that node is proven server-side plus `fetchedAt`, `source`, and per-assembly `lastUpdated`
+- backend-observed node members are safe to show only as read-only node-local observations. They must never grant write eligibility, never stand in for `OwnerCap` or direct-chain ownership proof, and never widen macro metrics or macro map membership
+
+Freshness and fail-open strategy:
+
+- today the drilldown is still pull-based: direct-chain discovery and the exact-ID summary enrichment poll, while the current EF-Map universe-events websocket is global and unfiltered and therefore not a safe node-local browser contract
+- the broader hydration pass should preserve provenance and freshness in the normalized node-local model so list and inspector surfaces can show quiet `source` or `lastUpdated` state without changing the accepted icon grammar
+- status updates should repaint in place and preserve current selection; rename updates should not be allowed to reshuffle unrelated layout unless membership changes
+- event-driven freshness should be planned as a separate follow-up after broader hydration. The near-term path is faster selected-node polling or filtered invalidation against the new node-local summary contract; later SSE or WebSocket work is only justified if EF-Map adds a filtered node-local stream
+- if the backend is down, stale, or partial, `Node Control` must fail open to the current direct-chain `NetworkNodeGroup` families. Backend-only rows may be omitted or marked stale, but valid chain-backed structures, selection state, and future action eligibility must remain intact
+
+Validation strategy for the next pass:
+
+- confirm a wallet-owned node with broader connected structures still enters `Node Control` without shell or scrollbar regressions
+- confirm broader families appear only inside `Node Control`, never in macro `Strategic Network`
+- confirm backend-observed rows are visibly non-actionable and do not change direct-chain ownership or write eligibility
+- confirm direct-chain fallback still renders the current four-family node-local view when the backend is unavailable or partial
+- confirm the dev lab grows at least one stale-data and one backend-observed fixture before freshness UI ships
+
+Manual wallet smoke checklist for the next runtime slice:
+
+- connect a wallet that owns at least one network node with non-canonical attached structures
+- enter `Node Control` from the live macro map and confirm the accepted shell state stays unchanged
+- confirm current direct-chain families still render before or without backend enrichment
+- confirm broader families appear only in node-local mode and stay read-only until a direct-chain action path exists
+- change a structure status or name outside CivilizationControl and confirm the selected node refreshes without losing selection or widening the macro map
+- disable or break backend enrichment and confirm the drilldown falls back cleanly to the current direct-chain lane
+
 ## 2. Product intent
 
 The intended experience is a same-dashboard drilldown, not a hard jump to a second product surface.
@@ -149,6 +191,9 @@ This is a planning requirement for the first implementation branch because real 
 - `src/lib/suiReader.ts` remains the direct-chain authority for ownership, structure identity, node linkage, OwnerCap discovery, fuel state, and write eligibility.
 - `src/hooks/useAssemblySummaryEnrichment.ts` and `src/lib/assemblyEnrichment.ts` remain additive only. Shared-backend summaries are useful for optional display enrichment but must not become authoritative for drilldown membership, action availability, or writes.
 - The existing shared-backend contract at `https://ef-map.com/api/civilization-control/assemblies` is request-by-known-ID, browser-safe, and fail-open. That should remain unchanged.
+- That existing `assemblies?ids=` route is not sufficient for true node-connected discovery because it cannot query by network node, energy source, owner, character, or wallet.
+- Any future backend-discovered node members must stay node-local, read-only, and explicitly non-authoritative until direct-chain ownership or capability can re-prove them.
+- Event freshness is a separate contract question: current EF-Map realtime surfaces are global and unfiltered, so the near-term drilldown plan assumes polling or targeted invalidation first.
 
 ### Existing write surfaces
 
@@ -686,6 +731,7 @@ The first implementation should be UI shell first, write actions later. That mat
 Implementation status on 2026-05-02:
 
 - complete for the render-only shell, shared renderer, lower Attached Structures list, Selection Inspector placeholder, and the dev-only scenario lab
+- accepted by human review as the visual and interaction baseline for the next broader-hydration planning pass
 - implemented files include `src/lib/nodeDrilldownTypes.ts`, `src/lib/nodeDrilldownModel.ts`, `src/lib/nodeDrilldownLayout.ts`, `src/lib/nodeDrilldownScenarios.ts`, `src/components/topology/node-drilldown/NodeDrilldownSurface.tsx`, `src/components/topology/node-drilldown/NodeDrilldownCanvas.tsx`, `src/components/topology/node-drilldown/NodeStructureListPanel.tsx`, `src/components/topology/node-drilldown/NodeSelectionInspector.tsx`, `src/screens/NodeDrilldownLabScreen.tsx`, `src/screens/Dashboard.tsx`, `src/components/topology/StrategicMapPanel.tsx`, `src/components/topology/NodeCluster.tsx`, and `src/main.tsx`
 - live dashboard entry is wired to current live `NetworkNodeGroup` data only; no new read paths or broader live-family hydration were added
 - the dev lab is isolated through `src/main.tsx` static bootstrap and performs no wallet, Sui RPC, shared-backend, sponsor, or transaction calls
@@ -697,6 +743,21 @@ Implementation status on 2026-05-02:
 - Validation: `npm run typecheck`, `npm run build`, interaction smoke for enter and exit, no regression in macro map camera behavior.
 - Manual preview checklist: click a network node, confirm the shell stays intact, confirm the map footprint stays fixed, confirm macro families remain unchanged, confirm the lower list and inspector placeholder appear, confirm icon selection highlights the matching row, confirm row selection highlights the matching icon, and confirm exiting returns telemetry and attention panels.
 - Rollback risk: low to medium.
+
+### Phase C - broader node-connected read-model planning and endpoint proof
+
+Implementation status on 2026-05-02:
+
+- completed as a docs-only planning pass on this branch; no runtime code, EF-Map code, endpoint, websocket, write path, sponsor path, package ID, or Move change was made here
+- verified that the current `GET /api/civilization-control/assemblies?ids=...` contract is exact-ID enrichment only and cannot discover node members by selected network node, `energySourceId`, owner, character, or wallet
+- verified that the current EF-Map realtime surface is a global universe-events stream, not a filtered node-local status or rename contract
+
+- Scope: lock the hybrid authority model for broader node-local hydration, specify the minimum shared-backend node-local summary contract needed for true node-connected discovery, define provenance or freshness fields that the normalized node-local model must preserve, and write the validation checklist before runtime work starts.
+- Files likely touched: planning docs in `docs/operations/`, `docs/decision-log.md`, and later contract notes in the EF-Map repo or runbook docs.
+- Out of scope: runtime code, backend implementation, browser websocket clients, direct-chain replacement, write actions, sponsor changes, Move changes.
+- Validation: `git diff --check`, `npm run typecheck`, `npm run build`.
+- Manual preview checklist: none in this planning-only phase.
+- Rollback risk: low.
 
 ### Phase D - local hide or unhide and layout persistence
 
@@ -725,16 +786,25 @@ Implementation status on 2026-05-02:
 - Manual preview checklist: save `Industry`, save `Defense`, verify overflow behavior for many presets, verify zero-state copy when presets are deleted.
 - Rollback risk: medium.
 
-### Phase G - richer connected-structure discovery for broader node catalogue
+### Phase G - broader family hydration inside Node Control
 
-- Scope: expand the read model beyond the current four-family `NetworkNodeGroup`, introduce broader family hydration where source truth is proven, and keep shared-backend enrichment additive only.
-- Files likely touched: `src/types/domain.ts`, `src/hooks/useAssetDiscovery.ts`, `src/lib/suiReader.ts`, `src/hooks/useAssemblySummaryEnrichment.ts`, `src/lib/assemblyEnrichment.ts`, item-type helpers, and node-local rendering components.
-- Out of scope: new write semantics, sponsor changes, Move changes, EF-Map ownership authority.
-- Validation: `npm run typecheck`, `npm run build`, direct-chain fallback smoke, family-membership proof, regression checks for macro map grouping.
-- Manual preview checklist: confirm new families appear only when live data can prove membership; confirm macro map remains limited to canonical macro families.
+- Scope: expand the read model beyond the current four-family `NetworkNodeGroup`, widen direct-chain owned-structure discovery where source truth can be proven, optionally merge a new filtered node-local backend summary lane for broader connected structures, and keep shared-backend enrichment additive only.
+- Files likely touched: `src/types/domain.ts`, `src/hooks/useAssetDiscovery.ts`, `src/lib/suiReader.ts`, `src/hooks/useAssemblySummaryEnrichment.ts`, `src/lib/assemblyEnrichment.ts`, any new node-local summary client or hook, `src/lib/nodeDrilldownTypes.ts`, `src/lib/nodeDrilldownModel.ts`, and node-local rendering components.
+- Out of scope: macro family expansion, new write semantics, sponsor changes, Move changes, EF-Map ownership authority.
+- Validation: `npm run typecheck`, `npm run build`, direct-chain fallback smoke, family-membership proof, regression checks for macro map grouping, and backend-partial fallback checks.
+- Manual preview checklist: confirm new families appear only inside `Node Control`; confirm chain-backed and backend-observed rows stay distinguishable; confirm backend-observed rows remain non-actionable; confirm macro map remains limited to canonical macro families.
 - Rollback risk: medium to high because it changes the read model.
 
-### Phase H - future industry, schemas, and structure-link expansion
+### Phase H - fast-refresh status and name freshness
+
+- Scope: preserve `fetchedAt`, `source`, and per-structure `lastUpdated` in the normalized node-local model, add faster selected-node polling or filtered backend invalidation for status and name changes, and keep status updates in place without unnecessary layout churn.
+- Files likely touched: `src/hooks/useAssetDiscovery.ts`, `src/hooks/useAssemblySummaryEnrichment.ts`, any new selected-node freshness hook or client, `src/lib/nodeDrilldownTypes.ts`, `src/lib/nodeDrilldownModel.ts`, and node-local list or inspector components.
+- Out of scope: unfiltered global websocket adoption, macro layout changes, write actions.
+- Validation: `npm run typecheck`, `npm run build`, selected-node refresh smoke, backend-down fallback smoke, status update without selection loss, and rename update without unrelated layout churn.
+- Manual preview checklist: change structure status or name outside CivilizationControl, confirm the selected node updates quickly, confirm stale backend data is presented as metadata only, and confirm the macro map still stays unchanged.
+- Rollback risk: medium because freshness work can create confusing UI churn if the authority boundary is blurred.
+
+### Phase I - future industry, schemas, and structure-link expansion
 
 - Scope: future refinery schemas, printer schemas, inter-structure relationship links, and richer node-local industry surfaces.
 - Files likely touched: broader node-local UI, future relationship layout helpers, future schema rendering components, and possibly later docs or read helpers.
@@ -744,6 +814,8 @@ Implementation status on 2026-05-02:
 - Rollback risk: high because this is the first truly new product layer beyond the current proven structure set.
 
 ## 11. Recommended first implementation branch
+
+Status on 2026-05-02: this first implementation branch is now effectively complete on `feat/node-drilldown-render-shell` and is the accepted UI-shell baseline for follow-on read-model work.
 
 The recommended first implementation branch is:
 
@@ -759,6 +831,28 @@ This is the right first branch because:
 - it avoids mixing UI-shell work with transaction risk
 - it preserves the macro map and existing sponsor or Move boundaries
 - it creates the stable operator surface that later hide, write, and preset work can attach to
+
+### Next recommended implementation slice - 2026-05-02
+
+Recommended option: `Option C`, with `Option D` applied to freshness sequencing.
+
+Recommended next slice:
+
+- expand the direct-chain owned-structure lane first wherever the existing wallet path can prove broader families safely
+- specify and land a new filtered EF-Map or shared-backend node-local summary endpoint for broader connected read-only structures keyed by the selected network node or equivalent `energySourceId`
+- widen the normalized node-local model so `Node Control` can render both chain-backed owned structures and backend-observed read-only structures without widening macro `Strategic Network`
+- keep event-driven freshness out of that first broader-hydration runtime slice; do faster polling or filtered invalidation later once the hybrid membership model is stable
+
+Why this is the right recommendation:
+
+- `Option A` is not enough on its own because direct-chain expansion can widen the owned lane, but the current app and backend evidence do not prove a complete node-connected discovery surface beyond what the wallet path already finds
+- `Option B` is not enough on its own because backend discovery without the direct-chain owned lane would blur ownership and write authority
+- the existing `assemblies?ids=` route is useful for enrichment but is not sufficient for node-local discovery today
+- the current EF-Map websocket is global and unfiltered, so bundling event freshness into the same pass would widen scope before membership, provenance, and ordering rules are stable
+
+Largest safe no-write slice on this branch after the accepted shell work:
+
+- a hybrid read-model pass that broadens direct-chain owned-family hydration where it can be proven, consumes a new filtered backend node-local summary contract for read-only broader connected structures, preserves macro-map simplification, and keeps event-driven freshness for the next follow-up task
 
 ## 12. Dev-only scenario validation surface
 
@@ -960,6 +1054,16 @@ The dev lab is for preview and local validation only.
 - verify selection sync still works in the dev lab between SVG and list
 - verify the lower list and inspector remain readable under dense synthetic scenarios
 - verify no wallet, Sui, shared-backend, or sponsor calls happen in the dev lab
+
+### Broader hydration and freshness manual smoke
+
+- connect a wallet that owns at least one network node with non-canonical attached structures
+- enter `Node Control` from the macro map and confirm the accepted shell state and scrollbar behavior remain stable
+- confirm current direct-chain families still render before or without backend enrichment
+- confirm broader families appear only inside `Node Control`, never in macro `Strategic Network`
+- confirm backend-observed rows are clearly non-actionable and do not change ownership or future write eligibility
+- break or disable backend enrichment and confirm the drilldown fails open to the current direct-chain lane
+- change structure status or name outside CivilizationControl and confirm the selected node updates without losing selection or repacking unrelated icons
 
 ### Later write-enabled smoke
 

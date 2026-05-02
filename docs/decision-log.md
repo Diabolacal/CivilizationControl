@@ -1,6 +1,14 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-02 – Plan node drilldown broader hydration
+- Goal: Update the accepted node-drilldown implementation plan before the next runtime pass so broader node-connected hydration, backend enrichment boundaries, and status or name freshness sequencing are explicit without changing runtime code, EF-Map code, endpoints, websockets, sponsor settings, package IDs, or Move contracts.
+- Files: `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
+- Diff: docs-only planning update for the next node-local read-model slice
+- Risk: low — planning/docs only, no runtime/package/deploy/vendor/submodule changes
+- Gates: diff-check ✅, typecheck ✅, build ✅
+- Result: recorded that the current `feat/node-drilldown-render-shell` visual shell and interaction polish are the accepted baseline for follow-on work; captured the current live limitation that real node-local mode still renders only the existing `NetworkNodeGroup` families; documented the direct-chain authority rule for ownership and write eligibility versus additive shared-backend or indexer enrichment; concluded that the current `GET /api/civilization-control/assemblies?ids=...` route is not enough for true node-connected discovery; recommended a hybrid next slice that widens the direct-chain owned lane and adds a new filtered backend node-local summary contract for read-only broader connected structures; and kept event-driven freshness as a separate follow-up after broader hydration. No runtime code changed in this pass.
+- Follow-ups: validate this docs-only plan update, then implement the next no-write runtime slice as hybrid broader hydration with fail-open fallback and a later freshness follow-up.
 ## 2026-05-02 – Fix drilldown transition polish
 - Goal: Resolve the remaining node-drilldown continuity defects from human review by moving the badge back into the sidebar rail, removing the macro header wrap regression, stabilizing the shell gutter, correcting macro tooltip placement math, and making the topology plus lower-panel swaps read as real fades, without widening scope beyond polish-only frontend work.
 - Files: `src/App.tsx`, `src/components/Sidebar.tsx`, `src/components/LogoBadge.tsx`, `src/components/LogoBadge.module.css`, `src/components/PostureControl.tsx`, `src/components/topology/TopologyPanelFrame.tsx`, `src/components/topology/StrategicMapPanel.tsx`, `src/screens/Dashboard.tsx`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
