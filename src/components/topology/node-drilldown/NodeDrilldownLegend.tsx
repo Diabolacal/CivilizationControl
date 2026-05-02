@@ -19,7 +19,7 @@ const LEGEND_ITEMS = [
 
 export function NodeDrilldownLegend() {
   return (
-    <NodeDrilldownOverlayPanel className="w-[272px] max-w-[calc(100vw-2rem)] px-3 py-2.5">
+    <NodeDrilldownOverlayPanel className="w-[258px] max-w-[calc(100vw-2rem)] px-3 py-2.5">
       <div className="flex items-center justify-between gap-3">
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground/70">
           Node Key
@@ -29,7 +29,7 @@ export function NodeDrilldownLegend() {
         </p>
       </div>
 
-      <div className="mt-2 grid grid-cols-2 gap-x-5 gap-y-2.5">
+      <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-2.5">
         {LEGEND_ITEMS.map((item) => (
           <div key={item.label} className="grid grid-cols-[20px_minmax(0,1fr)] items-center gap-2 text-[11px] text-muted-foreground">
             <NodeIconPreviewGlyph family={item.family} tone="neutral" size={18} />

@@ -203,6 +203,17 @@ Still pending after this pass:
 - one real wallet-connected preview review to confirm the same live node now renders `4` storage rows and `2` turret rows instead of the earlier doubled counts
 - one real wallet-connected check that the widened `Storages` shell copy and aligned `Node Key` still feel correct against the live backend-membership payload
 
+### Shell chrome polish follow-up - 2026-05-02
+
+The same branch now includes a narrow UI-only polish pass on top of the accepted backend-membership correction.
+
+- the fixed shell header no longer renders the hackathon-era `Vote for CivilizationControl` pill, leaving the brand wordmark and wallet controls as the only top-bar actions in this pass
+- the top-left `CivilizationControl` wordmark now routes to `/` through the existing client-side app router, so operators can return to `Command Overview` from other shell routes without widening scope into new navigation state
+- the `Node Key` overlay is now slightly narrower at `258px` wide instead of `272px`, with a tighter two-column gap, while preserving the existing icon sizes, row structure, `Network Node` alignment, and `Storage` terminology from the accepted backend-membership pass
+- local browser validation re-confirmed the disconnected root shell, title-link return from `/activity` to `/`, vote-pill removal, the dev-lab `Node Key` hide/show toggle, measured `258px` legend width, preserved `Network Node` row alignment, preserved `Storage` label, and that the dev lab still loads only local preview assets
+- refreshed preview evidence for this shell-chrome pass was captured on `https://320df55d.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s-jtn6.civilizationcontrol.pages.dev`
+- deployed preview validation re-confirmed the served root shell no longer shows the vote pill, the served title link returns to `/` from `/activity`, the served `/dev/node-drilldown-lab` legend still measures `258px`, and the browser-loaded preview assets still contain `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` and `https://ef-map.com` while containing neither `flappy-frontier-sponsor` nor `ASSEMBLY_API_TOKEN`
+
 ### Broader hydration and event freshness planning - 2026-05-02
 
 The accepted shell on `feat/node-drilldown-render-shell` is now the baseline for the next major slice.
