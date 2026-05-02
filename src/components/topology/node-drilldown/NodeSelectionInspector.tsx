@@ -1,3 +1,4 @@
+import { DashboardPanelFrame } from "@/components/dashboard/DashboardPanelFrame";
 import { findNodeLocalStructure, formatNodeLocalSize, formatNodeLocalStatus, summarizeNodeLocalFamilies } from "@/lib/nodeDrilldownModel";
 
 import type { NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
@@ -5,6 +6,7 @@ import type { NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 interface NodeSelectionInspectorProps {
   viewModel: NodeLocalViewModel;
   selectedStructureId: string | null;
+  embedded?: boolean;
 }
 
 function InspectorRow({ label, value }: { label: string; value: string }) {
@@ -16,21 +18,14 @@ function InspectorRow({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function NodeSelectionInspector({
+function NodeSelectionInspectorContent({
   viewModel,
   selectedStructureId,
-}: NodeSelectionInspectorProps) {
+}: Pick<NodeSelectionInspectorProps, "viewModel" | "selectedStructureId">) {
   const selectedStructure = findNodeLocalStructure(viewModel, selectedStructureId);
 
   return (
-    <section className="overflow-hidden rounded border border-border bg-[var(--card)]">
-      <div className="border-b border-border/50 px-4 py-3">
-        <h2 className="text-sm font-semibold text-foreground">Selection Inspector</h2>
-        <p className="mt-1 text-[11px] font-mono uppercase tracking-wide text-muted-foreground/70">
-          Placeholder for later controls
-        </p>
-      </div>
-
+    <>
       <div className="space-y-1 px-4 py-3">
         {selectedStructure ? (
           <>
@@ -60,6 +55,32 @@ export function NodeSelectionInspector({
           Write actions, presets, and layout persistence are intentionally deferred in this first slice.
         </p>
       </div>
-    </section>
+    </>
+  );
+}
+
+export function NodeSelectionInspector({
+  viewModel,
+  selectedStructureId,
+  embedded = false,
+}: NodeSelectionInspectorProps) {
+  const content = (
+    <NodeSelectionInspectorContent
+      viewModel={viewModel}
+      selectedStructureId={selectedStructureId}
+    />
+  );
+
+  if (embedded) {
+    return content;
+  }
+
+  return (
+    <DashboardPanelFrame
+      title="Selection Inspector"
+      subtitle="Placeholder for later controls"
+    >
+      {content}
+    </DashboardPanelFrame>
   );
 }

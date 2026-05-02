@@ -9,6 +9,7 @@
  */
 
 import { BrowserRouter, Routes, Route } from "react-router";
+import type { CSSProperties } from "react";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { Dashboard } from "@/screens/Dashboard";
@@ -49,6 +50,10 @@ export default function App() {
 }
 
 function OperatorShell() {
+  const shellLayoutVars = {
+    "--operator-sidebar-width": "16rem",
+    "--operator-main-gutter": "1.5rem",
+  } as CSSProperties;
   const { profile, structures, nodeGroups, metrics, isLoading, isConnected } =
     useAssetDiscovery();
   const { pins, assignPin, removePin } = useSpatialPins();
@@ -58,7 +63,7 @@ function OperatorShell() {
 
   return (
     <CharacterContext.Provider value={{ characterId }}>
-    <div className="dark min-h-screen bg-background text-foreground">
+    <div className="dark min-h-screen bg-background text-foreground" style={shellLayoutVars}>
         <Header characterName={profile?.characterName} />
         <Sidebar structures={structures} isConnected={isConnected} isLoading={isLoading} />
         <LogoBadge />

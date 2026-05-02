@@ -70,6 +70,20 @@ The same branch now includes a focused operator-polish pass for node-local expla
 
 The live dashboard `Back to Strategic Network` action remains owned by the unchanged header-action seam, but it could not be re-exercised in this environment because the preview root had no connected wallet inventory or node entry point available.
 
+### Continuity and interaction polish - 2026-05-02
+
+The same branch now includes a final continuity-only polish pass so macro `Strategic Network` and node-local `Node Control` read as one premium surface rather than a panel swap.
+
+- `Dashboard` now owns one mounted `TopologyPanelFrame` for both modes, so macro and node-local content swap inside the same shell with a restrained `260ms` `TopologyPanelFade` rather than remounting separate topology cards
+- the lower dashboard region now uses a shared enclosed `DashboardPanelFrame` card family in both modes, which aligns macro telemetry framing with the node-local `Attached Structures` and `Selection Inspector` cards and applies the same inner-content-only fade during mode changes
+- macro mode now reuses the app-styled topology tooltip shell for node hover, removes native browser `title` tooltips from the starfield and lock controls in favor of explicit `aria-label`s, and adds a restrained center-node hover ring plus pointer cursor without changing the drag-threshold click semantics
+- the floating CivilizationControl logo now sits in the left operating gutter instead of the bottom-right corner; both local and deployed preview geometry confirm the logo begins at `x = 280` while the fixed sidebar ends at `x = 256`, so the badge no longer occupies the navigation lane
+- local browser validation re-confirmed the disconnected dashboard shell, the enclosed macro lower-card framing, all eight synthetic lab scenarios, no map-button position shift when hiding the `Node Key`, app-styled tooltip hover with middle-dot copy, row-to-inspector selection sync, `Back to app`, and that the lab still loads only local static assets
+- refreshed preview evidence was captured on `https://b3d786e9.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+- deployed preview validation re-confirmed the left-gutter logo geometry, the no-shift `Node Key` toggle on the deployed lab, app-styled tooltip hover on the deployed lab, and that the browser-loaded preview assets `App-DpY_3m4Y.js` and `SmartObjectProvider-CcV8Bfzp.js` contain `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` and `https://ef-map.com` while containing neither `flappy-frontier-sponsor`, `ASSEMBLY_API_TOKEN`, `Authorization`, nor `X-API-Key`
+
+The live dashboard `Back to Strategic Network` path and real macro node entry still remain unexercised in this environment because the disconnected preview root had no wallet-owned network-node inventory to select.
+
 Known remaining visual review questions for human review:
 
 - whether the live dashboard node-local composition still feels balanced with real wallet-owned node data once a connected environment is available

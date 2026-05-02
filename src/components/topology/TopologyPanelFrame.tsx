@@ -8,6 +8,7 @@ interface TopologyPanelFrameProps {
   title: string;
   subtitle: string;
   headerAction?: ReactNode;
+  headerActionClassName?: string;
   bodyClassName?: string;
   children: ReactNode;
 }
@@ -15,12 +16,14 @@ interface TopologyPanelFrameProps {
 interface TopologyPanelFadeProps {
   children: ReactNode;
   className?: string;
+  durationMs?: number;
 }
 
 export function TopologyPanelFrame({
   title,
   subtitle,
   headerAction,
+  headerActionClassName,
   bodyClassName,
   children,
 }: TopologyPanelFrameProps) {
@@ -36,7 +39,7 @@ export function TopologyPanelFrame({
             <p className="truncate text-[11px] text-muted-foreground">{subtitle}</p>
           </div>
         </div>
-        {headerAction ? <div className="shrink-0">{headerAction}</div> : null}
+        {headerAction ? <div className={cn("shrink-0", headerActionClassName)}>{headerAction}</div> : null}
       </div>
 
       <div className={cn("relative h-[440px] overflow-hidden bg-[var(--topo-background)]", bodyClassName)}>
@@ -46,7 +49,7 @@ export function TopologyPanelFrame({
   );
 }
 
-export function TopologyPanelFade({ children, className }: TopologyPanelFadeProps) {
+export function TopologyPanelFade({ children, className, durationMs = 260 }: TopologyPanelFadeProps) {
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -60,10 +63,11 @@ export function TopologyPanelFade({ children, className }: TopologyPanelFadeProp
   return (
     <div
       className={cn(
-        "h-full transition-opacity duration-200 ease-out",
+        "h-full transition-opacity ease-out motion-reduce:transition-none",
         isVisible ? "opacity-100" : "opacity-0",
         className,
       )}
+      style={{ transitionDuration: `${durationMs}ms` }}
     >
       {children}
     </div>

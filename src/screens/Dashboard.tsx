@@ -23,8 +23,11 @@ import {
   Flame,
 } from "lucide-react";
 import { useConnection } from "@evefrontier/dapp-kit";
+import { DashboardPanelFrame } from "@/components/dashboard/DashboardPanelFrame";
 import { MetricCard } from "@/components/MetricCard";
+import { PostureControl } from "@/components/PostureControl";
 import { StrategicMapPanel } from "@/components/topology/StrategicMapPanel";
+import { TopologyPanelFade, TopologyPanelFrame } from "@/components/topology/TopologyPanelFrame";
 import { NodeDrilldownSurface } from "@/components/topology/node-drilldown/NodeDrilldownSurface";
 import { NodeSelectionInspector } from "@/components/topology/node-drilldown/NodeSelectionInspector";
 import { NodeStructureListPanel } from "@/components/topology/node-drilldown/NodeStructureListPanel";
@@ -86,6 +89,24 @@ export function Dashboard({
     setSelectedStructureId(null);
     setSelectedNodeId(null);
   }, []);
+  const topologyModeKey = selectedNodeViewModel ? `node-${selectedNodeViewModel.node.id}` : "macro";
+  const topologyTitle = selectedNodeViewModel ? "Node Control" : "Strategic Network";
+  const topologySubtitle = selectedNodeViewModel
+    ? `${selectedNodeViewModel.node.displayName} • Read-only local topology`
+    : "Infrastructure Posture & Topology Control";
+  const topologyHeaderAction = selectedNodeViewModel ? (
+    <button
+      type="button"
+      onClick={handleExitNodeControl}
+      className="rounded border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+    >
+      Back to Strategic Network
+    </button>
+  ) : (
+    <div className="flex items-center justify-end">
+      <PostureControl nodeGroups={nodeGroups} isConnected={isConnected} inline onTransitionChange={handlePostureTransitionChange} />
+    </div>
+  );
 
   useEffect(() => {
     setSelectedStructureId(null);
@@ -166,101 +187,107 @@ export function Dashboard({
 
       {/* Strategic Network — Topology + Posture Command (integrated) */}
       <div className="mt-5">
-        {selectedNodeViewModel ? (
-          <NodeDrilldownSurface
-            viewModel={selectedNodeViewModel}
-            selectedStructureId={selectedStructureId}
-            onSelectStructure={setSelectedStructureId}
-            title="Node Control"
-            subtitle={`${selectedNodeViewModel.node.displayName} • Read-only local topology`}
-            headerAction={
-              <button
-                type="button"
-                onClick={handleExitNodeControl}
-                className="rounded border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
-              >
-                Back to Strategic Network
-              </button>
-            }
-          />
-        ) : (
-          <StrategicMapPanel
-            nodeGroups={nodeGroups}
-            pins={pins}
-            structures={structures}
-            isConnected={isConnected}
-            signals={recentSignals}
-            onPostureTransitionChange={handlePostureTransitionChange}
-            onSelectNode={handleSelectNode}
-            selectedNodeId={selectedNodeId}
-          />
-        )}
+        <TopologyPanelFrame
+          title={topologyTitle}
+          subtitle={topologySubtitle}
+          headerAction={topologyHeaderAction}
+          headerActionClassName="flex w-[240px] justify-end"
+          bodyClassName="select-none"
+        >
+          <TopologyPanelFade key={topologyModeKey} durationMs={260}>
+            {selectedNodeViewModel ? (
+              <NodeDrilldownSurface
+                embedded
+                viewModel={selectedNodeViewModel}
+                selectedStructureId={selectedStructureId}
+                onSelectStructure={setSelectedStructureId}
+                title=""
+                subtitle=""
+              />
+            ) : (
+              <StrategicMapPanel
+                embedded
+                nodeGroups={nodeGroups}
+                pins={pins}
+                structures={structures}
+                isConnected={isConnected}
+                signals={recentSignals}
+                onPostureTransitionChange={handlePostureTransitionChange}
+                onSelectNode={handleSelectNode}
+                selectedNodeId={selectedNodeId}
+              />
+            )}
+          </TopologyPanelFade>
+        </TopologyPanelFrame>
       </div>
 
       {/* Lower section: Recent Signals + Attention Required */}
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
-        {selectedNodeViewModel ? (
-          <>
-            <div className="lg:col-span-2">
-              <NodeStructureListPanel
-                viewModel={selectedNodeViewModel}
-                selectedStructureId={selectedStructureId}
-                onSelectStructure={setSelectedStructureId}
-              />
-            </div>
-            <div>
-              <NodeSelectionInspector
-                viewModel={selectedNodeViewModel}
-                selectedStructureId={selectedStructureId}
-              />
-            </div>
-          </>
-        ) : (
-          <>
-            <div className="lg:col-span-2">
-              <div className="flex items-center justify-between mb-3 border-b border-border/50 pb-2.5">
-                <h2 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-                  Recent Telemetry Signals
-                </h2>
-                <Link
-                  to="/activity"
-                  className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-                >
-                  View Log →
-                </Link>
-              </div>
-              <div className="bg-[var(--card)] border border-border rounded overflow-hidden divide-y divide-border/50">
-                {recentSignals.length > 0 ? (
-                  recentSignals.slice(0, PREVIEW_COUNT).map((signal) => (
-                    <SignalEventRow key={signal.id} signal={signal} />
-                  ))
-                ) : (
-                  <div className="px-4 py-6 text-center">
-                    <p className="text-sm text-muted-foreground/60">
-                      {isConnected ? "No telemetry for your infrastructure" : "Connect wallet to view telemetry"}
-                    </p>
-                    <p className="text-[11px] text-muted-foreground/40 mt-1">
-                      {isConnected
-                        ? "Events from your gates, trade posts, and turrets will appear here"
-                        : "Signal Feed shows activity from your governed infrastructure"}
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
+        <div className="lg:col-span-2">
+          <DashboardPanelFrame
+            title={selectedNodeViewModel ? `Attached Structures (${selectedNodeViewModel.structures.length})` : "Recent Telemetry Signals"}
+            subtitle={selectedNodeViewModel ? "Read-only structure index" : "Signal feed across governed infrastructure"}
+            headerAction={selectedNodeViewModel ? undefined : (
+              <Link
+                to="/activity"
+                className="flex items-center gap-1 text-xs font-medium text-muted-foreground transition-colors hover:text-primary"
+              >
+                View Log →
+              </Link>
+            )}
+          >
+            <TopologyPanelFade key={`lower-left-${topologyModeKey}`} durationMs={260} className="h-auto">
+              {selectedNodeViewModel ? (
+                <NodeStructureListPanel
+                  embedded
+                  viewModel={selectedNodeViewModel}
+                  selectedStructureId={selectedStructureId}
+                  onSelectStructure={setSelectedStructureId}
+                />
+              ) : (
+                <div className="max-h-[420px] overflow-y-auto divide-y divide-border/50">
+                  {recentSignals.length > 0 ? (
+                    recentSignals.slice(0, PREVIEW_COUNT).map((signal) => (
+                      <SignalEventRow key={signal.id} signal={signal} />
+                    ))
+                  ) : (
+                    <div className="px-4 py-6 text-center">
+                      <p className="text-sm text-muted-foreground/60">
+                        {isConnected ? "No telemetry for your infrastructure" : "Connect wallet to view telemetry"}
+                      </p>
+                      <p className="mt-1 text-[11px] text-muted-foreground/40">
+                        {isConnected
+                          ? "Events from your gates, trade posts, and turrets will appear here"
+                          : "Signal Feed shows activity from your governed infrastructure"}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </TopologyPanelFade>
+          </DashboardPanelFrame>
+        </div>
 
-            <div>
-              <div className="flex items-center justify-between mb-3 border-b border-border/50 pb-2.5">
-                <h2 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-                  Attention Required
-                </h2>
-              </div>
-              <div className="bg-[var(--card)] border border-border rounded overflow-hidden divide-y divide-border/50">
-                <AttentionAlerts metrics={metrics} structures={structures} />
-              </div>
-            </div>
-          </>
-        )}
+        <div>
+          <DashboardPanelFrame
+            title={selectedNodeViewModel ? "Selection Inspector" : "Attention Required"}
+            subtitle={selectedNodeViewModel ? "Placeholder for later controls" : "Operational risks requiring review"}
+          >
+            <TopologyPanelFade key={`lower-right-${topologyModeKey}`} durationMs={260} className="h-auto">
+              {selectedNodeViewModel ? (
+                <NodeSelectionInspector
+                  embedded
+                  viewModel={selectedNodeViewModel}
+                  selectedStructureId={selectedStructureId}
+                />
+              ) : (
+                <div className="divide-y divide-border/50">
+                  <AttentionAlerts metrics={metrics} structures={structures} />
+                </div>
+              )}
+            </TopologyPanelFade>
+          </DashboardPanelFrame>
+        </div>
       </div>
 
       {/* Loading state */}

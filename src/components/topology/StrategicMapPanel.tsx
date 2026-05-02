@@ -25,10 +25,11 @@ import type { WorldBounds } from "@/hooks/useMapViewTransform";
 import { getSolarSystemById, getSolarSystemCatalog } from "@/lib/solarSystemCatalog";
 import { computeRuntimeMs, getFuelEfficiency } from "@/lib/fuelRuntime";
 import { PostureControl } from "@/components/PostureControl";
+import { NodeDrilldownTooltip, type NodeDrilldownTooltipData } from "@/components/topology/node-drilldown/NodeDrilldownTooltip";
 import { NodeClusterSvg } from "@/components/topology/NodeCluster";
 import { TopologyPanelFade, TopologyPanelFrame } from "@/components/topology/TopologyPanelFrame";
 import { assignChildSlots } from "@/components/topology/topologyLayout";
-import type { ChildSlot, Posture } from "@/components/topology/topologyLayout";
+import type { ChildSlot, HoverTarget, Posture } from "@/components/topology/topologyLayout";
 
 
 interface StrategicMapPanelProps {
@@ -41,6 +42,7 @@ interface StrategicMapPanelProps {
   onPostureTransitionChange?: (isTransitioning: boolean) => void;
   onSelectNode?: (nodeId: string) => void;
   selectedNodeId?: string | null;
+  embedded?: boolean;
 }
 
 /**
@@ -134,6 +136,44 @@ const CHILD_RADIUS = 55;
 /** SVG-space inset to shorten corridor lines so they stop outside the gate glyph (24×24). */
 const GATE_CORRIDOR_INSET = 14;
 
+function formatTitleCase(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
+function joinTooltipParts(parts: Array<string | null | undefined>): string {
+  return parts.filter(Boolean).join(" · ");
+}
+
+function cleanDisplayName(value: string | undefined, fallback: string): string {
+  const cleaned = value?.replace(/\s+[0-9a-f]{8}$/, "").trim();
+  return cleaned && cleaned.length > 0 ? cleaned : fallback;
+}
+
+function tooltipPlacementFromSvg(svgX: number, svgY: number) {
+  const xPercent = (svgX / MAP_WIDTH) * 100;
+  const yPercent = (svgY / MAP_HEIGHT) * 100;
+
+  return {
+    xPercent,
+    yPercent,
+    horizontalAlign: xPercent <= 24 ? "left" : xPercent >= 76 ? "right" : "center",
+    verticalAlign: yPercent <= 24 ? "below" : "above",
+  } as const;
+}
+
+function macroStructureTypeLabel(kind: HoverTarget["kind"]): string {
+  switch (kind) {
+    case "gate":
+      return "Gate";
+    case "ssu":
+      return "Trade Post";
+    case "turret":
+      return "Turret";
+    case "node":
+      return "Network Node";
+  }
+}
+
 export function StrategicMapPanel({
   nodeGroups,
   pins,
@@ -143,12 +183,14 @@ export function StrategicMapPanel({
   onPostureTransitionChange,
   onSelectNode,
   selectedNodeId = null,
+  embedded = false,
 }: StrategicMapPanelProps) {
   const [showStarfield, setShowStarfield] = useState(() => {
     try {
       return localStorage.getItem("cc:strategic-map:starfield") === "1";
     } catch { return false; }
   });
+  const [hoverTarget, setHoverTarget] = useState<HoverTarget | null>(null);
   const canvasRef = useRef<HTMLDivElement>(null);
   const diagCanvasRef = useRef<HTMLCanvasElement>(null);
   const pointerStateRef = useRef({
@@ -175,6 +217,14 @@ export function StrategicMapPanel({
   const pinMap = useMemo(
     () => new Map(pins.map((p) => [p.networkNodeId, p])),
     [pins],
+  );
+  const nodeGroupMap = useMemo(
+    () => new Map(nodeGroups.map((group) => [group.node.objectId, group])),
+    [nodeGroups],
+  );
+  const structureMap = useMemo(
+    () => new Map(structures.map((structure) => [structure.objectId, structure])),
+    [structures],
   );
 
   // Low-fuel detection: same 24h threshold as AttentionAlerts
@@ -358,8 +408,47 @@ export function StrategicMapPanel({
     }
   }, [transformPoint, showStarfield]);
 
+  useEffect(() => {
+    if (!isDragging) return;
+    setHoverTarget(null);
+  }, [isDragging]);
+
+  const hoverTooltip = useMemo<NodeDrilldownTooltipData | null>(() => {
+    if (!hoverTarget) return null;
+
+    const group = nodeGroupMap.get(hoverTarget.nodeId);
+    if (!group) return null;
+
+    const pin = pinMap.get(hoverTarget.nodeId);
+    const placement = tooltipPlacementFromSvg(hoverTarget.svgX, hoverTarget.svgY);
+
+    if (hoverTarget.kind === "node") {
+      return {
+        id: hoverTarget.nodeId,
+        ...placement,
+        title: pin?.solarSystemName ?? cleanDisplayName(group.node.name, "Network Node"),
+        detail: joinTooltipParts(["Network Node", formatTitleCase(group.node.status)]),
+      };
+    }
+
+    const structure = hoverTarget.structureId ? structureMap.get(hoverTarget.structureId) : undefined;
+    const fallbackName = macroStructureTypeLabel(hoverTarget.kind);
+
+    return {
+      id: hoverTarget.structureId ?? `${hoverTarget.nodeId}-${hoverTarget.kind}`,
+      ...placement,
+      title: cleanDisplayName(structure?.name, fallbackName),
+      detail: joinTooltipParts([
+        macroStructureTypeLabel(hoverTarget.kind),
+        structure ? formatTitleCase(structure.status) : null,
+      ]),
+      meta: pin?.solarSystemName ?? undefined,
+    };
+  }, [hoverTarget, nodeGroupMap, pinMap, structureMap]);
+
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
+      setHoverTarget(null);
       pointerStateRef.current = {
         startX: e.clientX,
         startY: e.clientY,
@@ -394,6 +483,11 @@ export function StrategicMapPanel({
     };
   }, [endDrag]);
 
+  const handlePanelPointerLeave = useCallback(() => {
+    setHoverTarget(null);
+    handlePointerUp();
+  }, [handlePointerUp]);
+
   const handleSelectNode = useCallback(
     (nodeId: string, button: number) => {
       if (button !== 0) return;
@@ -403,28 +497,17 @@ export function StrategicMapPanel({
     [onSelectNode],
   );
 
-  return (
-    <TopologyPanelFrame
-      title="Strategic Network"
-      subtitle="Infrastructure Posture & Topology Control"
-      bodyClassName="select-none"
-      headerAction={
-        <div className="flex items-center">
-          <PostureControl nodeGroups={nodeGroups} isConnected={isConnected} inline onTransitionChange={onPostureTransitionChange} />
-        </div>
-      }
+  const body = (
+    <div
+      ref={canvasRef}
+      className="relative h-full select-none"
+      style={{ cursor: locked ? "default" : isDragging ? "grabbing" : "grab" }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerLeave={handlePanelPointerLeave}
+      onContextMenu={(e) => e.preventDefault()}
     >
-      <TopologyPanelFade>
-        <div
-          ref={canvasRef}
-          className="relative h-full"
-          style={{ cursor: locked ? "default" : isDragging ? "grabbing" : "grab" }}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerLeave={handlePointerUp}
-          onContextMenu={(e) => e.preventDefault()}
-        >
         {/* Grid background */}
         <div
           className="absolute inset-0 pointer-events-none"
@@ -548,10 +631,12 @@ export function StrategicMapPanel({
                     posture={posture}
                     childSlots={slots}
                     collapsedTurretCount={group.turrets.length > 3 ? group.turrets.length : 0}
-                    childRadius={CHILD_RADIUS}
+                    onHover={setHoverTarget}
                     cascadeDelayMs={cascadeDelay}
                     hasWarning={lowFuelNodeIds.has(group.node.objectId)}
+                    hoveredNode={hoverTarget?.kind === "node" && hoverTarget.nodeId === group.node.objectId}
                     selected={selectedNodeId === group.node.objectId}
+                    canSelectNode={Boolean(onSelectNode) && !isDragging}
                     onSelectNode={handleSelectNode}
                   />
                 );
@@ -587,35 +672,37 @@ export function StrategicMapPanel({
           nodeChildSlots={nodeChildSlots}
         />
 
+        {hoverTooltip ? <NodeDrilldownTooltip tooltip={hoverTooltip} /> : null}
+
         {/* Map controls — quiet affordances, top-right corner */}
         <div className="absolute top-2 right-2 z-20 flex items-center gap-1.5">
           <button
             onClick={(e) => { e.stopPropagation(); setShowStarfield((s) => !s); }}
+            aria-label="Toggle universe starfield"
             className={`text-[9px] font-mono bg-background/50 rounded px-1.5 py-0.5 transition-colors ${
               showStarfield
                 ? "text-muted-foreground/70"
                 : "text-muted-foreground/40 hover:text-muted-foreground/70"
             }`}
-            title="Toggle universe starfield"
           >
             stars
           </button>
           <button
             onClick={(e) => { e.stopPropagation(); setLocked((l) => !l); }}
+            aria-label={locked ? "Unlock map interactions" : "Lock map view"}
             className={`text-[9px] font-mono bg-background/50 rounded px-1.5 py-0.5 transition-colors ${
               locked
                 ? "text-muted-foreground/70"
                 : "text-muted-foreground/40 hover:text-muted-foreground/70"
             }`}
-            title={locked ? "Unlock map interactions" : "Lock map view"}
           >
             lock
           </button>
           {!isDefault && (
             <button
               onClick={(e) => { e.stopPropagation(); resetView(); }}
+              aria-label="Reset map view"
               className="text-[9px] font-mono text-muted-foreground/40 hover:text-muted-foreground/70 bg-background/50 rounded px-1.5 py-0.5 transition-colors"
-              title="Reset view"
             >
               reset
             </button>
@@ -630,8 +717,25 @@ export function StrategicMapPanel({
             </p>
           </div>
         )}
+    </div>
+  );
+
+  if (embedded) {
+    return body;
+  }
+
+  return (
+    <TopologyPanelFrame
+      title="Strategic Network"
+      subtitle="Infrastructure Posture & Topology Control"
+      bodyClassName="select-none"
+      headerAction={
+        <div className="flex items-center">
+          <PostureControl nodeGroups={nodeGroups} isConnected={isConnected} inline onTransitionChange={onPostureTransitionChange} />
         </div>
-      </TopologyPanelFade>
+      }
+    >
+      <TopologyPanelFade>{body}</TopologyPanelFade>
     </TopologyPanelFrame>
   );
 }
