@@ -19,7 +19,7 @@ const LEGEND_ITEMS = [
 
 export function NodeDrilldownLegend() {
   return (
-    <NodeDrilldownOverlayPanel className="w-fit max-w-[calc(100vw-2rem)] px-3 py-2.5">
+    <NodeDrilldownOverlayPanel className="w-fit max-w-[calc(100vw-2rem)] pl-3 pr-6 py-2.5">
       <div className="flex items-center justify-between gap-3">
         <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground/70">
           Node Key

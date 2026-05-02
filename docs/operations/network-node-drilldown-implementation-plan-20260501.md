@@ -230,6 +230,16 @@ Still pending after this pass:
 - one real wallet-connected smoke to exercise the new in-root home reset while live `Node Control` is actually open on `/`; this environment still had no wallet-owned node data available to enter the live drilldown
 - one wallet-connected confirmation that the same home-reset path feels correct from both the top-left wordmark and sidebar `Command Overview` against real backend-membership node-local data
 
+### Node Key right-edge spacing correction - 2026-05-02
+
+The same branch now includes one final narrow UI-only follow-up for the Node Key shell balance.
+
+- the `Node Key` still shrink-wraps to its content width and still avoids the earlier fixed-width shell, but its legend panel now biases only the trailing padding from balanced `px-3` to `pl-3 pr-6`, which widens the rendered key from about `208.6px` to about `220.56px` on local and deployed `/dev/node-drilldown-lab`
+- the widened trailing gutter restores a small amount of right-side breathing room without changing icon size, text size, row height, two-column structure, `Network Node` alignment, `Storage` terminology, or the `M/H = size` header copy
+- local browser validation re-confirmed the disconnected root shell, continued vote-pill absence, continued `Storages` shell copy, `/activity` rendering under the stable shell, the dev-lab `Node Key` hide/show toggle, the measured `220.56px` legend width, unchanged network-node button position when hiding and re-showing the key, preserved `Network Node` and `Storage` rows, and that the dev lab still loads with no wallet, Sui RPC, shared-backend, sponsor, or transaction-path resource requests
+- refreshed preview evidence for this spacing pass was captured on `https://3b8b0399.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+- deployed preview validation re-confirmed the served root shell still omits the vote pill, still shows `Storages`, the served `/dev/node-drilldown-lab` legend now measures about `220.56px`, the hide/show toggle still leaves the node button footprint fixed, and the served preview assets still contain `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` and `https://ef-map.com` while containing neither `flappy-frontier-sponsor` nor `ASSEMBLY_API_TOKEN`
+
 ### App-shell route transition polish - 2026-05-02
 
 The same branch now includes a narrow shell-level polish pass that extends the calmer Node Control transition language to main app-section navigation without widening scope beyond UI presentation.

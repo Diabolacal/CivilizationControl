@@ -1,6 +1,15 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-02 – Rebalance node key right padding
+- Goal: Add a small amount of right-side breathing room back to the shrink-wrapped `Node Key` without reverting to the older fixed-width shell, while preserving the accepted backend-membership behavior, route-transition behavior, Node Control behavior, terminology, sponsorship wiring, package IDs, Move code, vendor state, and production deploy state.
+- Files: `src/components/topology/node-drilldown/NodeDrilldownLegend.tsx`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
+- Diff: one legend padding adjustment plus refreshed tracked local and preview evidence
+- Risk: low — single-component UI-only spacing correction with no read-model change, no dependency change, no Move change, no vendor edit, and no production deploy
+- Gates: typecheck ✅ build ✅ diff-check ✅ reconciliation probe ✅ local root smoke ✅ local route-shell smoke ✅ local lab smoke ✅ preview deploy ✅ served preview root smoke ✅ served preview lab smoke ✅ served preview bundle proof ✅ wallet-connected live Node Control smoke still pending
+- Result: changed the `Node Key` legend shell from symmetric `px-3` padding to `pl-3 pr-6`, keeping the content-sized legend layout but restoring a slightly larger trailing gutter. That moved the rendered legend width from about `208.6px` to about `220.56px` on both local and deployed `/dev/node-drilldown-lab`, while preserving icon scale, row rhythm, `Network Node` alignment, `Storage` terminology, `M/H = size`, key hide/show behavior, root-shell `Storages` copy, vote-pill absence, and the existing shell-route transition behavior. Local and served checks also re-confirmed that hiding the key does not shift the node button footprint and that the dev-lab route still makes no wallet, Sui RPC, shared-backend, sponsor, or transaction-path resource requests. Served bundle proof re-confirmed `civilizationcontrol-sponsor` and `https://ef-map.com` in the expected chunks with no `flappy-frontier-sponsor` or `ASSEMBLY_API_TOKEN`.
+- Preview: `https://3b8b0399.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+- Follow-ups: do one manual wallet-connected preview review if desired, then prepare `feat/node-drilldown-render-shell` for merge to `master` without any production deploy until explicitly requested.
 ## 2026-05-02 – Add app shell route transition
 - Goal: Add a subtle route-level content fade for the operator app shell so navigation between `Command Overview`, `Gates`, `Storages`, `Turrets`, `Network Nodes`, `Signal Feed`, and `Configuration` feels calmer and more premium, while keeping the fixed shell mounted, preserving the accepted internal Node Control transition, and avoiding any backend-membership, write-scope, sponsor, package, Move, vendor, or production-deploy changes.
 - Files: `src/components/ShellRouteTransition.tsx`, `src/App.tsx`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
