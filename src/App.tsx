@@ -9,7 +9,7 @@
  */
 
 import { BrowserRouter, Routes, Route } from "react-router";
-import type { CSSProperties } from "react";
+import { useCallback, useState, type CSSProperties } from "react";
 import { Header } from "@/components/Header";
 import { Sidebar } from "@/components/Sidebar";
 import { Dashboard } from "@/screens/Dashboard";
@@ -50,6 +50,7 @@ export default function App() {
 }
 
 function OperatorShell() {
+  const [homeRequestToken, setHomeRequestToken] = useState(0);
   const shellLayoutVars = {
     "--operator-sidebar-width": "16rem",
     "--operator-main-gutter": "1.5rem",
@@ -62,13 +63,22 @@ function OperatorShell() {
   const { pins, assignPin, removePin } = useSpatialPins();
   useTribesRefresh();
 
+  const handleRequestHome = useCallback(() => {
+    setHomeRequestToken((current) => current + 1);
+  }, []);
+
   const characterId = profile?.characterId ?? null;
 
   return (
     <CharacterContext.Provider value={{ characterId }}>
     <div className="dark min-h-screen bg-background text-foreground" style={shellLayoutVars}>
-        <Header characterName={profile?.characterName} />
-        <Sidebar structures={structures} isConnected={isConnected} isLoading={isLoading} />
+        <Header characterName={profile?.characterName} onRequestHome={handleRequestHome} />
+        <Sidebar
+          structures={structures}
+          isConnected={isConnected}
+          isLoading={isLoading}
+          onRequestHome={handleRequestHome}
+        />
         <LogoBadge />
         <main className="ml-64 h-screen overflow-y-auto px-6 pb-6 pt-[5.5rem]" style={mainScrollStyle}>
           <div className="max-w-[1760px] mx-auto">
@@ -83,6 +93,7 @@ function OperatorShell() {
                     structures={structures}
                     isLoading={isLoading}
                     isConnected={isConnected}
+                    homeRequestToken={homeRequestToken}
                   />
                 }
               />

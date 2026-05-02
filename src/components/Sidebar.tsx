@@ -67,6 +67,7 @@ interface SidebarProps {
   structures?: Structure[];
   isConnected?: boolean;
   isLoading?: boolean;
+  onRequestHome?: () => void;
 }
 
 function structureStatus(s: Structure): StatusType {
@@ -88,7 +89,12 @@ function structurePath(s: Structure): string {
   }
 }
 
-export function Sidebar({ structures = [], isConnected = false, isLoading = false }: SidebarProps) {
+export function Sidebar({
+  structures = [],
+  isConnected = false,
+  isLoading = false,
+  onRequestHome,
+}: SidebarProps) {
   const location = useLocation();
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
@@ -115,10 +121,12 @@ export function Sidebar({ structures = [], isConnected = false, isLoading = fals
         <div className="space-y-1 mb-6">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
+            const isHomeItem = item.path === "/";
             return (
               <Link
                 key={item.path}
                 to={item.path}
+                onClick={isHomeItem ? onRequestHome : undefined}
                 className={`flex items-center gap-3 px-3 py-2 rounded-sm transition-colors border-l-2 ${
                   isActive
                     ? "bg-primary/10 text-primary font-medium border-primary"

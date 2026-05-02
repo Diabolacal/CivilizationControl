@@ -214,6 +214,22 @@ The same branch now includes a narrow UI-only polish pass on top of the accepted
 - refreshed preview evidence for this shell-chrome pass was captured on `https://320df55d.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s-jtn6.civilizationcontrol.pages.dev`
 - deployed preview validation re-confirmed the served root shell no longer shows the vote pill, the served title link returns to `/` from `/activity`, the served `/dev/node-drilldown-lab` legend still measures `258px`, and the browser-loaded preview assets still contain `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` and `https://ef-map.com` while containing neither `flappy-frontier-sponsor` nor `ASSEMBLY_API_TOKEN`
 
+### Final Node Control chrome tighten pass - 2026-05-02
+
+The same branch now includes one more narrow UI-only pass for the three remaining polish defects called out in review.
+
+- the `Node Key` no longer relies on a forced fixed shell width. It now shrink-wraps to its content width with balanced outer `px-3` padding and content-sized legend columns, which reduced the measured legend width on local and deployed `/dev/node-drilldown-lab` from the previous `258px` shell to about `208.6px` while keeping icon size, text size, row height, `Network Node` alignment, and `Storage` terminology intact
+- node-local hover tooltips no longer surface implementation provenance such as `Backend membership`, `backend-only row`, or other row-source diagnostics. Structure hover now stays user-facing with title plus family or type, size, and status only; provenance remains available in the Selection Inspector and the debug export path instead of the hover shell
+- the top-left `CivilizationControl` wordmark and the sidebar `Command Overview` item now share one explicit app-home request path. When Dashboard is already mounted on `/`, that request clears the current node-local selection and returns the topology header to `Strategic Network`; when the operator is on another route, the same home action still returns to `/` without a routing overhaul
+- local browser validation re-confirmed the disconnected root shell, title-link return from `/activity` to `/`, continued vote-pill absence, `Storages` shell copy, the dev-lab `Node Key` hide/show toggle, the measured `208.6px` legend width, the preserved `Network Node` and `Storage` rows, two-line tooltip copy on structure hover with no provenance line, and that the dev lab still loads only local preview assets
+- refreshed preview evidence for this tighten pass was captured on `https://150a48ba.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s-jtn6.civilizationcontrol.pages.dev`
+- deployed preview validation re-confirmed the served root shell still omits the vote pill, still shows `Storages`, still returns `/activity` to root macro mode through the top-left wordmark, and that the served `/dev/node-drilldown-lab` legend now measures about `208.6px` while hover shows only title plus detail copy and the browser-loaded preview assets still contain `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` and `https://ef-map.com` while containing neither `flappy-frontier-sponsor` nor `ASSEMBLY_API_TOKEN`
+
+Still pending after this pass:
+
+- one real wallet-connected smoke to exercise the new in-root home reset while live `Node Control` is actually open on `/`; this environment still had no wallet-owned node data available to enter the live drilldown
+- one wallet-connected confirmation that the same home-reset path feels correct from both the top-left wordmark and sidebar `Command Overview` against real backend-membership node-local data
+
 ### Broader hydration and event freshness planning - 2026-05-02
 
 The accepted shell on `feat/node-drilldown-render-shell` is now the baseline for the next major slice.

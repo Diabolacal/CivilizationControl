@@ -46,6 +46,7 @@ interface DashboardProps {
   structures: Structure[];
   isLoading: boolean;
   isConnected: boolean;
+  homeRequestToken: number;
 }
 
 export function Dashboard({
@@ -55,6 +56,7 @@ export function Dashboard({
   structures,
   isLoading,
   isConnected,
+  homeRequestToken,
 }: DashboardProps) {
   const { walletAddress } = useConnection();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
@@ -128,6 +130,11 @@ export function Dashboard({
   useEffect(() => {
     setSelectedStructureId(null);
   }, [selectedNodeId]);
+
+  useEffect(() => {
+    if (homeRequestToken === 0) return;
+    handleExitNodeControl();
+  }, [handleExitNodeControl, homeRequestToken]);
 
   useEffect(() => {
     if (selectedNodeId != null && selectedNodeGroup == null) {
