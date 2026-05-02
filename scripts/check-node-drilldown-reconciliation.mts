@@ -279,17 +279,42 @@ assert.equal(refineryRows.length, 1, "expected one backend-only refinery row");
 assert.ok(storageRows.every((structure) => structure.source === "backendMembership"), "expected storage rows to render from backend membership");
 assert.ok(storageRows.every((structure) => structure.familyLabel === "Storage"), "expected storage terminology to stay normalized");
 assert.ok(storageRows.every((structure) => structure.hasDirectChainAuthority), "expected storage rows to retain direct-chain authority annotations");
-assert.ok(storageRows.every((structure) => !structure.isActionable && structure.isReadOnly), "expected backend-membership storage rows to stay read-only in this pass");
+assert.ok(
+  storageRows.every((structure) => structure.actionAuthority.state === "verified-supported"),
+  "expected uniquely matched backend-membership storage rows to be verified-supported in Phase E",
+);
+assert.ok(
+  storageRows.every((structure) => structure.isActionable && !structure.isReadOnly),
+  "expected verified-supported backend-membership storage rows to expose power controls in Phase E",
+);
+assert.ok(
+  storageRows.every((structure) => structure.actionAuthority.verifiedTarget?.structureType === "storage_unit"),
+  "expected backend-membership storage rows to map to storage_unit power targets",
+);
 
 assert.ok(turretRows.every((structure) => structure.source === "backendMembership"), "expected turret rows to render from backend membership");
-assert.ok(turretRows.every((structure) => !structure.isActionable && structure.isReadOnly), "expected backend-membership turret rows to stay read-only in this pass");
+assert.ok(
+  turretRows.every((structure) => structure.actionAuthority.state === "verified-supported"),
+  "expected uniquely matched backend-membership turret rows to be verified-supported in Phase E",
+);
+assert.ok(
+  turretRows.every((structure) => structure.isActionable && !structure.isReadOnly),
+  "expected verified-supported backend-membership turret rows to expose power controls in Phase E",
+);
+assert.ok(
+  turretRows.every((structure) => structure.actionAuthority.verifiedTarget?.structureType === "turret"),
+  "expected backend-membership turret rows to map to turret power targets",
+);
 
 assert.equal(assemblerRows[0]?.source, "backendMembership", "expected assembler to remain part of backend membership");
 assert.equal(assemblerRows[0]?.isReadOnly, true, "expected backend-only assembler to remain read-only");
 assert.equal(assemblerRows[0]?.isActionable, false, "expected backend-only assembler to remain non-actionable");
 assert.equal(assemblerRows[0]?.hasDirectChainAuthority, false, "expected backend-only assembler to have no direct-chain authority annotation");
+assert.equal(assemblerRows[0]?.actionAuthority.state, "backend-only", "expected backend-only assembler to remain unavailable in Phase E");
 
 assert.equal(printerRows[0]?.source, "backendMembership", "expected printer to remain part of backend membership");
+assert.equal(printerRows[0]?.actionAuthority.state, "backend-only", "expected backend-only printer to remain unavailable in Phase E");
+assert.equal(refineryRows[0]?.actionAuthority.state, "backend-only", "expected backend-only refinery to remain unavailable in Phase E");
 
 assert.ok(structures.every((structure) => structure.familyLabel !== "Trade Post"), "expected no visible Trade Post terminology");
 assert.ok(structures.every((structure) => structure.source !== "live"), "expected no live display rows in backend-membership mode");
@@ -314,5 +339,7 @@ console.log(JSON.stringify({
     futureActionEligible: structure.futureActionEligible,
     isReadOnly: structure.isReadOnly,
     isActionable: structure.isActionable,
+    actionAuthorityState: structure.actionAuthority.state,
+    verifiedTarget: structure.actionAuthority.verifiedTarget,
   })),
 }, null, 2));

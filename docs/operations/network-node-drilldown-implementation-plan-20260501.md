@@ -10,6 +10,24 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Phase E action authority and supported power controls - 2026-05-02
+
+Phase E is now implemented on `feat/node-drilldown-render-shell`.
+
+- each rendered node-local row now carries explicit `actionAuthority` state instead of inferring actionability from membership source alone; the model distinguishes `verified-supported`, `backend-only`, `ambiguous-match`, `unsupported-family`, `missing-owner-cap`, `missing-node-context`, and `synthetic`
+- verified supported online or offline controls now ship only for the already-proven web power families: `Gate`, `Storage`, and `Turret`; backend-membership rows become actionable only when a unique direct-chain match plus `OwnerCap` and node context can be re-proved from the current wallet-owned live data
+- `Attached Structures` and `Selection Inspector` now surface one shared action rail with verified `Bring Online` or `Take Offline` controls, unavailable reason text for backend-only or ambiguous or unsupported rows, and preserved local `Unhide`; the map context menu intentionally remains hide-only in this slice
+- the live dashboard now routes verified row actions through the existing `useStructurePower().toggleSingle(...)` transaction path and refetches selected-node backend membership after a power action completes; no rename, local labels, presets, drag persistence, node offline, backend endpoint work, Move work, sponsor-worker work, or EF-Map or VPS changes were added in this slice
+- `/dev/node-drilldown-lab` now includes an `Authority Matrix` scenario that covers verified, backend-only, ambiguous, unsupported, missing-context, and hidden rows, with preview-only local status toggles that never invoke wallet, Sui RPC, sponsor, or shared-backend requests
+- deterministic regression proof in `scripts/check-node-drilldown-reconciliation.mts` now asserts the Phase E boundary directly: uniquely matched backend-membership storage and turret rows resolve to `verified-supported` power targets, while backend-only printer, refinery, and assembler rows remain unavailable
+- local validation passed: `npm run typecheck`, `npm run build`, `git diff --check` with only the unrelated `contracts/civilization_control/Move.lock` CRLF warning, `npx tsx scripts/check-node-drilldown-reconciliation.mts`, `sui move build --path contracts/civilization_control`, and `sui move test --path contracts/civilization_control`
+- local browser validation re-confirmed `/`, `/settings`, and `/dev/node-drilldown-lab`; verified the `Authority Matrix` action rail, preview-only toggle behavior, hidden-row `Unhide`, hide-only canvas context menu, and absence of any operator-visible `Rename` or `local label` UI; the dev lab still loads only route assets with no fetch or XHR traffic to wallet, Sui RPC, shared-backend, sponsor, or transaction endpoints
+- preview evidence for this Phase E pass was captured on `https://cb2b95be.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+- deployed preview validation confirmed `/settings` on the alias URL, confirmed the unique preview `/dev/node-drilldown-lab` route shows the Phase E authority matrix with verified `Take Offline` or `Bring Online` controls plus unavailable reasons, and confirmed that served root HTML on both unique and alias URLs resolves the same entry chunk `assets/index-DyIfbBtR.js`
+- served-bundle proof fetched every deployed preview JS asset from the unique preview host and confirmed `civilizationcontrol-sponsor` appears only in `SmartObjectProvider-4fclb-w3.js`, `https://ef-map.com` appears in `SmartObjectProvider-4fclb-w3.js` and `useNodeDrilldownHiddenState-CkHIrGKN.js`, and neither of those runtime-config chunks contains `flappy-frontier-sponsor`, `ASSEMBLY_API_TOKEN`, `Authorization`, `authorization`, or `X-API-Key`; a separate lowercase `authorization` string still exists elsewhere in the large app chunk as generic dependency text, but not in the chunks that carry sponsor or shared-backend browser path logic
+
+The live dashboard shell and live transaction path are wired, but a wallet-connected live node-control smoke remains pending in this environment because the available browser session still has no owned network-node inventory to exercise against the deployed preview.
+
 ### Phase D hide or unhide polish follow-up - 2026-05-02
 
 The same branch now includes a narrow UI-only follow-up on top of the accepted hide or unhide slice.

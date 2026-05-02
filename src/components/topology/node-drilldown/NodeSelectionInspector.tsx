@@ -1,6 +1,14 @@
 import { DashboardPanelFrame } from "@/components/dashboard/DashboardPanelFrame";
+import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
+import { NodeStructureActionRail } from "@/components/topology/node-drilldown/NodeStructureActionRail";
+import {
+  formatNodeLocalActionAuthorityDetail,
+  formatNodeLocalActionAuthorityLabel,
+  getNodeLocalActionStatus,
+} from "@/lib/nodeDrilldownActionAuthority";
 import { findNodeLocalStructure, formatNodeLocalSize, formatNodeLocalStatus, summarizeNodeLocalFamilies } from "@/lib/nodeDrilldownModel";
 
+import type { TxResult, TxStatus } from "@/types/domain";
 import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 
 interface NodeSelectionInspectorProps {
@@ -8,6 +16,14 @@ interface NodeSelectionInspectorProps {
   selectedStructureId: string | null;
   hiddenCanonicalKeySet: ReadonlySet<string>;
   onUnhideStructure: (canonicalDomainKey: string) => void;
+  onTogglePower?: (structure: NodeLocalStructure, nextOnline: boolean) => void;
+  powerStatus?: TxStatus;
+  powerResult?: TxResult | null;
+  powerError?: string | null;
+  powerStructureId?: string | null;
+  powerSuccessLabel?: string;
+  onDismissPowerFeedback?: () => void;
+  previewMode?: boolean;
   embedded?: boolean;
 }
 
@@ -79,24 +95,22 @@ function formatStructureSource(structure: NodeLocalStructure): string {
 
 function formatStructureAuthority(structure: NodeLocalStructure): string {
   if (structure.source === "live") {
-    return "Direct-chain authoritative";
+    return "Direct-chain membership row";
   }
 
   if (structure.source === "synthetic") {
-    return "Synthetic fixture • Non-actionable";
+    return "Synthetic lab fixture";
   }
 
   if (!structure.hasDirectChainAuthority) {
-    return "Backend-only • Non-actionable";
+    return "Backend membership only";
   }
 
   if (structure.directChainMatchCount > 1) {
-    return `Direct-chain matched (${structure.directChainMatchCount}) • Review before actions`;
+    return `Direct-chain annotated (${structure.directChainMatchCount})`;
   }
 
-  return structure.futureActionEligible
-    ? "Direct-chain backed • Future eligible"
-    : "Direct-chain backed • Read-only";
+  return "Direct-chain annotated";
 }
 
 function NodeSelectionInspectorContent({
@@ -104,7 +118,15 @@ function NodeSelectionInspectorContent({
   selectedStructureId,
   hiddenCanonicalKeySet,
   onUnhideStructure,
-}: Pick<NodeSelectionInspectorProps, "viewModel" | "selectedStructureId" | "hiddenCanonicalKeySet" | "onUnhideStructure">) {
+  onTogglePower,
+  powerStatus,
+  powerResult,
+  powerError,
+  powerStructureId,
+  powerSuccessLabel,
+  onDismissPowerFeedback,
+  previewMode,
+}: Pick<NodeSelectionInspectorProps, "viewModel" | "selectedStructureId" | "hiddenCanonicalKeySet" | "onUnhideStructure" | "onTogglePower" | "powerStatus" | "powerResult" | "powerError" | "powerStructureId" | "powerSuccessLabel" | "onDismissPowerFeedback" | "previewMode">) {
   const selectedStructure = findNodeLocalStructure(viewModel, selectedStructureId);
   const isSelectedStructureHidden = selectedStructure
     ? hiddenCanonicalKeySet.has(selectedStructure.canonicalDomainKey)
@@ -125,6 +147,9 @@ function NodeSelectionInspectorContent({
             <InspectorRow label="Node View" value={isSelectedStructureHidden ? "Hidden from map (local only)" : "Visible in node view"} />
             <InspectorRow label="Source" value={formatStructureSource(selectedStructure)} />
             <InspectorRow label="Authority" value={formatStructureAuthority(selectedStructure)} />
+            <InspectorRow label="Action Authority" value={formatNodeLocalActionAuthorityLabel(selectedStructure)} />
+            <InspectorRow label="Action State" value={formatNodeLocalStatus(getNodeLocalActionStatus(selectedStructure))} />
+            <InspectorRow label="Action Detail" value={formatNodeLocalActionAuthorityDetail(selectedStructure)} />
             <InspectorRow label="Object ID" value={selectedStructure.objectId ?? "Unavailable in rendered row"} />
             <InspectorRow label="Assembly ID" value={selectedStructure.assemblyId ?? "Unavailable in this slice"} />
             {selectedStructure.directChainObjectId && selectedStructure.directChainObjectId !== selectedStructure.objectId ? (
@@ -163,25 +188,34 @@ function NodeSelectionInspectorContent({
         )}
       </div>
 
-      <div className="border-t border-border/50 bg-muted/5 px-4 py-3">
-        {selectedStructure && isSelectedStructureHidden ? (
-          <div className="flex items-center justify-between gap-4">
-            <p className="text-xs text-muted-foreground">
-              This local UI state hides the structure from the node map only. Membership, authority, and future actions remain unchanged.
-            </p>
-            <button
-              type="button"
-              onClick={() => onUnhideStructure(selectedStructure.canonicalDomainKey)}
-              className="rounded border border-border/60 px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:border-primary/50 hover:text-primary"
-            >
-              Unhide
-            </button>
-          </div>
-        ) : (
-          <p className="text-xs text-muted-foreground">
-            Write actions, presets, and layout persistence are intentionally deferred in this first slice.
-          </p>
-        )}
+      <div className="space-y-3 border-t border-border/50 bg-muted/5 px-4 py-3">
+        {selectedStructure ? (
+          <NodeStructureActionRail
+            structure={selectedStructure}
+            isHidden={isSelectedStructureHidden}
+            onUnhideStructure={onUnhideStructure}
+            onTogglePower={onTogglePower}
+            powerStatus={powerStatus}
+            powerStructureId={powerStructureId}
+            previewMode={previewMode}
+            variant="panel"
+          />
+        ) : null}
+
+        {selectedStructure && powerStructureId === selectedStructure.id && powerStatus !== "idle" && onDismissPowerFeedback ? (
+          <TxFeedbackBanner
+            status={powerStatus ?? "idle"}
+            result={powerResult ?? null}
+            error={powerError ?? null}
+            successLabel={powerSuccessLabel ?? "Structure power state updated"}
+            pendingLabel="Submitting structure power action…"
+            onDismiss={onDismissPowerFeedback}
+          />
+        ) : null}
+
+        <p className="text-xs text-muted-foreground">
+          Additional controls remain deliberately deferred in this slice.
+        </p>
       </div>
     </>
   );
@@ -192,6 +226,14 @@ export function NodeSelectionInspector({
   selectedStructureId,
   hiddenCanonicalKeySet,
   onUnhideStructure,
+  onTogglePower,
+  powerStatus,
+  powerResult,
+  powerError,
+  powerStructureId,
+  powerSuccessLabel,
+  onDismissPowerFeedback,
+  previewMode,
   embedded = false,
 }: NodeSelectionInspectorProps) {
   const content = (
@@ -200,6 +242,14 @@ export function NodeSelectionInspector({
       selectedStructureId={selectedStructureId}
       hiddenCanonicalKeySet={hiddenCanonicalKeySet}
       onUnhideStructure={onUnhideStructure}
+      onTogglePower={onTogglePower}
+      powerStatus={powerStatus}
+      powerResult={powerResult}
+      powerError={powerError}
+      powerStructureId={powerStructureId}
+      powerSuccessLabel={powerSuccessLabel}
+      onDismissPowerFeedback={onDismissPowerFeedback}
+      previewMode={previewMode}
     />
   );
 
@@ -210,7 +260,7 @@ export function NodeSelectionInspector({
   return (
     <DashboardPanelFrame
       title="Selection Inspector"
-      subtitle="Placeholder for later controls"
+      subtitle="Action authority and node view state"
     >
       {content}
     </DashboardPanelFrame>

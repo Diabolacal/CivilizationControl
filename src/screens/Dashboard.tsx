@@ -36,11 +36,13 @@ import { useSignalFeed } from "@/hooks/useSignalFeed";
 import { useNodeAssemblies } from "@/hooks/useNodeAssemblies";
 import { useCharacterId } from "@/hooks/useCharacter";
 import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState";
+import { useStructurePower } from "@/hooks/useStructurePower";
 import { formatLux, formatEve } from "@/lib/currency";
 import { computeRuntimeMs, getFuelEfficiency, formatRuntime } from "@/lib/fuelRuntime";
 import { resolveNodeDrilldownScopeKey } from "@/lib/nodeDrilldownHiddenState";
 import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapshot } from "@/lib/nodeDrilldownModel";
 import type { NetworkNodeGroup, NetworkMetrics, SpatialPin, Structure } from "@/types/domain";
+import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
 
 interface DashboardProps {
   nodeGroups: NetworkNodeGroup[];
@@ -89,7 +91,14 @@ export function Dashboard({
     () => nodeGroups.find((group) => group.node.objectId === selectedNodeId) ?? null,
     [nodeGroups, selectedNodeId],
   );
-  const { lookup: selectedNodeAssembliesLookup, isLoading: isNodeAssembliesLoading } = useNodeAssemblies(selectedNodeGroup?.node.objectId ?? null);
+  const {
+    lookup: selectedNodeAssembliesLookup,
+    isLoading: isNodeAssembliesLoading,
+    refetch: refetchSelectedNodeAssemblies,
+  } = useNodeAssemblies(selectedNodeGroup?.node.objectId ?? null);
+  const structurePower = useStructurePower();
+  const [powerStructureId, setPowerStructureId] = useState<string | null>(null);
+  const [powerSuccessLabel, setPowerSuccessLabel] = useState("Structure power state updated");
   const selectedNodeViewModel = useMemo(
     () => (selectedNodeGroup
       ? buildLiveNodeLocalViewModelWithObserved(selectedNodeGroup, selectedNodeAssembliesLookup, { isLoading: isNodeAssembliesLoading })
@@ -119,6 +128,31 @@ export function Dashboard({
     setSelectedStructureId(null);
     setSelectedNodeId(null);
   }, []);
+  const handleDismissNodeLocalPowerFeedback = useCallback(() => {
+    structurePower.reset();
+    setPowerStructureId(null);
+  }, [structurePower]);
+  const handleToggleNodeLocalPower = useCallback(
+    async (structure: NodeLocalStructure, nextOnline: boolean) => {
+      const verifiedTarget = structure.actionAuthority.verifiedTarget;
+      if (!verifiedTarget) return;
+
+      setSelectedStructureId(structure.id);
+      setPowerStructureId(structure.id);
+      setPowerSuccessLabel(`${structure.familyLabel} ${nextOnline ? "brought online" : "taken offline"}`);
+
+      await structurePower.toggleSingle({
+        structureType: verifiedTarget.structureType,
+        structureId: verifiedTarget.structureId,
+        ownerCapId: verifiedTarget.ownerCapId,
+        networkNodeId: verifiedTarget.networkNodeId,
+        online: nextOnline,
+      });
+
+      await refetchSelectedNodeAssemblies();
+    },
+    [refetchSelectedNodeAssemblies, structurePower],
+  );
   const topologyModeKey = selectedNodeViewModel ? `node-${selectedNodeViewModel.node.id}` : "macro";
   const isNodeDrilldownDebugEnabled = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -304,7 +338,7 @@ export function Dashboard({
         <div className="lg:col-span-2">
           <DashboardPanelFrame
             title={selectedNodeViewModel ? `Attached Structures (${selectedNodeViewModel.structures.length})` : "Recent Telemetry Signals"}
-            subtitle={selectedNodeViewModel ? "Read-only structure index" : "Signal feed across governed infrastructure"}
+            subtitle={selectedNodeViewModel ? "Verified controls plus local hide state" : "Signal feed across governed infrastructure"}
             headerAction={selectedNodeViewModel ? undefined : (
               <Link
                 to="/activity"
@@ -323,6 +357,9 @@ export function Dashboard({
                   onSelectStructure={setSelectedStructureId}
                   hiddenCanonicalKeySet={hiddenCanonicalKeySet}
                   onUnhideStructure={unhideStructure}
+                  onTogglePower={handleToggleNodeLocalPower}
+                  powerStatus={structurePower.status}
+                  powerStructureId={powerStructureId}
                 />
               ) : (
                 <div className="max-h-[420px] overflow-y-auto divide-y divide-border/50">
@@ -351,7 +388,7 @@ export function Dashboard({
         <div>
           <DashboardPanelFrame
             title={selectedNodeViewModel ? "Selection Inspector" : "Attention Required"}
-            subtitle={selectedNodeViewModel ? "Placeholder for later controls" : "Operational risks requiring review"}
+            subtitle={selectedNodeViewModel ? "Action authority and node view state" : "Operational risks requiring review"}
           >
             <TopologyPanelFade contentKey={`lower-right-${topologyModeKey}`} durationMs={TRANSITION_DURATION_MS} className="h-auto">
               {selectedNodeViewModel ? (
@@ -361,6 +398,13 @@ export function Dashboard({
                   selectedStructureId={selectedStructureId}
                   hiddenCanonicalKeySet={hiddenCanonicalKeySet}
                   onUnhideStructure={unhideStructure}
+                  onTogglePower={handleToggleNodeLocalPower}
+                  powerStatus={structurePower.status}
+                  powerResult={structurePower.result}
+                  powerError={structurePower.error}
+                  powerStructureId={powerStructureId}
+                  powerSuccessLabel={powerSuccessLabel}
+                  onDismissPowerFeedback={handleDismissNodeLocalPowerFeedback}
                 />
               ) : (
                 <div className="divide-y divide-border/50">

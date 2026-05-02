@@ -1,4 +1,4 @@
-import type { Structure, StructureStatus } from "@/types/domain";
+import type { ObjectId, Structure, StructureStatus, StructureType } from "@/types/domain";
 
 export type NodeLocalSource = "live" | "backendMembership" | "backendObserved" | "synthetic";
 
@@ -39,6 +39,37 @@ export type NodeLocalTone = "neutral" | "online" | "offline" | "warning";
 export type NodeLocalBadge = "M" | "H" | null;
 
 export type NodeLocalSizeVariant = "mini" | "standard" | "heavy" | null;
+
+export type NodeLocalSupportedPowerType = Extract<StructureType, "gate" | "storage_unit" | "turret">;
+
+export type NodeLocalActionAuthorityState =
+  | "verified-supported"
+  | "backend-only"
+  | "ambiguous-match"
+  | "unsupported-family"
+  | "missing-owner-cap"
+  | "missing-node-context"
+  | "synthetic";
+
+export interface NodeLocalActionCandidateTarget {
+  structureId: ObjectId;
+  structureType: StructureType;
+  ownerCapId?: ObjectId;
+  networkNodeId?: ObjectId;
+  status: StructureStatus;
+}
+
+export interface NodeLocalVerifiedActionTarget extends NodeLocalActionCandidateTarget {
+  structureType: NodeLocalSupportedPowerType;
+  ownerCapId: ObjectId;
+  networkNodeId: ObjectId;
+}
+
+export interface NodeLocalActionAuthority {
+  state: NodeLocalActionAuthorityState;
+  verifiedTarget: NodeLocalVerifiedActionTarget | null;
+  candidateTargets: NodeLocalActionCandidateTarget[];
+}
 
 export interface NodeLocalObservationMeta {
   backendSource?: string | null;
@@ -92,6 +123,7 @@ export interface NodeLocalStructure extends NodeLocalObservationMeta {
   warningPip: boolean;
   source: NodeLocalSource;
   extensionStatus?: Structure["extensionStatus"];
+  actionAuthority: NodeLocalActionAuthority;
   sortLabel: string;
 }
 
@@ -109,6 +141,7 @@ export interface NodeLocalScenario {
   label: string;
   description: string;
   viewModel: NodeLocalViewModel;
+  initialHiddenCanonicalKeys?: string[];
 }
 
 export interface SyntheticNodeLocalStructureInput {

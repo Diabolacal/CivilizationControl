@@ -7,6 +7,25 @@ import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState
 import { NODE_DRILLDOWN_SCENARIOS } from "@/lib/nodeDrilldownScenarios";
 import { cn } from "@/lib/utils";
 
+import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
+
+function cloneScenarioViewModel(viewModel: NodeLocalViewModel): NodeLocalViewModel {
+  return {
+    ...viewModel,
+    node: { ...viewModel.node },
+    structures: viewModel.structures.map((structure) => ({
+      ...structure,
+      actionAuthority: {
+        ...structure.actionAuthority,
+        verifiedTarget: structure.actionAuthority.verifiedTarget
+          ? { ...structure.actionAuthority.verifiedTarget }
+          : null,
+        candidateTargets: structure.actionAuthority.candidateTargets.map((candidate) => ({ ...candidate })),
+      },
+    })),
+  };
+}
+
 export function NodeDrilldownLabScreen() {
   const [scenarioId, setScenarioId] = useState(NODE_DRILLDOWN_SCENARIOS[0]?.id ?? "");
   const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
@@ -15,6 +34,9 @@ export function NodeDrilldownLabScreen() {
     () => NODE_DRILLDOWN_SCENARIOS.find((entry) => entry.id === scenarioId) ?? NODE_DRILLDOWN_SCENARIOS[0],
     [scenarioId],
   );
+  const [scenarioViewModel, setScenarioViewModel] = useState<NodeLocalViewModel | null>(
+    scenario ? cloneScenarioViewModel(scenario.viewModel) : null,
+  );
   const {
     hiddenCanonicalKeySet,
     hiddenCount,
@@ -22,18 +44,65 @@ export function NodeDrilldownLabScreen() {
     hideStructure,
     unhideStructure,
   } = useNodeDrilldownHiddenState({
-    nodeId: scenario?.viewModel.node.id ?? null,
+    nodeId: scenarioViewModel?.node.id ?? null,
     scopeKey: null,
-    structures: scenario?.viewModel.structures ?? [],
+    structures: scenarioViewModel?.structures ?? [],
   });
   const visibleViewModel = useMemo(
-    () => (scenario ? { ...scenario.viewModel, structures: visibleStructures } : null),
-    [scenario, visibleStructures],
+    () => (scenarioViewModel ? { ...scenarioViewModel, structures: visibleStructures } : null),
+    [scenarioViewModel, visibleStructures],
   );
+
+  const handlePreviewTogglePower = (structure: NodeLocalStructure, nextOnline: boolean) => {
+    setSelectedStructureId(structure.id);
+    setScenarioViewModel((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        structures: current.structures.map((entry) => {
+          if (entry.id !== structure.id) return entry;
+
+          const nextStatus = nextOnline ? "online" : "offline";
+          return {
+            ...entry,
+            status: nextStatus,
+            tone: nextOnline ? "online" : "offline",
+            warningPip: false,
+            actionAuthority: {
+              ...entry.actionAuthority,
+              verifiedTarget: entry.actionAuthority.verifiedTarget
+                ? { ...entry.actionAuthority.verifiedTarget, status: nextStatus }
+                : null,
+              candidateTargets: entry.actionAuthority.candidateTargets.map((candidate) => (
+                candidate.structureId === entry.actionAuthority.verifiedTarget?.structureId
+                  ? { ...candidate, status: nextStatus }
+                  : candidate
+              )),
+            },
+          };
+        }),
+      };
+    });
+  };
 
   useEffect(() => {
     setSelectedStructureId(null);
   }, [scenarioId]);
+
+  useEffect(() => {
+    if (!scenario) {
+      setScenarioViewModel(null);
+      return;
+    }
+
+    setScenarioViewModel(cloneScenarioViewModel(scenario.viewModel));
+  }, [scenario]);
+
+  useEffect(() => {
+    if (!scenario?.initialHiddenCanonicalKeys?.length) return;
+    scenario.initialHiddenCanonicalKeys.forEach((canonicalKey) => hideStructure(canonicalKey));
+  }, [hideStructure, scenario]);
 
   if (!scenario) return null;
 
@@ -84,7 +153,7 @@ export function NodeDrilldownLabScreen() {
               {visibleViewModel.structures.length} visible
             </span>
             <span className="rounded border border-border/60 px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground/75">
-              {scenario.viewModel.structures.length} attached
+              {scenarioViewModel?.structures.length ?? 0} attached
             </span>
             {hiddenCount > 0 ? (
               <span className="rounded border border-border/60 bg-muted/10 px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground/75">
@@ -104,7 +173,7 @@ export function NodeDrilldownLabScreen() {
               selectedStructureId={selectedStructureId}
               onSelectStructure={setSelectedStructureId}
               onHideStructure={hideStructure}
-              totalStructureCount={scenario.viewModel.structures.length}
+              totalStructureCount={scenarioViewModel?.structures.length ?? 0}
               hiddenStructureCount={hiddenCount}
               title="Node Drilldown Lab"
               subtitle={scenario.description}
@@ -120,19 +189,24 @@ export function NodeDrilldownLabScreen() {
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
           <div className="lg:col-span-2">
             <NodeStructureListPanel
-              viewModel={scenario.viewModel}
+              viewModel={scenarioViewModel ?? scenario.viewModel}
               selectedStructureId={selectedStructureId}
               onSelectStructure={setSelectedStructureId}
               hiddenCanonicalKeySet={hiddenCanonicalKeySet}
               onUnhideStructure={unhideStructure}
+              onTogglePower={handlePreviewTogglePower}
+              powerStructureId={selectedStructureId}
+              previewMode
             />
           </div>
           <div>
             <NodeSelectionInspector
-              viewModel={scenario.viewModel}
+              viewModel={scenarioViewModel ?? scenario.viewModel}
               selectedStructureId={selectedStructureId}
               hiddenCanonicalKeySet={hiddenCanonicalKeySet}
               onUnhideStructure={unhideStructure}
+              onTogglePower={handlePreviewTogglePower}
+              previewMode
             />
           </div>
         </div>

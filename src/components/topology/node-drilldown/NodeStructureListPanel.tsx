@@ -2,9 +2,12 @@ import { useMemo } from "react";
 
 import { NodeIconPreviewGlyph } from "@/components/topology/node-icon-catalogue/NodeIconPreviewGlyph";
 import { DashboardPanelFrame } from "@/components/dashboard/DashboardPanelFrame";
-import { formatNodeLocalSize, formatNodeLocalStatus, sortNodeLocalStructures } from "@/lib/nodeDrilldownModel";
+import { NodeStructureActionRail } from "@/components/topology/node-drilldown/NodeStructureActionRail";
+import { formatNodeLocalActionBadgeText, formatNodeLocalActionAuthorityLabel } from "@/lib/nodeDrilldownActionAuthority";
+import { formatNodeLocalSize, sortNodeLocalStructures } from "@/lib/nodeDrilldownModel";
 import { cn } from "@/lib/utils";
 
+import type { TxStatus } from "@/types/domain";
 import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 
 interface NodeStructureListPanelProps {
@@ -13,27 +16,11 @@ interface NodeStructureListPanelProps {
   onSelectStructure: (structureId: string) => void;
   hiddenCanonicalKeySet: ReadonlySet<string>;
   onUnhideStructure: (canonicalDomainKey: string) => void;
+  onTogglePower?: (structure: NodeLocalStructure, nextOnline: boolean) => void;
+  powerStatus?: TxStatus;
+  powerStructureId?: string | null;
+  previewMode?: boolean;
   embedded?: boolean;
-}
-
-function shortObjectId(value: string | undefined): string {
-  if (!value) return "Synthetic";
-  if (value.length <= 16) return value;
-  return `${value.slice(0, 8)}…${value.slice(-6)}`;
-}
-
-function shortStructureReference(structure: NodeLocalStructure): string {
-  if (structure.objectId) {
-    return shortObjectId(structure.objectId);
-  }
-
-  if (structure.assemblyId) {
-    return structure.assemblyId.length <= 16
-      ? `asm:${structure.assemblyId}`
-      : `asm:${structure.assemblyId.slice(0, 6)}…${structure.assemblyId.slice(-4)}`;
-  }
-
-  return structure.source === "synthetic" ? "Synthetic" : "Backend";
 }
 
 function NodeStructureListContent({
@@ -42,7 +29,11 @@ function NodeStructureListContent({
   onSelectStructure,
   hiddenCanonicalKeySet,
   onUnhideStructure,
-}: Pick<NodeStructureListPanelProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "hiddenCanonicalKeySet" | "onUnhideStructure">) {
+  onTogglePower,
+  powerStatus,
+  powerStructureId,
+  previewMode,
+}: Pick<NodeStructureListPanelProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "hiddenCanonicalKeySet" | "onUnhideStructure" | "onTogglePower" | "powerStatus" | "powerStructureId" | "previewMode">) {
   const structures = useMemo(
     () => {
       const sortedStructures = sortNodeLocalStructures(viewModel.structures);
@@ -78,6 +69,10 @@ function NodeStructureListContent({
             : structure.source === "backendObserved"
               ? "Observed"
               : null;
+          const stateBadges = [
+            isHidden ? "Hidden from map" : null,
+            formatNodeLocalActionBadgeText(structure),
+          ].filter(Boolean);
           const meta = [
             structure.typeLabel,
             structure.familyLabel,
@@ -115,31 +110,36 @@ function NodeStructureListContent({
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium text-foreground">{structure.displayName}</p>
                     <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
-                    {isHidden ? (
-                      <span className="mt-1.5 inline-flex rounded border border-border/50 bg-background/60 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground/75">
-                        Hidden from map
-                      </span>
+                    {stateBadges.length > 0 ? (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5">
+                        {stateBadges.map((badge) => (
+                          <span
+                            key={badge}
+                            className="inline-flex rounded border border-border/50 bg-background/60 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground/75"
+                          >
+                            {badge}
+                          </span>
+                        ))}
+                      </div>
+                    ) : null}
+                    {structure.actionAuthority.state !== "verified-supported" ? (
+                      <p className="mt-1 text-[11px] text-muted-foreground/75">
+                        {formatNodeLocalActionAuthorityLabel(structure)}
+                      </p>
                     ) : null}
                   </div>
                 </button>
 
-                <div className="ml-1 flex w-[116px] shrink-0 flex-col items-end gap-1 text-right">
-                  <span className="text-[11px] uppercase tracking-wide text-muted-foreground/80">
-                    {formatNodeLocalStatus(structure.status)}
-                  </span>
-                  <span className="font-mono text-[10px] text-muted-foreground/60">
-                    {shortStructureReference(structure)}
-                  </span>
-                  {isHidden ? (
-                    <button
-                      type="button"
-                      onClick={() => onUnhideStructure(structure.canonicalDomainKey)}
-                      className="mt-1 rounded border border-border/60 px-2 py-1 text-[11px] font-medium text-foreground transition-colors hover:border-primary/50 hover:text-primary"
-                    >
-                      Unhide
-                    </button>
-                  ) : null}
-                </div>
+                <NodeStructureActionRail
+                  structure={structure}
+                  isHidden={isHidden}
+                  onUnhideStructure={onUnhideStructure}
+                  onTogglePower={onTogglePower}
+                  onFocusStructure={onSelectStructure}
+                  powerStatus={powerStatus}
+                  powerStructureId={powerStructureId}
+                  previewMode={previewMode}
+                />
               </div>
             </div>
           );
@@ -155,6 +155,10 @@ export function NodeStructureListPanel({
   onSelectStructure,
   hiddenCanonicalKeySet,
   onUnhideStructure,
+  onTogglePower,
+  powerStatus,
+  powerStructureId,
+  previewMode,
   embedded = false,
 }: NodeStructureListPanelProps) {
   const content = (
@@ -164,6 +168,10 @@ export function NodeStructureListPanel({
       onSelectStructure={onSelectStructure}
       hiddenCanonicalKeySet={hiddenCanonicalKeySet}
       onUnhideStructure={onUnhideStructure}
+      onTogglePower={onTogglePower}
+      powerStatus={powerStatus}
+      powerStructureId={powerStructureId}
+      previewMode={previewMode}
     />
   );
 
@@ -174,7 +182,7 @@ export function NodeStructureListPanel({
   return (
     <DashboardPanelFrame
       title={`Attached Structures (${viewModel.structures.length})`}
-      subtitle="Read-only structure index"
+      subtitle="Verified controls plus local hide state"
     >
       {content}
     </DashboardPanelFrame>

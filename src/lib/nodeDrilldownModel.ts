@@ -15,9 +15,12 @@ import {
 
 import type {
   NodeLocalBand,
+  NodeLocalActionAuthority,
+  NodeLocalActionCandidateTarget,
   NodeLocalBadge,
   NodeLocalFamily,
   NodeLocalIconFamily,
+  NodeLocalSupportedPowerType,
   NodeLocalScenario,
   NodeLocalSourceMode,
   NodeLocalSizeVariant,
@@ -162,6 +165,12 @@ interface SelectedNodeStructuresBuildResult {
 interface BuildNodeDrilldownOptions {
   isLoading?: boolean;
 }
+
+const SUPPORTED_POWER_TYPE_BY_FAMILY: Partial<Record<NodeLocalFamily, NodeLocalSupportedPowerType>> = {
+  gate: "gate",
+  tradePost: "storage_unit",
+  turret: "turret",
+};
 
 const GENERIC_DISPLAY_NAME_ALIASES: Partial<Record<NodeLocalFamily, string[]>> = {
   networkNode: ["network node"],
@@ -414,6 +423,85 @@ function resolveTypeLabel(
   return { typeLabel: fallbackLabel, typeId: fallbackType?.typeId };
 }
 
+function toNodeLocalActionCandidate(structure: Structure): NodeLocalActionCandidateTarget {
+  return {
+    structureId: structure.objectId,
+    structureType: structure.type,
+    ownerCapId: structure.ownerCapId,
+    networkNodeId: structure.networkNodeId,
+    status: structure.status,
+  };
+}
+
+function createNodeLocalActionAuthority(
+  family: NodeLocalFamily,
+  liveMatches: Structure[],
+  source: NodeLocalStructure["source"],
+): NodeLocalActionAuthority {
+  if (source === "synthetic") {
+    return {
+      state: "synthetic",
+      verifiedTarget: null,
+      candidateTargets: [],
+    };
+  }
+
+  const candidateTargets = liveMatches.map(toNodeLocalActionCandidate);
+  if (candidateTargets.length === 0) {
+    return {
+      state: "backend-only",
+      verifiedTarget: null,
+      candidateTargets,
+    };
+  }
+
+  if (candidateTargets.length > 1) {
+    return {
+      state: "ambiguous-match",
+      verifiedTarget: null,
+      candidateTargets,
+    };
+  }
+
+  const supportedPowerType = SUPPORTED_POWER_TYPE_BY_FAMILY[family] ?? null;
+  if (!supportedPowerType) {
+    return {
+      state: "unsupported-family",
+      verifiedTarget: null,
+      candidateTargets,
+    };
+  }
+
+  const [candidate] = candidateTargets;
+  if (!candidate.ownerCapId) {
+    return {
+      state: "missing-owner-cap",
+      verifiedTarget: null,
+      candidateTargets,
+    };
+  }
+
+  if (!candidate.networkNodeId) {
+    return {
+      state: "missing-node-context",
+      verifiedTarget: null,
+      candidateTargets,
+    };
+  }
+
+  return {
+    state: "verified-supported",
+    verifiedTarget: {
+      structureId: candidate.structureId,
+      structureType: supportedPowerType,
+      ownerCapId: candidate.ownerCapId,
+      networkNodeId: candidate.networkNodeId,
+      status: candidate.status,
+    },
+    candidateTargets,
+  };
+}
+
 function createNodeLocalStructure(
   structure: Pick<
     NodeLocalStructure,
@@ -433,6 +521,7 @@ function createNodeLocalStructure(
     | "status"
     | "source"
     | "extensionStatus"
+    | "actionAuthority"
     | "isReadOnly"
     | "isActionable"
     | "backendSource"
@@ -477,6 +566,7 @@ function createNodeLocalStructure(
     warningPip: structure.warningPip ?? structure.status === "warning",
     source: structure.source,
     extensionStatus: structure.extensionStatus,
+    actionAuthority: structure.actionAuthority,
     backendSource: structure.backendSource,
     fetchedAt: structure.fetchedAt,
     lastUpdated: structure.lastUpdated,
@@ -583,6 +673,7 @@ function mergeNodeLocalStructureBucket(
     ?? (assemblyId ? `assembly:${assemblyId}` : authoritativeRow.id);
   const status = mergeCollapsedStructureStatus(bucket.entries);
   const sizeVariant = displayRow.sizeVariant ?? deriveSizeVariant(displayRow.typeLabel) ?? authoritativeRow.sizeVariant;
+  const actionAuthority = liveRow?.actionAuthority ?? authoritativeRow.actionAuthority;
 
   return createNodeLocalStructure({
     id: renderId,
@@ -601,6 +692,7 @@ function mergeNodeLocalStructureBucket(
     status,
     source: mergedSource,
     extensionStatus: liveRow?.extensionStatus ?? authoritativeRow.extensionStatus,
+    actionAuthority,
     typeLabel: displayRow.typeLabel,
     typeId: displayRow.typeId ?? authoritativeRow.typeId,
     warningPip: bucket.entries.some((entry) => entry.warningPip) || status === "warning",
@@ -612,8 +704,8 @@ function mergeNodeLocalStructureBucket(
     solarSystemId: pickFirstDefined(bucket.entries.map((entry) => entry.solarSystemId ?? undefined)) ?? null,
     energySourceId: pickFirstDefined(bucket.entries.map((entry) => entry.energySourceId ?? undefined)) ?? null,
     fuelAmount: pickFirstDefined(bucket.entries.map((entry) => entry.fuelAmount ?? undefined)) ?? null,
-    isReadOnly: mergedSource !== "live",
-    isActionable: mergedSource === "live",
+    isReadOnly: actionAuthority.state !== "verified-supported",
+    isActionable: actionAuthority.state === "verified-supported",
   });
 }
 
@@ -706,6 +798,7 @@ function buildLiveFallbackStructures(liveStructures: Structure[]): NodeLocalStru
       (structure.type === "gate" || structure.type === "turret") &&
       structure.extensionStatus !== "authorized";
     const normalizedAssemblyId = normalizeNodeDrilldownAssemblyId(structure.assemblyId) ?? undefined;
+    const actionAuthority = createNodeLocalActionAuthority(family, [structure], "live");
 
     return createNodeLocalStructure({
       id: structure.objectId,
@@ -729,6 +822,7 @@ function buildLiveFallbackStructures(liveStructures: Structure[]): NodeLocalStru
       status,
       source: "live",
       extensionStatus: structure.extensionStatus,
+      actionAuthority,
       typeLabel: resolvedType.typeLabel,
       typeId: resolvedType.typeId,
       warningPip: status === "warning" || needsExtensionWarning,
@@ -740,8 +834,8 @@ function buildLiveFallbackStructures(liveStructures: Structure[]): NodeLocalStru
       solarSystemId: structure.summary?.solarSystemId ?? null,
       energySourceId: structure.summary?.energySourceId ?? null,
       fuelAmount: structure.summary?.fuelAmount ?? null,
-      isReadOnly: false,
-      isActionable: true,
+      isReadOnly: actionAuthority.state !== "verified-supported",
+      isActionable: actionAuthority.state === "verified-supported",
     });
   });
 }
@@ -781,6 +875,7 @@ function buildBackendMembershipStructures(
     const needsExtensionWarning = primaryLiveMatch != null
       && (primaryLiveMatch.type === "gate" || primaryLiveMatch.type === "turret")
       && primaryLiveMatch.extensionStatus !== "authorized";
+    const actionAuthority = createNodeLocalActionAuthority(family, liveMatches, "backendMembership");
     const renderId = normalizeCanonicalObjectId(observed.objectId)
       ?? (normalizedAssemblyId ? `assembly:${normalizedAssemblyId}` : primaryLiveMatch?.objectId ?? observedIndex.byCanonicalKey.size.toString());
 
@@ -812,6 +907,7 @@ function buildBackendMembershipStructures(
       status,
       source: "backendMembership",
       extensionStatus: primaryLiveMatch?.extensionStatus,
+      actionAuthority,
       typeLabel: resolvedType.typeLabel,
       typeId: resolvedType.typeId,
       warningPip: status === "warning" || needsExtensionWarning,
@@ -823,8 +919,8 @@ function buildBackendMembershipStructures(
       solarSystemId: observed.solarSystemId,
       energySourceId: observed.energySourceId,
       fuelAmount: observed.fuelAmount,
-      isReadOnly: true,
-      isActionable: false,
+      isReadOnly: actionAuthority.state !== "verified-supported",
+      isActionable: actionAuthority.state === "verified-supported",
     }));
   }
 
@@ -1039,6 +1135,7 @@ export function buildSyntheticNodeLocalViewModel(
         hasDirectChainAuthority: false,
         directChainMatchCount: 0,
         futureActionEligible: false,
+        actionAuthority: createNodeLocalActionAuthority(family, [], "synthetic"),
         typeLabel: structure.typeLabel,
         warningPip: structure.warningPip,
         linkedGateId: structure.linkedGateId,

@@ -1,6 +1,48 @@
 import { buildSyntheticNodeLocalViewModel } from "@/lib/nodeDrilldownModel";
 
-import type { NodeLocalScenario, SyntheticNodeLocalStructureInput } from "./nodeDrilldownTypes";
+import type { NodeLocalActionAuthority, NodeLocalActionCandidateTarget, NodeLocalScenario, NodeLocalStructure, SyntheticNodeLocalStructureInput } from "./nodeDrilldownTypes";
+
+function toneForStatus(status: NodeLocalStructure["status"]): NodeLocalStructure["tone"] {
+  switch (status) {
+    case "online":
+      return "online";
+    case "offline":
+      return "offline";
+    case "warning":
+      return "warning";
+    default:
+      return "neutral";
+  }
+}
+
+function applyStructureOverride(
+  structure: NodeLocalStructure,
+  override: Partial<NodeLocalStructure> & { actionAuthority?: NodeLocalActionAuthority },
+): NodeLocalStructure {
+  const status = override.status ?? structure.status;
+  return {
+    ...structure,
+    ...override,
+    status,
+    tone: override.tone ?? toneForStatus(status),
+    actionAuthority: override.actionAuthority ?? structure.actionAuthority,
+  };
+}
+
+function candidate(
+  structureId: string,
+  structureType: NodeLocalActionCandidateTarget["structureType"],
+  status: NodeLocalActionCandidateTarget["status"],
+  options: Pick<NodeLocalActionCandidateTarget, "ownerCapId" | "networkNodeId"> = {},
+): NodeLocalActionCandidateTarget {
+  return {
+    structureId,
+    structureType,
+    status,
+    ownerCapId: options.ownerCapId,
+    networkNodeId: options.networkNodeId,
+  };
+}
 
 function repeatStructures(
   family: SyntheticNodeLocalStructureInput["family"],
@@ -32,6 +74,7 @@ function createScenario(config: {
   description: string;
   nodeLabel: string;
   structures: SyntheticNodeLocalStructureInput[];
+  initialHiddenCanonicalKeys?: string[];
 }): NodeLocalScenario {
   return {
     id: config.id,
@@ -42,10 +85,187 @@ function createScenario(config: {
       nodeLabel: config.nodeLabel,
       structures: config.structures,
     }),
+    initialHiddenCanonicalKeys: config.initialHiddenCanonicalKeys,
+  };
+}
+
+function createAuthorityMatrixScenario(): NodeLocalScenario {
+  const baseScenario = createScenario({
+    id: "authority-matrix",
+    label: "Authority Matrix",
+    description: "Verified, hidden, backend-only, ambiguous, unsupported, and missing-context rows for Phase E action review.",
+    nodeLabel: "Authority Review Node",
+    structures: [
+      { family: "tradePost", displayName: "Storage Alpha", typeLabel: "Storage", status: "online" },
+      { family: "turret", displayName: "Turret Beta", typeLabel: "Turret", status: "offline" },
+      { family: "printer", displayName: "Printer Gamma", typeLabel: "Printer", status: "online" },
+      { family: "assembler", displayName: "Assembler Delta", typeLabel: "Assembler", status: "online" },
+      { family: "gate", displayName: "Gate Epsilon", typeLabel: "Mini Gate", sizeVariant: "mini", status: "online" },
+      { family: "gate", displayName: "Gate Zeta", typeLabel: "Mini Gate", sizeVariant: "mini", status: "warning", warningPip: true },
+      { family: "gate", displayName: "Gate Eta", typeLabel: "Mini Gate", sizeVariant: "mini", status: "neutral" },
+    ],
+  });
+
+  const nodeId = baseScenario.viewModel.node.id;
+  const structures = baseScenario.viewModel.structures.map((structure) => {
+    switch (structure.displayName) {
+      case "Storage Alpha":
+        return applyStructureOverride(structure, {
+          source: "live",
+          objectId: "0xstoragealpha",
+          assemblyId: "41001",
+          directChainObjectId: "0xstoragealpha",
+          directChainAssemblyId: "41001",
+          hasDirectChainAuthority: true,
+          directChainMatchCount: 1,
+          futureActionEligible: true,
+          isReadOnly: false,
+          isActionable: true,
+          actionAuthority: {
+            state: "verified-supported",
+            verifiedTarget: {
+              structureId: "0xstoragealpha",
+              structureType: "storage_unit",
+              ownerCapId: "0xstoragecapalpha",
+              networkNodeId: nodeId,
+              status: "online",
+            },
+            candidateTargets: [candidate("0xstoragealpha", "storage_unit", "online", { ownerCapId: "0xstoragecapalpha", networkNodeId: nodeId })],
+          },
+        });
+      case "Turret Beta":
+        return applyStructureOverride(structure, {
+          source: "live",
+          objectId: "0xturretbeta",
+          assemblyId: "41002",
+          directChainObjectId: "0xturretbeta",
+          directChainAssemblyId: "41002",
+          hasDirectChainAuthority: true,
+          directChainMatchCount: 1,
+          futureActionEligible: true,
+          isReadOnly: false,
+          isActionable: true,
+          actionAuthority: {
+            state: "verified-supported",
+            verifiedTarget: {
+              structureId: "0xturretbeta",
+              structureType: "turret",
+              ownerCapId: "0xturretcapbeta",
+              networkNodeId: nodeId,
+              status: "offline",
+            },
+            candidateTargets: [candidate("0xturretbeta", "turret", "offline", { ownerCapId: "0xturretcapbeta", networkNodeId: nodeId })],
+          },
+        });
+      case "Printer Gamma":
+        return applyStructureOverride(structure, {
+          source: "backendMembership",
+          objectId: undefined,
+          assemblyId: "51001",
+          directChainObjectId: null,
+          directChainAssemblyId: null,
+          hasDirectChainAuthority: false,
+          directChainMatchCount: 0,
+          futureActionEligible: false,
+          actionAuthority: {
+            state: "backend-only",
+            verifiedTarget: null,
+            candidateTargets: [],
+          },
+        });
+      case "Assembler Delta":
+        return applyStructureOverride(structure, {
+          source: "backendMembership",
+          objectId: "0xassemblerdelta",
+          assemblyId: "51002",
+          directChainObjectId: "0xassemblerdelta",
+          directChainAssemblyId: "51002",
+          hasDirectChainAuthority: true,
+          directChainMatchCount: 1,
+          futureActionEligible: true,
+          actionAuthority: {
+            state: "unsupported-family",
+            verifiedTarget: null,
+            candidateTargets: [candidate("0xassemblerdelta", "storage_unit", "online", { ownerCapId: "0xassemblercapdelta", networkNodeId: nodeId })],
+          },
+        });
+      case "Gate Epsilon":
+        return applyStructureOverride(structure, {
+          source: "live",
+          objectId: "0xgateepsilon",
+          assemblyId: "41003",
+          directChainObjectId: "0xgateepsilon",
+          directChainAssemblyId: "41003",
+          hasDirectChainAuthority: true,
+          directChainMatchCount: 1,
+          futureActionEligible: true,
+          isReadOnly: false,
+          isActionable: true,
+          actionAuthority: {
+            state: "verified-supported",
+            verifiedTarget: {
+              structureId: "0xgateepsilon",
+              structureType: "gate",
+              ownerCapId: "0xgatecapepsilon",
+              networkNodeId: nodeId,
+              status: "online",
+            },
+            candidateTargets: [candidate("0xgateepsilon", "gate", "online", { ownerCapId: "0xgatecapepsilon", networkNodeId: nodeId })],
+          },
+        });
+      case "Gate Zeta":
+        return applyStructureOverride(structure, {
+          source: "backendMembership",
+          objectId: "0xgatezeta",
+          assemblyId: "51003",
+          directChainObjectId: "0xgatezeta-a",
+          directChainAssemblyId: "51003",
+          hasDirectChainAuthority: true,
+          directChainMatchCount: 2,
+          futureActionEligible: false,
+          actionAuthority: {
+            state: "ambiguous-match",
+            verifiedTarget: null,
+            candidateTargets: [
+              candidate("0xgatezeta-a", "gate", "warning", { ownerCapId: "0xgatecapzetaa", networkNodeId: nodeId }),
+              candidate("0xgatezeta-b", "gate", "offline", { ownerCapId: "0xgatecapzetab", networkNodeId: nodeId }),
+            ],
+          },
+        });
+      case "Gate Eta":
+        return applyStructureOverride(structure, {
+          source: "backendMembership",
+          objectId: "0xgateeta",
+          assemblyId: "51004",
+          directChainObjectId: "0xgateeta",
+          directChainAssemblyId: "51004",
+          hasDirectChainAuthority: true,
+          directChainMatchCount: 1,
+          futureActionEligible: false,
+          actionAuthority: {
+            state: "missing-node-context",
+            verifiedTarget: null,
+            candidateTargets: [candidate("0xgateeta", "gate", "neutral", { ownerCapId: "0xgatecapeta" })],
+          },
+        });
+      default:
+        return structure;
+    }
+  });
+  const hiddenGate = structures.find((structure) => structure.displayName === "Gate Epsilon");
+
+  return {
+    ...baseScenario,
+    viewModel: {
+      ...baseScenario.viewModel,
+      structures,
+    },
+    initialHiddenCanonicalKeys: hiddenGate ? [hiddenGate.canonicalDomainKey] : undefined,
   };
 }
 
 export const NODE_DRILLDOWN_SCENARIOS: NodeLocalScenario[] = [
+  createAuthorityMatrixScenario(),
   createScenario({
     id: "sparse-solo-node",
     label: "Sparse Solo Node",
