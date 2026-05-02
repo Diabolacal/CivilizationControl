@@ -12,7 +12,7 @@
  * "Enforced Directives", "Telemetry Signals" per narrative spec.
  */
 
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link } from "react-router";
 import {
   Building2,
@@ -25,10 +25,14 @@ import {
 import { useConnection } from "@evefrontier/dapp-kit";
 import { MetricCard } from "@/components/MetricCard";
 import { StrategicMapPanel } from "@/components/topology/StrategicMapPanel";
+import { NodeDrilldownSurface } from "@/components/topology/node-drilldown/NodeDrilldownSurface";
+import { NodeSelectionInspector } from "@/components/topology/node-drilldown/NodeSelectionInspector";
+import { NodeStructureListPanel } from "@/components/topology/node-drilldown/NodeStructureListPanel";
 import { SignalEventRow } from "@/components/SignalEventRow";
 import { useSignalFeed } from "@/hooks/useSignalFeed";
 import { formatLux, formatEve } from "@/lib/currency";
 import { computeRuntimeMs, getFuelEfficiency, formatRuntime } from "@/lib/fuelRuntime";
+import { buildLiveNodeLocalViewModel } from "@/lib/nodeDrilldownModel";
 import type { NetworkNodeGroup, NetworkMetrics, SpatialPin, Structure } from "@/types/domain";
 
 interface DashboardProps {
@@ -49,6 +53,8 @@ export function Dashboard({
   isConnected,
 }: DashboardProps) {
   const { walletAddress } = useConnection();
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
   const ownedObjectIds = useMemo(
     () => structures.map((s) => s.objectId),
     [structures],
@@ -67,6 +73,49 @@ export function Dashboard({
   const totalRevenueLuxStr = formatLux(totalRevenueBaseUnits);
   const totalRevenueEveStr = formatEve(totalRevenueBaseUnits);
   const hasRevenue = totalRevenueBaseUnits > 0;
+  const handleSelectNode = useCallback((nodeId: string) => setSelectedNodeId(nodeId), []);
+  const selectedNodeGroup = useMemo(
+    () => nodeGroups.find((group) => group.node.objectId === selectedNodeId) ?? null,
+    [nodeGroups, selectedNodeId],
+  );
+  const selectedNodeViewModel = useMemo(
+    () => (selectedNodeGroup ? buildLiveNodeLocalViewModel(selectedNodeGroup) : null),
+    [selectedNodeGroup],
+  );
+  const handleExitNodeControl = useCallback(() => {
+    setSelectedStructureId(null);
+    setSelectedNodeId(null);
+  }, []);
+
+  useEffect(() => {
+    setSelectedStructureId(null);
+  }, [selectedNodeId]);
+
+  useEffect(() => {
+    if (selectedNodeId != null && selectedNodeGroup == null) {
+      setSelectedStructureId(null);
+      setSelectedNodeId(null);
+    }
+  }, [selectedNodeGroup, selectedNodeId]);
+
+  useEffect(() => {
+    if (selectedNodeViewModel == null) return undefined;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape") return;
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.tagName === "SELECT")
+      ) {
+        return;
+      }
+      handleExitNodeControl();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleExitNodeControl, selectedNodeViewModel]);
 
   return (
     <div>
@@ -117,55 +166,101 @@ export function Dashboard({
 
       {/* Strategic Network — Topology + Posture Command (integrated) */}
       <div className="mt-5">
-        <StrategicMapPanel nodeGroups={nodeGroups} pins={pins} structures={structures} isConnected={isConnected} signals={recentSignals} onPostureTransitionChange={handlePostureTransitionChange} />
+        {selectedNodeViewModel ? (
+          <NodeDrilldownSurface
+            viewModel={selectedNodeViewModel}
+            selectedStructureId={selectedStructureId}
+            onSelectStructure={setSelectedStructureId}
+            title="Node Control"
+            subtitle={`${selectedNodeViewModel.node.displayName} • Read-only local topology`}
+            headerAction={
+              <button
+                type="button"
+                onClick={handleExitNodeControl}
+                className="rounded border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
+              >
+                Back to Strategic Network
+              </button>
+            }
+          />
+        ) : (
+          <StrategicMapPanel
+            nodeGroups={nodeGroups}
+            pins={pins}
+            structures={structures}
+            isConnected={isConnected}
+            signals={recentSignals}
+            onPostureTransitionChange={handlePostureTransitionChange}
+            onSelectNode={handleSelectNode}
+            selectedNodeId={selectedNodeId}
+          />
+        )}
       </div>
 
       {/* Lower section: Recent Signals + Attention Required */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-6">
-        {/* Recent Telemetry Signals (2/3 width) */}
-        <div className="lg:col-span-2">
-          <div className="flex items-center justify-between mb-3 border-b border-border/50 pb-2.5">
-            <h2 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-              Recent Telemetry Signals
-            </h2>
-            <Link
-              to="/activity"
-              className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
-            >
-              View Log →
-            </Link>
-          </div>
-          <div className="bg-[var(--card)] border border-border rounded overflow-hidden divide-y divide-border/50">
-            {recentSignals.length > 0 ? (
-              recentSignals.slice(0, PREVIEW_COUNT).map((signal) => (
-                <SignalEventRow key={signal.id} signal={signal} />
-              ))
-            ) : (
-              <div className="px-4 py-6 text-center">
-                <p className="text-sm text-muted-foreground/60">
-                  {isConnected ? "No telemetry for your infrastructure" : "Connect wallet to view telemetry"}
-                </p>
-                <p className="text-[11px] text-muted-foreground/40 mt-1">
-                  {isConnected
-                    ? "Events from your gates, trade posts, and turrets will appear here"
-                    : "Signal Feed shows activity from your governed infrastructure"}
-                </p>
+      <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
+        {selectedNodeViewModel ? (
+          <>
+            <div className="lg:col-span-2">
+              <NodeStructureListPanel
+                viewModel={selectedNodeViewModel}
+                selectedStructureId={selectedStructureId}
+                onSelectStructure={setSelectedStructureId}
+              />
+            </div>
+            <div>
+              <NodeSelectionInspector
+                viewModel={selectedNodeViewModel}
+                selectedStructureId={selectedStructureId}
+              />
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="lg:col-span-2">
+              <div className="flex items-center justify-between mb-3 border-b border-border/50 pb-2.5">
+                <h2 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
+                  Recent Telemetry Signals
+                </h2>
+                <Link
+                  to="/activity"
+                  className="text-xs font-medium text-muted-foreground hover:text-primary transition-colors flex items-center gap-1"
+                >
+                  View Log →
+                </Link>
               </div>
-            )}
-          </div>
-        </div>
+              <div className="bg-[var(--card)] border border-border rounded overflow-hidden divide-y divide-border/50">
+                {recentSignals.length > 0 ? (
+                  recentSignals.slice(0, PREVIEW_COUNT).map((signal) => (
+                    <SignalEventRow key={signal.id} signal={signal} />
+                  ))
+                ) : (
+                  <div className="px-4 py-6 text-center">
+                    <p className="text-sm text-muted-foreground/60">
+                      {isConnected ? "No telemetry for your infrastructure" : "Connect wallet to view telemetry"}
+                    </p>
+                    <p className="text-[11px] text-muted-foreground/40 mt-1">
+                      {isConnected
+                        ? "Events from your gates, trade posts, and turrets will appear here"
+                        : "Signal Feed shows activity from your governed infrastructure"}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
 
-        {/* Attention Required (1/3 width) */}
-        <div>
-          <div className="flex items-center justify-between mb-3 border-b border-border/50 pb-2.5">
-            <h2 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
-              Attention Required
-            </h2>
-          </div>
-          <div className="bg-[var(--card)] border border-border rounded overflow-hidden divide-y divide-border/50">
-            <AttentionAlerts metrics={metrics} structures={structures} />
-          </div>
-        </div>
+            <div>
+              <div className="flex items-center justify-between mb-3 border-b border-border/50 pb-2.5">
+                <h2 className="text-xs font-semibold text-muted-foreground tracking-wide uppercase">
+                  Attention Required
+                </h2>
+              </div>
+              <div className="bg-[var(--card)] border border-border rounded overflow-hidden divide-y divide-border/50">
+                <AttentionAlerts metrics={metrics} structures={structures} />
+              </div>
+            </div>
+          </>
+        )}
       </div>
 
       {/* Loading state */}

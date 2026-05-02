@@ -25,6 +25,8 @@ interface NodeClusterSvgProps {
   cascadeDelayMs?: number;
   /** Low-fuel or other warning condition on the network node itself. */
   hasWarning?: boolean;
+  selected?: boolean;
+  onSelectNode?: (nodeId: string, button: number) => void;
 }
 
 export function NodeClusterSvg({
@@ -38,6 +40,8 @@ export function NodeClusterSvg({
   onHover,
   cascadeDelayMs = 0,
   hasWarning = false,
+  selected = false,
+  onSelectNode,
 }: NodeClusterSvgProps) {
   const isOnline = group.node.status === "online";
   const nodeId = group.node.objectId;
@@ -63,6 +67,19 @@ export function NodeClusterSvg({
         fill={isOnline ? "var(--topo-state-online)" : "var(--topo-state-offline)"}
         opacity={0.06} pointerEvents="none"
       />
+
+      {selected ? (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={19}
+          fill="none"
+          stroke="var(--topo-selected)"
+          strokeWidth="1.5"
+          opacity={0.9}
+          pointerEvents="none"
+        />
+      ) : null}
 
       {/* Idle heartbeat pulse — network node center (online only) */}
       {isOnline && (
@@ -171,6 +188,7 @@ export function NodeClusterSvg({
         cx={cx} cy={cy} r={16}
         fill="transparent"
         onMouseEnter={() => onHover?.({ kind: "node", nodeId, svgX: cx, svgY: cy })}
+        onPointerUp={(event) => onSelectNode?.(nodeId, event.button)}
       />
     </g>
   );

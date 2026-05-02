@@ -39,6 +39,8 @@ interface StrategicMapPanelProps {
   signals?: SignalEvent[];
   /** Callback fired when posture transition state changes. */
   onPostureTransitionChange?: (isTransitioning: boolean) => void;
+  onSelectNode?: (nodeId: string) => void;
+  selectedNodeId?: string | null;
 }
 
 /**
@@ -139,6 +141,8 @@ export function StrategicMapPanel({
   isConnected,
   signals = [],
   onPostureTransitionChange,
+  onSelectNode,
+  selectedNodeId = null,
 }: StrategicMapPanelProps) {
   const [showStarfield, setShowStarfield] = useState(() => {
     try {
@@ -147,6 +151,11 @@ export function StrategicMapPanel({
   });
   const canvasRef = useRef<HTMLDivElement>(null);
   const diagCanvasRef = useRef<HTMLCanvasElement>(null);
+  const pointerStateRef = useRef({
+    startX: 0,
+    startY: 0,
+    moved: false,
+  });
 
   // Persist starfield toggle
   useEffect(() => {
@@ -351,6 +360,11 @@ export function StrategicMapPanel({
 
   const handlePointerDown = useCallback(
     (e: React.PointerEvent) => {
+      pointerStateRef.current = {
+        startX: e.clientX,
+        startY: e.clientY,
+        moved: false,
+      };
       if (locked) return;
       if (e.button === 0) startDrag("orbit", e.clientX, e.clientY);
       else if (e.button === 2) startDrag("pan", e.clientX, e.clientY);
@@ -360,13 +374,34 @@ export function StrategicMapPanel({
 
   const handlePointerMove = useCallback(
     (e: React.PointerEvent) => {
+      const dx = e.clientX - pointerStateRef.current.startX;
+      const dy = e.clientY - pointerStateRef.current.startY;
+      if (!pointerStateRef.current.moved && Math.hypot(dx, dy) > 6) {
+        pointerStateRef.current.moved = true;
+      }
       const rect = (e.currentTarget as HTMLElement).getBoundingClientRect();
       updateDrag(e.clientX, e.clientY, rect);
     },
     [updateDrag],
   );
 
-  const handlePointerUp = useCallback(() => endDrag(), [endDrag]);
+  const handlePointerUp = useCallback(() => {
+    endDrag();
+    pointerStateRef.current = {
+      startX: 0,
+      startY: 0,
+      moved: false,
+    };
+  }, [endDrag]);
+
+  const handleSelectNode = useCallback(
+    (nodeId: string, button: number) => {
+      if (button !== 0) return;
+      if (pointerStateRef.current.moved) return;
+      onSelectNode?.(nodeId);
+    },
+    [onSelectNode],
+  );
 
   return (
     <div className="w-full bg-[var(--card)] border border-border rounded overflow-hidden flex flex-col relative">
@@ -525,6 +560,8 @@ export function StrategicMapPanel({
                     childRadius={CHILD_RADIUS}
                     cascadeDelayMs={cascadeDelay}
                     hasWarning={lowFuelNodeIds.has(group.node.objectId)}
+                    selected={selectedNodeId === group.node.objectId}
+                    onSelectNode={handleSelectNode}
                   />
                 );
               });

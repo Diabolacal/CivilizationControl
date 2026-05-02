@@ -48,7 +48,10 @@ function showRuntimeError(msg: string) {
   el.textContent = msg;
 }
 
-const STATIC_PREVIEW_PATHS = new Set(["/dev/node-icon-catalogue"]);
+const STATIC_PREVIEW_PATHS = new Set([
+  "/dev/node-icon-catalogue",
+  "/dev/node-drilldown-lab",
+]);
 const isStaticPreviewRoute = STATIC_PREVIEW_PATHS.has(window.location.pathname);
 const root = ReactDOM.createRoot(document.getElementById("root")!);
 
@@ -62,6 +65,12 @@ function renderApp(content: React.ReactNode) {
 
 async function bootstrapApp() {
   if (isStaticPreviewRoute) {
+    if (window.location.pathname === "/dev/node-drilldown-lab") {
+      const { NodeDrilldownLabScreen } = await import("./screens/NodeDrilldownLabScreen.tsx");
+      renderApp(<NodeDrilldownLabScreen />);
+      return;
+    }
+
     const { NodeIconCatalogueScreen } = await import("./screens/NodeIconCatalogueScreen.tsx");
     renderApp(<NodeIconCatalogueScreen />);
     return;

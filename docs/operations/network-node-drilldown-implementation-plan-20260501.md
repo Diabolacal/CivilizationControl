@@ -8,6 +8,25 @@ The next step is not a new standalone app screen. It is a controlled drill-in in
 
 This plan defines that node-local interaction model, the first safe implementation branch, later staging for selection sync and local persistence, and the boundaries for eventually exposing write actions and user-named presets. It does not implement runtime code, route changes, strategic-map behavior changes, transaction changes, sponsorship changes, package-ID changes, Move changes, EF-Map changes, VPS changes, deploys, or dependency updates.
 
+## 1.1 Status update - 2026-05-02
+
+Phase B's first runtime slice is now implemented on `feat/node-drilldown-render-shell`.
+
+- added a normalized node-local view model and `family-bands-v1` layout helper that keep the renderer independent from wallet discovery state
+- added shared `NodeDrilldownSurface`, `NodeStructureListPanel`, and `NodeSelectionInspector` components reused by both the live dashboard drilldown and the synthetic lab route
+- added same-dashboard entry from the macro Strategic Network map into a read-only `Node Control` shell with explicit `Back to Strategic Network` and icon-to-row / row-to-icon selection sync
+- added a static dev-only `/dev/node-drilldown-lab` route with six synthetic scenarios: `Sparse Solo Node`, `Industry Node`, `Defense Heavy Node`, `Mixed Operating Base`, `Turret Stress Test`, and `Support Clutter Test`
+- confirmed the 50-turret stress case renders as 52 attached structures total including the two gates
+- preview evidence captured on `https://ae7547fb.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+
+Still deferred in this first runtime slice:
+
+- Browser Back and URL mirroring
+- all write actions, online or offline controls, and transaction-path changes
+- presets, preset saving, and preset execution
+- drag persistence, hide or unhide persistence, and local label editing
+- broader live family hydration beyond the current `NetworkNodeGroup` shape
+
 ## 2. Product intent
 
 The intended experience is a same-dashboard drilldown, not a hard jump to a second product surface.
@@ -105,7 +124,7 @@ Node-local mode should feel like the operator drilled inward without leaving Com
 - Hover should remain restrained. Entry should depend on deliberate click, not aggressive hover affordances.
 - Node-local mode should expose an explicit `Back to Strategic Network` action in the panel header.
 - `Escape` should exit node-local mode when no context menu or inline edit is open.
-- Browser Back should close node-local mode before leaving the dashboard shell.
+- Browser Back should eventually close node-local mode before leaving the dashboard shell, but the first runtime slice ships without URL mirroring and therefore keeps Browser Back deferred.
 
 ### 4.5 Route and history behavior
 
@@ -115,6 +134,13 @@ The product requirement is continuity, not a separate-feeling route transition. 
 - mirror the selected node into URL state so refresh and Back behave predictably
 - keep the dashboard shell rendered during node-local mode
 - keep `NetworkNodeDetailScreen` as a compatibility or deep-link surface until the drilldown surface is mature enough to be shared or replaced
+
+Implementation status for the first runtime slice:
+
+- `Dashboard` is now the visual owner of node-local mode
+- the shell remains continuous during node-local mode
+- URL mirroring and Browser Back remain deferred until a later routing pass
+- `NetworkNodeDetailScreen` remains untouched as the existing compatibility surface
 
 The exact URL shape can be decided during implementation, but it should preserve the same-shell feel. A dashboard-local URL token is safer than redirecting the operator into a full-page detail layout on first implementation.
 
@@ -349,7 +375,7 @@ The surface should leave room for later:
 
 ### 7.1 Persistence strategy by phase
 
-- Phase B render-only drilldown shell plus selection sync: persist nothing except optional URL state
+- Phase B render-only drilldown shell plus selection sync: persist nothing; URL state was explicitly deferred from the implemented slice
 - Phase D and later: persist hide state and layout overrides
 - local labels, if introduced, should be a separate later persistence slice
 
@@ -579,6 +605,14 @@ The first implementation should be UI shell first, write actions later. That mat
 - Rollback risk: low.
 
 ### Phase B - render-only node-local shell plus selection sync
+
+Implementation status on 2026-05-02:
+
+- complete for the render-only shell, shared renderer, lower Attached Structures list, Selection Inspector placeholder, and the dev-only scenario lab
+- implemented files include `src/lib/nodeDrilldownTypes.ts`, `src/lib/nodeDrilldownModel.ts`, `src/lib/nodeDrilldownLayout.ts`, `src/lib/nodeDrilldownScenarios.ts`, `src/components/topology/node-drilldown/NodeDrilldownSurface.tsx`, `src/components/topology/node-drilldown/NodeDrilldownCanvas.tsx`, `src/components/topology/node-drilldown/NodeStructureListPanel.tsx`, `src/components/topology/node-drilldown/NodeSelectionInspector.tsx`, `src/screens/NodeDrilldownLabScreen.tsx`, `src/screens/Dashboard.tsx`, `src/components/topology/StrategicMapPanel.tsx`, `src/components/topology/NodeCluster.tsx`, and `src/main.tsx`
+- live dashboard entry is wired to current live `NetworkNodeGroup` data only; no new read paths or broader live-family hydration were added
+- the dev lab is isolated through `src/main.tsx` static bootstrap and performs no wallet, Sui RPC, shared-backend, sponsor, or transaction calls
+- explicit `Back to Strategic Network` is implemented; Browser Back and URL mirroring remain deferred for a later pass
 
 - Scope: enter node-local mode from the strategic map, swap the map header to `Node Control`, keep the dashboard shell and hero cards unchanged, render a node-local map and lower structure surface using only current live `NetworkNodeGroup` families, include a read-only `Attached Structures` list, include a basic `Selection Inspector` placeholder, wire icon-to-row and row-to-icon selection sync, and provide an explicit `Back to Strategic Network` action.
 - Files likely touched: `src/screens/Dashboard.tsx`, `src/components/topology/StrategicMapPanel.tsx`, a new node-local drilldown surface component, and optionally `src/App.tsx` or `src/screens/NetworkNodeDetailScreen.tsx` for state mirroring or reuse.
