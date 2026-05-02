@@ -1,6 +1,6 @@
 import { sortNodeLocalStructures } from "@/lib/nodeDrilldownModel";
 
-import type { NodeLocalFamily, NodeLocalSizeVariant, NodeLocalStructure, NodeLocalViewModel } from "./nodeDrilldownTypes";
+import type { NodeLocalSizeVariant, NodeLocalStructure, NodeLocalViewModel } from "./nodeDrilldownTypes";
 
 export interface NodeLocalLayoutItem {
   id: string;
@@ -14,16 +14,44 @@ export interface NodeLocalLayoutResult {
   structures: NodeLocalLayoutItem[];
 }
 
-const ANCHOR = { xPercent: 38, yPercent: 52 };
 const MAP_BODY_HEIGHT_PX = 440;
 const OPERATIONAL_ICON_SIZE = 24;
-const CORRIDOR_START_X = 14;
-const LEFT_FRAME_START_X = 55.5;
-const DEFENSE_START_X = 77.5;
-const INDUSTRY_START_Y = 21;
-const VISIBLE_BLOCK_CENTER_Y = 50;
+const ANCHOR_ICON_SIZE = 30;
+const COMPOSITION_CENTER_X = 50;
+const COMPOSITION_CENTER_Y = 50;
+const VISIBLE_LEFT_MARGIN = 9;
+const VISIBLE_RIGHT_MARGIN = 91;
 const VISIBLE_TOP_MARGIN = 10;
 const VISIBLE_BOTTOM_MARGIN = 90;
+const ANCHOR_TO_MAIN_GAP = 11.5;
+const GATE_TO_ANCHOR_GAP = 7.6;
+const MAIN_TO_TURRET_GAP = 8.8;
+const ANCHOR_TO_TURRET_GAP = 13;
+
+interface LayoutBounds {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+  centerX: number;
+  centerY: number;
+  width: number;
+  height: number;
+}
+
+interface LayoutEntry {
+  xPercent: number;
+  yPercent: number;
+  iconSize: number;
+}
+
+interface LayoutGroupConfig {
+  items: NodeLocalStructure[];
+  columns: number;
+  stepX: number;
+  stepY: number;
+  gapAfter: number;
+}
 
 function iconHalfPercent(iconSize: number): number {
   return (iconSize / MAP_BODY_HEIGHT_PX) * 50;
@@ -41,6 +69,90 @@ function gridPositions(
   }));
 }
 
+function clampDelta(desired: number, min: number, max: number): number {
+  if (min > max) return 0;
+  return Math.min(max, Math.max(min, desired));
+}
+
+function measureBounds(entries: LayoutEntry[]): LayoutBounds | null {
+  if (entries.length === 0) return null;
+
+  let left = Infinity;
+  let right = -Infinity;
+  let top = Infinity;
+  let bottom = -Infinity;
+
+  for (const entry of entries) {
+    const halfIconPercent = iconHalfPercent(entry.iconSize);
+    left = Math.min(left, entry.xPercent - halfIconPercent);
+    right = Math.max(right, entry.xPercent + halfIconPercent);
+    top = Math.min(top, entry.yPercent - halfIconPercent);
+    bottom = Math.max(bottom, entry.yPercent + halfIconPercent);
+  }
+
+  return {
+    left,
+    right,
+    top,
+    bottom,
+    centerX: (left + right) / 2,
+    centerY: (top + bottom) / 2,
+    width: right - left,
+    height: bottom - top,
+  };
+}
+
+function mergeBounds(bounds: Array<LayoutBounds | null>): LayoutBounds | null {
+  const visibleBounds = bounds.filter((entry): entry is LayoutBounds => entry != null);
+  if (visibleBounds.length === 0) return null;
+
+  let left = Infinity;
+  let right = -Infinity;
+  let top = Infinity;
+  let bottom = -Infinity;
+
+  for (const entry of visibleBounds) {
+    left = Math.min(left, entry.left);
+    right = Math.max(right, entry.right);
+    top = Math.min(top, entry.top);
+    bottom = Math.max(bottom, entry.bottom);
+  }
+
+  return {
+    left,
+    right,
+    top,
+    bottom,
+    centerX: (left + right) / 2,
+    centerY: (top + bottom) / 2,
+    width: right - left,
+    height: bottom - top,
+  };
+}
+
+function translateItems(items: NodeLocalLayoutItem[], deltaX: number, deltaY: number): NodeLocalLayoutItem[] {
+  if (Math.abs(deltaX) < 0.01 && Math.abs(deltaY) < 0.01) return items;
+
+  return items.map((item) => ({
+    ...item,
+    xPercent: item.xPercent + deltaX,
+    yPercent: item.yPercent + deltaY,
+  }));
+}
+
+function translateAnchor(
+  anchor: NodeLocalLayoutResult["anchor"],
+  deltaX: number,
+  deltaY: number,
+): NodeLocalLayoutResult["anchor"] {
+  if (Math.abs(deltaX) < 0.01 && Math.abs(deltaY) < 0.01) return anchor;
+
+  return {
+    xPercent: anchor.xPercent + deltaX,
+    yPercent: anchor.yPercent + deltaY,
+  };
+}
+
 function getDefenseConfig(count: number) {
   if (count >= 42) {
     return { columns: 6, stepX: 3.9, stepY: 6.5, iconSize: OPERATIONAL_ICON_SIZE, startY: 20, bucketGap: 2.4 };
@@ -54,46 +166,30 @@ function getDefenseConfig(count: number) {
   return { columns: 3, stepX: 5.2, stepY: 8.6, iconSize: OPERATIONAL_ICON_SIZE, startY: 22, bucketGap: 3 };
 }
 
-function createFamilyRows(
-  items: NodeLocalStructure[],
-  families: NodeLocalFamily[],
-  config: {
-    startX: number;
-    startY: number;
-    columns: number;
-    stepX: number;
-    stepY: number;
-    iconSize: number;
-    familyGap: number;
-  },
-): { items: NodeLocalLayoutItem[]; bottomY: number } {
+function layoutStackedGroups(groups: LayoutGroupConfig[]): NodeLocalLayoutItem[] {
+  const visibleGroups = groups.filter((group) => group.items.length > 0);
   const positioned: NodeLocalLayoutItem[] = [];
-  let cursorY = config.startY;
+  let cursorY = 0;
 
-  for (const family of families) {
-    const familyItems = items.filter((item) => item.family === family);
-    if (familyItems.length === 0) continue;
-
+  visibleGroups.forEach((group, index) => {
     positioned.push(
-      ...gridPositions(familyItems, {
-        startX: config.startX,
+      ...gridPositions(group.items, {
+        startX: 0,
         startY: cursorY,
-        columns: config.columns,
-        stepX: config.stepX,
-        stepY: config.stepY,
-        iconSize: config.iconSize,
+        columns: group.columns,
+        stepX: group.stepX,
+        stepY: group.stepY,
+        iconSize: OPERATIONAL_ICON_SIZE,
       }),
     );
 
-    cursorY += Math.ceil(familyItems.length / config.columns) * config.stepY + config.familyGap;
-  }
+    cursorY += Math.ceil(group.items.length / group.columns) * group.stepY;
+    if (index < visibleGroups.length - 1) {
+      cursorY += group.gapAfter;
+    }
+  });
 
-  return { items: positioned, bottomY: cursorY };
-}
-
-function nextBandStart(startY: number, itemCount: number, columns: number, stepY: number, gap: number): number {
-  if (itemCount === 0) return startY;
-  return startY + Math.ceil(itemCount / columns) * stepY + gap;
+  return positioned;
 }
 
 function bucketBySize(items: NodeLocalStructure[]) {
@@ -108,15 +204,30 @@ function bucketBySize(items: NodeLocalStructure[]) {
   return [matches("mini"), matches("standard"), matches("heavy")].filter((bucket) => bucket.length > 0);
 }
 
+function layoutGateRail(items: NodeLocalStructure[]): NodeLocalLayoutItem[] {
+  if (items.length === 0) return [];
+
+  return gridPositions(items, {
+    startX: 0,
+    startY: 0,
+    columns: items.length <= 2 ? 1 : 2,
+    stepX: 7.8,
+    stepY: 10.8,
+    iconSize: OPERATIONAL_ICON_SIZE,
+  });
+}
+
 function layoutDefenseBand(items: NodeLocalStructure[]): NodeLocalLayoutItem[] {
+  if (items.length === 0) return [];
+
   const config = getDefenseConfig(items.length);
   const positioned: NodeLocalLayoutItem[] = [];
-  let cursorY = config.startY;
+  let cursorY = 0;
 
   for (const bucket of bucketBySize(items)) {
     positioned.push(
       ...gridPositions(bucket, {
-        startX: DEFENSE_START_X,
+        startX: 0,
         startY: cursorY,
         columns: config.columns,
         stepX: config.stepX,
@@ -131,54 +242,75 @@ function layoutDefenseBand(items: NodeLocalStructure[]): NodeLocalLayoutItem[] {
   return positioned;
 }
 
-function measureVisibleBounds(items: NodeLocalLayoutItem[]) {
-  if (items.length === 0) {
+function placeBlock(
+  items: NodeLocalLayoutItem[],
+  position: { left?: number; right?: number; centerY?: number },
+): NodeLocalLayoutItem[] {
+  const bounds = measureBounds(items);
+  if (!bounds) return items;
+
+  const deltaX = position.left != null
+    ? position.left - bounds.left
+    : position.right != null
+      ? position.right - bounds.right
+      : 0;
+  const deltaY = position.centerY != null ? position.centerY - bounds.centerY : 0;
+
+  return translateItems(items, deltaX, deltaY);
+}
+
+function resolveAnchor(
+  mainBounds: LayoutBounds | null,
+  gateBounds: LayoutBounds | null,
+  defenseBounds: LayoutBounds | null,
+): NodeLocalLayoutResult["anchor"] {
+  if (mainBounds) {
     return {
-      top: VISIBLE_BLOCK_CENTER_Y,
-      bottom: VISIBLE_BLOCK_CENTER_Y,
-      center: VISIBLE_BLOCK_CENTER_Y,
-      height: 0,
+      xPercent: mainBounds.left - ANCHOR_TO_MAIN_GAP,
+      yPercent: mainBounds.centerY,
     };
   }
 
-  let top = Infinity;
-  let bottom = -Infinity;
-
-  for (const item of items) {
-    const halfIconPercent = iconHalfPercent(item.iconSize);
-    top = Math.min(top, item.yPercent - halfIconPercent);
-    bottom = Math.max(bottom, item.yPercent + halfIconPercent);
+  const sideBounds = mergeBounds([gateBounds, defenseBounds]);
+  if (gateBounds) {
+    return {
+      xPercent: gateBounds.right + GATE_TO_ANCHOR_GAP,
+      yPercent: sideBounds?.centerY ?? gateBounds.centerY,
+    };
   }
+
+  if (defenseBounds) {
+    return {
+      xPercent: defenseBounds.left - ANCHOR_TO_TURRET_GAP,
+      yPercent: defenseBounds.centerY,
+    };
+  }
+
+  return { xPercent: 0, yPercent: 0 };
+}
+
+function centerComposition(
+  anchor: NodeLocalLayoutResult["anchor"],
+  items: NodeLocalLayoutItem[],
+): NodeLocalLayoutResult {
+  const bounds = measureBounds([
+    { xPercent: anchor.xPercent, yPercent: anchor.yPercent, iconSize: ANCHOR_ICON_SIZE },
+    ...items,
+  ]);
+
+  if (!bounds) {
+    return { anchor, structures: items };
+  }
+
+  const desiredDeltaX = COMPOSITION_CENTER_X - bounds.centerX;
+  const desiredDeltaY = COMPOSITION_CENTER_Y - bounds.centerY;
+  const deltaX = clampDelta(desiredDeltaX, VISIBLE_LEFT_MARGIN - bounds.left, VISIBLE_RIGHT_MARGIN - bounds.right);
+  const deltaY = clampDelta(desiredDeltaY, VISIBLE_TOP_MARGIN - bounds.top, VISIBLE_BOTTOM_MARGIN - bounds.bottom);
 
   return {
-    top,
-    bottom,
-    center: (top + bottom) / 2,
-    height: bottom - top,
+    anchor: translateAnchor(anchor, deltaX, deltaY),
+    structures: translateItems(items, deltaX, deltaY),
   };
-}
-
-function translateItemsY(items: NodeLocalLayoutItem[], deltaY: number): NodeLocalLayoutItem[] {
-  if (Math.abs(deltaY) < 0.01) return items;
-
-  return items.map((item) => ({
-    ...item,
-    yPercent: item.yPercent + deltaY,
-  }));
-}
-
-function centerVisibleBlock(items: NodeLocalLayoutItem[]): NodeLocalLayoutItem[] {
-  const bounds = measureVisibleBounds(items);
-  if (items.length === 0 || bounds.height >= VISIBLE_BOTTOM_MARGIN - VISIBLE_TOP_MARGIN) {
-    return items;
-  }
-
-  const desiredDelta = VISIBLE_BLOCK_CENTER_Y - bounds.center;
-  const minDelta = VISIBLE_TOP_MARGIN - bounds.top;
-  const maxDelta = VISIBLE_BOTTOM_MARGIN - bounds.bottom;
-  const deltaY = Math.min(maxDelta, Math.max(minDelta, desiredDelta));
-
-  return translateItemsY(items, deltaY);
 }
 
 export function layoutNodeDrilldown(viewModel: NodeLocalViewModel): NodeLocalLayoutResult {
@@ -189,57 +321,43 @@ export function layoutNodeDrilldown(viewModel: NodeLocalViewModel): NodeLocalLay
   const support = sorted.filter((structure) => structure.band === "support");
   const defense = sorted.filter((structure) => structure.band === "defense");
 
-  const industryRows = createFamilyRows(industry, ["printer", "refinery", "assembler"], {
-    startX: LEFT_FRAME_START_X,
-    startY: INDUSTRY_START_Y,
-    columns: 4,
-    stepX: 6.2,
-    stepY: 9.4,
-    iconSize: OPERATIONAL_ICON_SIZE,
-    familyGap: 3.4,
-  });
+  const printerItems = industry.filter((structure) => structure.family === "printer");
+  const refineryItems = industry.filter((structure) => structure.family === "refinery");
+  const assemblerItems = industry.filter((structure) => structure.family === "assembler");
 
-  const logisticsStartY = industryRows.items.length > 0 ? industryRows.bottomY : INDUSTRY_START_Y;
-  const logisticsItems = gridPositions(logistics, {
-    startX: LEFT_FRAME_START_X,
-    startY: logisticsStartY,
-    columns: 4,
-    stepX: 6.2,
-    stepY: 9.4,
-    iconSize: OPERATIONAL_ICON_SIZE,
-  });
-
-  const supportStartY = logisticsItems.length > 0
-    ? nextBandStart(logisticsStartY, logistics.length, 4, 9.4, 4.2)
-    : industryRows.items.length > 0
-      ? industryRows.bottomY
-      : INDUSTRY_START_Y;
-  const supportItems = gridPositions(support, {
-    startX: LEFT_FRAME_START_X,
-    startY: supportStartY,
-    columns: 4,
-    stepX: 5.8,
-    stepY: 8.8,
-    iconSize: OPERATIONAL_ICON_SIZE,
-  });
-
-  const structures = centerVisibleBlock([
-    ...gridPositions(corridor, {
-      startX: CORRIDOR_START_X,
-      startY: 28,
-      columns: 2,
-      stepX: 8.6,
-      stepY: 12.2,
-      iconSize: OPERATIONAL_ICON_SIZE,
-    }),
-    ...industryRows.items,
-    ...logisticsItems,
-    ...supportItems,
-    ...layoutDefenseBand(defense),
+  const mainBlock = layoutStackedGroups([
+    { items: printerItems, columns: 4, stepX: 6.2, stepY: 9.4, gapAfter: 3.2 },
+    { items: refineryItems, columns: 4, stepX: 6.2, stepY: 9.4, gapAfter: 3.2 },
+    { items: assemblerItems, columns: 4, stepX: 6.2, stepY: 9.4, gapAfter: 3.6 },
+    { items: logistics, columns: 4, stepX: 6.2, stepY: 9.2, gapAfter: 3.8 },
+    { items: support, columns: 4, stepX: 5.8, stepY: 8.8, gapAfter: 0 },
   ]);
+  const gateRail = layoutGateRail(corridor);
+  const defenseBlock = layoutDefenseBand(defense);
 
-  return {
-    anchor: ANCHOR,
-    structures,
-  };
+  const anchor = resolveAnchor(measureBounds(mainBlock), measureBounds(gateRail), measureBounds(defenseBlock));
+
+  const translatedMain = mainBlock.length > 0
+    ? placeBlock(mainBlock, {
+      left: anchor.xPercent + ANCHOR_TO_MAIN_GAP,
+      centerY: anchor.yPercent,
+    })
+    : [];
+  const translatedMainBounds = measureBounds(translatedMain);
+
+  const translatedGateRail = gateRail.length > 0
+    ? placeBlock(gateRail, {
+      right: anchor.xPercent - GATE_TO_ANCHOR_GAP,
+      centerY: anchor.yPercent,
+    })
+    : [];
+
+  const translatedDefense = defenseBlock.length > 0
+    ? placeBlock(defenseBlock, {
+      left: translatedMainBounds != null ? translatedMainBounds.right + MAIN_TO_TURRET_GAP : anchor.xPercent + ANCHOR_TO_MAIN_GAP,
+      centerY: anchor.yPercent,
+    })
+    : [];
+
+  return centerComposition(anchor, [...translatedGateRail, ...translatedMain, ...translatedDefense]);
 }

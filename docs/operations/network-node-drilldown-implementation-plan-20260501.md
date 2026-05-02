@@ -48,10 +48,20 @@ The same branch now includes a second visual-only refinement pass focused on nod
 - local browser validation re-confirmed all six synthetic scenarios with one uniform `38 x 38` rendered structure button size in the map for every scenario, preserved selection sync, preserved `Back to app`, and confirmed the dev lab still makes no wallet, Sui RPC, shared-backend, or sponsor resource calls
 - refreshed preview evidence was captured on `https://54c29a74.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
 
+### Adaptive layout packing refinement - 2026-05-02
+
+The same branch now includes the requested content-aware packing pass for node-local layout, replacing the last fixed-corridor assumptions in `family-bands-v1`.
+
+- the node-local packer now builds an optional compact gate rail, a main family block, and an optional turret block from the actual visible families instead of reserving fixed horizontal rails regardless of content
+- the node anchor is now derived from the visible composition and the full node-local composition is recentered in two dimensions, which removes the wasted left-side corridor on no-gate nodes while preserving compact gate-present and turret-heavy cases
+- the dev-only `/dev/node-drilldown-lab` route now includes eight synthetic scenarios by adding `No-Gate Industry Node` and `No-Gate Dense Manufacturing` beside the gate-present industry baseline
+- local browser validation re-confirmed sparse gate-present, both new no-gate scenarios, the support-heavy compact case, the 52-structure turret stress case, icon-to-row and row-to-icon selection sync, node-clear, `Back to app`, and that the lab still loads only local static assets with no wallet, Sui RPC, shared-backend, or sponsor requests
+- refreshed preview evidence was captured on `https://9c73df12.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+
 Known remaining visual review questions for human review:
 
 - whether the live dashboard node-local composition still feels balanced with real wallet-owned node data once a connected environment is available
-- whether the current `Node Control` anchor and label placement need any final polish after the icon-scale normalization pass
+- whether gate-present live nodes still feel balanced once the composition-derived anchor replaces the old fixed corridor assumptions
 
 ## 2. Product intent
 
@@ -784,10 +794,12 @@ Preset scenarios to include in the plan:
 
 - `Sparse Solo Node`
 - `Industry Node`
-- `Defense Heavy Node`
+- `No-Gate Industry Node`
+- `No-Gate Dense Manufacturing`
 - `Mixed Operating Base`
-- `Turret Stress Test`
 - `Support Clutter Test`
+- `Defense Heavy Node`
+- `Turret Stress Test`
 
 Suggested configurable counts or fixture inputs:
 

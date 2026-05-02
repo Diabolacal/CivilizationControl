@@ -1,6 +1,15 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-02 – Adapt node drilldown layout packing
+- Goal: Replace the last fixed node-local corridor and anchor assumptions with content-aware packing so no-gate nodes stop wasting left-side space while gate-present and turret-heavy cases remain readable, and add the missing no-gate validation fixtures without touching writes, presets, persistence, broader hydration, sponsor/package state, Move code, or production deploys.
+- Files: `src/lib/nodeDrilldownLayout.ts`, `src/lib/nodeDrilldownScenarios.ts`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
+- Diff: targeted node-local layout and synthetic-lab refinement plus refreshed preview evidence
+- Risk: medium — focused frontend layout refinement with preview redeploy evidence and new synthetic fixtures, but no read-path expansion, no write-path change, no dependency change, no vendor edit, no Move change, and no production deploy
+- Gates: diff-check ✅ typecheck ✅ build ✅ active-env ✅ move build ✅ move test ✅ local browser regression smoke ✅ preview deploy ✅ served preview bundle proof ✅
+- Result: replaced the fixed horizontal rails in the node-local layout helper with a composition-aware packer that builds optional gate and turret blocks only when those families exist, derives the node anchor from the visible composition, and recenters the full composition in two dimensions; added `No-Gate Industry Node` and `No-Gate Dense Manufacturing` so the lab now covers eight scenarios; locally revalidated sparse gate-present, both no-gate scenarios, support-heavy compact packing, and the 52-structure turret stress case; revalidated icon-to-row and row-to-icon selection sync, node-clear, and `Back to app`; confirmed the dev lab still loads only local static assets; redeployed preview to `https://9c73df12.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`; and confirmed the served preview assets `App-Pu_vfhOP.js` and `SmartObjectProvider-C5U_LHv5.js` still expose `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` and `https://ef-map.com` while exposing neither `flappy-frontier-sponsor` nor `ASSEMBLY_API_TOKEN`.
+- Follow-ups: do one manual live-data review against a wallet-owned node when available to confirm the adaptive gate-present composition feels as balanced as the synthetic cases.
+
 ## 2026-05-02 – Normalize node drilldown icon scale
 - Goal: Remove the remaining node-local icon-scale inconsistencies so Mini, standard, and Heavy structures all use one shared operational glyph size in the map, and tighten the visible band layout so sparse and medium scenarios center cleanly without adding writes, presets, persistence, broader hydration, sponsor changes, package changes, or production deploys.
 - Files: `src/lib/nodeDrilldownLayout.ts`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
