@@ -46,6 +46,15 @@ function buildStructureTooltip(
   yPercent: number,
 ): NodeDrilldownTooltipData {
   const sizeLabel = structure.sizeVariant ? formatTitleCase(structure.sizeVariant) : null;
+  const meta = structure.source === "backendMembership"
+    ? structure.hasDirectChainAuthority
+      ? structure.directChainMatchCount > 1
+        ? `Backend membership • ${structure.directChainMatchCount} direct-chain matches`
+        : "Backend membership • direct-chain authority matched"
+      : "Backend membership • backend-only row"
+    : structure.source === "backendObserved"
+      ? "Observed via shared backend"
+      : undefined;
 
   return {
     id: structure.id,
@@ -54,7 +63,7 @@ function buildStructureTooltip(
     ...tooltipPlacement(xPercent, yPercent),
     title: structure.displayName,
     detail: buildButtonLabel([structure.typeLabel, sizeLabel, formatTitleCase(structure.status)]),
-    meta: structure.source === "backendObserved" ? "Observed via shared backend" : undefined,
+    meta,
   };
 }
 

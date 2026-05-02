@@ -1,7 +1,7 @@
 import { DashboardPanelFrame } from "@/components/dashboard/DashboardPanelFrame";
 import { findNodeLocalStructure, formatNodeLocalSize, formatNodeLocalStatus, summarizeNodeLocalFamilies } from "@/lib/nodeDrilldownModel";
 
-import type { NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
+import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 
 interface NodeSelectionInspectorProps {
   viewModel: NodeLocalViewModel;
@@ -33,11 +33,77 @@ function InspectorRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function formatSourceMode(viewModel: NodeLocalViewModel): string {
+  switch (viewModel.sourceMode) {
+    case "backend-membership":
+      return "Backend membership rows rendered";
+    case "loading":
+      return "Live fallback while backend membership loads";
+    case "error-fallback":
+      return "Live fallback after backend lookup error";
+    case "live-fallback":
+      return "Current live NetworkNodeGroup";
+    case "synthetic":
+      return "Synthetic scenario";
+  }
+}
+
+function formatCoverage(viewModel: NodeLocalViewModel): string {
+  switch (viewModel.sourceMode) {
+    case "backend-membership":
+      return "Backend rows define membership; live rows annotate authority only";
+    case "loading":
+    case "error-fallback":
+    case "live-fallback":
+      return "Current live families only";
+    case "synthetic":
+      return "Expanded synthetic families";
+  }
+}
+
+function formatStructureSource(structure: NodeLocalStructure): string {
+  switch (structure.source) {
+    case "backendMembership":
+      return "Backend membership";
+    case "backendObserved":
+      return "Shared backend observation";
+    case "synthetic":
+      return "Synthetic scenario";
+    case "live":
+    default:
+      return "Direct chain";
+  }
+}
+
+function formatStructureAuthority(structure: NodeLocalStructure): string {
+  if (structure.source === "live") {
+    return "Direct-chain authoritative";
+  }
+
+  if (structure.source === "synthetic") {
+    return "Synthetic fixture • Non-actionable";
+  }
+
+  if (!structure.hasDirectChainAuthority) {
+    return "Backend-only • Non-actionable";
+  }
+
+  if (structure.directChainMatchCount > 1) {
+    return `Direct-chain matched (${structure.directChainMatchCount}) • Review before actions`;
+  }
+
+  return structure.futureActionEligible
+    ? "Direct-chain backed • Future eligible"
+    : "Direct-chain backed • Read-only";
+}
+
 function NodeSelectionInspectorContent({
   viewModel,
   selectedStructureId,
 }: Pick<NodeSelectionInspectorProps, "viewModel" | "selectedStructureId">) {
   const selectedStructure = findNodeLocalStructure(viewModel, selectedStructureId);
+  const chainBackedCount = viewModel.structures.filter((structure) => structure.hasDirectChainAuthority).length;
+  const backendOnlyCount = viewModel.structures.length - chainBackedCount;
 
   return (
     <>
@@ -48,13 +114,19 @@ function NodeSelectionInspectorContent({
             <InspectorRow label="Type" value={selectedStructure.typeLabel} />
             <InspectorRow label="Family" value={selectedStructure.familyLabel} />
             <InspectorRow label="Size" value={formatNodeLocalSize(selectedStructure.sizeVariant) ?? "Not tagged"} />
-            <InspectorRow label={selectedStructure.source === "backendObserved" ? "Observed Status" : "Status"} value={formatNodeLocalStatus(selectedStructure.status)} />
-            <InspectorRow label="Object ID" value={selectedStructure.objectId ?? "Synthetic fixture"} />
+            <InspectorRow label="Status" value={formatNodeLocalStatus(selectedStructure.status)} />
+            <InspectorRow label="Source" value={formatStructureSource(selectedStructure)} />
+            <InspectorRow label="Authority" value={formatStructureAuthority(selectedStructure)} />
+            <InspectorRow label="Object ID" value={selectedStructure.objectId ?? "Unavailable in rendered row"} />
             <InspectorRow label="Assembly ID" value={selectedStructure.assemblyId ?? "Unavailable in this slice"} />
-            {selectedStructure.source === "backendObserved" ? (
+            {selectedStructure.directChainObjectId && selectedStructure.directChainObjectId !== selectedStructure.objectId ? (
+              <InspectorRow label="Chain Object ID" value={selectedStructure.directChainObjectId} />
+            ) : null}
+            {selectedStructure.directChainAssemblyId && selectedStructure.directChainAssemblyId !== selectedStructure.assemblyId ? (
+              <InspectorRow label="Chain Assembly ID" value={selectedStructure.directChainAssemblyId} />
+            ) : null}
+            {selectedStructure.source === "backendMembership" || selectedStructure.source === "backendObserved" ? (
               <>
-                <InspectorRow label="Source" value={selectedStructure.source === "backendObserved" ? "Shared backend observation" : "Direct chain"} />
-                <InspectorRow label="Authority" value="Read-only • Non-actionable" />
                 {selectedStructure.lastUpdated || selectedStructure.fetchedAt ? (
                   <InspectorRow
                     label="Freshness"
@@ -68,29 +140,15 @@ function NodeSelectionInspectorContent({
           <>
             <InspectorRow label="Node" value={viewModel.node.displayName} />
             <InspectorRow label="Status" value={formatNodeLocalStatus(viewModel.node.status)} />
-            <InspectorRow
-              label="Source"
-              value={viewModel.source === "synthetic"
-                ? "Synthetic scenario"
-                : viewModel.coverage === "live-plus-backend-observed"
-                  ? "Current live node plus backend observations"
-                  : "Current live NetworkNodeGroup"}
-            />
-            <InspectorRow
-              label="Coverage"
-              value={viewModel.coverage === "current-live-families"
-                ? "Current live families only"
-                : viewModel.coverage === "live-plus-backend-observed"
-                  ? "Live families plus backend-observed structures"
-                  : "Expanded synthetic families"}
-            />
+            <InspectorRow label="Source" value={formatSourceMode(viewModel)} />
+            <InspectorRow label="Coverage" value={formatCoverage(viewModel)} />
             <InspectorRow label="Structures" value={`${viewModel.structures.length}`} />
             <InspectorRow label="Families" value={summarizeNodeLocalFamilies(viewModel) || "None attached"} />
             <InspectorRow label="Fuel" value={viewModel.node.fuelSummary ?? "Not surfaced in this slice"} />
-            {viewModel.coverage === "live-plus-backend-observed" ? (
+            {viewModel.sourceMode === "backend-membership" ? (
               <InspectorRow
-                label="Observed"
-                value={`${viewModel.structures.filter((structure) => structure.source === "backendObserved").length} read-only structure${viewModel.structures.filter((structure) => structure.source === "backendObserved").length === 1 ? "" : "s"}`}
+                label="Authority"
+                value={`${chainBackedCount} chain-backed / ${backendOnlyCount} backend-only`}
               />
             ) : null}
           </>

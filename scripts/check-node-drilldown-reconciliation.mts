@@ -28,6 +28,36 @@ const group: NetworkNodeGroup = {
       networkNodeId: NETWORK_NODE_ID,
       extensionStatus: "authorized",
     },
+    {
+      objectId: "0x0000000000000000000000000000000000000000000000000000000000000103",
+      ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000c103",
+      assemblyId: "4103",
+      type: "storage_unit",
+      name: "Storage c1d2e3f4",
+      status: "online",
+      networkNodeId: NETWORK_NODE_ID,
+      extensionStatus: "authorized",
+    },
+    {
+      objectId: "0x0000000000000000000000000000000000000000000000000000000000000104",
+      ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000c104",
+      assemblyId: "4104",
+      type: "storage_unit",
+      name: "Storage d1e2f3a4",
+      status: "online",
+      networkNodeId: NETWORK_NODE_ID,
+      extensionStatus: "authorized",
+    },
+    {
+      objectId: "0x0000000000000000000000000000000000000000000000000000000000000105",
+      ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000c105",
+      assemblyId: "4105",
+      type: "storage_unit",
+      name: "Storage e1f2a3b4",
+      status: "online",
+      networkNodeId: NETWORK_NODE_ID,
+      extensionStatus: "authorized",
+    },
   ],
   turrets: [
     {
@@ -36,6 +66,16 @@ const group: NetworkNodeGroup = {
       assemblyId: "4102",
       type: "turret",
       name: "Turret b1c2d3e4",
+      status: "online",
+      networkNodeId: NETWORK_NODE_ID,
+      extensionStatus: "authorized",
+    },
+    {
+      objectId: "0x0000000000000000000000000000000000000000000000000000000000000106",
+      ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000c106",
+      assemblyId: "4106",
+      type: "turret",
+      name: "Turret c2d3e4f5",
       status: "online",
       networkNodeId: NETWORK_NODE_ID,
       extensionStatus: "authorized",
@@ -73,6 +113,57 @@ const lookup: NodeAssembliesLookupResult = {
       provenance: "node-local-indexer",
     },
     {
+      objectId: null,
+      assemblyId: "4103",
+      linkedGateId: null,
+      assemblyType: "storage_unit",
+      typeId: 88083,
+      typeName: "Storage",
+      name: "Storage",
+      status: "ONLINE",
+      fuelAmount: "250",
+      solarSystemId: null,
+      energySourceId: null,
+      url: null,
+      lastUpdated: "2026-05-02T12:00:00.000Z",
+      source: "shared-frontier-backend",
+      provenance: "node-local-indexer",
+    },
+    {
+      objectId: "0x104",
+      assemblyId: "0000004104",
+      linkedGateId: null,
+      assemblyType: "storage_unit",
+      typeId: 88084,
+      typeName: "Heavy Storage",
+      name: "Heavy Storage",
+      status: "ONLINE",
+      fuelAmount: "325",
+      solarSystemId: null,
+      energySourceId: null,
+      url: null,
+      lastUpdated: "2026-05-02T12:00:00.000Z",
+      source: "shared-frontier-backend",
+      provenance: "node-local-indexer",
+    },
+    {
+      objectId: null,
+      assemblyId: "4105",
+      linkedGateId: null,
+      assemblyType: "storage_unit",
+      typeId: 88082,
+      typeName: "Mini Storage",
+      name: "Mini Storage",
+      status: "ONLINE",
+      fuelAmount: "180",
+      solarSystemId: null,
+      energySourceId: null,
+      url: null,
+      lastUpdated: "2026-05-02T12:00:00.000Z",
+      source: "shared-frontier-backend",
+      provenance: "node-local-indexer",
+    },
+    {
       objectId: "0x102",
       assemblyId: "0000004102",
       linkedGateId: null,
@@ -91,6 +182,23 @@ const lookup: NodeAssembliesLookupResult = {
     },
     {
       objectId: null,
+      assemblyId: "4106",
+      linkedGateId: null,
+      assemblyType: "turret",
+      typeId: 92279,
+      typeName: "Mini Turret",
+      name: "Mini Turret",
+      status: "OFFLINE",
+      fuelAmount: null,
+      solarSystemId: null,
+      energySourceId: null,
+      url: null,
+      lastUpdated: "2026-05-02T12:00:00.000Z",
+      source: "shared-frontier-backend",
+      provenance: "node-local-indexer",
+    },
+    {
+      objectId: null,
       assemblyId: "4301",
       linkedGateId: null,
       assemblyType: "assembler",
@@ -98,6 +206,23 @@ const lookup: NodeAssembliesLookupResult = {
       typeName: "Assembler",
       name: "Assembler 4301",
       status: "OFFLINE",
+      fuelAmount: null,
+      solarSystemId: null,
+      energySourceId: null,
+      url: null,
+      lastUpdated: "2026-05-02T12:00:00.000Z",
+      source: "shared-frontier-backend",
+      provenance: "node-local-indexer",
+    },
+    {
+      objectId: null,
+      assemblyId: "4303",
+      linkedGateId: null,
+      assemblyType: "refinery",
+      typeId: 88069,
+      typeName: "Refinery",
+      name: "Refinery",
+      status: "UNKNOWN",
       fuelAmount: null,
       solarSystemId: null,
       energySourceId: null,
@@ -135,33 +260,42 @@ const viewModel = buildLiveNodeLocalViewModelWithObserved(group, lookup);
 const structures = viewModel.structures;
 const canonicalDomainKeys = new Set(structures.map((structure) => structure.canonicalDomainKey));
 
-assert.equal(structures.length, 4, "expected 4 final rows after live/backend reconciliation");
-assert.equal(canonicalDomainKeys.size, 4, "expected 4 unique canonical domain keys");
+assert.equal(viewModel.sourceMode, "backend-membership", "expected backend-membership mode when backend rows exist");
+assert.equal(structures.length, 9, "expected 9 final rows after backend-membership selection");
+assert.equal(canonicalDomainKeys.size, 9, "expected 9 unique canonical domain keys");
 
 const storageRows = structures.filter((structure) => structure.family === "tradePost");
 const turretRows = structures.filter((structure) => structure.family === "turret");
 const assemblerRows = structures.filter((structure) => structure.family === "assembler");
 const printerRows = structures.filter((structure) => structure.family === "printer");
+const refineryRows = structures.filter((structure) => structure.family === "refinery");
 
-assert.equal(storageRows.length, 1, "expected one merged storage row");
-assert.equal(turretRows.length, 1, "expected one merged turret row");
+assert.equal(storageRows.length, 4, "expected exactly 4 backend-membership storage rows");
+assert.equal(turretRows.length, 2, "expected exactly 2 backend-membership turret rows");
 assert.equal(assemblerRows.length, 1, "expected one backend-only assembler row");
 assert.equal(printerRows.length, 1, "expected one backend-only printer row");
+assert.equal(refineryRows.length, 1, "expected one backend-only refinery row");
 
-assert.equal(storageRows[0]?.source, "live", "expected storage row to stay authoritative live");
-assert.equal(storageRows[0]?.typeLabel, "Mini Storage", "expected backend storage type enrichment to apply");
-assert.equal(storageRows[0]?.familyLabel, "Storage", "expected storage terminology to stay normalized");
+assert.ok(storageRows.every((structure) => structure.source === "backendMembership"), "expected storage rows to render from backend membership");
+assert.ok(storageRows.every((structure) => structure.familyLabel === "Storage"), "expected storage terminology to stay normalized");
+assert.ok(storageRows.every((structure) => structure.hasDirectChainAuthority), "expected storage rows to retain direct-chain authority annotations");
+assert.ok(storageRows.every((structure) => !structure.isActionable && structure.isReadOnly), "expected backend-membership storage rows to stay read-only in this pass");
 
-assert.equal(turretRows[0]?.source, "live", "expected turret row to stay authoritative live");
-assert.equal(turretRows[0]?.typeLabel, "Mini Turret", "expected backend turret type enrichment to apply");
+assert.ok(turretRows.every((structure) => structure.source === "backendMembership"), "expected turret rows to render from backend membership");
+assert.ok(turretRows.every((structure) => !structure.isActionable && structure.isReadOnly), "expected backend-membership turret rows to stay read-only in this pass");
 
-assert.equal(assemblerRows[0]?.source, "backendObserved", "expected assembler to remain backend-only");
+assert.equal(assemblerRows[0]?.source, "backendMembership", "expected assembler to remain part of backend membership");
 assert.equal(assemblerRows[0]?.isReadOnly, true, "expected backend-only assembler to remain read-only");
 assert.equal(assemblerRows[0]?.isActionable, false, "expected backend-only assembler to remain non-actionable");
+assert.equal(assemblerRows[0]?.hasDirectChainAuthority, false, "expected backend-only assembler to have no direct-chain authority annotation");
 
-assert.equal(printerRows[0]?.source, "backendObserved", "expected printer to remain backend-only");
+assert.equal(printerRows[0]?.source, "backendMembership", "expected printer to remain part of backend membership");
+
+assert.ok(structures.every((structure) => structure.familyLabel !== "Trade Post"), "expected no visible Trade Post terminology");
+assert.ok(structures.every((structure) => structure.source !== "live"), "expected no live display rows in backend-membership mode");
 
 console.log(JSON.stringify({
+  sourceMode: viewModel.sourceMode,
   totalRows: structures.length,
   canonicalDomainKeys: [...canonicalDomainKeys],
   rows: structures.map((structure) => ({
@@ -173,6 +307,11 @@ console.log(JSON.stringify({
     displayName: structure.displayName,
     objectId: structure.objectId ?? null,
     assemblyId: structure.assemblyId ?? null,
+    directChainObjectId: structure.directChainObjectId ?? null,
+    directChainAssemblyId: structure.directChainAssemblyId ?? null,
+    hasDirectChainAuthority: structure.hasDirectChainAuthority,
+    directChainMatchCount: structure.directChainMatchCount,
+    futureActionEligible: structure.futureActionEligible,
     isReadOnly: structure.isReadOnly,
     isActionable: structure.isActionable,
   })),

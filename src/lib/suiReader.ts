@@ -742,7 +742,7 @@ function resolveName(
   const shortId = objectId.slice(2, 10);
   const typeLabels: Record<StructureType, string> = {
     gate: "Gate",
-    storage_unit: "Trade Post",
+    storage_unit: "Storage",
     turret: "Turret",
     network_node: "Network Node",
   };

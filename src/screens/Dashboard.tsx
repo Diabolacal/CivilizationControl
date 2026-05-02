@@ -83,12 +83,12 @@ export function Dashboard({
     () => nodeGroups.find((group) => group.node.objectId === selectedNodeId) ?? null,
     [nodeGroups, selectedNodeId],
   );
-  const { lookup: selectedNodeAssembliesLookup } = useNodeAssemblies(selectedNodeGroup?.node.objectId ?? null);
+  const { lookup: selectedNodeAssembliesLookup, isLoading: isNodeAssembliesLoading } = useNodeAssemblies(selectedNodeGroup?.node.objectId ?? null);
   const selectedNodeViewModel = useMemo(
     () => (selectedNodeGroup
-      ? buildLiveNodeLocalViewModelWithObserved(selectedNodeGroup, selectedNodeAssembliesLookup)
+      ? buildLiveNodeLocalViewModelWithObserved(selectedNodeGroup, selectedNodeAssembliesLookup, { isLoading: isNodeAssembliesLoading })
       : null),
-    [selectedNodeAssembliesLookup, selectedNodeGroup],
+    [isNodeAssembliesLoading, selectedNodeAssembliesLookup, selectedNodeGroup],
   );
   const handleExitNodeControl = useCallback(() => {
     setSelectedStructureId(null);
@@ -103,7 +103,13 @@ export function Dashboard({
   }, []);
   const topologyTitle = selectedNodeViewModel ? "Node Control" : "Strategic Network";
   const topologySubtitle = selectedNodeViewModel
-    ? `${selectedNodeViewModel.node.displayName} • Read-only local topology`
+    ? `${selectedNodeViewModel.node.displayName} • ${selectedNodeViewModel.sourceMode === "backend-membership"
+      ? "Backend membership view"
+      : selectedNodeViewModel.sourceMode === "loading"
+        ? "Live fallback while backend membership loads"
+        : selectedNodeViewModel.sourceMode === "error-fallback"
+          ? "Live fallback after backend lookup error"
+          : "Direct-chain fallback view"}`
     : "Infrastructure Posture & Topology Control";
   const topologyHeaderAction = selectedNodeViewModel ? (
     <button
@@ -168,14 +174,14 @@ export function Dashboard({
 
     controller.enabled = true;
     controller.latest = selectedNodeGroup
-      ? buildNodeDrilldownDebugSnapshot(selectedNodeGroup, selectedNodeAssembliesLookup)
+      ? buildNodeDrilldownDebugSnapshot(selectedNodeGroup, selectedNodeAssembliesLookup, { isLoading: isNodeAssembliesLoading })
       : null;
     window.__CC_NODE_DRILLDOWN_DEBUG__ = controller;
 
     if (selectedNodeGroup) {
       console.info("[node-drilldown-debug] window.__CC_NODE_DRILLDOWN_DEBUG__.latest updated");
     }
-  }, [isNodeDrilldownDebugEnabled, selectedNodeAssembliesLookup, selectedNodeGroup]);
+  }, [isNodeAssembliesLoading, isNodeDrilldownDebugEnabled, selectedNodeAssembliesLookup, selectedNodeGroup]);
 
   return (
     <div>
@@ -208,7 +214,7 @@ export function Dashboard({
           title="Active Structures"
           value={metrics.totalStructures}
           icon={<Building2 className="w-3.5 h-3.5" />}
-          subtitle={`${metrics.gateCount} Gate${metrics.gateCount !== 1 ? "s" : ""} / ${metrics.governedGateCount} Governed / ${metrics.storageUnitCount} Post${metrics.storageUnitCount !== 1 ? "s" : ""} / ${metrics.networkNodeCount} Node${metrics.networkNodeCount !== 1 ? "s" : ""}`}
+          subtitle={`${metrics.gateCount} Gate${metrics.gateCount !== 1 ? "s" : ""} / ${metrics.governedGateCount} Governed / ${metrics.storageUnitCount} Storage${metrics.storageUnitCount !== 1 ? "s" : ""} / ${metrics.networkNodeCount} Node${metrics.networkNodeCount !== 1 ? "s" : ""}`}
         />
         <MetricCard
           title="Grid Status"
@@ -296,7 +302,7 @@ export function Dashboard({
                       </p>
                       <p className="mt-1 text-[11px] text-muted-foreground/40">
                         {isConnected
-                          ? "Events from your gates, trade posts, and turrets will appear here"
+                          ? "Events from your gates, storage structures, and turrets will appear here"
                           : "Signal Feed shows activity from your governed infrastructure"}
                       </p>
                     </div>

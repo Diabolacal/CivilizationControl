@@ -5,7 +5,7 @@ import { DashboardPanelFrame } from "@/components/dashboard/DashboardPanelFrame"
 import { formatNodeLocalSize, formatNodeLocalStatus, sortNodeLocalStructures } from "@/lib/nodeDrilldownModel";
 import { cn } from "@/lib/utils";
 
-import type { NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
+import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 
 interface NodeStructureListPanelProps {
   viewModel: NodeLocalViewModel;
@@ -18,6 +18,20 @@ function shortObjectId(value: string | undefined): string {
   if (!value) return "Synthetic";
   if (value.length <= 16) return value;
   return `${value.slice(0, 8)}…${value.slice(-6)}`;
+}
+
+function shortStructureReference(structure: NodeLocalStructure): string {
+  if (structure.objectId) {
+    return shortObjectId(structure.objectId);
+  }
+
+  if (structure.assemblyId) {
+    return structure.assemblyId.length <= 16
+      ? `asm:${structure.assemblyId}`
+      : `asm:${structure.assemblyId.slice(0, 6)}…${structure.assemblyId.slice(-4)}`;
+  }
+
+  return structure.source === "synthetic" ? "Synthetic" : "Backend";
 }
 
 function NodeStructureListContent({
@@ -35,11 +49,20 @@ function NodeStructureListContent({
       <div className="space-y-1.5">
         {structures.map((structure) => {
           const sizeLabel = formatNodeLocalSize(structure.sizeVariant);
+          const authorityMeta = structure.source === "backendMembership"
+            ? structure.hasDirectChainAuthority
+              ? structure.directChainMatchCount > 1
+                ? `Chain-backed (${structure.directChainMatchCount})`
+                : "Chain-backed"
+              : "Backend-only"
+            : structure.source === "backendObserved"
+              ? "Observed"
+              : null;
           const meta = [
             structure.typeLabel,
             structure.familyLabel,
             sizeLabel,
-            structure.source === "backendObserved" ? "Observed" : null,
+            authorityMeta,
           ].filter(Boolean).join(" • ");
 
           return (
@@ -74,7 +97,7 @@ function NodeStructureListContent({
                   {formatNodeLocalStatus(structure.status)}
                 </span>
                 <span className="font-mono text-[10px] text-muted-foreground/60">
-                  {shortObjectId(structure.objectId)}
+                  {shortStructureReference(structure)}
                 </span>
               </div>
             </button>

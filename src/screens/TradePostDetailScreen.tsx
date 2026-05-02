@@ -34,13 +34,13 @@ interface TradePostDetailScreenProps {
 export function TradePostDetailScreen({ structures, isLoading }: TradePostDetailScreenProps) {
   const { id } = useParams<{ id: string }>();
   const power = useStructurePower();
-  const lastPowerLabel = useRef("Trade post power state updated");
+  const lastPowerLabel = useRef("Storage power state updated");
   const post = structures.find((s) => s.objectId === id && s.type === "storage_unit");
 
   if (isLoading) {
     return (
       <div className="text-center py-12">
-        <p className="text-sm text-muted-foreground animate-pulse">Loading trade post…</p>
+        <p className="text-sm text-muted-foreground animate-pulse">Loading storage…</p>
       </div>
     );
   }
@@ -50,7 +50,7 @@ export function TradePostDetailScreen({ structures, isLoading }: TradePostDetail
       <div className="space-y-4">
         <BackLink />
         <div className="border border-dashed border-border rounded py-16 flex flex-col items-center gap-3">
-          <p className="text-sm text-muted-foreground/60">Trade post not found</p>
+          <p className="text-sm text-muted-foreground/60">Storage not found</p>
           <p className="text-[11px] text-muted-foreground/40">Object may have been removed or is not owned by this wallet</p>
         </div>
       </div>
@@ -71,7 +71,7 @@ export function TradePostDetailScreen({ structures, isLoading }: TradePostDetail
   const hasNetworkNode = !!post.networkNodeId;
 
   const handlePowerToggle = () => {
-    lastPowerLabel.current = isOnline ? "Trade post taken offline" : "Trade post brought online";
+    lastPowerLabel.current = isOnline ? "Storage taken offline" : "Storage brought online";
     power.toggleSingle({
       structureType: "storage_unit",
       structureId: post.objectId,
@@ -135,7 +135,7 @@ function BackLink() {
       className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
     >
       <ArrowLeft className="w-3.5 h-3.5" />
-      All TradePosts
+      All Storages
     </Link>
   );
 }
@@ -276,10 +276,10 @@ function InGameDAppUrlSection({ post }: { post: Structure }) {
   }, [setSsuDappUrl, post.objectId, post.ownerCapId, queryClient]);
 
   return (
-    <CollapsibleSection title="In-Game DApp URL" subtitle="Set once per post">
+    <CollapsibleSection title="In-Game DApp URL" subtitle="Set once per storage">
       <div className="space-y-3">
         <p className="text-xs text-muted-foreground">
-          Set this URL on-chain so players see the marketplace when interacting with this post.
+          Set this URL on-chain so players see the marketplace when interacting with this storage.
         </p>
         {(ssuStatus === "success" || ssuStatus === "error") && (
           <TxFeedbackBanner

@@ -1,6 +1,8 @@
 import type { Structure, StructureStatus } from "@/types/domain";
 
-export type NodeLocalSource = "live" | "backendObserved" | "synthetic";
+export type NodeLocalSource = "live" | "backendMembership" | "backendObserved" | "synthetic";
+
+export type NodeLocalSourceMode = "backend-membership" | "live-fallback" | "loading" | "error-fallback" | "synthetic";
 
 export type NodeLocalFamily =
   | "networkNode"
@@ -70,6 +72,11 @@ export interface NodeLocalStructure extends NodeLocalObservationMeta {
   canonicalDomainKey: string;
   objectId?: string;
   assemblyId?: string;
+  directChainObjectId?: string | null;
+  directChainAssemblyId?: string | null;
+  hasDirectChainAuthority: boolean;
+  directChainMatchCount: number;
+  futureActionEligible: boolean;
   linkedGateId?: string;
   typeId?: number;
   displayName: string;
@@ -92,8 +99,9 @@ export interface NodeLocalViewModel {
   node: NodeLocalNode;
   structures: NodeLocalStructure[];
   source: NodeLocalSource;
+  sourceMode: NodeLocalSourceMode;
   layoutAlgorithm: "family-bands-v1";
-  coverage: "current-live-families" | "live-plus-backend-observed" | "synthetic-expanded";
+  coverage: "current-live-families" | "backend-membership" | "synthetic-expanded";
 }
 
 export interface NodeLocalScenario {

@@ -37,7 +37,7 @@ const navItems: NavItem[] = [
     icon: <GateGlyph className="w-4 h-4" size={16} />,
   },
   {
-    label: "TradePosts",
+    label: "Storages",
     path: "/tradeposts",
     icon: <TradePostGlyph className="w-4 h-4" size={16} />,
   },
@@ -169,7 +169,7 @@ export function Sidebar({ structures = [], isConnected = false, isLoading = fals
           />
 
           <StructureSection
-            label="TradePosts"
+            label="Storages"
             icon={<TradePostGlyph size={12} />}
             items={tradeposts}
             expanded={expandedSections.tradeposts}

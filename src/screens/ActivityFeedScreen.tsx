@@ -101,7 +101,7 @@ export function ActivityFeedScreen() {
                 No telemetry for your infrastructure
               </p>
               <p className="text-[11px] text-muted-foreground/40 max-w-[36ch] text-center">
-                Events from your gates, trade posts, and turrets will appear here
+                Events from your gates, storage structures, and turrets will appear here
               </p>
             </>
           )}

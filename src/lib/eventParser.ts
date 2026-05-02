@@ -308,7 +308,7 @@ export function parseChainEvents(rawEvents: RawSuiEvent[]): SignalEvent[] {
 function resolveAssemblyName(json: Record<string, unknown>): string {
   const t = String(json._assemblyType ?? "gate");
   if (t === "turret") return "Turret";
-  if (t === "storage_unit") return "Trade Post";
+  if (t === "storage_unit") return "Storage";
   return "Gate";
 }
 

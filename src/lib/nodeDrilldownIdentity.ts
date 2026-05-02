@@ -1,7 +1,7 @@
 import { normalizeCanonicalObjectId, type NodeAssembliesLookupResult } from "@/lib/nodeAssembliesClient";
 import type { Structure, StructureStatus, StructureType } from "@/types/domain";
 
-import type { NodeLocalSource, NodeLocalStructure, NodeLocalViewModel } from "./nodeDrilldownTypes";
+import type { NodeLocalSource, NodeLocalSourceMode, NodeLocalStructure } from "./nodeDrilldownTypes";
 
 const ASSEMBLY_ALIAS_PREFIX = "assembly:";
 const OBJECT_ALIAS_PREFIX = "object:";
@@ -37,6 +37,11 @@ export interface NodeDrilldownDebugRow {
   source: NodeLocalSource | "observed";
   objectId: string | null;
   assemblyId: string | null;
+  directChainObjectId?: string | null;
+  directChainAssemblyId?: string | null;
+  hasDirectChainAuthority?: boolean;
+  directChainMatchCount?: number;
+  futureActionEligible?: boolean;
   ownerCapId?: string | null;
   networkNodeId?: string | null;
   linkedGateId?: string | null;
@@ -51,16 +56,14 @@ export interface NodeDrilldownDebugRow {
 
 export interface NodeDrilldownDebugSnapshot {
   nodeId: string;
-  lookupStatus: "none" | "success" | "error";
-  coverage: NodeLocalViewModel["coverage"];
+  sourceMode: NodeLocalSourceMode;
   fetchedAt: string | null;
   liveRows: NodeDrilldownDebugRow[];
-  backendRows: NodeDrilldownDebugRow[];
-  candidateRows: NodeDrilldownDebugRow[];
-  candidateBuckets: NodeDrilldownDebugBucket[];
-  duplicateBuckets: NodeDrilldownDebugBucket[];
-  finalRows: NodeDrilldownDebugRow[];
-  finalRenderIds: string[];
+  rawBackendRows: NodeDrilldownDebugRow[];
+  renderedRows: NodeDrilldownDebugRow[];
+  usedLiveAuthorityAnnotations: boolean;
+  authorityAnnotatedRows: number;
+  omittedBackendCount: number;
 }
 
 export interface NodeDrilldownDebugController {
@@ -305,6 +308,11 @@ export function describeRenderedNodeDrilldownIdentity(structure: NodeLocalStruct
     source: structure.source,
     objectId: normalizeCanonicalObjectId(structure.objectId),
     assemblyId: normalizeNodeDrilldownAssemblyId(structure.assemblyId),
+    directChainObjectId: normalizeCanonicalObjectId(structure.directChainObjectId),
+    directChainAssemblyId: normalizeNodeDrilldownAssemblyId(structure.directChainAssemblyId),
+    hasDirectChainAuthority: structure.hasDirectChainAuthority,
+    directChainMatchCount: structure.directChainMatchCount,
+    futureActionEligible: structure.futureActionEligible,
     linkedGateId: normalizeCanonicalObjectId(structure.linkedGateId),
     family: structure.family,
     typeLabel: structure.typeLabel,

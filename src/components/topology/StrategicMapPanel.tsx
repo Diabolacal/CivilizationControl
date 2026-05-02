@@ -195,7 +195,7 @@ function macroStructureTypeLabel(kind: HoverTarget["kind"]): string {
     case "gate":
       return "Gate";
     case "ssu":
-      return "Trade Post";
+      return "Storage";
     case "turret":
       return "Turret";
     case "node":

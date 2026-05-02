@@ -175,6 +175,34 @@ Known remaining visual review questions for human review:
 - whether the live dashboard node-local composition still feels balanced with real wallet-owned node data once a connected environment is available
 - whether gate-present live nodes still feel balanced once the composition-derived anchor replaces the old fixed corridor assumptions
 
+### Backend-membership source-selection correction - 2026-05-02
+
+Human wallet-connected review showed that the earlier canonical-identity merge still did not close the live preview defect. The remaining bug was architectural rather than cosmetic: `Node Control` still seeded rendered membership from live `NetworkNodeGroup` rows and only appended backend-only rows, so the UI could still show duplicate storage or turret display rows even after pairwise identity reconciliation.
+
+- `Node Control` now exposes explicit `sourceMode` values: `backend-membership`, `live-fallback`, `loading`, and `error-fallback`
+- when `GET /api/civilization-control/node-assemblies?networkNodeId=...` returns a non-empty success payload, backend rows now become the rendered attached-structure membership set for live `Node Control`
+- direct-chain discovery remains authoritative for owned-object proof, `OwnerCap` proof, macro-map membership, and future write eligibility, but in `backend-membership` mode those live rows are annotations only; they no longer render as competing display rows beside backend rows
+- each rendered backend-membership row can now carry chain-annotation fields such as `directChainObjectId`, `directChainAssemblyId`, `hasDirectChainAuthority`, `directChainMatchCount`, and `futureActionEligible`, while still staying read-only and non-actionable in this pass
+- empty backend results, loading, and backend errors now fail open to the current direct-chain live families via `live-fallback`, `loading`, or `error-fallback`, rather than widening macro state or inventing backend-only UI state
+- the browser-only debug seam behind `?debugNodeDrilldown=1` now exports `sourceMode`, `liveRows`, `rawBackendRows`, `renderedRows`, `usedLiveAuthorityAnnotations`, `authorityAnnotatedRows`, and `omittedBackendCount`; the older candidate-bucket snapshot is no longer the primary proof surface
+- the deterministic probe at `scripts/check-node-drilldown-reconciliation.mts` now proves the backend-membership rule directly: `4` storage rows and `2` turret rows render from backend membership while backend-only refinery, assembler, and printer rows remain read-only and no live display rows survive in that mode
+- player-facing terminology is now widened beyond node-local-only surfaces: sidebar navigation, storage list/detail screens, signal-feed copy, macro structure tooltips, runtime fallback names, and accessibility labels now use `Storage` or `Storages`; this supersedes the earlier narrower scope note that intentionally left those runtime shell surfaces on `TradePost` terminology
+- the `Node Key` layout now uses fixed icon and label cells so `Network Node` aligns with the other legend rows and `Storage` fits cleanly without the previous drift
+- refreshed preview evidence for this correction pass was captured on `https://dfc5eebe.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s-jtn6.civilizationcontrol.pages.dev`
+
+Current validation state for this correction pass:
+
+- local deterministic backend-membership probe passes
+- local root dashboard shell loads and now shows `Storages` in the sidebar plus `Storages` in the active-structures metric subtitle
+- local and served `/dev/node-drilldown-lab` both still load all eight scenarios, and the `Node Key` now shows an aligned `Network Node` row plus the updated `Storage` label
+- served preview root and served preview lab both load on the new unique preview URL
+- served preview bundle proof confirms `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` and `https://ef-map.com` are present, while `flappy-frontier-sponsor`, `ASSEMBLY_API_TOKEN`, `Authorization`, and `X-API-Key` are absent from the browser-loaded JS assets reviewed in this pass
+
+Still pending after this pass:
+
+- one real wallet-connected preview review to confirm the same live node now renders `4` storage rows and `2` turret rows instead of the earlier doubled counts
+- one real wallet-connected check that the widened `Storages` shell copy and aligned `Node Key` still feel correct against the live backend-membership payload
+
 ### Broader hydration and event freshness planning - 2026-05-02
 
 The accepted shell on `feat/node-drilldown-render-shell` is now the baseline for the next major slice.
