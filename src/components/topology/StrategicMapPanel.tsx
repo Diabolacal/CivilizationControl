@@ -18,7 +18,6 @@
  */
 
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
-import { Network } from "lucide-react";
 import type { NetworkNodeGroup, SpatialPin, Structure, SignalEvent } from "@/types/domain";
 import { usePostureState } from "@/hooks/usePosture";
 import { useMapViewTransform } from "@/hooks/useMapViewTransform";
@@ -27,6 +26,7 @@ import { getSolarSystemById, getSolarSystemCatalog } from "@/lib/solarSystemCata
 import { computeRuntimeMs, getFuelEfficiency } from "@/lib/fuelRuntime";
 import { PostureControl } from "@/components/PostureControl";
 import { NodeClusterSvg } from "@/components/topology/NodeCluster";
+import { TopologyPanelFade, TopologyPanelFrame } from "@/components/topology/TopologyPanelFrame";
 import { assignChildSlots } from "@/components/topology/topologyLayout";
 import type { ChildSlot, Posture } from "@/components/topology/topologyLayout";
 
@@ -404,36 +404,27 @@ export function StrategicMapPanel({
   );
 
   return (
-    <div className="w-full bg-[var(--card)] border border-border rounded overflow-hidden flex flex-col relative">
-      {/* Header */}
-      <div className="px-5 py-4 border-b border-border/50 flex items-center justify-between bg-muted/5 z-10 relative">
-        <div className="flex items-center gap-3">
-          <Network className="w-4 h-4 text-primary opacity-80" />
-          <div>
-            <h2 className="text-xs font-semibold tracking-wide text-foreground mb-0.5">
-              Strategic Network
-            </h2>
-            <p className="text-[11px] text-muted-foreground">
-              Infrastructure Posture &amp; Topology Control
-            </p>
-          </div>
-        </div>
+    <TopologyPanelFrame
+      title="Strategic Network"
+      subtitle="Infrastructure Posture & Topology Control"
+      bodyClassName="select-none"
+      headerAction={
         <div className="flex items-center">
           <PostureControl nodeGroups={nodeGroups} isConnected={isConnected} inline onTransitionChange={onPostureTransitionChange} />
         </div>
-      </div>
-
-      {/* Canvas (SVG + HTML overlay) — view-controlled */}
-      <div
-        ref={canvasRef}
-        className="relative bg-[var(--topo-background)] pb-3 select-none"
-        style={{ height: MAP_HEIGHT, cursor: locked ? "default" : isDragging ? "grabbing" : "grab" }}
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
-        onPointerUp={handlePointerUp}
-        onPointerLeave={handlePointerUp}
-        onContextMenu={(e) => e.preventDefault()}
-      >
+      }
+    >
+      <TopologyPanelFade>
+        <div
+          ref={canvasRef}
+          className="relative h-full"
+          style={{ cursor: locked ? "default" : isDragging ? "grabbing" : "grab" }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={handlePointerUp}
+          onPointerLeave={handlePointerUp}
+          onContextMenu={(e) => e.preventDefault()}
+        >
         {/* Grid background */}
         <div
           className="absolute inset-0 pointer-events-none"
@@ -639,8 +630,9 @@ export function StrategicMapPanel({
             </p>
           </div>
         )}
-      </div>
-    </div>
+        </div>
+      </TopologyPanelFade>
+    </TopologyPanelFrame>
   );
 }
 

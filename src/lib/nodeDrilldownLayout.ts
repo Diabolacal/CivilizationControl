@@ -1,6 +1,6 @@
 import { sortNodeLocalStructures } from "@/lib/nodeDrilldownModel";
 
-import type { NodeLocalBand, NodeLocalStructure, NodeLocalViewModel } from "./nodeDrilldownTypes";
+import type { NodeLocalFamily, NodeLocalSizeVariant, NodeLocalStructure, NodeLocalViewModel } from "./nodeDrilldownTypes";
 
 export interface NodeLocalLayoutItem {
   id: string;
@@ -9,28 +9,25 @@ export interface NodeLocalLayoutItem {
   iconSize: number;
 }
 
-export interface NodeLocalBandLabel {
-  id: NodeLocalBand;
-  label: string;
-  xPercent: number;
-  yPercent: number;
-}
-
 export interface NodeLocalLayoutResult {
   anchor: { xPercent: number; yPercent: number };
   structures: NodeLocalLayoutItem[];
-  labels: NodeLocalBandLabel[];
 }
 
 const ANCHOR = { xPercent: 38, yPercent: 52 };
+const CORRIDOR_START_X = 14;
+const LEFT_FRAME_START_X = 55.5;
+const DEFENSE_START_X = 77.5;
+const INDUSTRY_START_Y = 21;
+const LOGISTICS_MIN_Y = 53;
+const SUPPORT_MIN_Y = 77;
 
-const BAND_LABELS: NodeLocalBandLabel[] = [
-  { id: "corridor", label: "Corridor", xPercent: 14, yPercent: 14 },
-  { id: "industry", label: "Industry", xPercent: 60, yPercent: 12 },
-  { id: "logistics", label: "Logistics", xPercent: 56, yPercent: 52 },
-  { id: "support", label: "Support", xPercent: 52, yPercent: 74 },
-  { id: "defense", label: "Defense", xPercent: 82, yPercent: 12 },
-];
+function iconSizeForItem(item: NodeLocalStructure, baseIconSize: number): number {
+  if (item.family === "turret") return baseIconSize;
+  if (item.sizeVariant === "heavy") return baseIconSize + 2;
+  if (item.sizeVariant === "mini") return baseIconSize - 2;
+  return baseIconSize;
+}
 
 function gridPositions(
   items: NodeLocalStructure[],
@@ -40,25 +37,93 @@ function gridPositions(
     id: item.id,
     xPercent: config.startX + (index % config.columns) * config.stepX,
     yPercent: config.startY + Math.floor(index / config.columns) * config.stepY,
-    iconSize: item.family === "turret" ? config.iconSize : item.sizeVariant === "heavy" ? config.iconSize + 2 : item.sizeVariant === "mini" ? config.iconSize - 2 : config.iconSize,
+    iconSize: iconSizeForItem(item, config.iconSize),
   }));
 }
 
-function layoutDefenseBand(items: NodeLocalStructure[]): NodeLocalLayoutItem[] {
-  const columns = Math.min(7, Math.max(3, Math.ceil(items.length / 8)));
-  const iconSize = items.length >= 40 ? 18 : items.length >= 24 ? 20 : 22;
-  const stepX = items.length >= 40 ? 4 : 4.8;
-  const stepY = items.length >= 40 ? 7.2 : 8.4;
-  const width = (columns - 1) * stepX;
+function getDefenseConfig(count: number) {
+  if (count >= 42) {
+    return { columns: 6, stepX: 3.9, stepY: 6.5, iconSize: 18, startY: 20, bucketGap: 2.4 };
+  }
+  if (count >= 24) {
+    return { columns: 5, stepX: 4.4, stepY: 7.1, iconSize: 20, startY: 20, bucketGap: 2.6 };
+  }
+  if (count >= 12) {
+    return { columns: 4, stepX: 4.8, stepY: 8, iconSize: 21, startY: 21, bucketGap: 2.8 };
+  }
+  return { columns: 3, stepX: 5.2, stepY: 8.6, iconSize: 22, startY: 22, bucketGap: 3 };
+}
 
-  return gridPositions(items, {
-    startX: 82 - width / 2,
-    startY: 22,
-    columns,
-    stepX,
-    stepY,
-    iconSize,
-  });
+function createFamilyRows(
+  items: NodeLocalStructure[],
+  families: NodeLocalFamily[],
+  config: {
+    startX: number;
+    startY: number;
+    columns: number;
+    stepX: number;
+    stepY: number;
+    iconSize: number;
+    familyGap: number;
+  },
+): { items: NodeLocalLayoutItem[]; bottomY: number } {
+  const positioned: NodeLocalLayoutItem[] = [];
+  let cursorY = config.startY;
+
+  for (const family of families) {
+    const familyItems = items.filter((item) => item.family === family);
+    if (familyItems.length === 0) continue;
+
+    positioned.push(
+      ...gridPositions(familyItems, {
+        startX: config.startX,
+        startY: cursorY,
+        columns: config.columns,
+        stepX: config.stepX,
+        stepY: config.stepY,
+        iconSize: config.iconSize,
+      }),
+    );
+
+    cursorY += Math.ceil(familyItems.length / config.columns) * config.stepY + config.familyGap;
+  }
+
+  return { items: positioned, bottomY: cursorY };
+}
+
+function bucketBySize(items: NodeLocalStructure[]) {
+  const matches = (sizeVariant: NodeLocalSizeVariant) =>
+    items.filter((item) => {
+      if (sizeVariant === "standard") {
+        return item.sizeVariant == null || item.sizeVariant === "standard";
+      }
+      return item.sizeVariant === sizeVariant;
+    });
+
+  return [matches("mini"), matches("standard"), matches("heavy")].filter((bucket) => bucket.length > 0);
+}
+
+function layoutDefenseBand(items: NodeLocalStructure[]): NodeLocalLayoutItem[] {
+  const config = getDefenseConfig(items.length);
+  const positioned: NodeLocalLayoutItem[] = [];
+  let cursorY = config.startY;
+
+  for (const bucket of bucketBySize(items)) {
+    positioned.push(
+      ...gridPositions(bucket, {
+        startX: DEFENSE_START_X,
+        startY: cursorY,
+        columns: config.columns,
+        stepX: config.stepX,
+        stepY: config.stepY,
+        iconSize: config.iconSize,
+      }),
+    );
+
+    cursorY += Math.ceil(bucket.length / config.columns) * config.stepY + config.bucketGap;
+  }
+
+  return positioned;
 }
 
 export function layoutNodeDrilldown(viewModel: NodeLocalViewModel): NodeLocalLayoutResult {
@@ -69,14 +134,45 @@ export function layoutNodeDrilldown(viewModel: NodeLocalViewModel): NodeLocalLay
   const support = sorted.filter((structure) => structure.band === "support");
   const defense = sorted.filter((structure) => structure.band === "defense");
 
+  const industryRows = createFamilyRows(industry, ["printer", "refinery", "assembler"], {
+    startX: LEFT_FRAME_START_X,
+    startY: INDUSTRY_START_Y,
+    columns: 4,
+    stepX: 6.2,
+    stepY: 10.8,
+    iconSize: 22,
+    familyGap: 4.8,
+  });
+
+  const logisticsStartY = Math.max(LOGISTICS_MIN_Y, industryRows.bottomY);
+  const logisticsRows = createFamilyRows(logistics, ["tradePost", "berth"], {
+    startX: LEFT_FRAME_START_X,
+    startY: logisticsStartY,
+    columns: 4,
+    stepX: 6.2,
+    stepY: 10.4,
+    iconSize: 22,
+    familyGap: 4.6,
+  });
+
+  const supportStartY = Math.max(SUPPORT_MIN_Y, logisticsRows.bottomY);
+  const supportRows = createFamilyRows(support, ["relay", "nursery", "nest", "shelter"], {
+    startX: LEFT_FRAME_START_X,
+    startY: supportStartY,
+    columns: 4,
+    stepX: 5.8,
+    stepY: 9.2,
+    iconSize: 20,
+    familyGap: 3.8,
+  });
+
   return {
     anchor: ANCHOR,
-    labels: BAND_LABELS,
     structures: [
-      ...gridPositions(corridor, { startX: 14, startY: 26, columns: 2, stepX: 8, stepY: 13, iconSize: 22 }),
-      ...gridPositions(industry, { startX: 56, startY: 22, columns: 4, stepX: 6.4, stepY: 13, iconSize: 22 }),
-      ...gridPositions(logistics, { startX: 54, startY: 58, columns: 4, stepX: 6.4, stepY: 12, iconSize: 22 }),
-      ...gridPositions(support, { startX: 50, startY: 80, columns: 5, stepX: 5.4, stepY: 11, iconSize: 20 }),
+      ...gridPositions(corridor, { startX: CORRIDOR_START_X, startY: 28, columns: 2, stepX: 8.6, stepY: 12.2, iconSize: 22 }),
+      ...industryRows.items,
+      ...logisticsRows.items,
+      ...supportRows.items,
       ...layoutDefenseBand(defense),
     ],
   };

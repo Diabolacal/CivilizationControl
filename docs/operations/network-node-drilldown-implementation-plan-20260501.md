@@ -27,6 +27,16 @@ Still deferred in this first runtime slice:
 - drag persistence, hide or unhide persistence, and local label editing
 - broader live family hydration beyond the current `NetworkNodeGroup` shape
 
+### Refinement pass - 2026-05-02
+
+The same branch now includes a visual-only refinement pass that preserves the first-slice behavior while tightening the node-local shell and layout.
+
+- both `StrategicMapPanel` and `NodeDrilldownSurface` now share `TopologyPanelFrame`, which fixes the topology card to a shared `76px` header and `440px` body and applies a restrained `200ms` inner-content fade only
+- the node-local canvas no longer renders the warm radial glow layer, visible family-band labels, or the temporary bottom badge
+- the `family-bands-v1` packer now keeps industry, logistics, support, and dense defensive layouts on calmer aligned rails, including the high-count turret block
+- local browser validation re-confirmed all six synthetic scenarios, preserved selection sync and `Back to app`, and confirmed the dev lab still makes no wallet, Sui RPC, shared-backend, or sponsor resource calls
+- refreshed preview evidence was captured on `https://62259499.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+
 ## 2. Product intent
 
 The intended experience is a same-dashboard drilldown, not a hard jump to a second product surface.

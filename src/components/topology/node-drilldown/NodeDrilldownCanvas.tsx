@@ -24,26 +24,15 @@ export function NodeDrilldownCanvas({
   );
 
   return (
-    <div className="relative h-[440px] overflow-hidden bg-[var(--topo-background)]">
+    <div className="relative h-full overflow-hidden">
       <div
-        className="absolute inset-0 opacity-70"
+        className="pointer-events-none absolute inset-0"
         style={{
           backgroundImage:
             "linear-gradient(to right, var(--topo-grid) 1px, transparent 1px), linear-gradient(to bottom, var(--topo-grid) 1px, transparent 1px)",
           backgroundSize: "40px 40px",
         }}
       />
-      <div className="absolute inset-0 bg-[radial-gradient(circle_at_38%_52%,rgba(234,88,12,0.08),transparent_28%),radial-gradient(circle_at_82%_32%,rgba(245,158,11,0.08),transparent_24%)]" />
-
-      {layout.labels.map((label) => (
-        <div
-          key={label.id}
-          className="pointer-events-none absolute text-[10px] font-mono uppercase tracking-[0.24em] text-muted-foreground/45"
-          style={{ left: `${label.xPercent}%`, top: `${label.yPercent}%` }}
-        >
-          {label.label}
-        </div>
-      ))}
 
       <button
         type="button"
@@ -101,10 +90,6 @@ export function NodeDrilldownCanvas({
           </button>
         );
       })}
-
-      <div className="absolute bottom-3 left-4 rounded border border-border/60 bg-background/80 px-3 py-2 text-[10px] font-mono uppercase tracking-wide text-muted-foreground/70">
-        Family-bands-v1 • Read-only surface
-      </div>
     </div>
   );
 }
