@@ -114,6 +114,24 @@ The next runtime slice from the broader-hydration plan is now wired on the same 
 
 The intended live wallet smoke for this slice remains pending in this environment. The deployed preview exposes the wallet connector, but the browser session available to this agent could not establish a working wallet connection, so a real in-app node selection and browser-observed `node-assemblies` request could not be completed here.
 
+### Merge reconciliation and terminology follow-up - 2026-05-02
+
+The same branch now includes a focused correctness pass on top of the broader-hydration slice.
+
+- live and backend-observed node-local rows now reconcile through one canonical assembly identity strategy: normalized object ID first, normalized decimal assembly ID second, with the live row collecting observed enrichment across both aliases before anything backend-only is rendered
+- overlapping storage and turret rows now collapse into one authoritative live row in `Node Control`, so the UI no longer shows a live `Trade Post` or generic `Turret` beside a second backend-observed `Storage` or sized-turret variant for the same assembly
+- backend type or size truth now feeds the live row when the backend knows more than the direct-chain lane, which lets node-local storage and turret rows upgrade to player-facing labels such as `Mini Storage`, `Storage`, `Heavy Storage`, `Mini Turret`, or `Heavy Turret` without weakening direct-chain ownership or action eligibility
+- node-local player-facing terminology now standardizes on `Storage` only. This change is intentionally scoped to `Node Control`, the node-local list or inspector or tooltip copy derived from the node-local model, the `Node Key`, and the dev-only lab fixtures. Macro routes, sidebar labels, and dedicated `TradePosts` screens remain unchanged for this pass
+- observed-status normalization now treats case and separator variants consistently and explicitly keeps `Unknown` or `Unanchored` values neutral instead of inventing online or offline state
+- selected-node polling is still deferred. The current read model needed the identity and terminology pass first, and timed refetch would still risk avoidable row-order churn or backend-failure flapping before the reconciled live model is approved
+- refreshed preview evidence for this reconciliation pass was captured on `https://a9d9945f.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+
+Backend payload audit note for this pass:
+
+- the production browser-origin route itself was verified from preview and returned healthy `200` responses with `cache-control: public, max-age=60`
+- the locally accessible wallet-owned node IDs available to this agent returned empty `assemblies` arrays, so the exact non-empty assembler payload seen during human wallet-connected testing could not be re-captured in this environment
+- because of that, the assembler gray-state root cause could not be proven as stale backend data versus an unmapped live literal from a non-empty payload; this pass therefore fixes the clear frontend normalization gap and leaves any remaining stale-data question to the follow-on wallet-connected review
+
 Known remaining visual review questions for human review:
 
 - whether the live dashboard node-local composition still feels balanced with real wallet-owned node data once a connected environment is available

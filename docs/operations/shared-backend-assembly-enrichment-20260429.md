@@ -25,6 +25,18 @@ CivilizationControl now also consumes a second production shared-backend route f
 
 This sibling node-local route does not replace the exact-ID `assemblies?ids=` enrichment path documented below. The exact-ID route still handles additive metadata for already-known structures, while the node-local route handles selected-node broader discovery for read-only display only.
 
+## Reconciliation update - 2026-05-02
+
+The first follow-up to the node-local route corrected how CivilizationControl consumes overlapping live and backend-observed rows.
+
+- overlapping live and backend-observed rows now reconcile by normalized object-ID and decimal assembly-ID aliases before the node-local model renders them
+- the direct-chain live lane stays authoritative for ownership, write eligibility, action eligibility, and wallet truth
+- the backend lane may enrich the live row with better type labels, size labels, observed status when direct-chain is neutral, `lastUpdated`, `fetchedAt`, `fuelAmount`, `source`, and `provenance`
+- backend-only rows remain read-only node-local observations and still do not widen macro topology or write behavior
+- node-local player-facing terminology now standardizes storage-family display to `Storage` in `Node Control` and the lab or legend surfaces only; this doc does not widen that rename into macro routes or dedicated `TradePosts` screens
+- selected-node polling was intentionally deferred in this pass, because the current node-local ordering still needs live human review before interval refetch can be added without visible churn
+- browser-origin inspection from preview confirmed healthy `200` responses from the node-local route and a `cache-control: public, max-age=60` policy, but the accessible wallet-owned nodes in this environment returned empty `assemblies` arrays, so the non-empty assembler payload from human preview testing could not be re-captured here
+
 ## Endpoint contract consumed
 
 - base URL default: `https://ef-map.com`

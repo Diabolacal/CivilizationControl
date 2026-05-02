@@ -39,7 +39,7 @@ const BAND_BY_FAMILY: Record<Exclude<NodeLocalFamily, "networkNode">, NodeLocalB
 const FAMILY_LABELS: Record<NodeLocalFamily, string> = {
   networkNode: "Network Node",
   gate: "Gate",
-  tradePost: "Trade Post",
+  tradePost: "Storage",
   turret: "Turret",
   printer: "Printer",
   refinery: "Refinery",
@@ -69,7 +69,7 @@ const ICON_FAMILY_MAP: Record<NodeLocalFamily, NodeLocalIconFamily> = {
 const DEFAULT_TYPE_LABELS: Record<NodeLocalFamily, string> = {
   networkNode: "Network Node",
   gate: "Gate",
-  tradePost: "Trade Post",
+  tradePost: "Storage",
   turret: "Turret",
   printer: "Printer",
   refinery: "Refinery",
@@ -123,6 +123,28 @@ const SIZE_ORDER: Record<Exclude<NodeLocalSizeVariant, null>, number> = {
   heavy: 2,
 };
 
+type ObservedAssembly = NodeAssembliesLookupResult["assemblies"][number];
+
+interface ObservedAssemblyIndex {
+  byCanonicalKey: Map<string, ObservedAssembly>;
+  aliasToCanonicalKey: Map<string, string>;
+}
+
+const GENERIC_DISPLAY_NAME_ALIASES: Partial<Record<NodeLocalFamily, string[]>> = {
+  networkNode: ["network node"],
+  gate: ["gate"],
+  tradePost: ["trade post", "storage", "storage unit"],
+  turret: ["turret"],
+  printer: ["printer"],
+  refinery: ["refinery"],
+  assembler: ["assembler"],
+  berth: ["berth"],
+  relay: ["relay"],
+  nursery: ["nursery"],
+  nest: ["nest"],
+  shelter: ["shelter"],
+};
+
 function statusToTone(status: StructureStatus): NodeLocalTone {
   switch (status) {
     case "online":
@@ -166,19 +188,224 @@ function deriveSizeVariant(typeLabel?: string | null): NodeLocalSizeVariant {
   return null;
 }
 
+function normalizeAssemblyId(value: string | null | undefined): string | null {
+  if (typeof value !== "string") return null;
+
+  const trimmed = value.trim();
+  if (trimmed.length === 0) return null;
+
+  if (!/^\d+$/.test(trimmed)) {
+    return trimmed;
+  }
+
+  try {
+    return BigInt(trimmed).toString();
+  } catch {
+    return trimmed;
+  }
+}
+
+function createAssemblyIdentityAliases(identity: {
+  objectId?: string | null;
+  assemblyId?: string | null;
+}): string[] {
+  const aliases: string[] = [];
+  const canonicalObjectId = normalizeCanonicalObjectId(identity.objectId);
+  const normalizedAssemblyId = normalizeAssemblyId(identity.assemblyId);
+
+  if (canonicalObjectId) {
+    aliases.push(`object:${canonicalObjectId}`);
+  }
+
+  if (normalizedAssemblyId) {
+    aliases.push(`assembly:${normalizedAssemblyId}`);
+  }
+
+  return aliases;
+}
+
+function selectCanonicalAssemblyKey(
+  identity: { objectId?: string | null; assemblyId?: string | null },
+  fallbackAliases: Iterable<string> = [],
+): string | null {
+  const preferredAliases = createAssemblyIdentityAliases(identity);
+  if (preferredAliases.length > 0) {
+    return preferredAliases[0];
+  }
+
+  for (const alias of fallbackAliases) {
+    return alias;
+  }
+
+  return null;
+}
+
+function mergeObservedAssemblyEntry(
+  current: ObservedAssembly,
+  next: ObservedAssembly,
+): ObservedAssembly {
+  return {
+    objectId: next.objectId ?? current.objectId,
+    assemblyId: next.assemblyId ?? current.assemblyId,
+    linkedGateId: next.linkedGateId ?? current.linkedGateId,
+    assemblyType: next.assemblyType ?? current.assemblyType,
+    typeId: next.typeId ?? current.typeId,
+    name: next.name ?? current.name,
+    status: next.status ?? current.status,
+    fuelAmount: next.fuelAmount ?? current.fuelAmount,
+    solarSystemId: next.solarSystemId ?? current.solarSystemId,
+    energySourceId: next.energySourceId ?? current.energySourceId,
+    url: next.url ?? current.url,
+    lastUpdated: next.lastUpdated ?? current.lastUpdated,
+    typeName: next.typeName ?? current.typeName,
+    source: next.source ?? current.source,
+    provenance: next.provenance ?? current.provenance,
+  };
+}
+
+function createObservedAssemblyIndex(
+  observedEntries: ObservedAssembly[],
+): ObservedAssemblyIndex {
+  const byCanonicalKey = new Map<string, ObservedAssembly>();
+  const aliasToCanonicalKey = new Map<string, string>();
+
+  for (const observed of observedEntries) {
+    const entryAliases = createAssemblyIdentityAliases(observed);
+    if (entryAliases.length === 0) continue;
+
+    const matchedCanonicalKeys = [...new Set(
+      entryAliases
+        .map((alias) => aliasToCanonicalKey.get(alias))
+        .filter((alias): alias is string => alias != null),
+    )];
+
+    let mergedEntry = observed;
+    const mergedAliases = new Set(entryAliases);
+
+    for (const canonicalKey of matchedCanonicalKeys) {
+      const existingEntry = byCanonicalKey.get(canonicalKey);
+      if (!existingEntry) continue;
+
+      mergedEntry = mergeObservedAssemblyEntry(existingEntry, mergedEntry);
+      for (const alias of createAssemblyIdentityAliases(existingEntry)) {
+        mergedAliases.add(alias);
+      }
+      byCanonicalKey.delete(canonicalKey);
+    }
+
+    for (const alias of createAssemblyIdentityAliases(mergedEntry)) {
+      mergedAliases.add(alias);
+    }
+
+    const canonicalKey = selectCanonicalAssemblyKey(mergedEntry, mergedAliases);
+    if (!canonicalKey) continue;
+
+    byCanonicalKey.set(canonicalKey, mergedEntry);
+    for (const alias of mergedAliases) {
+      aliasToCanonicalKey.set(alias, canonicalKey);
+    }
+  }
+
+  return { byCanonicalKey, aliasToCanonicalKey };
+}
+
+function findObservedAssembly(
+  observedIndex: ObservedAssemblyIndex,
+  identity: { objectId?: string | null; assemblyId?: string | null },
+): ObservedAssembly | undefined {
+  let mergedEntry: ObservedAssembly | undefined;
+  const seenCanonicalKeys = new Set<string>();
+
+  for (const alias of createAssemblyIdentityAliases(identity)) {
+    const canonicalKey = observedIndex.aliasToCanonicalKey.get(alias);
+    if (!canonicalKey || seenCanonicalKeys.has(canonicalKey)) continue;
+
+    seenCanonicalKeys.add(canonicalKey);
+
+    const entry = observedIndex.byCanonicalKey.get(canonicalKey);
+    if (entry) {
+      mergedEntry = mergedEntry
+        ? mergeObservedAssemblyEntry(mergedEntry, entry)
+        : entry;
+    }
+  }
+
+  return mergedEntry;
+}
+
 function cleanStructureName(structure: Structure): string {
   const enrichedName = structure.summary?.name?.trim();
   if (enrichedName) return enrichedName;
   return structure.name.replace(/\s+[0-9a-f]{8}$/i, "").trim() || DEFAULT_TYPE_LABELS[LIVE_FAMILY_MAP[structure.type]];
 }
 
-function cleanObservedName(
-  structure: Structure,
-  observed?: { name: string | null },
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function buildIdentitySuffix(
+  objectId?: string | null,
+  assemblyId?: string | null,
+): string | null {
+  const source = normalizeCanonicalObjectId(objectId) ?? normalizeAssemblyId(assemblyId);
+  if (!source) return null;
+
+  const trimmed = source.replace(/^0x/, "");
+  return trimmed.length > 8 ? trimmed.slice(0, 8) : trimmed;
+}
+
+function getGenericDisplayNameAliases(family: NodeLocalFamily): string[] {
+  return [...new Set([
+    ...(GENERIC_DISPLAY_NAME_ALIASES[family] ?? []),
+    FAMILY_LABELS[family],
+    DEFAULT_TYPE_LABELS[family],
+    ...Object.values(DEFAULT_CATALOG_NAMES[family] ?? {}).filter((value): value is string => typeof value === "string"),
+  ])];
+}
+
+function normalizeNodeLocalDisplayName(
+  rawName: string | null | undefined,
+  family: NodeLocalFamily,
+  typeLabel: string,
+  objectId?: string | null,
+  assemblyId?: string | null,
 ): string {
-  const observedName = observed?.name?.trim();
-  if (observedName) return observedName;
-  return cleanStructureName(structure);
+  const trimmed = rawName?.trim() ?? null;
+  const fallbackSuffix = buildIdentitySuffix(objectId, assemblyId);
+
+  if (!trimmed) {
+    return fallbackSuffix ? `${typeLabel} ${fallbackSuffix}` : typeLabel;
+  }
+
+  for (const alias of getGenericDisplayNameAliases(family)) {
+    const match = trimmed.match(new RegExp(`^${escapeRegExp(alias)}(?:\\s+([0-9a-f]{8}))?$`, "i"));
+    if (!match) continue;
+
+    return match[1] ? `${typeLabel} ${match[1]}` : typeLabel;
+  }
+
+  return trimmed;
+}
+
+function resolveLiveDisplayName(
+  structure: Structure,
+  family: NodeLocalFamily,
+  typeLabel: string,
+  observed?: Pick<ObservedAssembly, "name">,
+): string {
+  const candidateName = observed?.name?.trim() || cleanStructureName(structure);
+  return normalizeNodeLocalDisplayName(candidateName, family, typeLabel, structure.objectId, structure.assemblyId);
+}
+
+function mergeLiveStructureStatus(
+  liveStatus: StructureStatus,
+  observedStatus: string | null | undefined,
+): StructureStatus {
+  if (liveStatus !== "neutral") {
+    return liveStatus;
+  }
+
+  return normalizeObservedStatus(observedStatus ?? null);
 }
 
 function resolveTypeLabel(
@@ -316,58 +543,61 @@ export function buildLiveNodeLocalViewModelWithObserved(
   observedLookup?: NodeAssembliesLookupResult | null,
 ): NodeLocalViewModel {
   const observedEntries = observedLookup?.status === "success" ? observedLookup.assemblies : [];
-  const observedByKey = new Map<string, (typeof observedEntries)[number]>();
-
-  for (const observed of observedEntries) {
-    if (observed.objectId) {
-      observedByKey.set(`object:${observed.objectId}`, observed);
-    }
-    if (observed.assemblyId) {
-      observedByKey.set(`assembly:${observed.assemblyId}`, observed);
-    }
-  }
+  const observedIndex = createObservedAssemblyIndex(observedEntries);
 
   const liveStructures = [...group.gates, ...group.storageUnits, ...group.turrets];
+  const liveIdentityAliases = new Set(
+    liveStructures.flatMap((structure) =>
+      createAssemblyIdentityAliases({ objectId: structure.objectId, assemblyId: structure.assemblyId }),
+    ),
+  );
   const structures = sortNodeLocalStructures(
     [
       ...liveStructures.map((structure) => {
-        const observed =
-          observedByKey.get(`object:${normalizeCanonicalObjectId(structure.objectId) ?? structure.objectId}`) ??
-          (structure.assemblyId ? observedByKey.get(`assembly:${structure.assemblyId}`) : undefined);
-      const family = LIVE_FAMILY_MAP[structure.type];
-      const typeLabel = observed?.typeName ?? structure.summary?.typeName ?? DEFAULT_TYPE_LABELS[family];
-      const sizeVariant = deriveSizeVariant(typeLabel);
-      const needsExtensionWarning =
-        (structure.type === "gate" || structure.type === "turret") &&
-        structure.extensionStatus !== "authorized";
+        const observed = findObservedAssembly(observedIndex, {
+          objectId: structure.objectId,
+          assemblyId: structure.assemblyId,
+        });
+        const family = LIVE_FAMILY_MAP[structure.type];
+        const resolvedType = resolveTypeLabel(
+          family,
+          observed?.typeName ?? structure.summary?.typeName ?? null,
+          observed?.typeId ?? structure.summary?.typeId,
+          null,
+        );
+        const sizeVariant = deriveSizeVariant(resolvedType.typeLabel);
+        const status = mergeLiveStructureStatus(structure.status, observed?.status);
+        const needsExtensionWarning =
+          (structure.type === "gate" || structure.type === "turret") &&
+          structure.extensionStatus !== "authorized";
 
-      return createNodeLocalStructure({
-        id: structure.objectId,
-        objectId: structure.objectId,
-        assemblyId: structure.assemblyId,
-        linkedGateId: structure.linkedGateId ?? observed?.linkedGateId ?? undefined,
-        displayName: cleanObservedName(structure, observed),
-        family,
-        sizeVariant,
-        status: structure.status,
-        source: "live",
-        extensionStatus: structure.extensionStatus,
-        typeLabel,
-        typeId: observed?.typeId ?? structure.summary?.typeId,
-        warningPip: structure.status === "warning" || needsExtensionWarning,
-        backendSource: observed?.source ?? observedLookup?.source ?? null,
-        fetchedAt: observedLookup?.fetchedAt,
-        lastUpdated: observed?.lastUpdated,
-        provenance: observed?.provenance ?? null,
-        url: observed?.url ?? structure.summary?.url ?? null,
-        solarSystemId: observed?.solarSystemId ?? structure.summary?.solarSystemId ?? null,
-        energySourceId: observed?.energySourceId ?? structure.summary?.energySourceId ?? null,
-        fuelAmount: observed?.fuelAmount ?? structure.summary?.fuelAmount ?? null,
-        isReadOnly: false,
-        isActionable: true,
-      });
+        return createNodeLocalStructure({
+          id: structure.objectId,
+          objectId: structure.objectId,
+          assemblyId: normalizeAssemblyId(structure.assemblyId) ?? undefined,
+          linkedGateId: structure.linkedGateId ?? observed?.linkedGateId ?? undefined,
+          displayName: resolveLiveDisplayName(structure, family, resolvedType.typeLabel, observed),
+          family,
+          sizeVariant,
+          status,
+          source: "live",
+          extensionStatus: structure.extensionStatus,
+          typeLabel: resolvedType.typeLabel,
+          typeId: resolvedType.typeId,
+          warningPip: status === "warning" || needsExtensionWarning,
+          backendSource: observed?.source ?? observedLookup?.source ?? null,
+          fetchedAt: observedLookup?.fetchedAt,
+          lastUpdated: observed?.lastUpdated,
+          provenance: observed?.provenance ?? null,
+          url: observed?.url ?? structure.summary?.url ?? null,
+          solarSystemId: observed?.solarSystemId ?? structure.summary?.solarSystemId ?? null,
+          energySourceId: observed?.energySourceId ?? structure.summary?.energySourceId ?? null,
+          fuelAmount: observed?.fuelAmount ?? structure.summary?.fuelAmount ?? null,
+          isReadOnly: false,
+          isActionable: true,
+        });
       }),
-      ...buildBackendObservedStructures(liveStructures, observedEntries, observedLookup),
+      ...buildBackendObservedStructures(liveIdentityAliases, observedIndex, observedLookup),
     ],
   );
 
@@ -405,23 +635,13 @@ export function buildLiveNodeLocalViewModelWithObserved(
 }
 
 function buildBackendObservedStructures(
-  liveStructures: Structure[],
-  observedEntries: NonNullable<NodeAssembliesLookupResult>["assemblies"],
+  liveIdentityAliases: ReadonlySet<string>,
+  observedIndex: ObservedAssemblyIndex,
   observedLookup?: NodeAssembliesLookupResult | null,
 ): NodeLocalStructure[] {
-  const liveObjectIds = new Set(
-    liveStructures
-      .map((structure) => normalizeCanonicalObjectId(structure.objectId))
-      .filter((value): value is string => value != null),
-  );
-  const liveAssemblyIds = new Set(
-    liveStructures
-      .map((structure) => structure.assemblyId)
-      .filter((value): value is string => value != null),
-  );
-
-  return observedEntries.flatMap((observed) => {
-    if ((observed.objectId && liveObjectIds.has(observed.objectId)) || (observed.assemblyId && liveAssemblyIds.has(observed.assemblyId))) {
+  return [...observedIndex.byCanonicalKey.values()].flatMap((observed) => {
+    const observedAliases = createAssemblyIdentityAliases(observed);
+    if (observedAliases.some((alias) => liveIdentityAliases.has(alias))) {
       return [];
     }
 
@@ -430,24 +650,35 @@ function buildBackendObservedStructures(
       return [];
     }
 
-    const typeLabel = observed.typeName ?? resolveObservedTypeLabel(family, observed.typeId);
-    const sizeVariant = deriveSizeVariant(typeLabel ?? undefined) ?? "standard";
-    const displayName = normalizeObservedDisplayName(observed, family, typeLabel, observed.objectId, observed.assemblyId);
+    const resolvedType = resolveTypeLabel(
+      family,
+      observed.typeName ?? resolveObservedTypeLabel(family, observed.typeId),
+      observed.typeId ?? undefined,
+      null,
+    );
+    const sizeVariant = deriveSizeVariant(resolvedType.typeLabel) ?? "standard";
+    const displayName = normalizeNodeLocalDisplayName(
+      observed.name,
+      family,
+      resolvedType.typeLabel,
+      observed.objectId,
+      observed.assemblyId,
+    );
     const status = normalizeObservedStatus(observed.status);
     const id = observed.objectId ?? `assembly:${observed.assemblyId}`;
 
     return createNodeLocalStructure({
       id,
       objectId: observed.objectId ?? undefined,
-      assemblyId: observed.assemblyId ?? undefined,
+      assemblyId: normalizeAssemblyId(observed.assemblyId) ?? undefined,
       linkedGateId: observed.linkedGateId ?? undefined,
       displayName,
       family,
       sizeVariant,
       status,
       source: "backendObserved",
-      typeLabel,
-      typeId: observed.typeId ?? undefined,
+      typeLabel: resolvedType.typeLabel,
+      typeId: resolvedType.typeId,
       warningPip: status === "warning",
       backendSource: observed.source ?? observedLookup?.source ?? null,
       fetchedAt: observedLookup?.fetchedAt,
@@ -501,31 +732,11 @@ function resolveObservedTypeLabel(family: NodeLocalFamily, typeId: number | null
   return DEFAULT_TYPE_LABELS[family];
 }
 
-function normalizeObservedDisplayName(
-  observed: { name: string | null },
-  family: NodeLocalFamily,
-  typeLabel: string | null,
-  objectId: string | null,
-  assemblyId: string | null,
-): string {
-  const explicitName = observed.name?.trim();
-  if (explicitName) return explicitName;
-
-  const suffixSource = objectId ?? assemblyId;
-  if (suffixSource) {
-    const trimmed = suffixSource.replace(/^0x/, "");
-    const suffix = trimmed.length > 8 ? trimmed.slice(0, 8) : trimmed;
-    return `${typeLabel ?? DEFAULT_TYPE_LABELS[family]} ${suffix}`;
-  }
-
-  return typeLabel ?? DEFAULT_TYPE_LABELS[family];
-}
-
 function normalizeObservedStatus(status: string | null): StructureStatus {
-  const normalized = status?.trim().toLowerCase();
-  if (!normalized) return "neutral";
+  const normalized = status?.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (!normalized || ["unknown", "null"].includes(normalized)) return "neutral";
 
-  if (["online", "active", "powered", "running"].includes(normalized)) {
+  if (["online", "active", "powered", "running", "onlined"].includes(normalized)) {
     return "online";
   }
 
@@ -533,8 +744,12 @@ function normalizeObservedStatus(status: string | null): StructureStatus {
     return "offline";
   }
 
-  if (["warning", "degraded", "low_fuel", "damaged"].includes(normalized)) {
+  if (["warning", "degraded", "low_fuel", "lowfuel", "damaged"].includes(normalized)) {
     return "warning";
+  }
+
+  if (["unanchored"].includes(normalized)) {
+    return "neutral";
   }
 
   return "neutral";

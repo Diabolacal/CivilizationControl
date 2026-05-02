@@ -5,7 +5,7 @@ import { NodeDrilldownOverlayPanel } from "./NodeDrilldownOverlayPanel";
 const LEGEND_ITEMS = [
   { family: "networkNode", label: "Network Node" },
   { family: "gate", label: "Gate" },
-  { family: "tradePost", label: "Storage / Trade Post" },
+  { family: "tradePost", label: "Storage" },
   { family: "turret", label: "Turret" },
   { family: "printer", label: "Printer" },
   { family: "refinery", label: "Refinery" },
