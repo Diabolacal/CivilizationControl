@@ -1,6 +1,14 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-02 – Plan node control action authority
+- Goal: Update the `Node Control` implementation plan after the accepted UI baseline so the next phase clearly separates backend display membership from direct-chain action authority, captures stale or unanchored handling, and makes local hide or unhide the next safe control without changing runtime code, Move, sponsor, shared-backend, vendors, or deploy state.
+- Files: `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md`, `docs/decision-log.md`
+- Diff: docs-only planning refresh, historical-pointer note, and authoritative next-slice sequencing
+- Risk: low — planning/docs only, no runtime/package/deploy/vendor/submodule changes
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: marked the current `Node Control` UI/icon/key/layout/tooltip/shell-transition baseline as accepted; recorded the implementation plan as the authoritative Node Control document and the older posture plan as icon-taxonomy history only; documented that backend membership now defines what appears in `Node Control` when non-empty while direct-chain reads, `OwnerCaps`, and existing action helpers remain the only action authority; captured the rule that backend-only rows are not action-verified yet rather than permanently impossible; documented honest handling for unanchored or stale structures plus local hide or unhide without global suppression; moved the next implementation slice to local hide or unhide plus a compact context-menu skeleton; concluded that per-row online or offline should follow one slice later after explicit authority resolution; and kept on-chain rename deferred despite the underlying world methods because the shipped app does not yet expose a proven rename flow.
+- Follow-ups: implement local hide or unhide plus compact node-local context-menu skeleton on `feat/node-drilldown-render-shell`, then add row-level action-authority resolution before exposing supported per-row online or offline controls.
 ## 2026-05-02 – Rebalance node key right padding
 - Goal: Add a small amount of right-side breathing room back to the shrink-wrapped `Node Key` without reverting to the older fixed-width shell, while preserving the accepted backend-membership behavior, route-transition behavior, Node Control behavior, terminology, sponsorship wiring, package IDs, Move code, vendor state, and production deploy state.
 - Files: `src/components/topology/node-drilldown/NodeDrilldownLegend.tsx`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`

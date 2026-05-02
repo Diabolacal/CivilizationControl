@@ -27,6 +27,20 @@ Still deferred in this first runtime slice:
 - drag persistence, hide or unhide persistence, and local label editing
 - broader live family hydration beyond the current `NetworkNodeGroup` shape
 
+### Accepted UI baseline and next action-planning phase - 2026-05-02
+
+The current `feat/node-drilldown-render-shell` baseline is now accepted for follow-on `Node Control` work.
+
+- the same-dashboard `Node Control` shell, accepted topology footprint, accepted `Attached Structures` plus `Selection Inspector` split, accepted icon sizing, accepted `Node Key`, accepted tooltip behavior, accepted shell chrome, and accepted route or topology transition polish are the baseline and should not be re-opened during the first action-capable slice
+- `docs/operations/network-node-drilldown-implementation-plan-20260501.md` is now the authoritative planning document for `Node Control`; `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md` remains a historical reference for icon taxonomy, badge doctrine, and early rationale only
+- backend membership now defines which attached structures appear inside live `Node Control` whenever the selected-node `node-assemblies` payload returns a non-empty success result
+- direct-chain reads, `OwnerCap` proof, the supported-family matrix, and existing frontend action helpers remain the only action authority; a backend row must not become actionable just because it appears in backend membership
+- backend-only should be read as `not action-verified yet`, not as `forever impossible`; once the connected wallet can re-prove a unique supported structure through direct-chain data, that row may later expose supported online or offline control
+- local hide or unhide is now the first safe post-baseline control because it is UI-only, useful even for stale or awkward rows, and does not change chain truth
+- the recommended next implementation slice after this planning pass is local hide or unhide plus a compact node-local context-menu skeleton, with power-action slots still absent or clearly unavailable until explicit action-authority resolution is landed
+- per-row online or offline control should follow one slice later, after row-to-chain authority resolution is explicit in the node-local model and the list or inspector can distinguish verified supported rows from backend-only or ambiguous rows
+- on-chain rename remains deferred even though world modules expose metadata-name updates; the shipped web app does not yet have a proven rename execution path, so any future local label editing must stay separate from on-chain rename
+
 ### Refinement pass - 2026-05-02
 
 The same branch now includes a visual-only refinement pass that preserves the first-slice behavior while tightening the node-local shell and layout.
@@ -262,8 +276,10 @@ Still pending after this pass:
 
 The accepted shell on `feat/node-drilldown-render-shell` is now the baseline for the next major slice.
 
+This subsection is historical context from the earlier planning pass that immediately preceded the accepted broader-hydration implementation later documented in this file.
+
 - the same-dashboard `Node Control` entry and exit, stable topology footprint, accepted lower-panel framing, accepted `Node Key` and tooltip behavior, accepted icon sizing, and the dev-only lab remain in place
-- current live limitation: `Node Control` still renders only the current `NetworkNodeGroup` families, so a real wallet-owned node can show only `gates`, `storageUnits`, and `turrets` around the selected `network_node`
+- at the time of this planning pass, `Node Control` still rendered only the current `NetworkNodeGroup` families, so a real wallet-owned node could show only `gates`, `storageUnits`, and `turrets` around the selected `network_node`
 - the richer family vocabulary already exists in the normalized node-local renderer, but it is synthetic-only today; live `buildLiveNodeLocalViewModel()` never receives printers, refineries, assemblers, berths, relays, nursery or nest, shelters, or other future node-local families
 - the target for the next pass is richer node-connected visibility inside `Node Control` only; macro `Strategic Network` must stay limited to network nodes, gates, trade posts or storage units, and turrets
 
@@ -343,17 +359,43 @@ This is a planning requirement for the first implementation branch because real 
 ### Read-path and authority boundaries
 
 - `src/lib/suiReader.ts` remains the direct-chain authority for ownership, structure identity, node linkage, OwnerCap discovery, fuel state, and write eligibility.
-- `src/hooks/useAssemblySummaryEnrichment.ts` and `src/lib/assemblyEnrichment.ts` remain additive only. Shared-backend summaries are useful for optional display enrichment but must not become authoritative for drilldown membership, action availability, or writes.
-- The existing shared-backend contract at `https://ef-map.com/api/civilization-control/assemblies` is request-by-known-ID, browser-safe, and fail-open. That should remain unchanged.
-- That existing `assemblies?ids=` route is not sufficient for true node-connected discovery because it cannot query by network node, energy source, owner, character, or wallet.
-- Any future backend-discovered node members must stay node-local, read-only, and explicitly non-authoritative until direct-chain ownership or capability can re-prove them.
+- the browser-safe selected-node `node-assemblies` route now defines rendered node-local membership when it returns a non-empty success payload, but only for display membership inside `Node Control`
+- `src/hooks/useAssemblySummaryEnrichment.ts`, `src/lib/assemblyEnrichment.ts`, and the newer selected-node `node-assemblies` client remain additive shared-backend surfaces. They can enrich names, type metadata, observed status, freshness, and node-local membership display, but they must fail open and must not grant `OwnerCap` proof or write eligibility.
+- the existing `assemblies?ids=` route remains request-by-known-ID and browser-safe; the selected-node `node-assemblies` route widens node-local display membership only
+- direct-chain reads still decide whether a row is owned, uniquely resolved, supported by a known transaction builder, and safe to act on
+- any backend-discovered node members must stay node-local, read-only, and explicitly non-authoritative until direct-chain ownership or capability can re-prove them
 - Event freshness is a separate contract question: current EF-Map realtime surfaces are global and unfiltered, so the near-term drilldown plan assumes polling or targeted invalidation first.
+
+### Action authority model
+
+- `Node Control` now has two truths that must stay separate: backend membership determines what appears in the node-local map and main attached-structure list when it is available, while direct-chain data determines what the connected wallet can actually control
+- the frontend should resolve action authority separately from rendered membership by joining each rendered row back to a unique live structure, supported family, `ownerCapId`, and any required node linkage
+- the first later actionable state exposed by the UI should be `verified and supported`, not merely `present in backend membership`
+- rows that cannot be re-proven through direct-chain data remain read-only or `Action unavailable`
+- hide or unhide is exempt from this rule because it is local UI state and may apply to any rendered row, including backend-only rows
+
+### Backend membership vs action authority
+
+- when backend membership is non-empty, it defines the main attached-structure membership set for the node-local map and list
+- direct-chain annotations such as `directChainObjectId`, `directChainAssemblyId`, `directChainMatchCount`, `hasDirectChainAuthority`, and later verification state should explain whether a rendered row can support future actions
+- a backend row may later become actionable only when the wallet can resolve exactly one supported direct-chain match with the required `OwnerCap` and any required linked-network-node context
+- backend refresh must not create write authority by itself, clear local hide state, or silently change unavailable rows into actionable ones without a matching direct-chain resolution step
+- the list and inspector are the primary surfaces for power controls and unavailable-state explanation; the context menu is a shortcut only
+
+### Unanchored/stale chain-state handling
+
+- CivilizationControl should show the structure honestly when chain or backend state still shows it, even if the in-game client appears to have partially dismantled, unanchored, or stranded it
+- `Unanchored`, `Unknown`, stale, or awkward observation states should render as real node-local status or warning context rather than being collapsed into a fake delete
+- local `Hide from Node View` is the safe escape hatch for stale or unwanted rows: it removes the structure from the node-local SVG only, keeps it visible in `Attached Structures`, and allows later unhide
+- if the wallet can still prove direct-chain authority and the structure family supports a known power path, later online or offline control may remain valid even for unanchored or stale rows
+- `Node Control` should not globally suppress, delete, or invent chain truth for these rows; it should separate honest observation from local operator preference
 
 ### Existing write surfaces
 
 - `src/components/PostureControl.tsx` and the posture hooks are fleet-scoped and gate-led today. They are not the right model for node-local presets.
 - `src/hooks/useStructurePower.ts` and `src/lib/structurePowerTx.ts` already provide structure-level power actions for supported current families.
 - `src/screens/NetworkNodeDetailScreen.tsx` already exposes node online, while node offline remains explicitly unsupported.
+- world modules expose metadata-name updates for gates, storage units, turrets, and network nodes, but the shipped frontend does not currently expose or validate a rename execution flow; treat rename as a separate later capability, not part of the next slice.
 
 ### Icon catalogue state
 
@@ -453,7 +495,12 @@ This same-dashboard swap is also an important validation aid. A node-local SVG w
 - clicking a structure row selects the same structure
 - selected icon and selected row use the same single source of truth
 - selection highlight uses the existing orange or halo doctrine and remains calm
+- click or focus is the primary select behavior and should stay implicit rather than consuming menu space
 - right-click should be compact and secondary, not the primary interaction model
+- the next-slice context menu should ship only `Hide from Node View` for visible rows
+- `Unhide` should live in the list and inspector for hidden rows rather than in the canvas menu
+- later `Bring Online` or `Take Offline` entries may appear only for verified supported rows and should call the same action surface as the list or inspector
+- `Rename` should stay absent until rename semantics are resolved separately from local labels
 
 ## 5. Node-local map layout
 
@@ -584,22 +631,27 @@ This preserves dashboard rhythm while changing the content meaningfully.
 
 The structure list should plan for one row per structure with these columns or data cells:
 
-- visibility toggle later
+- hide or hidden-state control
 - structure icon
-- display name or local label
+- display name or future local label
 - structure family or type
 - size badge or size text where relevant
 - online or offline status where available
 - optional relationship note, for example linked gate destination later
-- action cell reserved for future safe actions
+- authority or visibility state
+- primary action cell used by verified safe actions or explicit unavailable copy
 
-For the first implementation branch:
+For the accepted UI baseline:
 
 - rows should remain read-only
-- status display may be read-only text or badge only
-- action cells may be omitted, reserved, or visibly disabled
-- local label editing should remain deferred
-- online or offline controls should remain deferred
+- status display should remain read-only text or badge only
+- backend-only or ambiguous rows should already read as non-actionable in the inspector and should continue to do so until direct-chain verification exists
+
+For the next implementation slices:
+
+- hide or unhide becomes the first interactive row control and applies to any rendered row, including backend-only, unanchored, or stale rows
+- verified supported rows may later gain online or offline controls in the same row or inspector, but unsupported or unverified rows should show plain-language unavailable copy instead of generic disabled buttons
+- local label editing and rename should remain deferred until their semantics are separated cleanly
 
 ### 6.3 Selection sync
 
@@ -607,6 +659,7 @@ For the first implementation branch:
 - selecting a row highlights the matching icon
 - only one structure is selected at a time in early phases
 - the inspector reads from the same `selectedStructureId`
+- hiding the selected row should keep the row selected and keep the inspector open, even though the SVG icon disappears until unhidden
 - background click in node-local mode clears structure selection before exiting node-local mode
 
 ### 6.4 Naming model separation
@@ -620,14 +673,22 @@ The plan must separate four different naming or action concepts that can easily 
 
 The first implementation branch should not edit any of these. It should only reserve room for the distinction.
 
+Current audit note for future phases:
+
+- world modules expose on-chain metadata-name updates for gates, storage units, turrets, and network nodes, but the shipped web app does not currently expose or validate a rename execution flow
+- `Node Control` should therefore keep rename out of Phase D and Phase E; if naming work is later needed, local labels should be planned separately from any future on-chain rename capability
+
 ### 6.5 Hide and unhide behavior
 
-- hide removes the structure from the node-local map only
-- hidden structures stay visible in the list
-- the list becomes the place to unhide them
-- hidden state is UI-only and local, not chain truth
+- hide removes the structure from the node-local map only; it does not remove the row from authoritative node membership
+- hidden structures stay visible in the list and inspector with clear `Hidden from map` state and `Unhide` control
+- hide or unhide may apply to any rendered row, including backend-only, unanchored, or stale rows
+- hiding the selected row should keep that row selected and swap the primary local control to `Unhide`
+- hidden state is local, node-scoped, and keyed by `canonicalDomainKey`, not chain truth
+- backend refresh must not resurrect a hidden row into the SVG automatically; only explicit unhide or local-state reset should do that
+- hide or unhide performs no chain writes
 
-Hide and unhide is important for later phases, especially for the compact support band, but it should remain deferred out of the first implementation branch.
+Hide and unhide is now the first safe control after the accepted UI baseline because it solves a real operator problem without weakening the backend-membership versus chain-authority boundary.
 
 ### 6.6 Action placement
 
@@ -635,24 +696,29 @@ Keep the compact context menu intentionally small. The main control surface for 
 
 Recommended action split:
 
-- list or inspector: primary safe actions, labels, future toggles, and future previews
-- context menu: compact shortcuts such as `Hide from Node View`, `Reveal in List`, and later safe action entry points
+- list or inspector: primary safe actions, hide or unhide, unavailable-state explanation, future local labels, and later verified power controls
+- context menu: compact shortcuts only, starting with `Hide from Node View` for visible rows
+- `Unhide` should live in the list and inspector for hidden rows rather than in the canvas menu
+- later `Bring Online` or `Take Offline` entries may appear in the context menu only for rows that are already verified and supported in the primary surfaces
+- `Rename` should stay absent from the context menu until naming semantics are resolved separately from local labels
+- select or focus should stay implicit on click and should not consume menu space
 
 ### 6.7 Future actions
 
 The surface should leave room for later:
 
-- online or offline control for supported structures
-- local label editing
-- safe rename initiation when clearly separated from local labels
-- preset membership or preset preview state
+- online or offline control for verified supported structures after explicit action-authority resolution
+- local label editing as a separate local UI capability if product value is proven later
+- explicit on-chain rename only if a safe execution path and product need are proven later
+- preset membership or preset preview state after per-row power actions are stable
 
 ## 7. Local persistence design
 
 ### 7.1 Persistence strategy by phase
 
 - Phase B render-only drilldown shell plus selection sync: persist nothing; URL state was explicitly deferred from the implemented slice
-- Phase D and later: persist hide state and layout overrides
+- Phase D: persist node-scoped hide state keyed by `canonicalDomainKey`; keep context-menu open state ephemeral
+- later phases: persist deterministic layout overrides only if drag or rearrangement is approved as a separate slice
 - local labels, if introduced, should be a separate later persistence slice
 
 ### 7.2 Scope key
@@ -705,10 +771,12 @@ Recommended hidden-state shape:
   "version": 1,
   "nodeId": "0xnode",
   "scopeKey": "0xcharacter-or-wallet",
-  "hiddenStructureIds": ["0xrelay", "0xshelter"],
+  "hiddenCanonicalKeys": ["assembly:90184", "object:0xshelter"],
   "updatedAt": "2026-05-01T00:00:00.000Z"
 }
 ```
+
+Use `canonicalDomainKey` rather than a raw structure ID so backend-only rows and chain-backed rows can share one hide seam without corrupting node-local membership truth.
 
 ### 7.6 Local label persistence
 
@@ -722,7 +790,7 @@ Local labels are worth planning but should remain separate from layout and hidde
 
 - invalid JSON: drop the bad key and regenerate defaults
 - wrong version: ignore the key and regenerate defaults
-- signature mismatch after structure set changes: keep still-valid hidden IDs, discard invalid layout overrides, and recompute missing positions
+- signature mismatch after structure set changes: keep still-valid hidden canonical keys, discard invalid layout overrides, and recompute missing positions
 - corrupted local labels: drop only the label key, not the layout or hidden keys
 - offer a future `Reset Node Layout` action in the inspector once local overrides exist
 
@@ -831,50 +899,74 @@ The plan should keep four layers distinct:
 
 - render-only UI shell
 - local UI state only
+- action-authority resolution from direct-chain data plus existing action helpers
 - existing write actions already supported by current frontend flows
 - future new write work, if the platform later needs it
 
-### 9.2 Safe staged recommendation
+### 9.2 Action authority model
+
+- backend membership answers `What belongs in Node Control right now?`
+- direct-chain reads answer `Can this wallet act on it?`
+- a control should be enabled only when the rendered row resolves to a supported family, exactly one live direct-chain match, the required `ownerCapId`, and any required linked-node context
+- backend-only or ambiguous rows remain read-only or `Action unavailable`
+- hide or unhide may remain local UI only for any rendered row, including backend-only rows
+- the existing route-local node `Bring Online` path proves that node-level control already exists elsewhere, but it is not proof that per-row backend-membership actions are safe without row-level authority resolution
+
+### 9.3 Backend membership vs action authority
+
+- when the backend payload is non-empty, backend membership defines the main attached-structure membership set and map placement
+- live chain annotations remain attached to rows for provenance and future verification only
+- a backend row may later become actionable if it re-proves exactly one owned structure through direct-chain joins; until then it should read as `not action-verified yet`
+- action availability must not be inferred from rendered status, backend status text, or presence in the node-local list alone
+- unanchored or stale rows may still become actionable later if direct-chain authority and a supported action path are proven
+
+### 9.4 Safe staged recommendation
 
 Recommended sequence:
 
-1. render-only node-local shell using current `NetworkNodeGroup` data, including node entry and exit, the lower Attached Structures list, an inspector placeholder, and SVG or list selection sync
-2. local hide or unhide and deterministic local layout overrides
-3. supported single-structure online or offline actions from inspector or list
-4. local preset drafting and save flow, still without execution
-5. broader connected-structure discovery for future family coverage
-6. future preset execution and richer industry-linked behavior only after the above is proven stable
+1. keep the accepted `Node Control` UI baseline unchanged
+2. implement local hide or unhide plus a compact context-menu skeleton, with no chain writes and with hidden state surviving refresh
+3. add explicit action-authority resolution and clear verified or unavailable states in the list and inspector
+4. expose supported single-structure online or offline controls only for verified supported rows
+5. evaluate whether node-header `Bring Online` belongs in `Node Control` once the per-row authority model is stable
+6. keep local labels separate from on-chain rename, and keep on-chain rename deferred
+7. keep presets deferred until per-row power controls and unavailable-state UX are stable
+8. keep freshness and later industry-linked behavior as later follow-on work
 
-### 9.3 Existing write actions that can eventually be reused
+### 9.5 Existing write actions that can eventually be reused
 
 - gate online or offline where current power flows already support it
 - turret online or offline where current power flows already support it
 - storage or trade post online or offline where current power flows already support it
-- node online in the node header
+- node online in the node header or inspector once `Node Control` deliberately surfaces it
 
-### 9.4 Existing write actions that should stay out early
+### 9.6 Existing write actions that should stay out early
 
 - node offline, which is currently not implemented safely
+- backend-membership rows without direct-chain verification
 - macro posture switching repackaged as node-local posture
 - any rename flow that blurs local labels and on-chain or metadata writes
 - any batch preset execution before per-structure writes are stable
 
-### 9.5 Sponsored transaction requirements
+### 9.7 Sponsored transaction requirements
 
 - no sponsor configuration changes should be part of early node-local branches
 - any later write-enabled branch should reuse the current sponsor path unchanged
 - node-local UI must remain correct even if execution falls back to player-paid flow
 
-### 9.6 Safest conclusion
+### 9.8 Safest conclusion
 
-The first implementation should be UI shell first, write actions later. That matches current data coverage, current product intent, and the desire to avoid entangling Move or write behavior before the operator surface is stable.
+The next implementation should stop at local hide or unhide and compact action scaffolding. Real power actions should wait until `Node Control` can prove row-level direct-chain authority without weakening the accepted backend-membership display model.
 
 ## 10. Implementation phases
 
+As of 2026-05-02, the earlier draft sequence has been overtaken by accepted May 2 UI and read-model work. The phase list below is the authoritative sequence from this point forward.
+
 ### Phase A - plan only
 
-- Scope: this planning document, the status note in the prior plan, the docs index update, and the decision-log entry.
-- Files likely touched: `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md`, `docs/README.md`, `docs/decision-log.md`.
+- Status: complete.
+- Scope: this planning document, the historical pointer in the prior posture plan, and the decision-log entry.
+- Files likely touched: `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/operations/network-node-posture-icon-and-drilldown-plan-20260429.md`, `docs/decision-log.md`.
 - Out of scope: all runtime code, routes, writes, deployment, sponsorship, package IDs, Move, vendor, and submodule changes.
 - Validation: `git diff --check`, `npm run typecheck`, `npm run build`.
 - Manual preview checklist: none.
@@ -884,129 +976,108 @@ The first implementation should be UI shell first, write actions later. That mat
 
 Implementation status on 2026-05-02:
 
-- complete for the render-only shell, shared renderer, lower Attached Structures list, Selection Inspector placeholder, and the dev-only scenario lab
-- accepted by human review as the visual and interaction baseline for the next broader-hydration planning pass
-- implemented files include `src/lib/nodeDrilldownTypes.ts`, `src/lib/nodeDrilldownModel.ts`, `src/lib/nodeDrilldownLayout.ts`, `src/lib/nodeDrilldownScenarios.ts`, `src/components/topology/node-drilldown/NodeDrilldownSurface.tsx`, `src/components/topology/node-drilldown/NodeDrilldownCanvas.tsx`, `src/components/topology/node-drilldown/NodeStructureListPanel.tsx`, `src/components/topology/node-drilldown/NodeSelectionInspector.tsx`, `src/screens/NodeDrilldownLabScreen.tsx`, `src/screens/Dashboard.tsx`, `src/components/topology/StrategicMapPanel.tsx`, `src/components/topology/NodeCluster.tsx`, and `src/main.tsx`
-- live dashboard entry is wired to current live `NetworkNodeGroup` data only; no new read paths or broader live-family hydration were added
-- the dev lab is isolated through `src/main.tsx` static bootstrap and performs no wallet, Sui RPC, shared-backend, sponsor, or transaction calls
-- explicit `Back to Strategic Network` is implemented; Browser Back and URL mirroring remain deferred for a later pass
+- complete and accepted as the UI-shell baseline: same-dashboard `Node Control`, `Attached Structures`, `Selection Inspector`, `Node Key`, tooltip, shell chrome, and route or topology transition behavior are settled for the next slice
+- the accepted branch already includes the shared renderer, lower-surface selection sync, and the dev-only node-drilldown lab
+- Browser Back and URL mirroring remain deferred and are not acceptance gates for the next action-capable slice
 
-- Scope: enter node-local mode from the strategic map, swap the map header to `Node Control`, keep the dashboard shell and hero cards unchanged, render a node-local map and lower structure surface using only current live `NetworkNodeGroup` families, include a read-only `Attached Structures` list, include a basic `Selection Inspector` placeholder, wire icon-to-row and row-to-icon selection sync, and provide an explicit `Back to Strategic Network` action.
-- Files likely touched: `src/screens/Dashboard.tsx`, `src/components/topology/StrategicMapPanel.tsx`, a new node-local drilldown surface component, and optionally `src/App.tsx` or `src/screens/NetworkNodeDetailScreen.tsx` for state mirroring or reuse.
-- Out of scope: write actions, presets, drag persistence, hide or unhide persistence, broader family discovery, sponsor changes, route overhaul.
-- Validation: `npm run typecheck`, `npm run build`, interaction smoke for enter and exit, no regression in macro map camera behavior.
-- Manual preview checklist: click a network node, confirm the shell stays intact, confirm the map footprint stays fixed, confirm macro families remain unchanged, confirm the lower list and inspector placeholder appear, confirm icon selection highlights the matching row, confirm row selection highlights the matching icon, and confirm exiting returns telemetry and attention panels.
+- Scope: enter node-local mode from the strategic map, preserve the dashboard shell, and render a read-only node-local map plus lower structure surface with explicit `Back to Strategic Network`.
+- Out of scope: power actions, presets, hide or unhide, rename, broader membership changes, sponsor changes, route overhaul.
+- Validation: `npm run typecheck`, `npm run build`, interaction smoke for entry and exit, and no regression in macro map camera behavior.
 - Rollback risk: low to medium.
 
-### Phase C - broader node-connected read-model planning and endpoint proof
+### Phase C - broader node-connected hydration and backend-membership baseline
 
 Implementation status on 2026-05-02:
 
-- completed as a docs-only planning pass on this branch; no runtime code, EF-Map code, endpoint, websocket, write path, sponsor path, package ID, or Move change was made here
-- verified that the current `GET /api/civilization-control/assemblies?ids=...` contract is exact-ID enrichment only and cannot discover node members by selected network node, `energySourceId`, owner, character, or wallet
-- verified that the current EF-Map realtime surface is a global universe-events stream, not a filtered node-local status or rename contract
+- complete on this branch through the selected-node `node-assemblies` client, direct-chain annotation merge, identity correction, and `backend-membership` source mode
+- backend membership now defines rendered node-local membership when non-empty; direct-chain rows remain authority annotations only in that mode
+- backend rows remain read-only in the accepted baseline; no action authority is granted by backend membership alone
 
-- Scope: lock the hybrid authority model for broader node-local hydration, specify the minimum shared-backend node-local summary contract needed for true node-connected discovery, define provenance or freshness fields that the normalized node-local model must preserve, and write the validation checklist before runtime work starts.
-- Files likely touched: planning docs in `docs/operations/`, `docs/decision-log.md`, and later contract notes in the EF-Map repo or runbook docs.
-- Out of scope: runtime code, backend implementation, browser websocket clients, direct-chain replacement, write actions, sponsor changes, Move changes.
-- Validation: `git diff --check`, `npm run typecheck`, `npm run build`.
-- Manual preview checklist: none in this planning-only phase.
-- Rollback risk: low.
-
-### Phase D - local hide or unhide and layout persistence
-
-- Scope: hide from node view, unhide from list, persistent hidden state, persistent semantic layout overrides, and recovery behavior.
-- Files likely touched: new node-local persistence helper, new layout hook, node-local map component, structure list component, and maybe `src/lib/spatialPins.ts` only as a reference pattern, not as a behavior change.
-- Out of scope: writes, presets, broader discovery, server sync, on-chain persistence.
-- Validation: `npm run typecheck`, `npm run build`, localStorage recovery checks, scope-key isolation checks, reset-state behavior.
-- Manual preview checklist: hide a relay or shelter, refresh, confirm it stays hidden from the SVG and visible in the list, clear storage, confirm default layout regenerates cleanly.
-- Rollback risk: medium because local persistence bugs can create confusing operator state.
-
-### Phase E - supported online or offline controls from list or inspector
-
-- Scope: expose existing supported power actions for supported families from the node-local list or inspector, keep node online in header, keep node offline absent or disabled.
-- Files likely touched: node-local inspector or row actions, existing power hooks integration points, possibly `src/screens/NetworkNodeDetailScreen.tsx` if shared actions are reused.
-- Out of scope: presets, new transaction builders, sponsor changes, batch execution, rename writes.
-- Validation: `npm run typecheck`, `npm run build`, wallet-connected smoke for one gate, one turret, one storage unit, and node online where relevant.
-- Manual preview checklist: execute one supported action, verify banner feedback, verify read-path refresh, verify node-local selection stays in sync, verify unsupported actions remain absent.
+- Scope: the hybrid node-local read model, backend-membership fail-open rules, provenance and freshness fields, and direct-chain authority annotations.
+- Out of scope: write actions, sponsor changes, Move changes, production deploy.
+- Validation: `npm run typecheck`, `npm run build`, plus wallet-connected review where available.
 - Rollback risk: medium.
 
-### Phase F - local preset drafting and saving
+### Phase D - local hide or unhide plus compact context-menu skeleton
 
-- Scope: user-named node presets, local draft capture, local save flow, and apply-preview or diff-only surface.
-- Files likely touched: node-local header controls, preset storage helper, inspector or diff sheet components, and lightweight preference hooks.
-- Out of scope: actual preset transaction execution, sponsor changes, new backend storage, Move work.
-- Validation: `npm run typecheck`, `npm run build`, create and rename preset smoke, diff-preview smoke, delete-preset smoke.
-- Manual preview checklist: save `Industry`, save `Defense`, verify overflow behavior for many presets, verify zero-state copy when presets are deleted.
+- Scope: local `Hide from Node View` for any rendered row, list or inspector `Unhide`, node-scoped hidden-state persistence keyed by `canonicalDomainKey`, and a compact context menu that only surfaces the same local hide shortcut.
+- Files likely touched: dashboard node-local state, a node-local persistence helper or hook, list or inspector or context-menu components, and node-local row-projection helpers.
+- Out of scope: online or offline execution, rename execution, local labels, presets, drag persistence, backend changes, sponsor changes, Move changes.
+- Validation: `npm run typecheck`, `npm run build`, localStorage recovery checks, hide persistence across refresh, backend-refresh stability, and no-chain-write verification.
+- Manual preview checklist: hide an unanchored or stale-looking row, confirm it disappears from the SVG but remains in the list, refresh and confirm it stays hidden, unhide from the list or inspector, confirm backend refresh does not resurrect the SVG placement, and confirm no chain writes occur.
+- Rollback risk: medium because local-state bugs can create confusing operator state.
+
+### Phase E - action authority resolution and supported online or offline controls
+
+- Scope: resolve each rendered row back to a verified supported direct-chain structure, expose explicit verified or unavailable state in the list and inspector, and enable supported gate or storage or turret online or offline controls only for rows that prove direct-chain authority.
+- Files likely touched: the node-local model or a row-action sidecar, list or inspector action components, existing power-hook integration points, and possibly shared action helpers reused from detail screens.
+- Out of scope: backend-only execution, ambiguous multi-match rows, rename execution, presets, node offline, sponsor changes, Move changes.
+- Validation: `npm run typecheck`, `npm run build`, plus wallet-connected smoke for one verified gate, one storage, one turret, unavailable-state checks for backend-only rows, and selection-stability checks after refresh.
+- Manual preview checklist: verify supported chain-backed rows are distinguishable from backend-only rows, verify unsupported rows are not clickable, execute one supported power action and confirm refresh plus selection stability, and confirm unanchored or stale rows expose power control only when authority is proven.
 - Rollback risk: medium.
 
-### Phase G - broader family hydration inside Node Control
+### Phase F - local-label exploration, not on-chain rename
 
-- Scope: expand the read model beyond the current four-family `NetworkNodeGroup`, widen direct-chain owned-structure discovery where source truth can be proven, optionally merge a new filtered node-local backend summary lane for broader connected structures, and keep shared-backend enrichment additive only.
-- Files likely touched: `src/types/domain.ts`, `src/hooks/useAssetDiscovery.ts`, `src/lib/suiReader.ts`, `src/hooks/useAssemblySummaryEnrichment.ts`, `src/lib/assemblyEnrichment.ts`, any new node-local summary client or hook, `src/lib/nodeDrilldownTypes.ts`, `src/lib/nodeDrilldownModel.ts`, and node-local rendering components.
-- Out of scope: macro family expansion, new write semantics, sponsor changes, Move changes, EF-Map ownership authority.
-- Validation: `npm run typecheck`, `npm run build`, direct-chain fallback smoke, family-membership proof, regression checks for macro map grouping, and backend-partial fallback checks.
-- Manual preview checklist: confirm new families appear only inside `Node Control`; confirm chain-backed and backend-observed rows stay distinguishable; confirm backend-observed rows remain non-actionable; confirm macro map remains limited to canonical macro families.
-- Rollback risk: medium to high because it changes the read model.
+- Scope: optional local label editing as a separate local UI capability if product value is proven.
+- Out of scope: on-chain rename, metadata-name writes, DApp URL or other metadata write flows unless separately justified.
+- Validation: `npm run typecheck`, `npm run build`, plus local persistence and reset-state smoke if this phase is ever approved.
+- Rollback risk: medium.
+
+### Phase G - local preset drafting and saving
+
+- Scope: user-named node presets, local draft capture, local save flow, and apply-preview or diff-only UX after per-row power actions are stable.
+- Out of scope: preset execution, sponsor changes, new backend storage, Move work.
+- Validation: `npm run typecheck`, `npm run build`, create and rename preset smoke, diff-preview smoke, and delete-preset smoke.
+- Rollback risk: medium.
 
 ### Phase H - fast-refresh status and name freshness
 
-- Scope: preserve `fetchedAt`, `source`, and per-structure `lastUpdated` in the normalized node-local model, add faster selected-node polling or filtered backend invalidation for status and name changes, and keep status updates in place without unnecessary layout churn.
-- Files likely touched: `src/hooks/useAssetDiscovery.ts`, `src/hooks/useAssemblySummaryEnrichment.ts`, any new selected-node freshness hook or client, `src/lib/nodeDrilldownTypes.ts`, `src/lib/nodeDrilldownModel.ts`, and node-local list or inspector components.
-- Out of scope: unfiltered global websocket adoption, macro layout changes, write actions.
-- Validation: `npm run typecheck`, `npm run build`, selected-node refresh smoke, backend-down fallback smoke, status update without selection loss, and rename update without unrelated layout churn.
-- Manual preview checklist: change structure status or name outside CivilizationControl, confirm the selected node updates quickly, confirm stale backend data is presented as metadata only, and confirm the macro map still stays unchanged.
+- Scope: preserve provenance or freshness metadata, add faster selected-node polling or filtered invalidation for status and name changes, and keep updates in place without unnecessary layout churn.
+- Out of scope: unfiltered global websocket adoption, macro layout changes, new write semantics.
+- Validation: `npm run typecheck`, `npm run build`, selected-node refresh smoke, backend-down fallback smoke, and update-in-place checks without selection loss.
 - Rollback risk: medium because freshness work can create confusing UI churn if the authority boundary is blurred.
 
 ### Phase I - future industry, schemas, and structure-link expansion
 
 - Scope: future refinery schemas, printer schemas, inter-structure relationship links, and richer node-local industry surfaces.
-- Files likely touched: broader node-local UI, future relationship layout helpers, future schema rendering components, and possibly later docs or read helpers.
-- Out of scope: early safe drilldown branch.
+- Out of scope: the early safe drilldown branch.
 - Validation: phase-specific typecheck, build, and future product validation depending on the actual industry slice.
-- Manual preview checklist: schema-specific later.
 - Rollback risk: high because this is the first truly new product layer beyond the current proven structure set.
 
-## 11. Recommended first implementation branch
+## 11. Accepted baseline and recommended next implementation slice
 
-Status on 2026-05-02: this first implementation branch is now effectively complete on `feat/node-drilldown-render-shell` and is the accepted UI-shell baseline for follow-on read-model work.
+Status on 2026-05-02:
 
-The recommended first implementation branch is:
+- `feat/node-drilldown-render-shell` now holds the accepted `Node Control` UI baseline: same-dashboard shell, accepted iconography, accepted `Node Key`, accepted layout, accepted tooltip behavior, accepted shell chrome, accepted transitions, and the accepted backend-membership read model
+- `docs/operations/network-node-drilldown-implementation-plan-20260501.md` is the authoritative Node Control planning document going forward; the 2026-04-29 posture plan is historical or reference-only for icon taxonomy and design doctrine
 
-`Render-only node-local shell plus selection sync, with both live dashboard entry and a dev-only node drilldown lab for synthetic layout validation. The first branch should keep the same dashboard shell and map footprint, use current live NetworkNodeGroup data for real node entry and exit, provide a read-only Attached Structures list, provide a basic Selection Inspector placeholder, support icon-to-row and row-to-icon selection sync, provide an explicit Back to Strategic Network action, and include a dev-only /dev/node-drilldown-lab surface or equivalent that reuses the same layout and rendering components with synthetic scenario data. No write actions, no presets, no drag persistence, no hide or unhide persistence, and no broader family hydration yet.`
+Recommended next implementation slice:
 
-This is the right first branch because:
+`Implement local hide or unhide plus a compact node-local context-menu skeleton, with persistent hidden state keyed by canonicalDomainKey and with power-action slots still absent or clearly unavailable until row-level action authority is resolved.`
 
-- it matches the user's same-dashboard drill-in intent exactly
-- it stays within current proven data coverage
-- it includes enough lower-surface structure to validate the drilldown usefully instead of shipping an isolated SVG experiment
-- it pairs selection with a concrete list and inspector surface immediately, which reduces ambiguity about later action placement
-- it gives the implementation a believable dense-layout validation path even when the operator does not own enough real Stillness infrastructure to stress the renderer
-- it avoids mixing UI-shell work with transaction risk
-- it preserves the macro map and existing sponsor or Move boundaries
-- it creates the stable operator surface that later hide, write, and preset work can attach to
+What this slice should include:
 
-### Next recommended implementation slice - 2026-05-02
-
-Recommended option: `Option C`, with `Option D` applied to freshness sequencing.
-
-Recommended next slice:
-
-- expand the direct-chain owned-structure lane first wherever the existing wallet path can prove broader families safely
-- specify and land a new filtered EF-Map or shared-backend node-local summary endpoint for broader connected read-only structures keyed by the selected network node or equivalent `energySourceId`
-- widen the normalized node-local model so `Node Control` can render both chain-backed owned structures and backend-observed read-only structures without widening macro `Strategic Network`
-- keep event-driven freshness out of that first broader-hydration runtime slice; do faster polling or filtered invalidation later once the hybrid membership model is stable
+- local `Hide from Node View` for any visible row, including backend-only or stale rows
+- hidden rows remain in `Attached Structures` with clear `Hidden from map` state and `Unhide` in the list or inspector
+- compact right-click menu limited to `Hide from Node View` for visible rows
+- no chain writes, no power actions, no rename, no presets, and no drag persistence
+- groundwork for later verified or unavailable action states in the list and inspector without making backend rows actionable
 
 Why this is the right recommendation:
 
-- `Option A` is not enough on its own because direct-chain expansion can widen the owned lane, but the current app and backend evidence do not prove a complete node-connected discovery surface beyond what the wallet path already finds
-- `Option B` is not enough on its own because backend discovery without the direct-chain owned lane would blur ownership and write authority
-- the existing `assemblies?ids=` route is useful for enrichment but is not sufficient for node-local discovery today
-- the current EF-Map websocket is global and unfiltered, so bundling event freshness into the same pass would widen scope before membership, provenance, and ordering rules are stable
+- hide or unhide solves a real player problem immediately, especially for unanchored or stale structures that still appear in chain or backend state
+- it validates local state, persistence, and list or map or inspector sync without mixing in transaction risk
+- it preserves the hard boundary that backend membership defines display membership while direct-chain data defines actability
+- it keeps the compact context menu aligned with the product rule that list and inspector are the primary action surfaces
 
-Largest safe no-write slice on this branch after the accepted shell work:
+Online/offline recommendation:
 
-- a hybrid read-model pass that broadens direct-chain owned-family hydration where it can be proven, consumes a new filtered backend node-local summary contract for read-only broader connected structures, preserves macro-map simplification, and keeps event-driven freshness for the next follow-up task
+- per-row online or offline should come one slice after hide or unhide, not in the same branch, because row-level authority resolution still needs to prove a supported family, unique direct-chain match, `OwnerCap`, and any required node context before a button is safe
+
+Rename recommendation:
+
+- on-chain rename remains deferred
+- if naming work is later needed, plan local-label editing separately and keep the system name visible beside it
 
 ## 12. Dev-only scenario validation surface
 
@@ -1194,7 +1265,7 @@ The dev lab is for preview and local validation only.
 - macro map still behaves the same in orbit, pan, zoom, reset, and lock
 - clicking a node enters node-local mode without changing the surrounding dashboard shell
 - macro mode still shows only network nodes, gates, trade posts or storage units, and turrets
-- back action and Browser Back both return to macro mode predictably
+- explicit `Back to Strategic Network` and in-root home reset return to macro mode predictably; Browser Back and URL mirroring remain a separate follow-up
 - node-local mode shows the lower Attached Structures list and inspector placeholder
 - lower telemetry and attention panels return when macro mode returns
 - direct-chain data remains enough to render node-local mode even if shared-backend enrichment is unavailable
@@ -1209,6 +1280,17 @@ The dev lab is for preview and local validation only.
 - verify the lower list and inspector remain readable under dense synthetic scenarios
 - verify no wallet, Sui, shared-backend, or sponsor calls happen in the dev lab
 
+### Next hide/unhide and action-authority manual smoke
+
+- hide an unanchored or stale-looking row from the visible node-local view
+- confirm the row disappears from the SVG but remains visible in `Attached Structures`
+- refresh and confirm the local hide state persists for the same node and `scopeKey`
+- unhide the row from the list or inspector and confirm it returns to the SVG without breaking selection sync
+- verify backend refresh does not resurrect hidden SVG placement automatically
+- verify no chain writes occur for hide or unhide
+- verify unsupported or backend-only rows are not clickable when power actions are still unavailable
+- once action-authority resolution lands, verify verified supported rows are visibly distinguishable from backend-only or ambiguous rows before any power control is enabled
+
 ### Broader hydration and freshness manual smoke
 
 - connect a wallet that owns at least one network node with non-canonical attached structures
@@ -1216,12 +1298,15 @@ The dev lab is for preview and local validation only.
 - confirm current direct-chain families still render before or without backend enrichment
 - confirm broader families appear only inside `Node Control`, never in macro `Strategic Network`
 - confirm backend-observed rows are clearly non-actionable and do not change ownership or future write eligibility
+- confirm unanchored or unknown rows remain visible as honest observation state rather than disappearing from the node-local view
 - break or disable backend enrichment and confirm the drilldown fails open to the current direct-chain lane
 - change structure status or name outside CivilizationControl and confirm the selected node updates without losing selection or repacking unrelated icons
 
 ### Later write-enabled smoke
 
-- wallet-connected action smoke for supported single-structure power actions
+- wallet-connected action smoke for verified supported single-structure power actions only
+- backend-only or ambiguous rows remain unavailable and unclickable
+- unanchored or stale rows expose power control only when direct-chain authority is proven
 - feedback banners and pending states behave correctly
 - sponsor path and player-paid fallback both behave acceptably
 - read-path refresh reconciles node-local UI after completion
