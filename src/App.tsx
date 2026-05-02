@@ -8,9 +8,10 @@
  * Solar system catalog loads in background on mount.
  */
 
-import { BrowserRouter, Routes, Route } from "react-router";
+import { BrowserRouter, Routes, Route, useLocation, type Location } from "react-router";
 import { useCallback, useState, type CSSProperties } from "react";
 import { Header } from "@/components/Header";
+import { ShellRouteTransition } from "@/components/ShellRouteTransition";
 import { Sidebar } from "@/components/Sidebar";
 import { Dashboard } from "@/screens/Dashboard";
 import { GateListScreen } from "@/screens/GateListScreen";
@@ -50,6 +51,7 @@ export default function App() {
 }
 
 function OperatorShell() {
+  const location = useLocation();
   const [homeRequestToken, setHomeRequestToken] = useState(0);
   const shellLayoutVars = {
     "--operator-sidebar-width": "16rem",
@@ -82,89 +84,134 @@ function OperatorShell() {
         <LogoBadge />
         <main className="ml-64 h-screen overflow-y-auto px-6 pb-6 pt-[5.5rem]" style={mainScrollStyle}>
           <div className="max-w-[1760px] mx-auto">
-            <Routes>
-              <Route
-                path="/"
-                element={
-                  <Dashboard
-                    nodeGroups={nodeGroups}
-                    metrics={metrics}
-                    pins={pins}
-                    structures={structures}
-                    isLoading={isLoading}
-                    isConnected={isConnected}
-                    homeRequestToken={homeRequestToken}
-                  />
-                }
-              />
-              <Route
-                path="/gates"
-                element={
-                  <GateListScreen structures={structures} isLoading={isLoading} />
-                }
-              />
-              <Route
-                path="/gates/:id"
-                element={
-                  <GateDetailScreen structures={structures} isLoading={isLoading} />
-                }
-              />
-              <Route
-                path="/tradeposts"
-                element={
-                  <TradePostListScreen structures={structures} isLoading={isLoading} />
-                }
-              />
-              <Route
-                path="/tradeposts/:id"
-                element={
-                  <TradePostDetailScreen structures={structures} isLoading={isLoading} />
-                }
-              />
-              <Route
-                path="/turrets"
-                element={
-                  <TurretListScreen structures={structures} isLoading={isLoading} />
-                }
-              />
-              <Route
-                path="/turrets/:id"
-                element={
-                  <TurretDetailScreen structures={structures} isLoading={isLoading} />
-                }
-              />
-              <Route
-                path="/nodes"
-                element={
-                  <NetworkNodeListScreen structures={structures} nodeGroups={nodeGroups} isLoading={isLoading} />
-                }
-              />
-              <Route
-                path="/nodes/:id"
-                element={
-                  <NetworkNodeDetailScreen structures={structures} nodeGroups={nodeGroups} isLoading={isLoading} />
-                }
-              />
-              <Route
-                path="/activity"
-                element={<ActivityFeedScreen />}
-              />
-              <Route
-                path="/settings"
-                element={
-                  <ConfigurationScreen
-                    nodeGroups={nodeGroups}
-                    pins={pins}
-                    onAssignPin={assignPin}
-                    onRemovePin={removePin}
-                  />
-                }
-              />
-            </Routes>
+            <ShellRouteTransition location={location} className="min-h-[calc(100vh-8rem)]">
+              {(transitionLocation) => (
+                <OperatorShellRoutes
+                  location={transitionLocation}
+                  nodeGroups={nodeGroups}
+                  metrics={metrics}
+                  pins={pins}
+                  structures={structures}
+                  isLoading={isLoading}
+                  isConnected={isConnected}
+                  homeRequestToken={homeRequestToken}
+                  onAssignPin={assignPin}
+                  onRemovePin={removePin}
+                />
+              )}
+            </ShellRouteTransition>
           </div>
         </main>
     </div>
     </CharacterContext.Provider>
+  );
+}
+
+interface OperatorShellRoutesProps {
+  location: Location;
+  nodeGroups: import("@/types/domain").NetworkNodeGroup[];
+  metrics: import("@/types/domain").NetworkMetrics;
+  pins: import("@/types/domain").SpatialPin[];
+  structures: import("@/types/domain").Structure[];
+  isLoading: boolean;
+  isConnected: boolean;
+  homeRequestToken: number;
+  onAssignPin: (nodeId: string, systemId: number, systemName: string) => void;
+  onRemovePin: (nodeId: string) => void;
+}
+
+function OperatorShellRoutes({
+  location,
+  nodeGroups,
+  metrics,
+  pins,
+  structures,
+  isLoading,
+  isConnected,
+  homeRequestToken,
+  onAssignPin,
+  onRemovePin,
+}: OperatorShellRoutesProps) {
+  return (
+    <Routes location={location}>
+      <Route
+        path="/"
+        element={
+          <Dashboard
+            nodeGroups={nodeGroups}
+            metrics={metrics}
+            pins={pins}
+            structures={structures}
+            isLoading={isLoading}
+            isConnected={isConnected}
+            homeRequestToken={homeRequestToken}
+          />
+        }
+      />
+      <Route
+        path="/gates"
+        element={
+          <GateListScreen structures={structures} isLoading={isLoading} />
+        }
+      />
+      <Route
+        path="/gates/:id"
+        element={
+          <GateDetailScreen structures={structures} isLoading={isLoading} />
+        }
+      />
+      <Route
+        path="/tradeposts"
+        element={
+          <TradePostListScreen structures={structures} isLoading={isLoading} />
+        }
+      />
+      <Route
+        path="/tradeposts/:id"
+        element={
+          <TradePostDetailScreen structures={structures} isLoading={isLoading} />
+        }
+      />
+      <Route
+        path="/turrets"
+        element={
+          <TurretListScreen structures={structures} isLoading={isLoading} />
+        }
+      />
+      <Route
+        path="/turrets/:id"
+        element={
+          <TurretDetailScreen structures={structures} isLoading={isLoading} />
+        }
+      />
+      <Route
+        path="/nodes"
+        element={
+          <NetworkNodeListScreen structures={structures} nodeGroups={nodeGroups} isLoading={isLoading} />
+        }
+      />
+      <Route
+        path="/nodes/:id"
+        element={
+          <NetworkNodeDetailScreen structures={structures} nodeGroups={nodeGroups} isLoading={isLoading} />
+        }
+      />
+      <Route
+        path="/activity"
+        element={<ActivityFeedScreen />}
+      />
+      <Route
+        path="/settings"
+        element={
+          <ConfigurationScreen
+            nodeGroups={nodeGroups}
+            pins={pins}
+            onAssignPin={onAssignPin}
+            onRemovePin={onRemovePin}
+          />
+        }
+      />
+    </Routes>
   );
 }
 

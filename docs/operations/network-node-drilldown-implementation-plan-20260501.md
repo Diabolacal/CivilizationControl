@@ -230,6 +230,24 @@ Still pending after this pass:
 - one real wallet-connected smoke to exercise the new in-root home reset while live `Node Control` is actually open on `/`; this environment still had no wallet-owned node data available to enter the live drilldown
 - one wallet-connected confirmation that the same home-reset path feels correct from both the top-left wordmark and sidebar `Command Overview` against real backend-membership node-local data
 
+### App-shell route transition polish - 2026-05-02
+
+The same branch now includes a narrow shell-level polish pass that extends the calmer Node Control transition language to main app-section navigation without widening scope beyond UI presentation.
+
+- the fixed operator shell still mounts `Header`, `Sidebar`, wallet controls, `LogoBadge`, asset-discovery providers, and the existing home-reset token once; only the nested route body inside the shell `main` region now transitions between app sections
+- operator route content now renders through a dedicated shell-route transition keyed by route pathname, so `Command Overview`, `Gates`, `Storages`, `Turrets`, `Network Nodes`, `Signal Feed`, and `Configuration` fade as page content while the sidebar rail, top header, wallet controls, and floating badge remain visually stable and fully opaque
+- the new route transition uses the same cubic-bezier motion language as the accepted topology fade but at a shorter total duration: `400ms` total split into about `200ms` fade-out and `200ms` fade-in, which keeps app-section navigation subtler and quicker than the accepted `520ms` total Strategic Network ↔ Node Control swap
+- reduced motion now short-circuits the new shell-route transition to an immediate content swap instead of staging opacity changes; this is scoped to app-shell route content only and does not alter the existing accepted Node Control transition behavior when normal motion is enabled
+- the route transition is keyed only to route identity, not dashboard-local topology state, so the accepted `Strategic Network` ↔ `Node Control` fade on `/` remains the only fade used for that internal dashboard-mode swap; route changes into or out of `Command Overview` can fade the whole route body, but in-page node selection and home reset continue to use the accepted internal dashboard transition instead of a second shell fade
+- local browser validation re-confirmed the root shell, continued vote-pill absence, continued `Storages` terminology, the shell route wrapper as the only transitioning layer with `0.2s` per-phase opacity, sampled sidebar route hops with header and sidebar staying at opacity `1`, return to root through the top-left wordmark, and that `/dev/node-drilldown-lab` still loads as an isolated shellless route with only local static assets
+- refreshed preview evidence for this shell-route pass was captured on `https://c192c19b.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s-jtn6.civilizationcontrol.pages.dev`
+- deployed preview validation re-confirmed the served root shell, continued vote-pill absence, continued `Storages` terminology, the same body-only route-transition wrapper on app-shell pages, return to root through the top-left wordmark, the continued shellless `/dev/node-drilldown-lab` isolation, and that the browser-loaded preview assets still contain `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` and `https://ef-map.com` while containing neither `flappy-frontier-sponsor` nor `ASSEMBLY_API_TOKEN`
+
+Still pending after this pass:
+
+- one wallet-connected smoke to re-enter live `Node Control` on `/` and visually confirm that the accepted internal dashboard fade still feels correct beside the new page-level route transition
+- one human preview review to judge whether the new app-shell route fade feels subtle enough across the full left-rail navigation loop in a real browser session
+
 ### Broader hydration and event freshness planning - 2026-05-02
 
 The accepted shell on `feat/node-drilldown-render-shell` is now the baseline for the next major slice.
