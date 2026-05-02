@@ -10,6 +10,21 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Phase D local hide or unhide implementation - 2026-05-02
+
+Phase D is now implemented on `feat/node-drilldown-render-shell`.
+
+- added versioned node-local hidden-state persistence through `src/lib/nodeDrilldownHiddenState.ts` plus `useNodeDrilldownHiddenState`, scoped by `characterId`, else `walletAddress`, else session-only fallback, and stored under `cc:node-drilldown:hidden:v1:<scopeKey>:<nodeId>` with `canonicalDomainKey` entries rather than render IDs
+- hiding now removes a structure from the node-local SVG only; `Attached Structures` and `Selection Inspector` continue to resolve the full row set, hidden rows sort below all visible rows, and both surfaces expose clear `Hidden from map` state plus `Unhide`
+- `NodeDrilldownCanvas` now opens a compact app-styled structure context menu on right-click or keyboard context-menu invocation with only `Hide from Node View`; the menu closes on outside click, `Escape`, route change, node exit, and action completion
+- selected hidden rows now remain selected with the inspector open, but no longer render as selected glyphs in the SVG; unhiding restores them through the normal automatic layout
+- the same hide or unhide path now runs on live dashboard drilldown and on `/dev/node-drilldown-lab`; local and preview lab checks confirmed refresh persistence for the same node ID or scope and confirmed the dev lab still loads only static route assets with no fetch or XHR traffic to wallet, Sui RPC, shared-backend, sponsor, or transaction endpoints
+- local validation passed: `npm run typecheck`, `npm run build`, `git diff --check`, `npx tsx scripts/check-node-drilldown-reconciliation.mts`, `sui move build --path contracts/civilization_control`, and `sui move test --path contracts/civilization_control`
+- preview evidence for this Phase D pass was captured on `https://c6242f74.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+- deployed preview validation confirmed that both `/` and `/dev/node-drilldown-lab` load on the unique preview URL, that preview-lab hide or unhide works end to end, and that the served preview assets `App-pqedA4oB.js` and `SmartObjectProvider-DSNX2G8q.js` contain `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` plus `https://ef-map.com` while containing neither `flappy-frontier-sponsor`, `ASSEMBLY_API_TOKEN`, `Authorization`, nor `X-API-Key`
+
+The live dashboard root shell still loads on the preview, but real macro-to-node entry and `Back to Strategic Network` could not be re-exercised in this environment because the available browser session had no wallet-owned network-node inventory to select.
+
 Phase B's first runtime slice is now implemented on `feat/node-drilldown-render-shell`.
 
 - added a normalized node-local view model and `family-bands-v1` layout helper that keep the renderer independent from wallet discovery state
@@ -1000,6 +1015,8 @@ Implementation status on 2026-05-02:
 
 ### Phase D - local hide or unhide plus compact context-menu skeleton
 
+- Status: implemented on 2026-05-02 on `feat/node-drilldown-render-shell`.
+- Shipped behavior: versioned node-scoped hidden-state persistence keyed by `canonicalDomainKey`; visible-only SVG projection; hidden-row demotion to the bottom of `Attached Structures`; `Hidden from map` plus `Unhide` in the list and inspector; compact visible-row context menu limited to `Hide from Node View`; no chain writes, sponsor calls, backend changes, or Move changes.
 - Scope: local `Hide from Node View` for any rendered row, list or inspector `Unhide`, node-scoped hidden-state persistence keyed by `canonicalDomainKey`, and a compact context menu that only surfaces the same local hide shortcut.
 - Files likely touched: dashboard node-local state, a node-local persistence helper or hook, list or inspector or context-menu components, and node-local row-projection helpers.
 - Out of scope: online or offline execution, rename execution, local labels, presets, drag persistence, backend changes, sponsor changes, Move changes.
@@ -1053,26 +1070,26 @@ Status on 2026-05-02:
 
 Recommended next implementation slice:
 
-`Implement local hide or unhide plus a compact node-local context-menu skeleton, with persistent hidden state keyed by canonicalDomainKey and with power-action slots still absent or clearly unavailable until row-level action authority is resolved.`
+`Implement row-level action authority resolution and supported online or offline controls, while keeping rename, presets, local labels, and drag persistence deferred.`
 
 What this slice should include:
 
-- local `Hide from Node View` for any visible row, including backend-only or stale rows
-- hidden rows remain in `Attached Structures` with clear `Hidden from map` state and `Unhide` in the list or inspector
-- compact right-click menu limited to `Hide from Node View` for visible rows
-- no chain writes, no power actions, no rename, no presets, and no drag persistence
-- groundwork for later verified or unavailable action states in the list and inspector without making backend rows actionable
+- explicit verified or unavailable action state for each rendered row based on supported family, unique direct-chain match, `OwnerCap` proof, and required node context
+- supported online or offline controls only for verified gate, storage, or turret rows, with backend-only or ambiguous rows staying clearly unavailable
+- list and inspector remain the primary action surfaces, while the canvas context menu stays limited to local hide until a later deliberate expansion is approved
+- no rename, no local label editing, no presets, no drag persistence, and no backend or sponsor contract changes in the same branch
+- follow-on validation that a supported power action can execute and refresh cleanly without selection loss once authority resolution is landed
 
 Why this is the right recommendation:
 
-- hide or unhide solves a real player problem immediately, especially for unanchored or stale structures that still appear in chain or backend state
-- it validates local state, persistence, and list or map or inspector sync without mixing in transaction risk
-- it preserves the hard boundary that backend membership defines display membership while direct-chain data defines actability
-- it keeps the compact context menu aligned with the product rule that list and inspector are the primary action surfaces
+- Phase D already delivered the local decluttering and persistence value without blurring authority or write risk
+- the next operator value is truthful per-row actability, not more local presentation state
+- online or offline controls are only safe once the node-local row can prove unique direct-chain authority instead of relying on backend membership alone
+- keeping rename, presets, and drag persistence deferred prevents unrelated local-state work from competing with the first action-capable chain slice
 
 Online/offline recommendation:
 
-- per-row online or offline should come one slice after hide or unhide, not in the same branch, because row-level authority resolution still needs to prove a supported family, unique direct-chain match, `OwnerCap`, and any required node context before a button is safe
+- per-row online or offline is now the recommended next slice, but only when implemented together with explicit row-level action authority resolution and unavailable-state handling for backend-only or ambiguous rows
 
 Rename recommendation:
 

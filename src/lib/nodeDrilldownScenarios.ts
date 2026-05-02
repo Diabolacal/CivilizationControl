@@ -111,7 +111,7 @@ export const NODE_DRILLDOWN_SCENARIOS: NodeLocalScenario[] = [
   createScenario({
     id: "mixed-operating-base",
     label: "Mixed Operating Base",
-    description: "Balanced industry, logistics, support, and defense around one active node.",
+    description: "Balanced industry, logistics, support, and defense around one active node. Use this fixture for hide/unhide review across map, list, and inspector.",
     nodeLabel: "Caldari Exchange",
     structures: [
       ...repeatStructures("gate", 2, { labelPrefix: "Gate", sizeVariant: "mini", typeLabel: "Mini Gate" }),

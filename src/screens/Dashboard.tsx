@@ -34,8 +34,11 @@ import { NodeStructureListPanel } from "@/components/topology/node-drilldown/Nod
 import { SignalEventRow } from "@/components/SignalEventRow";
 import { useSignalFeed } from "@/hooks/useSignalFeed";
 import { useNodeAssemblies } from "@/hooks/useNodeAssemblies";
+import { useCharacterId } from "@/hooks/useCharacter";
+import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState";
 import { formatLux, formatEve } from "@/lib/currency";
 import { computeRuntimeMs, getFuelEfficiency, formatRuntime } from "@/lib/fuelRuntime";
+import { resolveNodeDrilldownScopeKey } from "@/lib/nodeDrilldownHiddenState";
 import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapshot } from "@/lib/nodeDrilldownModel";
 import type { NetworkNodeGroup, NetworkMetrics, SpatialPin, Structure } from "@/types/domain";
 
@@ -59,6 +62,7 @@ export function Dashboard({
   homeRequestToken,
 }: DashboardProps) {
   const { walletAddress } = useConnection();
+  const characterId = useCharacterId();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
   const ownedObjectIds = useMemo(
@@ -91,6 +95,25 @@ export function Dashboard({
       ? buildLiveNodeLocalViewModelWithObserved(selectedNodeGroup, selectedNodeAssembliesLookup, { isLoading: isNodeAssembliesLoading })
       : null),
     [isNodeAssembliesLoading, selectedNodeAssembliesLookup, selectedNodeGroup],
+  );
+  const nodeDrilldownScopeKey = useMemo(
+    () => resolveNodeDrilldownScopeKey(characterId, walletAddress),
+    [characterId, walletAddress],
+  );
+  const {
+    hiddenCanonicalKeySet,
+    hiddenCount,
+    visibleStructures,
+    hideStructure,
+    unhideStructure,
+  } = useNodeDrilldownHiddenState({
+    nodeId: selectedNodeViewModel?.node.id ?? null,
+    scopeKey: nodeDrilldownScopeKey,
+    structures: selectedNodeViewModel?.structures ?? [],
+  });
+  const visibleNodeViewModel = useMemo(
+    () => (selectedNodeViewModel ? { ...selectedNodeViewModel, structures: visibleStructures } : null),
+    [selectedNodeViewModel, visibleStructures],
   );
   const handleExitNodeControl = useCallback(() => {
     setSelectedStructureId(null);
@@ -247,12 +270,15 @@ export function Dashboard({
           bodyClassName="select-none"
         >
           <TopologyPanelFade contentKey={topologyModeKey} durationMs={TRANSITION_DURATION_MS}>
-            {selectedNodeViewModel ? (
+            {visibleNodeViewModel && selectedNodeViewModel ? (
               <NodeDrilldownSurface
                 embedded
-                viewModel={selectedNodeViewModel}
+                viewModel={visibleNodeViewModel}
                 selectedStructureId={selectedStructureId}
                 onSelectStructure={setSelectedStructureId}
+                onHideStructure={hideStructure}
+                totalStructureCount={selectedNodeViewModel.structures.length}
+                hiddenStructureCount={hiddenCount}
                 title=""
                 subtitle=""
               />
@@ -295,6 +321,8 @@ export function Dashboard({
                   viewModel={selectedNodeViewModel}
                   selectedStructureId={selectedStructureId}
                   onSelectStructure={setSelectedStructureId}
+                  hiddenCanonicalKeySet={hiddenCanonicalKeySet}
+                  onUnhideStructure={unhideStructure}
                 />
               ) : (
                 <div className="max-h-[420px] overflow-y-auto divide-y divide-border/50">
@@ -331,6 +359,8 @@ export function Dashboard({
                   embedded
                   viewModel={selectedNodeViewModel}
                   selectedStructureId={selectedStructureId}
+                  hiddenCanonicalKeySet={hiddenCanonicalKeySet}
+                  onUnhideStructure={unhideStructure}
                 />
               ) : (
                 <div className="divide-y divide-border/50">

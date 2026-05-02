@@ -11,6 +11,9 @@ interface NodeDrilldownSurfaceProps {
   viewModel: NodeLocalViewModel;
   selectedStructureId: string | null;
   onSelectStructure: (structureId: string | null) => void;
+  onHideStructure: (canonicalDomainKey: string) => void;
+  totalStructureCount: number;
+  hiddenStructureCount: number;
   title: string;
   subtitle: string;
   headerAction?: ReactNode;
@@ -21,7 +24,10 @@ function NodeDrilldownSurfaceBody({
   viewModel,
   selectedStructureId,
   onSelectStructure,
-}: Pick<NodeDrilldownSurfaceProps, "viewModel" | "selectedStructureId" | "onSelectStructure">) {
+  onHideStructure,
+  totalStructureCount,
+  hiddenStructureCount,
+}: Pick<NodeDrilldownSurfaceProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "onHideStructure" | "totalStructureCount" | "hiddenStructureCount">) {
   const [isLegendVisible, setIsLegendVisible] = useState(true);
 
   return (
@@ -30,6 +36,9 @@ function NodeDrilldownSurfaceBody({
         viewModel={viewModel}
         selectedStructureId={selectedStructureId}
         onSelectStructure={onSelectStructure}
+        onHideStructure={onHideStructure}
+        totalStructureCount={totalStructureCount}
+        hiddenStructureCount={hiddenStructureCount}
       />
 
       <div className="pointer-events-none absolute inset-0 z-20">
@@ -58,6 +67,9 @@ export function NodeDrilldownSurface({
   viewModel,
   selectedStructureId,
   onSelectStructure,
+  onHideStructure,
+  totalStructureCount,
+  hiddenStructureCount,
   title,
   subtitle,
   headerAction,
@@ -68,6 +80,9 @@ export function NodeDrilldownSurface({
       viewModel={viewModel}
       selectedStructureId={selectedStructureId}
       onSelectStructure={onSelectStructure}
+      onHideStructure={onHideStructure}
+      totalStructureCount={totalStructureCount}
+      hiddenStructureCount={hiddenStructureCount}
     />
   );
 

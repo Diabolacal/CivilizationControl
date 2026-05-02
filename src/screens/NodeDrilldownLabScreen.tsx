@@ -3,6 +3,7 @@ import { useEffect, useMemo, useState } from "react";
 import { NodeDrilldownSurface } from "@/components/topology/node-drilldown/NodeDrilldownSurface";
 import { NodeSelectionInspector } from "@/components/topology/node-drilldown/NodeSelectionInspector";
 import { NodeStructureListPanel } from "@/components/topology/node-drilldown/NodeStructureListPanel";
+import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState";
 import { NODE_DRILLDOWN_SCENARIOS } from "@/lib/nodeDrilldownScenarios";
 import { cn } from "@/lib/utils";
 
@@ -13,6 +14,21 @@ export function NodeDrilldownLabScreen() {
   const scenario = useMemo(
     () => NODE_DRILLDOWN_SCENARIOS.find((entry) => entry.id === scenarioId) ?? NODE_DRILLDOWN_SCENARIOS[0],
     [scenarioId],
+  );
+  const {
+    hiddenCanonicalKeySet,
+    hiddenCount,
+    visibleStructures,
+    hideStructure,
+    unhideStructure,
+  } = useNodeDrilldownHiddenState({
+    nodeId: scenario?.viewModel.node.id ?? null,
+    scopeKey: null,
+    structures: scenario?.viewModel.structures ?? [],
+  });
+  const visibleViewModel = useMemo(
+    () => (scenario ? { ...scenario.viewModel, structures: visibleStructures } : null),
+    [scenario, visibleStructures],
   );
 
   useEffect(() => {
@@ -62,19 +78,43 @@ export function NodeDrilldownLabScreen() {
           ))}
         </div>
 
-        <div className="mt-6">
-          <NodeDrilldownSurface
-            viewModel={scenario.viewModel}
-            selectedStructureId={selectedStructureId}
-            onSelectStructure={setSelectedStructureId}
-            title="Node Drilldown Lab"
-            subtitle={scenario.description}
-            headerAction={
-              <span className="rounded border border-primary/40 bg-primary/8 px-3 py-1.5 text-[11px] font-mono uppercase tracking-wide text-primary/90">
-                Synthetic / Dev-only
+        {visibleViewModel ? (
+          <div className="mt-3 flex flex-wrap gap-2">
+            <span className="rounded border border-border/60 px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground/75">
+              {visibleViewModel.structures.length} visible
+            </span>
+            <span className="rounded border border-border/60 px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground/75">
+              {scenario.viewModel.structures.length} attached
+            </span>
+            {hiddenCount > 0 ? (
+              <span className="rounded border border-border/60 bg-muted/10 px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground/75">
+                {hiddenCount} hidden from map
               </span>
-            }
-          />
+            ) : null}
+            <span className="rounded border border-border/60 px-2.5 py-1 text-[11px] font-mono uppercase tracking-[0.18em] text-muted-foreground/75">
+              Session-scoped persistence
+            </span>
+          </div>
+        ) : null}
+
+        <div className="mt-6">
+          {visibleViewModel ? (
+            <NodeDrilldownSurface
+              viewModel={visibleViewModel}
+              selectedStructureId={selectedStructureId}
+              onSelectStructure={setSelectedStructureId}
+              onHideStructure={hideStructure}
+              totalStructureCount={scenario.viewModel.structures.length}
+              hiddenStructureCount={hiddenCount}
+              title="Node Drilldown Lab"
+              subtitle={scenario.description}
+              headerAction={
+                <span className="rounded border border-primary/40 bg-primary/8 px-3 py-1.5 text-[11px] font-mono uppercase tracking-wide text-primary/90">
+                  Synthetic / Dev-only
+                </span>
+              }
+            />
+          ) : null}
         </div>
 
         <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -83,12 +123,16 @@ export function NodeDrilldownLabScreen() {
               viewModel={scenario.viewModel}
               selectedStructureId={selectedStructureId}
               onSelectStructure={setSelectedStructureId}
+              hiddenCanonicalKeySet={hiddenCanonicalKeySet}
+              onUnhideStructure={unhideStructure}
             />
           </div>
           <div>
             <NodeSelectionInspector
               viewModel={scenario.viewModel}
               selectedStructureId={selectedStructureId}
+              hiddenCanonicalKeySet={hiddenCanonicalKeySet}
+              onUnhideStructure={unhideStructure}
             />
           </div>
         </div>

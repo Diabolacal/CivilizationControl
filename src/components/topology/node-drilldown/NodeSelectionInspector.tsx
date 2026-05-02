@@ -6,6 +6,8 @@ import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldown
 interface NodeSelectionInspectorProps {
   viewModel: NodeLocalViewModel;
   selectedStructureId: string | null;
+  hiddenCanonicalKeySet: ReadonlySet<string>;
+  onUnhideStructure: (canonicalDomainKey: string) => void;
   embedded?: boolean;
 }
 
@@ -100,8 +102,13 @@ function formatStructureAuthority(structure: NodeLocalStructure): string {
 function NodeSelectionInspectorContent({
   viewModel,
   selectedStructureId,
-}: Pick<NodeSelectionInspectorProps, "viewModel" | "selectedStructureId">) {
+  hiddenCanonicalKeySet,
+  onUnhideStructure,
+}: Pick<NodeSelectionInspectorProps, "viewModel" | "selectedStructureId" | "hiddenCanonicalKeySet" | "onUnhideStructure">) {
   const selectedStructure = findNodeLocalStructure(viewModel, selectedStructureId);
+  const isSelectedStructureHidden = selectedStructure
+    ? hiddenCanonicalKeySet.has(selectedStructure.canonicalDomainKey)
+    : false;
   const chainBackedCount = viewModel.structures.filter((structure) => structure.hasDirectChainAuthority).length;
   const backendOnlyCount = viewModel.structures.length - chainBackedCount;
 
@@ -115,6 +122,7 @@ function NodeSelectionInspectorContent({
             <InspectorRow label="Family" value={selectedStructure.familyLabel} />
             <InspectorRow label="Size" value={formatNodeLocalSize(selectedStructure.sizeVariant) ?? "Not tagged"} />
             <InspectorRow label="Status" value={formatNodeLocalStatus(selectedStructure.status)} />
+            <InspectorRow label="Map" value={isSelectedStructureHidden ? "Hidden from map" : "Visible in node view"} />
             <InspectorRow label="Source" value={formatStructureSource(selectedStructure)} />
             <InspectorRow label="Authority" value={formatStructureAuthority(selectedStructure)} />
             <InspectorRow label="Object ID" value={selectedStructure.objectId ?? "Unavailable in rendered row"} />
@@ -156,9 +164,24 @@ function NodeSelectionInspectorContent({
       </div>
 
       <div className="border-t border-border/50 bg-muted/5 px-4 py-3">
-        <p className="text-xs text-muted-foreground">
-          Write actions, presets, and layout persistence are intentionally deferred in this first slice.
-        </p>
+        {selectedStructure && isSelectedStructureHidden ? (
+          <div className="flex items-center justify-between gap-4">
+            <p className="text-xs text-muted-foreground">
+              This structure is hidden from the node map only. Membership, authority, and future actions remain unchanged.
+            </p>
+            <button
+              type="button"
+              onClick={() => onUnhideStructure(selectedStructure.canonicalDomainKey)}
+              className="rounded border border-border/60 px-2.5 py-1 text-[11px] font-medium text-foreground transition-colors hover:border-primary/50 hover:text-primary"
+            >
+              Unhide
+            </button>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground">
+            Write actions, presets, and layout persistence are intentionally deferred in this first slice.
+          </p>
+        )}
       </div>
     </>
   );
@@ -167,12 +190,16 @@ function NodeSelectionInspectorContent({
 export function NodeSelectionInspector({
   viewModel,
   selectedStructureId,
+  hiddenCanonicalKeySet,
+  onUnhideStructure,
   embedded = false,
 }: NodeSelectionInspectorProps) {
   const content = (
     <NodeSelectionInspectorContent
       viewModel={viewModel}
       selectedStructureId={selectedStructureId}
+      hiddenCanonicalKeySet={hiddenCanonicalKeySet}
+      onUnhideStructure={onUnhideStructure}
     />
   );
 
