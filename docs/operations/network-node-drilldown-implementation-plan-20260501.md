@@ -58,6 +58,18 @@ The same branch now includes the requested content-aware packing pass for node-l
 - local browser validation re-confirmed sparse gate-present, both new no-gate scenarios, the support-heavy compact case, the 52-structure turret stress case, icon-to-row and row-to-icon selection sync, node-clear, `Back to app`, and that the lab still loads only local static assets with no wallet, Sui RPC, shared-backend, or sponsor requests
 - refreshed preview evidence was captured on `https://9c73df12.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
 
+### Legend and tooltip refinement - 2026-05-02
+
+The same branch now includes a focused operator-polish pass for node-local explainability and hover behavior.
+
+- the node-local map now includes a default-visible collapsible `Node Key` overlay mounted inside the map body, so operators can decode the expanded family set without changing the adaptive layout packer or reserving new map space
+- the node-local key reuses the tracked icon grammar and now covers `Network Node`, `Gate`, `Storage / Trade Post`, `Turret`, `Printer`, `Refinery`, `Assembler`, `Berth`, `Relay`, `Nursery`, `Shelter`, and `Nest`, with `M/H = size` called out explicitly
+- node and structure buttons no longer rely on native browser `title` tooltips; hover and focus now use app-styled topology tooltips plus explicit accessible labels that use middle-dot separators rather than em dashes
+- local browser validation re-confirmed all eight synthetic scenarios, default-visible legend state, legend hide/show, sampled no map-button position shift when hiding the key, tooltip hover on local preview and deployed preview, `Industry Node` selection sync plus node-clear, `Back to app`, and that the dev lab still loads only local static assets
+- refreshed preview evidence was captured on `https://7ff7d5cd.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+
+The live dashboard `Back to Strategic Network` action remains owned by the unchanged header-action seam, but it could not be re-exercised in this environment because the preview root had no connected wallet inventory or node entry point available.
+
 Known remaining visual review questions for human review:
 
 - whether the live dashboard node-local composition still feels balanced with real wallet-owned node data once a connected environment is available
