@@ -38,6 +38,7 @@ import { useNodeAssemblies } from "@/hooks/useNodeAssemblies";
 import { useCharacterId } from "@/hooks/useCharacter";
 import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState";
 import { useNodeDrilldownStructureMenu } from "@/hooks/useNodeDrilldownStructureMenu";
+import { useOperatorInventory } from "@/hooks/useOperatorInventory";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import { formatLux, formatEve } from "@/lib/currency";
 import { computeRuntimeMs, getFuelEfficiency, formatRuntime } from "@/lib/fuelRuntime";
@@ -66,6 +67,7 @@ export function Dashboard({
   homeRequestToken,
 }: DashboardProps) {
   const { walletAddress } = useConnection();
+  const operatorInventory = useOperatorInventory();
   const characterId = useCharacterId();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
@@ -94,11 +96,35 @@ export function Dashboard({
     () => nodeGroups.find((group) => group.node.objectId === selectedNodeId) ?? null,
     [nodeGroups, selectedNodeId],
   );
+  const selectedNodeInventoryLookup = useMemo(
+    () => (selectedNodeGroup?.node.objectId
+      ? operatorInventory.adapted?.nodeLookupsByNodeId.get(selectedNodeGroup.node.objectId) ?? null
+      : null),
+    [operatorInventory.adapted?.nodeLookupsByNodeId, selectedNodeGroup],
+  );
+  const shouldUseNodeAssembliesFallback = Boolean(
+    selectedNodeGroup?.node.objectId
+    && selectedNodeGroup.node.objectId !== "unassigned"
+    && selectedNodeInventoryLookup == null
+    && operatorInventory.isError,
+  );
   const {
     lookup: selectedNodeAssembliesLookup,
     isLoading: isNodeAssembliesLoading,
     refetch: refetchSelectedNodeAssemblies,
-  } = useNodeAssemblies(selectedNodeGroup?.node.objectId ?? null);
+  } = useNodeAssemblies(selectedNodeGroup?.node.objectId ?? null, {
+    enabled: shouldUseNodeAssembliesFallback,
+  });
+  const selectedNodeObservedLookup = selectedNodeInventoryLookup ?? selectedNodeAssembliesLookup;
+  const selectedNodeBuildOptions = useMemo(
+    () => ({
+      isLoading: selectedNodeInventoryLookup == null
+        ? (shouldUseNodeAssembliesFallback ? isNodeAssembliesLoading : operatorInventory.isLoading)
+        : false,
+      preferObservedMembership: selectedNodeInventoryLookup != null,
+    }),
+    [isNodeAssembliesLoading, operatorInventory.isLoading, selectedNodeInventoryLookup, shouldUseNodeAssembliesFallback],
+  );
   const structurePower = useStructurePower();
   const [powerStructureId, setPowerStructureId] = useState<string | null>(null);
   const [powerSuccessLabel, setPowerSuccessLabel] = useState("Structure power state updated");
@@ -110,9 +136,9 @@ export function Dashboard({
   } = useNodeDrilldownStructureMenu();
   const selectedNodeViewModel = useMemo(
     () => (selectedNodeGroup
-      ? buildLiveNodeLocalViewModelWithObserved(selectedNodeGroup, selectedNodeAssembliesLookup, { isLoading: isNodeAssembliesLoading })
+      ? buildLiveNodeLocalViewModelWithObserved(selectedNodeGroup, selectedNodeObservedLookup, selectedNodeBuildOptions)
       : null),
-    [isNodeAssembliesLoading, selectedNodeAssembliesLookup, selectedNodeGroup],
+    [selectedNodeBuildOptions, selectedNodeGroup, selectedNodeObservedLookup],
   );
   const nodeDrilldownScopeKey = useMemo(
     () => resolveNodeDrilldownScopeKey(characterId, walletAddress),
@@ -192,10 +218,14 @@ export function Dashboard({
       });
 
       if (succeeded) {
-        await refetchSelectedNodeAssemblies();
+        if (selectedNodeInventoryLookup) {
+          await operatorInventory.refetch();
+        } else {
+          await refetchSelectedNodeAssemblies();
+        }
       }
     },
-    [closeStructureMenu, refetchSelectedNodeAssemblies, selectedStructureCanonicalKeyRef, structurePower],
+    [closeStructureMenu, operatorInventory, refetchSelectedNodeAssemblies, selectedNodeInventoryLookup, selectedStructureCanonicalKeyRef, structurePower],
   );
   const topologyModeKey = selectedNodeViewModel ? `node-${selectedNodeViewModel.node.id}` : "macro";
   const isNodeDrilldownDebugEnabled = useMemo(() => {
@@ -315,14 +345,14 @@ export function Dashboard({
 
     controller.enabled = true;
     controller.latest = selectedNodeGroup
-      ? buildNodeDrilldownDebugSnapshot(selectedNodeGroup, selectedNodeAssembliesLookup, { isLoading: isNodeAssembliesLoading })
+      ? buildNodeDrilldownDebugSnapshot(selectedNodeGroup, selectedNodeObservedLookup, selectedNodeBuildOptions)
       : null;
     window.__CC_NODE_DRILLDOWN_DEBUG__ = controller;
 
     if (selectedNodeGroup) {
       console.info("[node-drilldown-debug] window.__CC_NODE_DRILLDOWN_DEBUG__.latest updated");
     }
-  }, [isNodeAssembliesLoading, isNodeDrilldownDebugEnabled, selectedNodeAssembliesLookup, selectedNodeGroup]);
+  }, [isNodeDrilldownDebugEnabled, selectedNodeBuildOptions, selectedNodeGroup, selectedNodeObservedLookup]);
 
   return (
     <div>

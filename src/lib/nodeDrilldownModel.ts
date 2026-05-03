@@ -1,4 +1,4 @@
-import type { NetworkNodeGroup, Structure, StructureStatus } from "@/types/domain";
+import type { AssemblySummary, NetworkNodeGroup, Structure, StructureStatus } from "@/types/domain";
 import { getItemTypeById, getItemTypeByName } from "@/lib/typeCatalog";
 import { normalizeCanonicalObjectId, type NodeAssembliesLookupResult } from "@/lib/nodeAssembliesClient";
 import {
@@ -139,6 +139,7 @@ const SIZE_ORDER: Record<Exclude<NodeLocalSizeVariant, null>, number> = {
 };
 
 type ObservedAssembly = NodeAssembliesLookupResult["assemblies"][number];
+type IndexedPowerAction = Exclude<NonNullable<ObservedAssembly["actionCandidate"]>["actions"]["power"], null>;
 
 interface ObservedAssemblyBucket {
   entry: ObservedAssembly;
@@ -169,6 +170,7 @@ interface SelectedNodeStructuresBuildResult {
 
 interface BuildNodeDrilldownOptions {
   isLoading?: boolean;
+  preferObservedMembership?: boolean;
 }
 
 const SUPPORTED_POWER_TYPE_BY_FAMILY: Partial<Record<NodeLocalFamily, NodeLocalSupportedPowerType>> = {
@@ -441,6 +443,135 @@ function toNodeLocalActionCandidate(structure: Structure): NodeLocalActionCandid
   };
 }
 
+function toNodeLocalActionCandidateFromRequiredIds(
+  powerAction: IndexedPowerAction,
+  status: StructureStatus,
+): NodeLocalActionCandidateTarget | null {
+  const structureId = powerAction.requiredIds?.structureId;
+  const structureType = powerAction.requiredIds?.structureType;
+  if (!structureId || !structureType) {
+    return null;
+  }
+
+  return {
+    structureId,
+    structureType,
+    ownerCapId: powerAction.requiredIds?.ownerCapId ?? undefined,
+    networkNodeId: powerAction.requiredIds?.networkNodeId ?? undefined,
+    status,
+  };
+}
+
+function createIndexedNodeLocalActionAuthority(
+  family: NodeLocalFamily,
+  status: StructureStatus,
+  actionCandidate: ObservedAssembly["actionCandidate"] | AssemblySummary["actionCandidate"] | null | undefined,
+): NodeLocalActionAuthority | null {
+  const powerAction = actionCandidate?.actions.power;
+  if (!powerAction) {
+    return null;
+  }
+
+  const supportedPowerType = SUPPORTED_POWER_TYPE_BY_FAMILY[family] ?? null;
+  const candidateTarget = toNodeLocalActionCandidateFromRequiredIds(powerAction, status);
+  const candidateTargets = candidateTarget ? [candidateTarget] : [];
+  const unavailableReason = powerAction.unavailableReason ?? actionCandidate?.unavailableReason ?? null;
+
+  if (!powerAction.candidate) {
+    if (powerAction.currentlyImplementedInCivilizationControl === false) {
+      return {
+        state: "future-supported",
+        verifiedTarget: null,
+        candidateTargets,
+        unavailableReason,
+      };
+    }
+
+    if (!supportedPowerType || powerAction.familySupported === false || actionCandidate?.familySupported === false) {
+      return {
+        state: "unsupported-family",
+        verifiedTarget: null,
+        candidateTargets,
+        unavailableReason,
+      };
+    }
+
+    if (powerAction.indexedOwnerCapPresent === false) {
+      return {
+        state: "missing-owner-cap",
+        verifiedTarget: null,
+        candidateTargets,
+        unavailableReason,
+      };
+    }
+
+    if (powerAction.requiredIds && !powerAction.requiredIds.networkNodeId) {
+      return {
+        state: "missing-node-context",
+        verifiedTarget: null,
+        candidateTargets,
+        unavailableReason,
+      };
+    }
+
+    return {
+      state: "backend-only",
+      verifiedTarget: null,
+      candidateTargets,
+      unavailableReason,
+    };
+  }
+
+  if (powerAction.currentlyImplementedInCivilizationControl === false) {
+    return {
+      state: "future-supported",
+      verifiedTarget: null,
+      candidateTargets,
+      unavailableReason,
+    };
+  }
+
+  if (!supportedPowerType || powerAction.requiredIds?.structureType !== supportedPowerType || !candidateTarget) {
+    return {
+      state: "unsupported-family",
+      verifiedTarget: null,
+      candidateTargets,
+      unavailableReason,
+    };
+  }
+
+  if (!powerAction.requiredIds?.ownerCapId) {
+    return {
+      state: "missing-owner-cap",
+      verifiedTarget: null,
+      candidateTargets,
+      unavailableReason,
+    };
+  }
+
+  if (!powerAction.requiredIds?.networkNodeId) {
+    return {
+      state: "missing-node-context",
+      verifiedTarget: null,
+      candidateTargets,
+      unavailableReason,
+    };
+  }
+
+  return {
+    state: "verified-supported",
+    verifiedTarget: {
+      structureId: candidateTarget.structureId,
+      structureType: supportedPowerType,
+      ownerCapId: powerAction.requiredIds.ownerCapId,
+      networkNodeId: powerAction.requiredIds.networkNodeId,
+      status: candidateTarget.status,
+    },
+    candidateTargets,
+    unavailableReason,
+  };
+}
+
 function createNodeLocalActionAuthority(
   family: NodeLocalFamily,
   liveMatches: Structure[],
@@ -451,6 +582,7 @@ function createNodeLocalActionAuthority(
       state: "synthetic",
       verifiedTarget: null,
       candidateTargets: [],
+      unavailableReason: null,
     };
   }
 
@@ -460,6 +592,7 @@ function createNodeLocalActionAuthority(
       state: "backend-only",
       verifiedTarget: null,
       candidateTargets,
+      unavailableReason: null,
     };
   }
 
@@ -468,6 +601,7 @@ function createNodeLocalActionAuthority(
       state: "ambiguous-match",
       verifiedTarget: null,
       candidateTargets,
+      unavailableReason: null,
     };
   }
 
@@ -477,6 +611,7 @@ function createNodeLocalActionAuthority(
       state: "unsupported-family",
       verifiedTarget: null,
       candidateTargets,
+      unavailableReason: null,
     };
   }
 
@@ -486,6 +621,7 @@ function createNodeLocalActionAuthority(
       state: "missing-owner-cap",
       verifiedTarget: null,
       candidateTargets,
+      unavailableReason: null,
     };
   }
 
@@ -494,6 +630,7 @@ function createNodeLocalActionAuthority(
       state: "missing-node-context",
       verifiedTarget: null,
       candidateTargets,
+      unavailableReason: null,
     };
   }
 
@@ -507,6 +644,7 @@ function createNodeLocalActionAuthority(
       status: candidate.status,
     },
     candidateTargets,
+    unavailableReason: null,
   };
 }
 
@@ -733,7 +871,8 @@ function finalizeNodeLocalStructures(
 }
 
 function createLiveStructureIndex(liveStructures: Structure[]): LiveStructureIndex {
-  const buckets = bucketByNodeDrilldownDomainIdentity(liveStructures, (structure) => ({
+  const directChainLiveStructures = liveStructures.filter((structure) => structure.readModelSource !== "operator-inventory");
+  const buckets = bucketByNodeDrilldownDomainIdentity(directChainLiveStructures, (structure) => ({
     objectId: structure.objectId,
     assemblyId: normalizeNodeDrilldownAssemblyId(structure.assemblyId),
     renderId: structure.objectId,
@@ -776,6 +915,7 @@ function resolveNodeLocalSourceMode(
   observedLookup: NodeAssembliesLookupResult | null | undefined,
   observedEntries: ObservedAssembly[],
   isLoading = false,
+  preferObservedMembership = false,
 ): NodeLocalSourceMode {
   if (isLoading && !observedLookup) {
     return "loading";
@@ -785,7 +925,7 @@ function resolveNodeLocalSourceMode(
     return "error-fallback";
   }
 
-  if (observedLookup?.status === "success" && observedEntries.length > 0) {
+  if (observedLookup?.status === "success" && (observedEntries.length > 0 || preferObservedMembership)) {
     return "backend-membership";
   }
 
@@ -795,19 +935,31 @@ function resolveNodeLocalSourceMode(
 function buildLiveFallbackStructures(liveStructures: Structure[]): NodeLocalStructure[] {
   return liveStructures.map((structure) => {
     const family = LIVE_FAMILY_MAP[structure.type];
+    const source = structure.readModelSource === "operator-inventory" ? "backendMembership" : "live";
     const resolvedType = resolveTypeLabel(
       family,
       structure.summary?.typeName ?? null,
-      structure.summary?.typeId,
+      structure.summary?.typeId ?? undefined,
       null,
     );
     const sizeVariant = deriveSizeVariant(resolvedType.typeLabel);
     const status = mergeLiveStructureStatus(structure.status, null);
     const needsExtensionWarning =
       (structure.type === "gate" || structure.type === "turret") &&
-      structure.extensionStatus !== "authorized";
+      (structure.summary?.extensionStatus ?? structure.extensionStatus) !== "authorized";
     const normalizedAssemblyId = normalizeNodeDrilldownAssemblyId(structure.assemblyId) ?? undefined;
-    const actionAuthority = createNodeLocalActionAuthority(family, [structure], "live");
+    const indexedActionAuthority = createIndexedNodeLocalActionAuthority(
+      family,
+      status,
+      structure.summary?.actionCandidate,
+    );
+    const actionAuthority = indexedActionAuthority
+      ?? createNodeLocalActionAuthority(
+        family,
+        structure.readModelSource === "operator-inventory" ? [] : [structure],
+        source,
+      );
+    const hasDirectChainAuthority = structure.readModelSource !== "operator-inventory";
 
     return createNodeLocalStructure({
       id: structure.objectId,
@@ -815,30 +967,30 @@ function buildLiveFallbackStructures(liveStructures: Structure[]): NodeLocalStru
         objectId: structure.objectId,
         assemblyId: normalizedAssemblyId,
         renderId: structure.objectId,
-        source: "live",
+        source,
       }) ?? `unresolved:${structure.objectId}`,
       objectId: structure.objectId,
       assemblyId: normalizedAssemblyId,
-      directChainObjectId: structure.objectId,
-      directChainAssemblyId: normalizedAssemblyId ?? null,
-      hasDirectChainAuthority: true,
-      directChainMatchCount: 1,
-      futureActionEligible: true,
+      directChainObjectId: hasDirectChainAuthority ? structure.objectId : null,
+      directChainAssemblyId: hasDirectChainAuthority ? normalizedAssemblyId ?? null : null,
+      hasDirectChainAuthority,
+      directChainMatchCount: hasDirectChainAuthority ? 1 : 0,
+      futureActionEligible: actionAuthority.state === "verified-supported" || actionAuthority.state === "future-supported",
       linkedGateId: structure.linkedGateId ?? undefined,
       displayName: resolveLiveDisplayName(structure, family, resolvedType.typeLabel),
       family,
       sizeVariant,
       status,
-      source: "live",
-      extensionStatus: structure.extensionStatus,
+      source,
+      extensionStatus: structure.summary?.extensionStatus ?? structure.extensionStatus,
       actionAuthority,
       typeLabel: resolvedType.typeLabel,
       typeId: resolvedType.typeId,
       warningPip: status === "warning" || needsExtensionWarning,
-      backendSource: null,
-      fetchedAt: null,
-      lastUpdated: structure.summary?.lastUpdated ?? null,
-      provenance: null,
+      backendSource: source === "backendMembership" ? structure.summary?.source ?? null : null,
+      fetchedAt: source === "backendMembership" ? structure.summary?.lastObservedTimestamp ?? null : null,
+      lastUpdated: structure.summary?.lastUpdated ?? structure.summary?.lastObservedTimestamp ?? null,
+      provenance: source === "backendMembership" ? structure.summary?.provenance ?? "operator-inventory" : null,
       url: structure.summary?.url ?? null,
       solarSystemId: structure.summary?.solarSystemId ?? null,
       energySourceId: structure.summary?.energySourceId ?? null,
@@ -881,11 +1033,12 @@ function buildBackendMembershipStructures(
       null,
     );
     const status = normalizeObservedStatus(observed.status);
-    const sizeVariant = deriveSizeVariant(resolvedType.typeLabel) ?? "standard";
+    const sizeVariant = normalizeObservedSize(observed.size) ?? deriveSizeVariant(resolvedType.typeLabel) ?? "standard";
     const needsExtensionWarning = primaryLiveMatch != null
       && (primaryLiveMatch.type === "gate" || primaryLiveMatch.type === "turret")
-      && primaryLiveMatch.extensionStatus !== "authorized";
-    const actionAuthority = createNodeLocalActionAuthority(family, liveMatches, "backendMembership");
+      && (observed.extensionStatus ?? primaryLiveMatch.extensionStatus) !== "authorized";
+    const actionAuthority = createIndexedNodeLocalActionAuthority(family, status, observed.actionCandidate)
+      ?? createNodeLocalActionAuthority(family, liveMatches, "backendMembership");
     const renderId = normalizeCanonicalObjectId(observed.objectId)
       ?? (normalizedAssemblyId ? `assembly:${normalizedAssemblyId}` : primaryLiveMatch?.objectId ?? observedIndex.byCanonicalKey.size.toString());
 
@@ -903,10 +1056,12 @@ function buildBackendMembershipStructures(
       directChainAssemblyId: normalizeNodeDrilldownAssemblyId(primaryLiveMatch?.assemblyId) ?? null,
       hasDirectChainAuthority: liveMatches.length > 0,
       directChainMatchCount: liveMatches.length,
-      futureActionEligible: liveMatches.length === 1,
+      futureActionEligible: actionAuthority.state === "verified-supported"
+        || actionAuthority.state === "future-supported"
+        || liveMatches.length === 1,
       linkedGateId: observed.linkedGateId ?? primaryLiveMatch?.linkedGateId ?? undefined,
       displayName: normalizeNodeLocalDisplayName(
-        observed.name,
+        observed.displayName ?? observed.name,
         family,
         resolvedType.typeLabel,
         observed.objectId ?? primaryLiveMatch?.objectId,
@@ -916,7 +1071,7 @@ function buildBackendMembershipStructures(
       sizeVariant,
       status,
       source: "backendMembership",
-      extensionStatus: primaryLiveMatch?.extensionStatus,
+      extensionStatus: observed.extensionStatus ?? primaryLiveMatch?.extensionStatus,
       actionAuthority,
       typeLabel: resolvedType.typeLabel,
       typeId: resolvedType.typeId,
@@ -944,7 +1099,12 @@ function buildSelectedNodeStructures(
 ): SelectedNodeStructuresBuildResult {
   const liveStructures = [...group.gates, ...group.storageUnits, ...group.turrets];
   const observedEntries = observedLookup?.status === "success" ? observedLookup.assemblies : [];
-  const sourceMode = resolveNodeLocalSourceMode(observedLookup, observedEntries, options.isLoading ?? false);
+  const sourceMode = resolveNodeLocalSourceMode(
+    observedLookup,
+    observedEntries,
+    options.isLoading ?? false,
+    options.preferObservedMembership ?? false,
+  );
 
   if (sourceMode === "backend-membership" && observedLookup?.status === "success") {
     const liveIndex = createLiveStructureIndex(liveStructures);
@@ -969,7 +1129,9 @@ function buildSelectedNodeStructures(
 }
 
 function fuelSummary(structure: Structure): string | undefined {
-  if (!structure.fuel) return undefined;
+  if (!structure.fuel) {
+    return structure.summary?.fuelAmount ? `${structure.summary.fuelAmount} indexed fuel` : undefined;
+  }
   const units = structure.fuel.quantity.toLocaleString();
   if (!structure.fuel.isBurning) return `${units} units loaded`;
   return `${units} units burning`;
@@ -1014,9 +1176,9 @@ export function buildLiveNodeLocalViewModelWithObserved(
       status: group.node.status,
       tone: statusToTone(group.node.status),
       warningPip: group.node.status === "warning",
-      source: "live",
+      source: group.node.readModelSource === "operator-inventory" ? "backendMembership" : "live",
       fuelSummary: fuelSummary(group.node),
-      extensionStatus: group.node.extensionStatus,
+      extensionStatus: group.node.summary?.extensionStatus ?? group.node.extensionStatus,
       solarSystemName: group.node.summary?.solarSystemId ?? (group.solarSystemId != null ? `System ${group.solarSystemId}` : null),
       isSyntheticContainer: group.node.objectId === "unassigned",
       backendSource: isBackendMembership ? observedLookup?.source ?? null : null,
@@ -1026,7 +1188,7 @@ export function buildLiveNodeLocalViewModelWithObserved(
       url: null,
       solarSystemId: group.node.summary?.solarSystemId ?? null,
       energySourceId: null,
-      fuelAmount: group.node.fuel?.quantity?.toString() ?? null,
+      fuelAmount: group.node.summary?.fuelAmount ?? group.node.fuel?.quantity?.toString() ?? null,
       isReadOnly: false,
       isActionable: true,
     },
@@ -1061,6 +1223,11 @@ export function buildNodeDrilldownDebugSnapshot(
 }
 
 function resolveObservedFamily(observed: { assemblyType: string | null; typeId: number | null; typeName: string | null }): NodeLocalFamily | null {
+  const normalizedFamily = normalizeObservedFamilyName((observed as ObservedAssembly).family ?? null);
+  if (normalizedFamily) {
+    return normalizedFamily;
+  }
+
   const itemType = observed.typeId != null ? getItemTypeById(observed.typeId) : undefined;
   const candidates = [
     itemType?.name,
@@ -1083,6 +1250,53 @@ function resolveObservedFamily(observed: { assemblyType: string | null; typeId: 
   if (candidates.some((value) => value.includes("trade post") || value.includes("trade_post") || value.includes("storage") || value.includes("storage_unit"))) return "tradePost";
   if (candidates.some((value) => value.includes("turret"))) return "turret";
   if (candidates.some((value) => value.includes("gate"))) return "gate";
+
+  return null;
+}
+
+function normalizeObservedFamilyName(value: string | null | undefined): NodeLocalFamily | null {
+  const normalized = value?.trim().toLowerCase();
+  if (!normalized) return null;
+
+  switch (normalized) {
+    case "networknode":
+    case "network_node":
+      return "networkNode";
+    case "gate":
+      return "gate";
+    case "storage":
+    case "storage_unit":
+    case "tradepost":
+    case "trade_post":
+      return "tradePost";
+    case "turret":
+      return "turret";
+    case "printer":
+      return "printer";
+    case "refinery":
+      return "refinery";
+    case "assembler":
+      return "assembler";
+    case "berth":
+      return "berth";
+    case "relay":
+      return "relay";
+    case "nursery":
+      return "nursery";
+    case "nest":
+      return "nest";
+    case "shelter":
+      return "shelter";
+    default:
+      return null;
+  }
+}
+
+function normalizeObservedSize(size: string | null | undefined): NodeLocalSizeVariant {
+  const normalized = size?.trim().toLowerCase();
+  if (normalized === "mini" || normalized === "standard" || normalized === "heavy") {
+    return normalized;
+  }
 
   return null;
 }

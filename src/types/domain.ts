@@ -20,19 +20,56 @@ export type StructureType = "gate" | "storage_unit" | "turret" | "network_node";
 /** Operational status derived from on-chain state. */
 export type StructureStatus = "online" | "warning" | "offline" | "neutral";
 
+export interface IndexedActionRequiredIds {
+  structureId: ObjectId | null;
+  structureType: StructureType | null;
+  ownerCapId: ObjectId | null;
+  networkNodeId: ObjectId | null;
+}
+
+export interface IndexedStructureAction {
+  candidate: boolean;
+  currentlyImplementedInCivilizationControl: boolean;
+  familySupported: boolean | null;
+  indexedOwnerCapPresent: boolean | null;
+  requiredIds: IndexedActionRequiredIds | null;
+  unavailableReason: string | null;
+}
+
+export interface IndexedActionCandidate {
+  actions: {
+    power: IndexedStructureAction | null;
+    rename: IndexedStructureAction | null;
+  };
+  supported: boolean | null;
+  familySupported: boolean | null;
+  unavailableReason: string | null;
+}
+
 /** Optional shared-backend assembly summary keyed by decimal assembly ID. */
 export interface AssemblySummary {
   assemblyId: string;
-  assemblyType: string;
-  typeId: number;
-  name: string;
-  status: string;
+  assemblyType: string | null;
+  typeId: number | null;
+  name: string | null;
+  displayName?: string | null;
+  status: string | null;
   fuelAmount: string | null;
   solarSystemId: string | null;
   energySourceId: string | null;
   url: string | null;
   lastUpdated: string | null;
   typeName: string | null;
+  family?: string | null;
+  size?: string | null;
+  source?: string | null;
+  provenance?: string | null;
+  lastObservedCheckpoint?: string | null;
+  lastObservedTimestamp?: string | null;
+  extensionStatus?: "authorized" | "stale" | "none" | null;
+  partial?: boolean;
+  warnings?: string[];
+  actionCandidate?: IndexedActionCandidate | null;
 }
 
 /** Provenance metadata for backend-observed node-local discovery rows. */
@@ -45,6 +82,7 @@ export interface NodeAssemblyProvenance {
 export interface NodeAssemblyNode {
   objectId: ObjectId;
   name: string | null;
+  displayName?: string | null;
   status: string | null;
   assemblyId: string | null;
   solarSystemId: string | null;
@@ -59,13 +97,26 @@ export interface NodeAssemblySummary extends NodeAssemblyProvenance {
   assemblyType: string | null;
   typeId: number | null;
   name: string | null;
+  displayName?: string | null;
+  family?: string | null;
+  size?: string | null;
   status: string | null;
   fuelAmount: string | null;
+  powerSummary?: string | null;
   solarSystemId: string | null;
   energySourceId: string | null;
   url: string | null;
   lastUpdated: string | null;
+  lastObservedCheckpoint?: string | null;
+  lastObservedTimestamp?: string | null;
   typeName: string | null;
+  ownerCapId?: ObjectId | null;
+  ownerWalletAddress?: string | null;
+  characterId?: ObjectId | null;
+  extensionStatus?: "authorized" | "stale" | "none" | null;
+  partial?: boolean;
+  warnings?: string[];
+  actionCandidate?: IndexedActionCandidate | null;
 }
 
 /** Browser-safe node-local discovery response keyed by selected network-node object ID. */
@@ -97,6 +148,8 @@ export interface Structure {
   assemblyId?: string;
   objectId: ObjectId;
   ownerCapId: ObjectId;
+  /** Indicates whether the row came from direct-chain discovery or the indexed read model. */
+  readModelSource?: "direct-chain" | "operator-inventory";
   type: StructureType;
   name: string;
   status: StructureStatus;

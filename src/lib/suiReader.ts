@@ -370,6 +370,7 @@ function buildStructureFromResponse(
     assemblyId,
     objectId,
     ownerCapId,
+    readModelSource: "direct-chain",
     type: structureType,
     name,
     status,

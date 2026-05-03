@@ -41,6 +41,8 @@ export function formatNodeLocalActionAuthorityLabel(structure: NodeLocalStructur
   switch (structure.actionAuthority.state) {
     case "verified-supported":
       return "Verified supported";
+    case "future-supported":
+      return "Future support";
     case "backend-only":
       return "Backend-only";
     case "ambiguous-match":
@@ -57,25 +59,32 @@ export function formatNodeLocalActionAuthorityLabel(structure: NodeLocalStructur
 }
 
 export function formatNodeLocalActionAuthorityDetail(structure: NodeLocalStructure): string {
+  const unavailableReason = structure.actionAuthority.unavailableReason;
   switch (structure.actionAuthority.state) {
     case "verified-supported":
       return `Existing ${structure.familyLabel.toLowerCase()} power control can run safely from this row.`;
+    case "future-supported":
+      return unavailableReason ?? "Indexed as a candidate, but this web control is not implemented yet.";
     case "backend-only":
-      return "Action unavailable until this row resolves to one owned direct-chain structure.";
+      return unavailableReason ?? "Action unavailable until this row resolves to one indexed candidate with the required IDs.";
     case "ambiguous-match":
-      return `Action unavailable because ${structure.actionAuthority.candidateTargets.length} direct-chain matches were found.`;
+      return unavailableReason ?? `Action unavailable because ${structure.actionAuthority.candidateTargets.length} direct-chain matches were found.`;
     case "unsupported-family":
-      return "Action unavailable because this family has no approved web power path in Phase E.";
+      return unavailableReason ?? "Action unavailable because this family has no approved web power path in Phase E.";
     case "missing-owner-cap":
-      return "Action unavailable because the required OwnerCap proof is missing.";
+      return unavailableReason ?? "Action unavailable because the required OwnerCap proof is missing.";
     case "missing-node-context":
-      return "Action unavailable because the linked network node context is missing.";
+      return unavailableReason ?? "Action unavailable because the linked network node context is missing.";
     case "synthetic":
       return "Action controls in the lab are browser-only previews and never submit transactions.";
   }
 }
 
 export function formatNodeLocalActionTooltip(structure: NodeLocalStructure): string {
+  if (structure.actionAuthority.unavailableReason && structure.actionAuthority.state !== "verified-supported") {
+    return structure.actionAuthority.unavailableReason;
+  }
+
   if (structure.actionAuthority.state === "verified-supported") {
     const actionStatus = getNodeLocalActionStatus(structure);
     if (actionStatus === "warning" || actionStatus === "neutral") {
@@ -89,6 +98,10 @@ export function formatNodeLocalActionTooltip(structure: NodeLocalStructure): str
 export function formatNodeLocalActionBadgeText(structure: NodeLocalStructure): string {
   if (structure.actionAuthority.state === "verified-supported") {
     return "Action verified";
+  }
+
+  if (structure.actionAuthority.state === "future-supported") {
+    return "Future support";
   }
 
   if (structure.actionAuthority.state === "synthetic") {

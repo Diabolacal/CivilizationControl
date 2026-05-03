@@ -20,6 +20,23 @@ This is a docs-only architecture correction for the accepted `feat/node-drilldow
 - planning consequence: do not keep optimizing browser Sui JSON-RPC into the primary dashboard boot path or the primary Node Control read path; the next work should pivot to a shared-backend operator-inventory endpoint and frontend adoption of that endpoint as the main boot read model
 - current branch action work is paused at the accepted UI baseline until the read model is corrected; online or offline control should resume only after the operator-inventory contract and indexed action-candidate model exist
 
+### Phase E2 operator-inventory frontend implementation - 2026-05-03
+
+This pass completes the frontend side of the read-model correction on `feat/node-drilldown-render-shell` without reopening the accepted `Node Control` shell or widening the write scope.
+
+- app boot now prefers `GET /api/civilization-control/operator-inventory?walletAddress=0x...` through a new browser-safe client and React Query seam; `useAssetDiscovery` falls back to direct-chain discovery only when the shared read model fails completely
+- compatibility mapping preserves the existing dashboard and sidebar contract by adapting operator inventory into `PlayerProfile`, `Structure[]`, `NetworkMetrics`, grouped node membership, and operator-facing partial or unlinked warnings instead of introducing a new shell route or view-model family
+- selected-node `Node Control` now prefers grouped operator-inventory node lookups instead of requiring a selected-node `node-assemblies` fetch on the success path; `useNodeAssemblies(...)` remains as a fallback only when the operator-inventory lookup is absent or failed
+- indexed `actionCandidate.actions.power` now drives row availability for operator-inventory-backed rows, while wallet-signed chain execution stays on the existing `useStructurePower().toggleSingle(...)` path and remains final authority
+- the sidebar now exposes calm read-model state as `Shared read model • Updated HH:MM` or `Direct-chain fallback` rather than relying only on warning-state copy
+- deterministic proof now includes `scripts/check-operator-inventory-mapping.mts`, which verifies operator-inventory adaptation, backend-membership rendering, unlinked-structure preservation, and indexed `future-supported` rows
+- local validation passed: `npm run typecheck`, `npm run build`, `git diff --check`, `npx tsx scripts/check-node-drilldown-reconciliation.mts`, and `npx tsx scripts/check-operator-inventory-mapping.mts`
+- preview evidence for this implementation pass was captured on `https://a7e61d2e.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+- deployed preview validation confirmed unique-preview `/`, `/settings`, `/dev/node-drilldown-lab`, and alias `/`; confirmed browser-origin `fetch()` from the deployed preview to `https://ef-map.com/api/civilization-control/operator-inventory?walletAddress=0x0000000000000000000000000000000000000000000000000000000000000abc` returned `200` with `schemaVersion: "operator-inventory.v1"`, `partial: false`, and expected indexer warning strings; and confirmed unique and alias HTML both resolve `/assets/index-CgQoKUu5.js`
+- served-bundle proof scanned all deployed preview JS assets and found `civilizationcontrol-sponsor` in `App-CRmyQhC8.js` and `SmartObjectProvider-NJGrBabz.js`, found `https://ef-map.com` in `SmartObjectProvider-NJGrBabz.js` and `useNodeDrilldownStructureMenu-DfDHNqVp.js`, found `operator-inventory` strings in `App-CRmyQhC8.js` and `useNodeDrilldownStructureMenu-DfDHNqVp.js`, and found no `flappy-frontier-sponsor`, `ASSEMBLY_API_TOKEN`, `Authorization`, or `X-API-Key` markers in the served preview JS assets checked for this pass
+
+The remaining validation gap is one wallet-connected preview smoke against a real indexed operator inventory. The available browser session had no usable wallet-owned node inventory for that proof. A disconnected preview snapshot also still showed the existing `[DappKit] SmartObjectProvider: No object ID provided` console message on root and settings, which was observed but not changed in this pass.
+
 ### Browser Sui read-path hardening follow-up - 2026-05-03
 
 #### Partial-state classification clarification - 2026-05-03
@@ -1197,6 +1214,7 @@ Implementation status on 2026-05-02:
 
 ### Phase E2 - frontend boot read-path switch to operator inventory
 
+- Status: implemented on `feat/node-drilldown-render-shell` on 2026-05-03; keep this section as the phase-definition baseline for future follow-up work.
 - Scope: switch dashboard and Node Control boot reads from browser direct-chain discovery to the operator-inventory endpoint, preserve the accepted UI baseline, and keep browser JSON-RPC only as a narrow optional fallback or debug seam.
 - Files likely touched: frontend read-provider selection, `useAssetDiscovery` or its replacement seam, dashboard boot state, and the node-local read-model adapters.
 - Out of scope: new UI work, production deploy, broad browser rediscovery loops, sponsor changes, Move changes.
@@ -1205,6 +1223,7 @@ Implementation status on 2026-05-02:
 
 ### Phase E3 - indexed action candidates plus wallet-signed online or offline execution
 
+- Status: partially advanced on 2026-05-03 because operator-inventory-backed rows now consume indexed `actionCandidate.actions.power` hints for availability labeling, but live wallet-connected action proof against indexed data is still pending.
 - Scope: use indexed `actionCandidate` metadata to label supported versus unavailable rows, feed the existing transaction builders with the required IDs when present, and execute supported actions through the wallet with chain finality as the deciding outcome.
 - Files likely touched: row action-state mapping, list or inspector action surfaces, existing power-hook integration points, and failure-state labeling.
 - Out of scope: inferring actions from display membership alone, unsupported-family writes, rename, presets, sponsor changes, Move changes.

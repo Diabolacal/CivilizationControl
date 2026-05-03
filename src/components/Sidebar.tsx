@@ -68,6 +68,7 @@ interface SidebarProps {
   isConnected?: boolean;
   isLoading?: boolean;
   isError?: boolean;
+  inventoryStatusLabel?: string | null;
   discoveryWarning?: string | null;
   discoveryErrorMessage?: string | null;
   onRequestHome?: () => void;
@@ -97,6 +98,7 @@ export function Sidebar({
   isConnected = false,
   isLoading = false,
   isError = false,
+  inventoryStatusLabel = null,
   discoveryWarning = null,
   discoveryErrorMessage = null,
   onRequestHome,
@@ -153,6 +155,12 @@ export function Sidebar({
           <h3 className="text-[11px] font-semibold tracking-wide text-muted-foreground/70 px-3 mb-2">
             Structure Inventory
           </h3>
+
+          {inventoryStatusLabel ? (
+            <p className="px-3 text-[11px] text-muted-foreground/50">
+              {inventoryStatusLabel}
+            </p>
+          ) : null}
 
           {!isConnected && (
             <p className="px-3 text-[11px] text-muted-foreground/40">

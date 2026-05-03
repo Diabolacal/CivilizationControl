@@ -1,0 +1,496 @@
+import { getSharedBackendBaseUrl } from "@/lib/assemblySummaryClient";
+import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
+import type {
+  IndexedActionCandidate,
+  IndexedActionRequiredIds,
+  IndexedStructureAction,
+  StructureType,
+} from "@/types/domain";
+import type {
+  OperatorInventoryFamily,
+  OperatorInventoryNode,
+  OperatorInventoryOperator,
+  OperatorInventoryResponse,
+  OperatorInventorySize,
+  OperatorInventoryStatus,
+  OperatorInventoryStructure,
+} from "@/types/operatorInventory";
+
+const OPERATOR_INVENTORY_PATH = "/api/civilization-control/operator-inventory";
+const REQUEST_TIMEOUT_MS = 5_000;
+
+interface FetchOperatorInventoryOptions {
+  baseUrl?: string;
+  timeoutMs?: number;
+}
+
+interface ErrorPayload {
+  error: string | null;
+  message: string | null;
+}
+
+export class OperatorInventoryError extends Error {
+  status: number | null;
+  code: string | null;
+
+  constructor(message: string, options: { status?: number | null; code?: string | null } = {}) {
+    super(message);
+    this.name = "OperatorInventoryError";
+    this.status = options.status ?? null;
+    this.code = options.code ?? null;
+  }
+}
+
+export function normalizeOperatorInventoryWalletAddress(value: string | null | undefined): string | null {
+  return normalizeCanonicalObjectId(value);
+}
+
+export function buildOperatorInventoryUrl(
+  walletAddress: string,
+  baseUrl = getSharedBackendBaseUrl(),
+): string {
+  const normalizedWallet = normalizeOperatorInventoryWalletAddress(walletAddress);
+  if (!normalizedWallet) {
+    throw new OperatorInventoryError("Invalid wallet address", { code: "invalid_wallet_address" });
+  }
+
+  const url = new URL(OPERATOR_INVENTORY_PATH, `${baseUrl}/`);
+  url.searchParams.set("walletAddress", normalizedWallet);
+  return url.toString();
+}
+
+export async function fetchOperatorInventory(
+  walletAddress: string,
+  options: FetchOperatorInventoryOptions = {},
+): Promise<OperatorInventoryResponse> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), options.timeoutMs ?? REQUEST_TIMEOUT_MS);
+
+  try {
+    const response = await fetch(buildOperatorInventoryUrl(walletAddress, options.baseUrl ?? getSharedBackendBaseUrl()), {
+      method: "GET",
+      headers: { Accept: "application/json" },
+      signal: controller.signal,
+    });
+
+    if (!response.ok) {
+      throw await buildOperatorInventoryRequestError(response);
+    }
+
+    const payload = await response.json();
+    const normalized = normalizeOperatorInventoryResponse(payload);
+    if (!normalized) {
+      throw new OperatorInventoryError("Operator inventory response shape was invalid", { code: "invalid_response" });
+    }
+
+    if (normalized.schemaVersion !== "operator-inventory.v1") {
+      throw new OperatorInventoryError(
+        `Unsupported operator inventory schema: ${normalized.schemaVersion}`,
+        { code: "schema_mismatch" },
+      );
+    }
+
+    return normalized;
+  } catch (error) {
+    if (error instanceof DOMException && error.name === "AbortError") {
+      throw new OperatorInventoryError("Operator inventory request timed out", { code: "timeout" });
+    }
+
+    if (error instanceof OperatorInventoryError) {
+      throw error;
+    }
+
+    throw new OperatorInventoryError(
+      error instanceof Error ? error.message : "Operator inventory request failed",
+      { code: "request_failed" },
+    );
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+export function getOperatorInventoryErrorMessage(error: unknown): string {
+  if (!(error instanceof OperatorInventoryError)) {
+    return error instanceof Error ? error.message : "Operator inventory is unavailable.";
+  }
+
+  if (error.code === "invalid_wallet_address") {
+    return "Connected wallet address is invalid for operator inventory.";
+  }
+
+  if (error.code === "schema_mismatch") {
+    return "Operator inventory schema was not recognized by this build.";
+  }
+
+  if (error.status === 400) {
+    return error.message || "Operator inventory request was rejected by the shared read model.";
+  }
+
+  if (error.status === 403) {
+    return error.message || "Operator inventory request was blocked for this browser origin.";
+  }
+
+  if (error.status === 405) {
+    return error.message || "Operator inventory endpoint rejected this request method.";
+  }
+
+  if (error.status != null && [502, 503, 504].includes(error.status)) {
+    return "Operator inventory is temporarily unavailable.";
+  }
+
+  return error.message || "Operator inventory is unavailable.";
+}
+
+async function buildOperatorInventoryRequestError(response: Response): Promise<OperatorInventoryError> {
+  const payload = await parseErrorPayload(response);
+  const message = payload.message
+    ?? (response.status === 400 ? "Operator inventory request was rejected by the shared read model." : null)
+    ?? `Operator inventory request failed with status ${response.status}`;
+
+  return new OperatorInventoryError(message, {
+    status: response.status,
+    code: payload.error,
+  });
+}
+
+async function parseErrorPayload(response: Response): Promise<ErrorPayload> {
+  const contentType = response.headers.get("content-type")?.toLowerCase() ?? "";
+  if (contentType.includes("application/json")) {
+    try {
+      const payload = await response.json() as Record<string, unknown>;
+      return {
+        error: normalizeNullableString(payload.error),
+        message: normalizeNullableString(payload.message),
+      };
+    } catch {
+      return { error: null, message: null };
+    }
+  }
+
+  try {
+    const text = normalizeNullableString(await response.text());
+    return { error: null, message: text };
+  } catch {
+    return { error: null, message: null };
+  }
+}
+
+function normalizeOperatorInventoryResponse(payload: unknown): OperatorInventoryResponse | null {
+  if (!payload || typeof payload !== "object") return null;
+
+  const candidate = payload as Record<string, unknown>;
+  const schemaVersion = normalizeNullableString(candidate.schemaVersion);
+  if (!schemaVersion) return null;
+  if (!Array.isArray(candidate.networkNodes) || !Array.isArray(candidate.unlinkedStructures)) return null;
+
+  const warnings = normalizeStringArray(candidate.warnings);
+  const partial = normalizeBoolean(candidate.partial) ?? false;
+  const source = normalizeNullableString(candidate.source);
+  const fetchedAt = normalizeNullableTimestamp(candidate.fetchedAt);
+
+  return {
+    schemaVersion: schemaVersion as OperatorInventoryResponse["schemaVersion"],
+    operator: normalizeOperatorInventoryOperator(candidate.operator),
+    networkNodes: candidate.networkNodes
+      .map((entry) => normalizeOperatorInventoryNode(entry, { partial, source, warnings }))
+      .filter((entry): entry is OperatorInventoryNode => entry !== null),
+    unlinkedStructures: candidate.unlinkedStructures
+      .map((entry) => normalizeOperatorInventoryStructure(entry, { partial, source, warnings }))
+      .filter((entry): entry is OperatorInventoryStructure => entry !== null),
+    warnings,
+    partial,
+    source,
+    fetchedAt,
+  };
+}
+
+function normalizeOperatorInventoryOperator(value: unknown): OperatorInventoryOperator | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Record<string, unknown>;
+  const walletAddress = normalizeOperatorInventoryWalletAddress(normalizeNullableString(candidate.walletAddress));
+  if (!walletAddress) {
+    return null;
+  }
+
+  return {
+    walletAddress,
+    characterId: normalizeCanonicalObjectId(normalizeNullableString(candidate.characterId)),
+    characterName: normalizeNullableString(candidate.characterName),
+    tribeId: normalizeNumber(candidate.tribeId),
+    tribeName: normalizeNullableString(candidate.tribeName),
+  };
+}
+
+function normalizeOperatorInventoryNode(
+  value: unknown,
+  defaults: { partial: boolean; source: string | null; warnings: string[] },
+): OperatorInventoryNode | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Record<string, unknown>;
+  const node = normalizeOperatorInventoryStructure(candidate.node, defaults);
+  if (!node || !Array.isArray(candidate.structures)) return null;
+
+  return {
+    node,
+    structures: candidate.structures
+      .map((entry) => normalizeOperatorInventoryStructure(entry, defaults))
+      .filter((entry): entry is OperatorInventoryStructure => entry !== null),
+  };
+}
+
+function normalizeOperatorInventoryStructure(
+  value: unknown,
+  defaults: { partial: boolean; source: string | null; warnings: string[] },
+): OperatorInventoryStructure | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Record<string, unknown>;
+  const objectId = normalizeCanonicalObjectId(normalizeNullableString(candidate.objectId));
+  const assemblyId = normalizeNullableString(candidate.assemblyId);
+
+  if (!objectId && !assemblyId) {
+    return null;
+  }
+
+  const actionCandidate = normalizeIndexedActionCandidate(
+    candidate.actionCandidate,
+    candidate,
+  );
+
+  return {
+    objectId,
+    assemblyId,
+    ownerCapId: normalizeCanonicalObjectId(normalizeNullableString(candidate.ownerCapId)),
+    family: normalizeOperatorInventoryFamily(candidate.family, candidate.assemblyType, candidate.typeName),
+    size: normalizeOperatorInventorySize(candidate.size, candidate.typeName, candidate.assemblyType),
+    displayName: normalizeNullableString(candidate.displayName),
+    name: normalizeNullableString(candidate.name),
+    typeId: normalizeNumber(candidate.typeId),
+    typeName: normalizeNullableString(candidate.typeName),
+    assemblyType: normalizeNullableString(candidate.assemblyType),
+    status: normalizeOperatorInventoryStatus(candidate.status),
+    networkNodeId: normalizeCanonicalObjectId(normalizeNullableString(candidate.networkNodeId)),
+    energySourceId: normalizeNullableString(candidate.energySourceId),
+    linkedGateId: normalizeCanonicalObjectId(normalizeNullableString(candidate.linkedGateId)),
+    ownerWalletAddress: normalizeOperatorInventoryWalletAddress(normalizeNullableString(candidate.ownerWalletAddress)),
+    characterId: normalizeCanonicalObjectId(normalizeNullableString(candidate.characterId)),
+    extensionStatus: normalizeExtensionStatus(candidate.extensionStatus),
+    fuelAmount: normalizeNullableString(candidate.fuelAmount),
+    powerSummary: normalizeNullableString(candidate.powerSummary),
+    solarSystemId: normalizeNullableString(candidate.solarSystemId),
+    url: normalizeNullableString(candidate.url),
+    lastObservedCheckpoint: normalizeNullableString(candidate.lastObservedCheckpoint),
+    lastObservedTimestamp: normalizeNullableTimestamp(candidate.lastObservedTimestamp),
+    lastUpdated: normalizeNullableTimestamp(candidate.lastUpdated),
+    source: normalizeNullableString(candidate.source) ?? defaults.source,
+    provenance: normalizeNullableString(candidate.provenance),
+    partial: normalizeBoolean(candidate.partial) ?? defaults.partial,
+    warnings: normalizeStringArray(candidate.warnings).length > 0
+      ? normalizeStringArray(candidate.warnings)
+      : defaults.warnings,
+    actionCandidate,
+  };
+}
+
+function normalizeIndexedActionCandidate(
+  value: unknown,
+  rowCandidate: Record<string, unknown>,
+): IndexedActionCandidate | null {
+  if (!value || typeof value !== "object") {
+    const supported = normalizeBoolean(rowCandidate.supported);
+    const familySupported = normalizeBoolean(rowCandidate.familySupported);
+    const unavailableReason = normalizeNullableString(rowCandidate.unavailableReason);
+
+    if (supported == null && familySupported == null && !unavailableReason) {
+      return null;
+    }
+
+    return {
+      actions: { power: null, rename: null },
+      supported,
+      familySupported,
+      unavailableReason,
+    };
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const actionsCandidate = candidate.actions as Record<string, unknown> | undefined;
+  return {
+    actions: {
+      power: normalizeIndexedStructureAction(actionsCandidate?.power),
+      rename: normalizeIndexedStructureAction(actionsCandidate?.rename),
+    },
+    supported: normalizeBoolean(candidate.supported) ?? normalizeBoolean(rowCandidate.supported),
+    familySupported: normalizeBoolean(candidate.familySupported) ?? normalizeBoolean(rowCandidate.familySupported),
+    unavailableReason: normalizeNullableString(candidate.unavailableReason) ?? normalizeNullableString(rowCandidate.unavailableReason),
+  };
+}
+
+function normalizeIndexedStructureAction(value: unknown): IndexedStructureAction | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Record<string, unknown>;
+  const requiredIds = normalizeIndexedActionRequiredIds(candidate.requiredIds);
+
+  return {
+    candidate: normalizeBoolean(candidate.candidate) ?? false,
+    currentlyImplementedInCivilizationControl: normalizeBoolean(candidate.currentlyImplementedInCivilizationControl) ?? false,
+    familySupported: normalizeBoolean(candidate.familySupported),
+    indexedOwnerCapPresent: normalizeBoolean(candidate.indexedOwnerCapPresent),
+    requiredIds,
+    unavailableReason: normalizeNullableString(candidate.unavailableReason),
+  };
+}
+
+function normalizeIndexedActionRequiredIds(value: unknown): IndexedActionRequiredIds | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Record<string, unknown>;
+  return {
+    structureId: normalizeCanonicalObjectId(normalizeNullableString(candidate.structureId)),
+    structureType: normalizeStructureType(candidate.structureType),
+    ownerCapId: normalizeCanonicalObjectId(normalizeNullableString(candidate.ownerCapId)),
+    networkNodeId: normalizeCanonicalObjectId(normalizeNullableString(candidate.networkNodeId)),
+  };
+}
+
+function normalizeStructureType(value: unknown): StructureType | null {
+  const normalized = normalizeNullableString(value)?.trim().toLowerCase();
+  if (!normalized) return null;
+
+  switch (normalized) {
+    case "gate":
+      return "gate";
+    case "storage":
+    case "storage_unit":
+    case "tradepost":
+    case "trade_post":
+      return "storage_unit";
+    case "turret":
+      return "turret";
+    case "networknode":
+    case "network_node":
+      return "network_node";
+    default:
+      return null;
+  }
+}
+
+function normalizeOperatorInventoryFamily(
+  family: unknown,
+  assemblyType: unknown,
+  typeName: unknown,
+): OperatorInventoryFamily | null {
+  const candidates = [family, assemblyType, typeName]
+    .map((value) => normalizeNullableString(value)?.toLowerCase().replace(/[\s-]+/g, "_"))
+    .filter((value): value is string => Boolean(value));
+
+  if (candidates.some((value) => value.includes("network_node") || value.includes("networknode"))) return "networkNode";
+  if (candidates.some((value) => value.includes("gate"))) return "gate";
+  if (candidates.some((value) => value.includes("storage") || value.includes("trade_post") || value.includes("tradepost"))) return "storage";
+  if (candidates.some((value) => value.includes("turret"))) return "turret";
+  if (candidates.some((value) => value.includes("printer"))) return "printer";
+  if (candidates.some((value) => value.includes("refinery") || value.includes("refiner"))) return "refinery";
+  if (candidates.some((value) => value.includes("assembler"))) return "assembler";
+  if (candidates.some((value) => value.includes("berth"))) return "berth";
+  if (candidates.some((value) => value.includes("relay"))) return "relay";
+  if (candidates.some((value) => value.includes("nursery"))) return "nursery";
+  if (candidates.some((value) => value.includes("nest"))) return "nest";
+  if (candidates.some((value) => value.includes("shelter") || value.includes("hangar"))) return "shelter";
+
+  return null;
+}
+
+function normalizeOperatorInventorySize(
+  size: unknown,
+  typeName: unknown,
+  assemblyType: unknown,
+): OperatorInventorySize {
+  const explicit = normalizeNullableString(size)?.toLowerCase();
+  if (explicit === "mini" || explicit === "standard" || explicit === "heavy") {
+    return explicit;
+  }
+
+  const combined = [typeName, assemblyType]
+    .map((value) => normalizeNullableString(value)?.toLowerCase())
+    .filter((value): value is string => Boolean(value))
+    .join(" ");
+
+  if (combined.includes("heavy")) return "heavy";
+  if (combined.includes("mini") || combined.includes("field")) return "mini";
+  return null;
+}
+
+function normalizeOperatorInventoryStatus(value: unknown): OperatorInventoryStatus | null {
+  const normalized = normalizeNullableString(value)?.toLowerCase().replace(/[\s-]+/g, "_");
+  if (!normalized) return null;
+
+  switch (normalized) {
+    case "online":
+      return "online";
+    case "offline":
+      return "offline";
+    case "unanchored":
+      return "unanchored";
+    case "warning":
+    case "degraded":
+      return "warning";
+    case "unknown":
+      return "unknown";
+    default:
+      return "unknown";
+  }
+}
+
+function normalizeExtensionStatus(value: unknown): "authorized" | "stale" | "none" | null {
+  const normalized = normalizeNullableString(value)?.toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "authorized" || normalized === "stale" || normalized === "none") {
+    return normalized;
+  }
+  return null;
+}
+
+function normalizeNullableString(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+function normalizeNullableTimestamp(value: unknown): string | null {
+  const normalized = normalizeNullableString(value);
+  if (!normalized) return null;
+  return Number.isNaN(Date.parse(normalized)) ? null : normalized;
+}
+
+function normalizeNumber(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function normalizeBoolean(value: unknown): boolean | null {
+  if (typeof value === "boolean") return value;
+
+  if (typeof value === "string") {
+    const normalized = value.trim().toLowerCase();
+    if (normalized === "true") return true;
+    if (normalized === "false") return false;
+  }
+
+  return null;
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map((entry) => normalizeNullableString(entry)).filter((entry): entry is string => Boolean(entry));
+}

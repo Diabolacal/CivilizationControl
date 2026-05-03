@@ -65,6 +65,7 @@ export function useStructurePower() {
         setResult({ digest });
         setStatus("success");
         queryClient.invalidateQueries({ queryKey: ["assetDiscovery"] });
+        queryClient.invalidateQueries({ queryKey: ["operatorInventory"] });
         return true;
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);

@@ -44,6 +44,7 @@ export type NodeLocalSupportedPowerType = Extract<StructureType, "gate" | "stora
 
 export type NodeLocalActionAuthorityState =
   | "verified-supported"
+  | "future-supported"
   | "backend-only"
   | "ambiguous-match"
   | "unsupported-family"
@@ -69,6 +70,7 @@ export interface NodeLocalActionAuthority {
   state: NodeLocalActionAuthorityState;
   verifiedTarget: NodeLocalVerifiedActionTarget | null;
   candidateTargets: NodeLocalActionCandidateTarget[];
+  unavailableReason?: string | null;
 }
 
 export interface NodeLocalObservationMeta {
