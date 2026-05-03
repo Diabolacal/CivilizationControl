@@ -86,6 +86,7 @@ export function Dashboard({
   const TRANSITION_DURATION_MS = 520;
   const { signals: recentSignals } = useSignalFeed({
     limit: 10,
+    polling: false,
     ownedObjectIds,
     walletAddress: walletAddress ?? null,
     aggressiveRefetch: postureTransitioning,

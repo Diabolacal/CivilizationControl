@@ -14,7 +14,14 @@ import { TagChip } from "@/components/TagChip";
 import { NetworkNodeGlyph } from "@/components/topology/Glyphs";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { useStructurePower } from "@/hooks/useStructurePower";
-import { fuelTypeLabel, getFuelEfficiency, computeRuntimeMs, formatRuntime } from "@/lib/fuelRuntime";
+import {
+  fuelTypeLabel,
+  getFuelEfficiency,
+  computeRuntimeMs,
+  formatRuntime,
+  formatIndexedFuelAmount,
+  getIndexedFuelAmount,
+} from "@/lib/fuelRuntime";
 import { shortId } from "@/lib/formatAddress";
 import type { Structure, NetworkNodeGroup } from "@/types/domain";
 
@@ -137,6 +144,7 @@ function NodeRow({ node, group }: { node: Structure; group?: NetworkNodeGroup })
   const attachedCount = group
     ? group.gates.length + group.storageUnits.length + group.turrets.length
     : 0;
+  const indexedFuelLabel = formatIndexedFuelAmount(getIndexedFuelAmount(node));
 
   return (
     <tr className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors">
@@ -192,8 +200,10 @@ function NodeRow({ node, group }: { node: Structure; group?: NetworkNodeGroup })
               </div>
             );
           })()
+        ) : indexedFuelLabel ? (
+          <span className="text-[11px] font-mono text-foreground">{indexedFuelLabel}</span>
         ) : (
-          <span className="text-[11px] text-muted-foreground">—</span>
+          <span className="text-[11px] text-muted-foreground">Unavailable</span>
         )}
       </td>
       <td className="py-3 px-4">

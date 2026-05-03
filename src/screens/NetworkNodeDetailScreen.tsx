@@ -12,7 +12,14 @@ import { StructureDetailHeader } from "@/components/StructureDetailHeader";
 import { StatusDot } from "@/components/StatusDot";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { useStructurePower } from "@/hooks/useStructurePower";
-import { fuelTypeLabel, getFuelEfficiency, computeRuntimeMs, formatRuntime } from "@/lib/fuelRuntime";
+import {
+  fuelTypeLabel,
+  getFuelEfficiency,
+  computeRuntimeMs,
+  formatRuntime,
+  formatIndexedFuelAmount,
+  getIndexedFuelAmount,
+} from "@/lib/fuelRuntime";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, NetworkNodeGroup } from "@/types/domain";
 
@@ -73,6 +80,7 @@ function BackLink() {
 function PowerControlSection({ node }: { node: Structure }) {
   const power = useStructurePower();
   const isOnline = node.status === "online";
+  const indexedFuelLabel = formatIndexedFuelAmount(getIndexedFuelAmount(node));
 
   const handleOnline = () => {
     power.bringNodeOnline({
@@ -99,7 +107,7 @@ function PowerControlSection({ node }: { node: Structure }) {
           </span>
         )}
       </div>
-      {node.fuel != null && (
+      {node.fuel != null ? (
         (() => {
           const label = fuelTypeLabel(node.fuel.typeId);
           const eff = getFuelEfficiency(node.fuel.typeId);
@@ -148,6 +156,18 @@ function PowerControlSection({ node }: { node: Structure }) {
             </div>
           );
         })()
+      ) : indexedFuelLabel ? (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-muted-foreground">Fuel</span>
+            <span className="text-sm font-mono text-foreground">{indexedFuelLabel}</span>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            Runtime estimate unavailable for this node.
+          </p>
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">Fuel data unavailable.</p>
       )}
       {(power.status === "success" || power.status === "error") && (
         <TxFeedbackBanner

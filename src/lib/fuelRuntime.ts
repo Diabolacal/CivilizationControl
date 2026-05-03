@@ -10,6 +10,7 @@
  */
 
 import { getItemTypeById } from "@/lib/typeCatalog";
+import type { Structure } from "@/types/domain";
 
 // ─── Fuel Efficiency Lookup ──────────────────────────────
 
@@ -71,4 +72,35 @@ export function formatRuntime(runtimeMs: number): string {
     return m > 0 ? `${h}h ${m}m` : `${h}h`;
   }
   return `${Math.max(1, Math.round(totalHours * 60))}m`;
+}
+
+function normalizeFuelAmount(fuelAmount: string | null | undefined): string | null {
+  const trimmed = fuelAmount?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function formatIntegerString(value: string): string {
+  const isNegative = value.startsWith("-");
+  const digits = isNegative ? value.slice(1) : value;
+  const grouped = digits.replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return isNegative ? `-${grouped}` : grouped;
+}
+
+export function getIndexedFuelAmount(
+  structure: Pick<Structure, "indexedFuelAmount" | "summary">,
+): string | null {
+  return normalizeFuelAmount(structure.indexedFuelAmount)
+    ?? normalizeFuelAmount(structure.summary?.fuelAmount);
+}
+
+export function formatIndexedFuelAmount(fuelAmount: string | null | undefined): string | null {
+  const normalized = normalizeFuelAmount(fuelAmount);
+  if (!normalized) {
+    return null;
+  }
+
+  const formatted = /^-?\d+$/.test(normalized)
+    ? formatIntegerString(normalized)
+    : normalized;
+  return /\bunits?\b/i.test(formatted) ? formatted : `${formatted} units`;
 }

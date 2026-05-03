@@ -626,6 +626,7 @@ function toCompatibleStructure(
     name: resolveDisplayName(row, compatibleType),
     status: mapOperatorInventoryStatusToStructureStatus(row.status),
     networkNodeId: compatibleType === "network_node" ? undefined : networkNodeId ?? undefined,
+    indexedFuelAmount: row.fuelAmount,
     linkedGateId: row.linkedGateId ?? undefined,
     summary: summary ?? undefined,
     extensionStatus: row.extensionStatus ?? "none",
@@ -775,6 +776,7 @@ function preferCompatibleStructure(existing: Structure, incoming: Structure): St
   if (incomingScore > existingScore) return incoming;
   if (incomingScore < existingScore) return existing;
   if (!existing.networkNodeId && incoming.networkNodeId) return incoming;
+  if (!existing.indexedFuelAmount && incoming.indexedFuelAmount) return incoming;
   return existing;
 }
 
@@ -782,6 +784,7 @@ function compatibilityStructureScore(structure: Structure): number {
   let score = 0;
   if (structure.ownerCapId) score += 3;
   if (structure.summary) score += 2;
+  if (structure.indexedFuelAmount) score += 1;
   if (structure.networkNodeId) score += 1;
   if (structure.extensionStatus === "authorized") score += 1;
   return score;

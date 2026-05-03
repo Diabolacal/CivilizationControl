@@ -294,7 +294,7 @@ function NodeSelectionInspectorContent({
             <InspectorRow label="OwnerCap ID" value={renderIdentifierValue(ownerCapId, "Not indexed", "Copy node owner cap ID")} muted={ownerCapId == null} />
             <InspectorRow label="Energy Source ID" value={renderIdentifierValue(energySourceId, "None", "Copy node energy source ID")} muted={energySourceId == null} />
             <InspectorRow label="Canonical Identity" value={renderIdentifierValue(canonicalIdentity, "Not supplied", "Copy canonical node identity")} muted={canonicalIdentity == null} />
-            <InspectorRow label="Fuel" value={viewModel.node.fuelSummary ?? "None"} muted={viewModel.node.fuelSummary == null} />
+            <InspectorRow label="Fuel" value={viewModel.node.fuelSummary ?? "Unavailable"} muted={viewModel.node.fuelSummary == null} />
             {debugOperatorInventoryEnabled ? (
               <>
                 <InspectorRow label="Source" value={formatSourceMode(viewModel)} muted />

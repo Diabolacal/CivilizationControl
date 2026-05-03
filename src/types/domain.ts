@@ -176,6 +176,8 @@ export interface Structure {
   networkNodeId?: ObjectId;
   /** Fuel state for network nodes. */
   fuel?: FuelState;
+  /** Indexed fuel quantity when runtime fuel fields are not available. */
+  indexedFuelAmount?: string | null;
   /** Linked destination gate ID — only present for linked gates. */
   linkedGateId?: ObjectId;
   /** Optional shared-backend enrichment; direct-chain fields remain authoritative. */

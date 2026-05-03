@@ -199,7 +199,7 @@ const response: OperatorInventoryResponse = {
     {
       node: networkNodeRow({
         objectId: NETWORK_NODE_EMPTY_VALID_ID,
-        assemblyId: "9003",
+        assemblyId: null,
         ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000000fac",
         displayName: "Reserve Node",
         solarSystemId: "30000144",
@@ -352,17 +352,24 @@ const group = buildGroup(displayNodeGroups, NETWORK_NODE_A_ID);
 const lookup = adapted.nodeLookupsByNodeId.get(NETWORK_NODE_A_ID);
 const relayGroup = buildGroup(displayNodeGroups, NETWORK_NODE_B_ID);
 const reserveGroup = buildGroup(displayNodeGroups, NETWORK_NODE_EMPTY_VALID_ID);
+const reserveLookup = adapted.nodeLookupsByNodeId.get(NETWORK_NODE_EMPTY_VALID_ID);
 
 assert(lookup, "expected a selected-node lookup from operator inventory");
 assert.equal(lookup?.assemblies.length, 4);
+assert(reserveLookup, "expected reserve node lookup from operator inventory");
 assert.equal(relayGroup.gates.length, 1);
 assert.equal(relayGroup.turrets.length, 1);
 assert.equal(reserveGroup.gates.length + reserveGroup.storageUnits.length + reserveGroup.turrets.length, 0);
+assert.equal(reserveGroup.node.assemblyId, undefined);
+assert.equal(reserveGroup.node.indexedFuelAmount, "900");
 
 const viewModel = buildLiveNodeLocalViewModelWithObserved(group, lookup, { preferObservedMembership: true });
+const reserveViewModel = buildLiveNodeLocalViewModelWithObserved(reserveGroup, reserveLookup, { preferObservedMembership: true });
 
 assert.equal(viewModel.sourceMode, "backend-membership");
 assert.equal(viewModel.structures.length, 4);
+assert.equal(reserveViewModel.node.fuelSummary, "900 units");
+assert.equal(reserveViewModel.node.fuelAmount, "900");
 
 const gate = viewModel.structures.find((structure) => structure.objectId === GATE_ID);
 const storage = viewModel.structures.find((structure) => structure.objectId === STORAGE_ID);

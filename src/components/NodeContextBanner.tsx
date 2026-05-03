@@ -7,7 +7,14 @@
 
 import { Link } from "react-router";
 import { getSpatialPin } from "@/lib/spatialPins";
-import { computeRuntimeMs, formatRuntime, fuelTypeLabel, getFuelEfficiency } from "@/lib/fuelRuntime";
+import {
+  computeRuntimeMs,
+  formatRuntime,
+  fuelTypeLabel,
+  getFuelEfficiency,
+  formatIndexedFuelAmount,
+  getIndexedFuelAmount,
+} from "@/lib/fuelRuntime";
 import type { Structure } from "@/types/domain";
 
 interface NodeContextBannerProps {
@@ -41,6 +48,8 @@ export function NodeContextBanner({ structure, structures }: NodeContextBannerPr
     fuelLabel = parts.join(" · ");
   } else if (fuel) {
     fuelLabel = "No fuel";
+  } else {
+    fuelLabel = formatIndexedFuelAmount(getIndexedFuelAmount(parentNode)) ?? "";
   }
 
   const statusLabel = parentNode.status === "online" ? "Online" : "Offline";
