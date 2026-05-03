@@ -221,33 +221,47 @@ function fuelStatusLabel(presentation: FuelPresentation): string | null {
 }
 
 function renderNodeFuelValue(presentation: FuelPresentation): React.ReactNode {
-  const primaryLabel = [
+  const quantityLabel = presentation.amountLabel;
+  const runtimeSummary = [
     presentation.typeLabel,
-    presentation.runtimeLabel ? `~${presentation.runtimeLabel}` : presentation.amountLabel,
+    presentation.runtimeLabel ? `~${presentation.runtimeLabel}` : null,
   ].filter((value): value is string => Boolean(value)).join(" · ");
-  const secondaryLabel = presentation.runtimeLabel && presentation.amountLabel
-    ? presentation.amountLabel
+  const compactUnavailableLabel = presentation.runtimeLabel == null && presentation.isRuntimeKnown === false
+    ? fuelStatusLabel(presentation)
     : null;
   const statusLabel = fuelStatusLabel(presentation);
 
   return (
-    <div className="ml-auto flex min-w-[11rem] flex-col items-end gap-1">
-      <span className={`text-right text-sm font-mono ${FUEL_ACCENT_CLASS_BY_SEVERITY[presentation.severity]}`}>
-        {primaryLabel || "Unavailable"}
-      </span>
-      {secondaryLabel ? (
-        <span className="text-[11px] font-mono text-muted-foreground">{secondaryLabel}</span>
-      ) : null}
-      {presentation.fillPercent != null ? (
-        <div className="h-1.5 w-28 overflow-hidden rounded-full bg-muted/30">
-          <div
-            className={`h-full rounded-full ${FUEL_BAR_CLASS_BY_SEVERITY[presentation.severity]}`}
-            style={{ width: `${presentation.fillPercent}%` }}
-          />
+    <div className="ml-auto flex min-w-0 max-w-full flex-wrap items-center justify-end gap-x-3 gap-y-1 text-right">
+      {(presentation.fillPercent != null || quantityLabel) ? (
+        <div className="flex min-w-0 items-center justify-end gap-2">
+          {presentation.fillPercent != null ? (
+            <div className="h-1.5 w-20 shrink-0 overflow-hidden rounded-full bg-muted/30">
+              <div
+                className={`h-full rounded-full ${FUEL_BAR_CLASS_BY_SEVERITY[presentation.severity]}`}
+                style={{ width: `${presentation.fillPercent}%` }}
+              />
+            </div>
+          ) : null}
+          {quantityLabel ? (
+            <span className="min-w-0 text-sm font-mono text-foreground">{quantityLabel}</span>
+          ) : null}
         </div>
       ) : null}
-      {statusLabel ? (
+      {runtimeSummary ? (
+        <span className={`text-sm font-mono ${FUEL_ACCENT_CLASS_BY_SEVERITY[presentation.severity]}`}>
+          {runtimeSummary}
+        </span>
+      ) : compactUnavailableLabel ? (
+        <span className={`text-[11px] ${FUEL_ACCENT_CLASS_BY_SEVERITY[presentation.severity]}`}>
+          {compactUnavailableLabel}
+        </span>
+      ) : null}
+      {statusLabel && runtimeSummary ? (
         <span className={`text-[11px] ${FUEL_ACCENT_CLASS_BY_SEVERITY[presentation.severity]}`}>{statusLabel}</span>
+      ) : null}
+      {!quantityLabel && !runtimeSummary && !compactUnavailableLabel ? (
+        <span className="text-sm font-mono text-muted-foreground">Unavailable</span>
       ) : null}
     </div>
   );

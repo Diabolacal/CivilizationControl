@@ -10,6 +10,55 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Compact Selection Inspector fuel row and branch close-out order - 2026-05-03
+
+This tracked follow-up is the final frontend polish accepted on `feat/node-drilldown-render-shell`. It does not change EF-Map code, shared-backend contracts, VPS state, sponsor-worker behavior, package IDs, Move code, vendor state, or production deploy state.
+
+- the selected network-node `Fuel` row in `Selection Inspector` now uses a compact horizontal summary on normal desktop width instead of stacking gauge and text vertically. The row now keeps quantity fullness on the left and indexed grade/runtime summary adjacent to it where space allows, with graceful wrap only on narrower layouts
+- the bar still represents quantity fullness only, not time. Runtime text still comes only from indexed `estimatedSecondsRemaining` plus `estimatedHoursRemaining`, low fuel still means `86400` seconds, critical still means `3600` seconds, and partial rows still avoid fabricated time
+- the change stays local to the inspector renderer in `src/components/topology/node-drilldown/NodeSelectionInspector.tsx` and reuses the existing shared `buildFuelPresentation(...)` seam. No browser JSON-RPC was added and no backend, package, or write-path behavior changed in this pass
+- required validation passed: `npm run typecheck`; `npm run build`; `npx tsx scripts/check-operator-inventory-mapping.mts`; `npx tsx scripts/check-node-drilldown-reconciliation.mts`; and `git diff --check` with only the preserved LF/CRLF warning on `contracts/civilization_control/Move.lock`
+- the existing deterministic fuel probe remains `scripts/check-operator-inventory-mapping.mts`, which continues to assert indexed canonical-capacity normalization, quantity-based `fillPercent`, and runtime-threshold severity for the D1 fixtures used to guard the restored indexed-fuel model
+- preview evidence for this final polish was captured on `https://f1885480.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+- preview route smoke confirmed `/`, `/nodes`, `/settings`, and `/dev/node-drilldown-lab`; all four routes loaded the new boot shell first and then resolved the expected app surface without disconnected browser requests to Sui RPC, `operator-inventory`, or `node-assemblies`
+- preview lab smoke also re-confirmed both shared right-click entry points: a verified map icon and a verified `Attached Structures` row still open the same app menu with `Hide from Node View` plus `Take Offline`
+- served-bundle scanning across 12 deployed JS assets found `civilizationcontrol-sponsor` in `App-BusxZDEY.js` and `SmartObjectProvider-Bsk4q3Rp.js`; found `https://ef-map.com` in `SmartObjectProvider-Bsk4q3Rp.js` and `useNodeDrilldownStructureMenu-BVkynuen.js`; found `https://fullnode.testnet.sui.io:443` in `SmartObjectProvider-Bsk4q3Rp.js` and `suiRpcClient-BibKDPwo.js`; found no `flappy-frontier-sponsor`, `ASSEMBLY_API_TOKEN`, `X-API-Key`, `SPONSOR_PRIVATE_KEY`, `CF_API_TOKEN`, or `CLOUDFLARE_ACCOUNT_ID`; and found no exact-case `Authorization`
+- limitation: the integrated browser still had no wallet-owned node inventory, and the synthetic lab still does not provide node-level fuel fixtures. That means the compact one-line fuel row itself is code- and probe-validated here rather than wallet-smoked on a live indexed node in browser
+
+### Next work order after merge
+
+The current feature branch should not absorb Signal Feed implementation, write-action implementation, power-state presets, or marketplace work. After this compact fuel polish is merged, the next slice should start in EF-Map/shared-backend and follow this order:
+
+1. EF-Map/shared-backend signal-history endpoint
+  - Build a browser-safe wallet-scoped endpoint: `GET /api/civilization-control/signal-history?walletAddress=0x...`
+  - Scope it server-side to the wallet's indexed governed infrastructure
+  - Replace browser `queryEvents` for `/activity` and dashboard Recent Signals
+  - Do not expose a global firehose
+2. CivilizationControl Signal Feed restoration
+  - Consume the new signal-history endpoint
+  - Restore `/activity` and dashboard Recent Signals from indexed/backend history
+  - Do not return to browser Sui event polling
+3. Write-action audit before package changes
+  - Audit existing current package/world-contract write paths for individual online/offline, rename or edit structure name, gate-optional posture switching, and PTB or batch multi-structure power changes
+  - Determine what can already be done with existing calls and what would truly require a package update
+4. Individual structure actions
+  - Wire real right-click and list-row actions for online/offline and edit name
+  - Apply them consistently on Node Control map icons, Attached Structures rows, and relevant list/detail screens
+  - Keep availability grounded in indexed authority hints plus final wallet-signed execution authority
+5. Node Power State presets
+  - Start with local persistence for saved power-state definitions
+  - Treat a power state as a named desired online/offline set for structures attached to one network node
+  - Explore one-PTB execution only if existing calls support it safely
+  - Plan package changes only if the audit proves existing calls cannot support the desired batch behavior
+6. Package update decision
+  - Minimize package updates
+  - Only update and deploy package state after the write-action audit proves it is necessary
+  - Avoid one package update per feature
+7. Marketplace integration later
+  - Treat partner storage-market integration as a separate future revenue/yield slice
+  - First identify emitted sale/payment events, settlement coin, and available seller or treasury fields
+  - Do not mix marketplace work into the Node Control stabilization branch
+
 ### Indexed fuel fullness correction and immediate boot shell - 2026-05-03
 
 This tracked follow-up stays on the accepted `feat/node-drilldown-render-shell` frontend boundary. It does not change EF-Map code, shared-backend contracts, VPS state, sponsor-worker behavior, package IDs, Move code, vendor state, or production deploy state.
