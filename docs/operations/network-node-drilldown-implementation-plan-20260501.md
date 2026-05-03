@@ -10,6 +10,17 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Node Control context-menu recovery and compact inspector IDs - 2026-05-03
+
+This follow-up is a frontend-only UI repair on top of the accepted `feat/node-drilldown-render-shell` baseline. It does not change backend contracts, shared-backend payloads, EF-Map behavior, write paths, package IDs, Move code, vendor state, or production deploy state.
+
+- root cause for the reported Node Control right-click regression was local UI ownership drift, not missing menu labels or backend data. `Dashboard` still owned the shared node-drilldown context-menu state, and both map icons and `Attached Structures` rows still opened that shared state, but the actual `NodeDrilldownContextMenu` render block had drifted inside the loading-only branch. Once loading cleared, right-click handlers still ran but no app menu could mount
+- the shared menu is now rendered at screen scope again, so visible map icons, visible rows, and hidden rows all reuse the same app-styled menu owner; the menu also suppresses browser fallback context-menu behavior on itself, and the primary row button now handles the same right-click path explicitly instead of relying only on bubbling
+- `Selection Inspector` long identifiers are now compact, one-line, and copyable through a small reusable `CompactCopyValue` component plus shared `truncateMiddle(...)` helper. Normal mode now keeps only operator-facing structure and node details while internal source or authority diagnostics stay behind the existing debug flag; the old deferred-controls paragraph was removed from the normal panel
+- local validation for this repair passed: `npm run typecheck`; `npm run build`; `git diff --check` with only the pre-existing `contracts/civilization_control/Move.lock` CRLF warning; `npx tsx scripts/check-node-drilldown-reconciliation.mts`; `npx tsx scripts/check-operator-inventory-mapping.mts`; local preview `/`; local preview `/dev/node-drilldown-lab`; local map-icon right-click; local visible-row right-click; local hidden-row right-click; and local inspector copy-button smoke
+- preview evidence for this repair was captured on `https://609feaf9.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s-jtn6.civilizationcontrol.pages.dev`
+- deployed preview validation confirmed the unique preview `/` loads, the unique preview `/dev/node-drilldown-lab` still loads as an isolated route, map-icon right-click now shows `Hide from Node View` plus supported power action, visible-row right-click now shows the same shared menu, hidden-row right-click shows `Unhide`, and the normal inspector shows compact copyable `Object ID` and `Assembly ID` rows without the earlier internal source or authority block
+
 ### Indexer-first Node Control read model - architecture correction - 2026-05-03
 
 This is a docs-only architecture correction for the accepted `feat/node-drilldown-render-shell` baseline. It updates the next-step read-model direction without reopening the accepted UI shell.

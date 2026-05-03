@@ -605,6 +605,11 @@ export function Dashboard({
       {/* Loading state */}
       {isLoading && (
         <div className="text-center py-12">
+          <p className="text-sm text-muted-foreground animate-pulse">
+            Resolving chain state…
+          </p>
+        </div>
+      )}
 
       {contextMenu ? (
         <NodeDrilldownContextMenu
@@ -637,11 +642,6 @@ export function Dashboard({
           onClose={closeStructureMenu}
         />
       ) : null}
-          <p className="text-sm text-muted-foreground animate-pulse">
-            Resolving chain state…
-          </p>
-        </div>
-      )}
     </div>
   );
 }

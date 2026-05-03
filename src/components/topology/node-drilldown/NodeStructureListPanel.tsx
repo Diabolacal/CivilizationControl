@@ -115,21 +115,22 @@ function NodeStructureListContent({
         {structures.map((structure) => {
           const isHidden = hiddenCanonicalKeySet.has(structure.canonicalDomainKey);
           const subtitle = buildStructureSubtitle(structure, isHidden);
+          const openStructureContextMenu = (event: React.MouseEvent<HTMLElement>) => {
+            event.preventDefault();
+            event.stopPropagation();
+            onSelectStructure(structure.id);
+            onOpenStructureMenu?.({
+              structure,
+              clientX: event.clientX,
+              clientY: event.clientY,
+              isHidden,
+            });
+          };
 
           return (
             <div
               key={structure.id}
-              onContextMenu={(event) => {
-                event.preventDefault();
-                event.stopPropagation();
-                onSelectStructure(structure.id);
-                onOpenStructureMenu?.({
-                  structure,
-                  clientX: event.clientX,
-                  clientY: event.clientY,
-                  isHidden,
-                });
-              }}
+              onContextMenu={openStructureContextMenu}
               className={cn(
                 "rounded border px-3 py-2 transition-colors",
                 isHidden ? "border-dashed" : null,
@@ -147,6 +148,7 @@ function NodeStructureListContent({
                     onCloseStructureMenu?.();
                     onSelectStructure(structure.id);
                   }}
+                  onContextMenu={openStructureContextMenu}
                   onKeyDown={(event) => {
                     if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) {
                       return;

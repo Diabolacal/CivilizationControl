@@ -30,6 +30,10 @@ export function NodeDrilldownContextMenu({
       ref={menuRef}
       role="menu"
       aria-label={`${structureName} actions`}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+      }}
       onKeyDown={(event) => {
         if (event.key !== "Escape") return;
         event.preventDefault();

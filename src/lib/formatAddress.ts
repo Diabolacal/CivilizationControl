@@ -5,7 +5,16 @@
  * duplicating inline short() functions.
  */
 
+/** Truncate long IDs as "abcdef…1234" while preserving short values. */
+export function truncateMiddle(value: string, head = 6, tail = 4): string {
+  if (value.length <= head + tail + 1) {
+    return value;
+  }
+
+  return `${value.slice(0, head)}…${value.slice(-tail)}`;
+}
+
 /** Shorten a Sui object ID to "0x1234…cdef" format. */
 export function shortId(id: string): string {
-  return `${id.slice(0, 6)}…${id.slice(-4)}`;
+  return truncateMiddle(id);
 }

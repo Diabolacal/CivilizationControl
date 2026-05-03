@@ -1,3 +1,4 @@
+import { CompactCopyValue } from "@/components/CompactCopyValue";
 import { DashboardPanelFrame } from "@/components/dashboard/DashboardPanelFrame";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { NodeStructureActionRail } from "@/components/topology/node-drilldown/NodeStructureActionRail";
@@ -52,28 +53,37 @@ function InspectorRow({
   muted = false,
 }: {
   label: string;
-  value: string;
+  value: React.ReactNode;
   mono?: boolean;
   muted?: boolean;
 }) {
   const valueClasses = [
-    "max-w-[68%]",
-    "break-all",
-    "text-right",
+    "block",
     mono ? "font-mono text-[11px]" : "text-sm",
     muted ? "text-muted-foreground" : "text-foreground",
-  ].join(" ");
+    typeof value === "string" ? "whitespace-pre-wrap break-words" : null,
+  ].filter(Boolean).join(" ");
 
   return (
     <div className="flex items-start justify-between gap-3 border-b border-border/40 py-2 last:border-b-0">
       <span className="text-[11px] font-mono uppercase tracking-wide text-muted-foreground/70">{label}</span>
-      <span className={valueClasses}>{value}</span>
+      <div className="min-w-0 max-w-[68%] text-right">
+        {typeof value === "string" ? <span className={valueClasses}>{value}</span> : value}
+      </div>
     </div>
   );
 }
 
 function hasValue(value: string | null | undefined): value is string {
   return Boolean(value && value.trim().length > 0);
+}
+
+function renderIdentifierValue(value: string | null | undefined, fallback: string, ariaLabel: string) {
+  if (!hasValue(value)) {
+    return fallback;
+  }
+
+  return <CompactCopyValue value={value} ariaLabel={ariaLabel} />;
 }
 
 function formatSourceMode(viewModel: NodeLocalViewModel): string {
@@ -226,6 +236,12 @@ function NodeSelectionInspectorContent({
   const assemblyId = hasValue(selectedNode?.assemblyId) ? selectedNode.assemblyId : null;
   const energySourceId = hasValue(selectedNode?.summary?.energySourceId) ? selectedNode.summary.energySourceId : null;
   const proofSignals = formatNodeProofSignals(selectedNode ?? null);
+  const showStructureFeedback = Boolean(
+    selectedStructure
+      && powerStructureId === selectedStructure.id
+      && powerStatus !== "idle"
+      && onDismissPowerFeedback,
+  );
 
   return (
     <>
@@ -238,18 +254,13 @@ function NodeSelectionInspectorContent({
             <InspectorRow label="Size" value={formatNodeLocalSize(selectedStructure.sizeVariant) ?? "Not tagged"} muted={formatNodeLocalSize(selectedStructure.sizeVariant) == null} />
             <InspectorRow label="Status" value={formatNodeLocalStatus(selectedStructure.status)} />
             <InspectorRow label="Node View" value={isSelectedStructureHidden ? "Hidden from map (local only)" : "Visible in node view"} />
-            <InspectorRow label="Source" value={formatStructureSource(selectedStructure)} />
-            <InspectorRow label="Authority" value={formatStructureAuthority(selectedStructure)} />
-            <InspectorRow label="Action Authority" value={formatNodeLocalActionAuthorityLabel(selectedStructure)} />
-            <InspectorRow label="Action State" value={formatNodeLocalStatus(getNodeLocalActionStatus(selectedStructure))} />
-            <InspectorRow label="Action Detail" value={formatNodeLocalActionAuthorityDetail(selectedStructure)} />
-            <InspectorRow label="Object ID" value={selectedStructure.objectId ?? "Not supplied"} mono={hasValue(selectedStructure.objectId)} muted={!hasValue(selectedStructure.objectId)} />
-            <InspectorRow label="Assembly ID" value={selectedStructure.assemblyId ?? "Not indexed"} mono={hasValue(selectedStructure.assemblyId)} muted={!hasValue(selectedStructure.assemblyId)} />
+            <InspectorRow label="Object ID" value={renderIdentifierValue(selectedStructure.objectId, "Not supplied", "Copy structure object ID")} muted={!hasValue(selectedStructure.objectId)} />
+            <InspectorRow label="Assembly ID" value={renderIdentifierValue(selectedStructure.assemblyId, "Not indexed", "Copy structure assembly ID")} muted={!hasValue(selectedStructure.assemblyId)} />
             {selectedStructure.directChainObjectId && selectedStructure.directChainObjectId !== selectedStructure.objectId ? (
-              <InspectorRow label="Chain Object ID" value={selectedStructure.directChainObjectId} mono />
+              <InspectorRow label="Chain Object ID" value={renderIdentifierValue(selectedStructure.directChainObjectId, "Not supplied", "Copy chain object ID")} />
             ) : null}
             {selectedStructure.directChainAssemblyId && selectedStructure.directChainAssemblyId !== selectedStructure.assemblyId ? (
-              <InspectorRow label="Chain Assembly ID" value={selectedStructure.directChainAssemblyId} mono />
+              <InspectorRow label="Chain Assembly ID" value={renderIdentifierValue(selectedStructure.directChainAssemblyId, "Not supplied", "Copy chain assembly ID")} />
             ) : null}
             {selectedStructure.source === "backendMembership" || selectedStructure.source === "backendObserved" ? (
               <>
@@ -262,29 +273,38 @@ function NodeSelectionInspectorContent({
                 ) : null}
               </>
             ) : null}
+            {debugOperatorInventoryEnabled ? (
+              <>
+                <InspectorRow label="Source" value={formatStructureSource(selectedStructure)} muted />
+                <InspectorRow label="Authority" value={formatStructureAuthority(selectedStructure)} muted />
+                <InspectorRow label="Action Authority" value={formatNodeLocalActionAuthorityLabel(selectedStructure)} muted />
+                <InspectorRow label="Action State" value={formatNodeLocalStatus(getNodeLocalActionStatus(selectedStructure))} muted />
+                <InspectorRow label="Action Detail" value={formatNodeLocalActionAuthorityDetail(selectedStructure)} muted />
+              </>
+            ) : null}
           </>
         ) : (
           <>
             <InspectorRow label="Node" value={viewModel.node.displayName} />
             <InspectorRow label="Status" value={formatNodeLocalStatus(viewModel.node.status)} />
-            <InspectorRow label="Source" value={formatSourceMode(viewModel)} />
             <InspectorRow label="Grouped Structures" value={`${viewModel.structures.length}`} />
             <InspectorRow label="Families" value={summarizeNodeLocalFamilies(viewModel) || "None"} muted={!summarizeNodeLocalFamilies(viewModel)} />
-            <InspectorRow label="Object ID" value={selectedNode?.objectId ?? viewModel.node.objectId ?? "Not supplied"} mono={hasValue(selectedNode?.objectId ?? viewModel.node.objectId)} muted={!hasValue(selectedNode?.objectId ?? viewModel.node.objectId)} />
-            <InspectorRow label="Assembly ID" value={assemblyId ?? "Not indexed"} mono={assemblyId != null} muted={assemblyId == null} />
-            <InspectorRow label="OwnerCap ID" value={ownerCapId ?? "Not indexed"} mono={ownerCapId != null} muted={ownerCapId == null} />
-            <InspectorRow label="Energy Source ID" value={energySourceId ?? "None"} mono={energySourceId != null} muted={energySourceId == null} />
-            <InspectorRow label="Canonical Identity" value={canonicalIdentity ?? "Not supplied"} mono={canonicalIdentity != null} muted={canonicalIdentity == null} />
+            <InspectorRow label="Object ID" value={renderIdentifierValue(selectedNode?.objectId ?? viewModel.node.objectId, "Not supplied", "Copy node object ID")} muted={!hasValue(selectedNode?.objectId ?? viewModel.node.objectId)} />
+            <InspectorRow label="Assembly ID" value={renderIdentifierValue(assemblyId, "Not indexed", "Copy node assembly ID")} muted={assemblyId == null} />
+            <InspectorRow label="OwnerCap ID" value={renderIdentifierValue(ownerCapId, "Not indexed", "Copy node owner cap ID")} muted={ownerCapId == null} />
+            <InspectorRow label="Energy Source ID" value={renderIdentifierValue(energySourceId, "None", "Copy node energy source ID")} muted={energySourceId == null} />
+            <InspectorRow label="Canonical Identity" value={renderIdentifierValue(canonicalIdentity, "Not supplied", "Copy canonical node identity")} muted={canonicalIdentity == null} />
             <InspectorRow label="Fuel" value={viewModel.node.fuelSummary ?? "None"} muted={viewModel.node.fuelSummary == null} />
-            {selectedNode?.networkNodeRenderMeta?.rawNodeIndex != null ? (
-              <InspectorRow label="Indexed Node Row" value={`${selectedNode.networkNodeRenderMeta.rawNodeIndex}`} mono />
-            ) : null}
             {debugOperatorInventoryEnabled ? (
               <>
-                <InspectorRow label="Source Mode" value={viewModel.sourceMode} mono muted />
+                <InspectorRow label="Source" value={formatSourceMode(viewModel)} muted />
+                <InspectorRow label="Raw Source Mode" value={viewModel.sourceMode} mono muted />
                 <InspectorRow label="Coverage" value={formatCoverage(viewModel)} muted />
                 <InspectorRow label="Eligibility" value={formatNodeRenderEligibility(selectedNode ?? null)} muted />
                 {proofSignals ? <InspectorRow label="Proof Signals" value={proofSignals} muted /> : null}
+                {selectedNode?.networkNodeRenderMeta?.rawNodeIndex != null ? (
+                  <InspectorRow label="Indexed Node Row" value={`${selectedNode.networkNodeRenderMeta.rawNodeIndex}`} mono muted />
+                ) : null}
                 {viewModel.sourceMode === "backend-membership" ? (
                   <InspectorRow
                     label="Authority Overlay"
@@ -298,8 +318,8 @@ function NodeSelectionInspectorContent({
         )}
       </div>
 
-      <div className="space-y-3 border-t border-border/50 bg-muted/5 px-4 py-3">
-        {selectedStructure ? (
+      {selectedStructure ? (
+        <div className="space-y-3 border-t border-border/50 bg-muted/5 px-4 py-3">
           <NodeStructureActionRail
             structure={selectedStructure}
             isHidden={isSelectedStructureHidden}
@@ -310,23 +330,19 @@ function NodeSelectionInspectorContent({
             previewMode={previewMode}
             variant="panel"
           />
-        ) : null}
 
-        {selectedStructure && powerStructureId === selectedStructure.id && powerStatus !== "idle" && onDismissPowerFeedback ? (
-          <TxFeedbackBanner
-            status={powerStatus ?? "idle"}
-            result={powerResult ?? null}
-            error={powerError ?? null}
-            successLabel={powerSuccessLabel ?? "Structure power state updated"}
-            pendingLabel="Submitting structure power action…"
-            onDismiss={onDismissPowerFeedback}
-          />
-        ) : null}
-
-        <p className="text-xs text-muted-foreground">
-          Additional controls remain deliberately deferred in this slice.
-        </p>
-      </div>
+          {showStructureFeedback ? (
+            <TxFeedbackBanner
+              status={powerStatus ?? "idle"}
+              result={powerResult ?? null}
+              error={powerError ?? null}
+              successLabel={powerSuccessLabel ?? "Structure power state updated"}
+              pendingLabel="Submitting structure power action…"
+              onDismiss={onDismissPowerFeedback!}
+            />
+          ) : null}
+        </div>
+      ) : null}
     </>
   );
 }
@@ -374,7 +390,7 @@ export function NodeSelectionInspector({
   return (
     <DashboardPanelFrame
       title="Selection Inspector"
-      subtitle="Action authority and node view state"
+      subtitle="Selection details and local node-view state"
     >
       {content}
     </DashboardPanelFrame>
