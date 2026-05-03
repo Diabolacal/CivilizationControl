@@ -1,6 +1,14 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-03 – Pivot node control to indexer-first reads
+- Goal: Correct the Node Control planning direction so future work pivots from browser JSON-RPC boot reads to a shared-backend operator-inventory model while preserving the accepted `feat/node-drilldown-render-shell` UI baseline and pausing further action-path work until the read model is corrected.
+- Files: `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`, `docs/decision-log.md`
+- Diff: docs-only architecture correction and roadmap update; no runtime code changes
+- Risk: low — documentation and planning only, no runtime, package, deploy, vendor, or submodule changes
+- Gates: diff-check ✅ with only the pre-existing `contracts/civilization_control/Move.lock` CRLF warning; typecheck ✅; build ✅
+- Result: accepted an indexer-first EF-Map/shared-backend operator-inventory model as the primary future read path for dashboard boot, Node Control membership, display status, and freshness; demoted browser JSON-RPC from the primary read path to narrow fallback or debug use only; replaced the forward-looking Node Control roadmap with Phases `E0` through `E4` for operator-inventory planning, backend endpoint work, frontend boot-path switching, indexed action candidates, and post-action backend refresh; chose `GET /api/civilization-control/operator-inventory?walletAddress=0x...` as the preferred public endpoint shape with `characterId` reserved as a secondary fallback or debug variant; updated the action-authority doctrine so backend membership defines display rows, indexed `actionCandidate` data defines availability, and wallet-signed chain execution remains final authority; and recorded that the current feature-branch UI baseline remains accepted while further action work is paused until the read model is corrected.
+- Follow-ups: implement the operator-inventory endpoint in the shared backend first, then switch the frontend boot read path before resuming further online or offline control work.
 ## 2026-05-03 – Clarify asset discovery partial state
 - Goal: Diagnose the ambiguous sidebar warning `Showing 9 structures. 3 structure reads failed (other).`, prove whether those three items were unsupported owner-cap noise or real supported-target resolution failures, and update discovery diagnostics plus user-facing copy without widening scope into Node Control UI, EF-Map, Move, sponsorship, or production deploy.
 - Files: `src/lib/suiReader.ts`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`

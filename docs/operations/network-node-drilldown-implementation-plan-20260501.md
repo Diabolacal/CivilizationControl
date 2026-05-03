@@ -10,6 +10,16 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Indexer-first Node Control read model - architecture correction - 2026-05-03
+
+This is a docs-only architecture correction for the accepted `feat/node-drilldown-render-shell` baseline. It updates the next-step read-model direction without reopening the accepted UI shell.
+
+- accepted and unchanged baseline: same-dashboard `Node Control`, `Node Key`, icon layout, `Attached Structures`, `Selection Inspector`, local hide or unhide, compact context menu, route or topology transitions, and backend `node-assemblies` membership display
+- architecture problem: preview wallet discovery and broader operator-shell reads are still too dependent on browser-side Sui JSON-RPC, which has already shown public-fullnode CORS and rate-limit fragility plus confusing partial-read behavior
+- corrected product direction: EF-Map or shared-backend indexer data becomes the primary source for operator read inventory, display rows, observed status, and freshness; wallet plus chain remain the source of truth for signing, transaction execution, and final write results
+- planning consequence: do not keep optimizing browser Sui JSON-RPC into the primary dashboard boot path or the primary Node Control read path; the next work should pivot to a shared-backend operator-inventory endpoint and frontend adoption of that endpoint as the main boot read model
+- current branch action work is paused at the accepted UI baseline until the read model is corrected; online or offline control should resume only after the operator-inventory contract and indexed action-candidate model exist
+
 ### Browser Sui read-path hardening follow-up - 2026-05-03
 
 #### Partial-state classification clarification - 2026-05-03
@@ -453,6 +463,46 @@ The intended experience is a same-dashboard drilldown, not a hard jump to a seco
 - `src/components/topology/StrategicMapPanel.tsx` owns the current macro topology canvas, header controls, posture strip, orbit camera integration, and per-node rendering through `NodeClusterSvg`.
 - `src/screens/NetworkNodeDetailScreen.tsx` already exists as a route-local node screen, but it is currently a standalone detail surface rather than the in-dashboard drilldown the product now wants.
 
+### Indexer-first Node Control read model - architecture correction
+
+Node Control should now pivot away from browser direct-chain discovery as the primary read path. The accepted UI shell stays in place, but the next implementation work should boot the operator experience from one shared-backend operator-inventory response instead of repeated browser-side wallet -> `PlayerProfile` -> `Character` -> `OwnerCap` traversal.
+
+Core rules for the corrected architecture:
+
+- EF-Map or shared backend is primary for operator read, display, status, and freshness
+- browser Sui JSON-RPC must not be required for initial wallet inventory rendering
+- the backend should return wallet-scoped or character-scoped operator inventory for the connected operator; preferred public request shape is `GET /api/civilization-control/operator-inventory?walletAddress=0x...` because the connected wallet is already available at app boot and the backend can resolve indexed operator or character context server-side
+- `GET /api/civilization-control/operator-inventory?characterId=0x...` may exist later as a secondary override or debug variant if the indexer cannot always derive a unique character cleanly from wallet scope alone, but it should not be the default browser boot contract
+- the operator inventory response should return network nodes, attached structures, structure family, size, display name, status, online or offline or unanchored state, linked node context, freshness, and provenance without requiring browser-side broad rediscovery
+- the response may also return indexed `OwnerCap` or action-candidate data for supported families when the backend can derive it safely
+- wallet and chain remain final authority for transaction signing, transaction execution, and final write outcome
+- a stale indexed action candidate may fail when submitted, but that failure should not break the read UI or remove the display row
+- post-action refresh should come from targeted backend or indexer refresh, not broad browser rediscovery
+- browser direct-chain reads are allowed only as narrow optional fallbacks or debug checks, not as the primary boot path or the main freshness loop
+
+#### Proposed shared-backend operator-inventory contract
+
+Preferred request shape:
+
+- `GET /api/civilization-control/operator-inventory?walletAddress=0x...`
+
+Response requirements:
+
+- operator identity fields available from the indexer, including the connected wallet, resolved character when indexed, and any safe tribe or relationship labels already used by the product
+- network nodes owned or controlled by the operator, grouped with their attached structures where known
+- unlinked or unknown-node structures when a structure is indexed but cannot yet be grouped to a node confidently
+- per-structure identifiers and display fields including assembly object ID, decimal assembly ID when available, indexed `OwnerCap` ID when available, owner wallet or character relationship when indexed, `typeId`, family, size, display name, status (`Online`, `Offline`, `Unanchored`, `Unknown`), `energySourceId` or `networkNodeId`, and any indexed fuel or power summary fields
+- per-row freshness and provenance fields, including last observed checkpoint, last observed timestamp, backend source marker, and any stale-or-partial indicator needed for honest operator display
+- per-row `actionCandidate` metadata for supported families: family supported yes or no, indexed `OwnerCap` present yes or no, required object IDs for the existing frontend transaction builder when available, and a plain unavailable reason when the row is not actionable
+
+Contract guardrails:
+
+- the endpoint must not expose secrets, database credentials, or internal VPS hostnames
+- the browser must not connect directly to Postgres or raw internal service hosts
+- CORS should remain limited to CivilizationControl allowed browser origins
+- no browser API key should be required under the current shared-backend policy; if policy changes later, it still must not rely on private browser secrets
+- the current `assemblies?ids=` and `node-assemblies` routes should be treated as transitional contracts rather than the final app-boot seam
+
 ### Current data model and grouping
 
 - `src/types/domain.ts` currently limits `StructureType` to four live families: `network_node`, `gate`, `storage_unit`, and `turret`.
@@ -473,29 +523,34 @@ This is a planning requirement for the first implementation branch because real 
 
 ### Read-path and authority boundaries
 
-- `src/lib/suiReader.ts` remains the direct-chain authority for ownership, structure identity, node linkage, OwnerCap discovery, fuel state, and write eligibility.
-- the browser-safe selected-node `node-assemblies` route now defines rendered node-local membership when it returns a non-empty success payload, but only for display membership inside `Node Control`
-- `src/hooks/useAssemblySummaryEnrichment.ts`, `src/lib/assemblyEnrichment.ts`, and the newer selected-node `node-assemblies` client remain additive shared-backend surfaces. They can enrich names, type metadata, observed status, freshness, and node-local membership display, but they must fail open and must not grant `OwnerCap` proof or write eligibility.
-- the existing `assemblies?ids=` route remains request-by-known-ID and browser-safe; the selected-node `node-assemblies` route widens node-local display membership only
-- direct-chain reads still decide whether a row is owned, uniquely resolved, supported by a known transaction builder, and safe to act on
-- any backend-discovered node members must stay node-local, read-only, and explicitly non-authoritative until direct-chain ownership or capability can re-prove them
-- Event freshness is a separate contract question: current EF-Map realtime surfaces are global and unfiltered, so the near-term drilldown plan assumes polling or targeted invalidation first.
+- the forward-looking target is one shared-backend operator-inventory response that becomes the primary provider for dashboard boot, Node Control membership, operator display state, and freshness
+- browser Sui JSON-RPC must not be required to render the initial wallet inventory once a wallet is connected; current direct-chain discovery remains the current implementation state only, not the desired center of gravity
+- the existing `assemblies?ids=` and selected-node `node-assemblies` routes are transitional shared-backend surfaces that proved browser-safe enrichment and node-local membership display, but they are not the final boot-time operator read contract
+- browser direct-chain reads may remain as narrow optional fallbacks, targeted verification checks, or debug seams, but they must not block initial inventory rendering or become the default polling base
+- chain reads remain the final source of transaction-building inputs, signing proof, execution proof, and any exact write-path recovery work that cannot safely come from indexed data
+- post-action freshness should come from backend invalidation or indexer refresh first; broad browser rediscovery loops are the behavior to remove, not the behavior to reinforce
+- event freshness is still a separate contract question, but any future fast path should sit on filtered backend refresh or filtered push rather than public-fullnode browser polling
 
 ### Action authority model
 
-- `Node Control` now has two truths that must stay separate: backend membership determines what appears in the node-local map and main attached-structure list when it is available, while direct-chain data determines what the connected wallet can actually control
-- the frontend should resolve action authority separately from rendered membership by joining each rendered row back to a unique live structure, supported family, `ownerCapId`, and any required node linkage
-- the first later actionable state exposed by the UI should be `verified and supported`, not merely `present in backend membership`
-- rows that cannot be re-proven through direct-chain data remain read-only or `Action unavailable`
-- hide or unhide is exempt from this rule because it is local UI state and may apply to any rendered row, including backend-only rows
+- `Node Control` should keep display membership, indexed action-candidate state, and chain-final execution as three separate truths
+- backend inventory membership defines which rows appear in the node-local map and attached-structure list
+- indexed ownership or `OwnerCap` and action-candidate data define whether a displayed row is supported, unavailable, stale, or read-only for future controls
+- no action should ever be inferred from display-only membership alone
+- wallet signature plus on-chain transaction execution define final authority and final outcome
+- a stale indexed action candidate may fail when submitted; the frontend should surface `Action failed` or `Refresh needed` while keeping the display row intact instead of deleting or reclassifying membership abruptly
+- unsupported families remain read-only until explicit transaction support exists
+- ambiguous or missing indexed authority remains unavailable
+- hide or unhide is exempt from this rule because it is local UI state and may apply to any rendered row, including rows that are display-only or temporarily stale
 
 ### Backend membership vs action authority
 
-- when backend membership is non-empty, it defines the main attached-structure membership set for the node-local map and list
-- direct-chain annotations such as `directChainObjectId`, `directChainAssemblyId`, `directChainMatchCount`, `hasDirectChainAuthority`, and later verification state should explain whether a rendered row can support future actions
-- a backend row may later become actionable only when the wallet can resolve exactly one supported direct-chain match with the required `OwnerCap` and any required linked-network-node context
-- backend refresh must not create write authority by itself, clear local hide state, or silently change unavailable rows into actionable ones without a matching direct-chain resolution step
-- the list and inspector are the primary surfaces for power controls and unavailable-state explanation; the context menu is a shortcut only
+- backend inventory should group structures by network node where known and surface unlinked or unknown-node rows separately when grouping is incomplete
+- direct-chain annotations remain useful as debug or recovery context, but the main actionable contract should move to indexed action-candidate fields returned alongside the display row
+- a row may later become actionable only when the indexed action-candidate metadata shows a supported family and the required identifiers for the existing transaction builder are present
+- backend refresh must not create write authority by itself, clear local hide state, or silently convert a display row into an actionable row without updated indexed action-candidate state
+- if the backend is stale, partial, or unavailable, the app should degrade controls or show stale-state warnings rather than blanking the UI or forcing a broad browser rediscovery loop
+- the list and inspector remain the primary surfaces for power controls and unavailable explanation; the context menu stays a shortcut only
 
 ### Unanchored/stale chain-state handling
 
@@ -765,7 +820,7 @@ For the accepted UI baseline:
 For the next implementation slices:
 
 - hide or unhide becomes the first interactive row control and applies to any rendered row, including backend-only, unanchored, or stale rows
-- verified supported rows may later gain online or offline controls in the same row or inspector, but unsupported or unverified rows should show plain-language unavailable copy instead of generic disabled buttons
+- rows with supported indexed action candidates may later gain online or offline controls in the same row or inspector, but unsupported, ambiguous, or missing-candidate rows should show plain-language unavailable copy instead of generic disabled buttons
 - local label editing and rename should remain deferred until their semantics are separated cleanly
 
 ### 6.3 Selection sync
@@ -1124,42 +1179,66 @@ Implementation status on 2026-05-02:
 - Manual preview checklist: hide an unanchored or stale-looking row, confirm it disappears from the SVG but remains in the list, refresh and confirm it stays hidden, unhide from the list or inspector, confirm backend refresh does not resurrect the SVG placement, and confirm no chain writes occur.
 - Rollback risk: medium because local-state bugs can create confusing operator state.
 
-### Phase E - action authority resolution and supported online or offline controls
+### Phase E0 - indexer-first operator read model planning and endpoint contract
 
-- Scope: resolve each rendered row back to a verified supported direct-chain structure, expose explicit verified or unavailable state in the list and inspector, and enable supported gate or storage or turret online or offline controls only for rows that prove direct-chain authority.
-- Files likely touched: the node-local model or a row-action sidecar, list or inspector action components, existing power-hook integration points, and possibly shared action helpers reused from detail screens.
-- Out of scope: backend-only execution, ambiguous multi-match rows, rename execution, presets, node offline, sponsor changes, Move changes.
-- Validation: `npm run typecheck`, `npm run build`, plus wallet-connected smoke for one verified gate, one storage, one turret, unavailable-state checks for backend-only rows, and selection-stability checks after refresh.
-- Manual preview checklist: verify supported chain-backed rows are distinguishable from backend-only rows, verify unsupported rows are not clickable, execute one supported power action and confirm refresh plus selection stability, and confirm unanchored or stale rows expose power control only when authority is proven.
+- Scope: define the shared-backend operator-inventory contract, preferred wallet-scoped request shape, response fields for grouped node membership, unlinked rows, provenance or freshness, and indexed `actionCandidate` metadata.
+- Files likely touched: planning docs in CivilizationControl and later backend contract docs in the EF-Map repo or runtime source.
+- Out of scope: runtime frontend switching, power execution changes, sponsor changes, Move changes, production deploy.
+- Validation: `git diff --check`, `npm run typecheck`, `npm run build`.
+- Rollback risk: low.
+
+### Phase E1 - EF-Map/shared-backend operator inventory endpoint
+
+- Scope: implement `GET /api/civilization-control/operator-inventory?walletAddress=0x...` in the shared backend, keep CORS limited to allowed CivilizationControl origins, expose no browser secrets, and return grouped operator inventory plus indexed `actionCandidate` data for supported families when available.
+- Files likely touched: EF-Map/shared-backend Worker or API source, shared-backend contract docs, and any backend validation helpers owned by the backend source repo.
+- Out of scope: direct browser DB access, raw VPS host exposure, frontend route redesign, write execution changes.
+- Validation: backend contract tests, browser-origin CORS smoke, empty-inventory smoke, stale-response smoke, and no-secret response audit.
+- Rollback risk: medium because endpoint correctness becomes the primary read dependency.
+
+### Phase E2 - frontend boot read-path switch to operator inventory
+
+- Scope: switch dashboard and Node Control boot reads from browser direct-chain discovery to the operator-inventory endpoint, preserve the accepted UI baseline, and keep browser JSON-RPC only as a narrow optional fallback or debug seam.
+- Files likely touched: frontend read-provider selection, `useAssetDiscovery` or its replacement seam, dashboard boot state, and the node-local read-model adapters.
+- Out of scope: new UI work, production deploy, broad browser rediscovery loops, sponsor changes, Move changes.
+- Validation: `npm run typecheck`, `npm run build`, connected-wallet inventory smoke, partial-response smoke, fallback smoke, and proof that initial wallet inventory no longer depends on browser fullnode reads.
 - Rollback risk: medium.
 
-### Phase F - local-label exploration, not on-chain rename
+### Phase E3 - indexed action candidates plus wallet-signed online or offline execution
 
-- Scope: optional local label editing as a separate local UI capability if product value is proven.
-- Out of scope: on-chain rename, metadata-name writes, DApp URL or other metadata write flows unless separately justified.
-- Validation: `npm run typecheck`, `npm run build`, plus local persistence and reset-state smoke if this phase is ever approved.
+- Scope: use indexed `actionCandidate` metadata to label supported versus unavailable rows, feed the existing transaction builders with the required IDs when present, and execute supported actions through the wallet with chain finality as the deciding outcome.
+- Files likely touched: row action-state mapping, list or inspector action surfaces, existing power-hook integration points, and failure-state labeling.
+- Out of scope: inferring actions from display membership alone, unsupported-family writes, rename, presets, sponsor changes, Move changes.
+- Validation: `npm run typecheck`, `npm run build`, wallet-connected smoke for one supported gate, one storage, one turret, unavailable-state checks for unsupported or ambiguous rows, and failed-stale-candidate labeling.
 - Rollback risk: medium.
 
-### Phase G - local preset drafting and saving
+### Phase E4 - post-action backend refresh and freshness
 
-- Scope: user-named node presets, local draft capture, local save flow, and apply-preview or diff-only UX after per-row power actions are stable.
-- Out of scope: preset execution, sponsor changes, new backend storage, Move work.
-- Validation: `npm run typecheck`, `npm run build`, create and rename preset smoke, diff-preview smoke, and delete-preset smoke.
+- Scope: refresh operator inventory from the backend after action success or failure, surface freshness or provenance in the UI, and prefer targeted backend invalidation or filtered refresh instead of broad browser rediscovery.
+- Files likely touched: frontend refresh orchestration, backend freshness metadata, and later optional filtered invalidation hooks.
+- Out of scope: unfiltered global websocket adoption before the backend read model is stable, macro layout changes, new write semantics.
+- Validation: `npm run typecheck`, `npm run build`, post-action refresh smoke, stale-data smoke, backend-down degradation smoke, and selection-stability checks after refresh.
 - Rollback risk: medium.
 
-### Phase H - fast-refresh status and name freshness
+### Phase F - local-label or rename exploration remains deferred
 
-- Scope: preserve provenance or freshness metadata, add faster selected-node polling or filtered invalidation for status and name changes, and keep updates in place without unnecessary layout churn.
-- Out of scope: unfiltered global websocket adoption, macro layout changes, new write semantics.
-- Validation: `npm run typecheck`, `npm run build`, selected-node refresh smoke, backend-down fallback smoke, and update-in-place checks without selection loss.
-- Rollback risk: medium because freshness work can create confusing UI churn if the authority boundary is blurred.
+- Scope: optional future local label editing or later rename analysis only after the operator-inventory model and action path are stable.
+- Out of scope: current next-step work.
+- Validation: phase-specific typecheck, build, and local-state smoke only if this phase is later approved.
+- Rollback risk: medium.
 
-### Phase I - future industry, schemas, and structure-link expansion
+### Phase G - presets remain deferred
 
-- Scope: future refinery schemas, printer schemas, inter-structure relationship links, and richer node-local industry surfaces.
-- Out of scope: the early safe drilldown branch.
-- Validation: phase-specific typecheck, build, and future product validation depending on the actual industry slice.
-- Rollback risk: high because this is the first truly new product layer beyond the current proven structure set.
+- Scope: user-named node presets, local draft capture, and later apply-preview UX only after the indexer-first read model and single-row action path are both stable.
+- Out of scope: current next-step work, preset execution, sponsor changes, Move work.
+- Validation: phase-specific typecheck, build, preset create or rename smoke, and diff-preview smoke only if this phase is later approved.
+- Rollback risk: medium.
+
+### Phase H - faster event-driven freshness only after backend read model stabilizes
+
+- Scope: filtered event-driven or push freshness layered on top of the stable operator-inventory contract after the backend read model is proven.
+- Out of scope: raw or unfiltered global websocket adoption, browser fullnode polling revival, macro layout changes, new write semantics.
+- Validation: `npm run typecheck`, `npm run build`, filtered freshness smoke, backend-down degradation smoke, and update-in-place checks without selection loss.
+- Rollback risk: medium because freshness work can create confusing UI churn if the read-model boundary is blurred.
 
 ## 11. Accepted baseline and recommended next implementation slice
 
@@ -1170,26 +1249,28 @@ Status on 2026-05-02:
 
 Recommended next implementation slice:
 
-`Implement row-level action authority resolution and supported online or offline controls, while keeping rename, presets, local labels, and drag persistence deferred.`
+`Pause further action-path expansion and pivot the next work to an indexer-first operator-inventory read model, starting with Phase E0 planning and Phase E1 shared-backend endpoint work.`
 
 What this slice should include:
 
-- explicit verified or unavailable action state for each rendered row based on supported family, unique direct-chain match, `OwnerCap` proof, and required node context
-- supported online or offline controls only for verified gate, storage, or turret rows, with backend-only or ambiguous rows staying clearly unavailable
-- list and inspector remain the primary action surfaces, while the canvas context menu stays limited to local hide until a later deliberate expansion is approved
-- no rename, no local label editing, no presets, no drag persistence, and no backend or sponsor contract changes in the same branch
-- follow-on validation that a supported power action can execute and refresh cleanly without selection loss once authority resolution is landed
+- define the shared-backend operator-inventory contract with grouped node membership, unlinked rows, indexed freshness or provenance, and indexed `actionCandidate` fields
+- implement the operator-inventory endpoint in the shared backend before widening frontend action work again
+- plan the frontend boot-path switch so initial wallet inventory rendering no longer depends on browser Sui JSON-RPC discovery
+- keep the accepted `Node Control` UI baseline intact while pausing new action-surface expansion until the read model is corrected
+- keep rename, local labels, presets, drag persistence, sponsor changes, Move changes, and production deploy out of the next slice
 
 Why this is the right recommendation:
 
-- Phase D already delivered the local decluttering and persistence value without blurring authority or write risk
-- the next operator value is truthful per-row actability, not more local presentation state
-- online or offline controls are only safe once the node-local row can prove unique direct-chain authority instead of relying on backend membership alone
-- keeping rename, presets, and drag persistence deferred prevents unrelated local-state work from competing with the first action-capable chain slice
+- the accepted UI baseline already proved the product surface, but preview wallet discovery also proved that public-fullnode browser reads are too fragile to remain the primary boot path
+- the shared backend already has the stronger read foundation for grouped inventory, observed status, and freshness, so the next step should move the app onto that foundation instead of tightening browser RPC loops further
+- indexed action candidates can fail safely at submit time because chain execution remains final, which is a better failure mode than making the whole read UI depend on browser-side ownership traversal
+- degrading controls when backend candidates are stale is safer than blanking the app or forcing broad browser rediscovery
+- keeping rename, presets, and other local-state work deferred prevents unrelated UI work from competing with the read-model correction
 
 Online/offline recommendation:
 
-- per-row online or offline is now the recommended next slice, but only when implemented together with explicit row-level action authority resolution and unavailable-state handling for backend-only or ambiguous rows
+- per-row online or offline remains important, but it should follow the operator-inventory read-model correction rather than precede it
+- the first action-capable slice after this correction should consume indexed `actionCandidate` data from the backend and still rely on wallet-signed chain execution as the final authority
 
 Rename recommendation:
 
@@ -1299,6 +1380,11 @@ The dev lab is for preview and local validation only.
 
 ## 13. Risks and open questions
 
+- the current public-fullnode browser path has already proven fragile through CORS pressure, rate limits, and repeated discovery or partial-read confusion, so it should not be treated as a production-grade primary boot path
+- EF-Map or shared-backend indexer freshness is now the stronger foundation for read inventory, display status, and post-action refresh, but that strength depends on clear contract ownership and honest freshness metadata
+- backend endpoint correctness, browser-origin CORS policy, and fail-open behavior become the main integration risks once operator inventory moves to the shared backend
+- transaction execution remains chain-final, so stale indexed action candidates should fail safely at submit time; the main UX risk is stale controls, not false write authority
+- fallback behavior should degrade controls or surface stale-state warnings, not blank the app or force a broad browser rediscovery loop
 - broader family coverage is not yet hydrated in the current live data model
 - very high turret counts may force a denser defensive block earlier than expected, and real player bases may determine whether a later aggregation fallback is necessary
 - the combined support band may work well for low-count relay, nursery, nest, and shelter families, but that assumption should be revalidated once broader discovery is live

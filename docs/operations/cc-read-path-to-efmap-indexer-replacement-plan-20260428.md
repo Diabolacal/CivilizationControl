@@ -1,6 +1,8 @@
 # CivilizationControl Read Path -> EF-Map Indexer Replacement Plan — 2026-04-28
 
 > Status note (2026-04-29): Phase 1 shipped via `docs/operations/shared-backend-assembly-enrichment-20260429.md`. This file remains as later-phase roadmap and historical planning context only.
+>
+> Status update (2026-05-03): live Node Control experience on `feat/node-drilldown-render-shell` proved that the additive `assemblies?ids=` plus selected-node `node-assemblies` model is still too dependent on browser Sui JSON-RPC for app boot and operator inventory. The next shared-backend slice should therefore be accelerated from exact-ID enrichment toward a wallet-scoped operator-inventory endpoint that can become CivilizationControl's primary read path, while chain reads remain final for signing, execution, and narrow fallback or debug only.
 
 ## 1. Executive summary
 
