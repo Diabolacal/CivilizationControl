@@ -60,7 +60,17 @@ function OperatorShell() {
   const mainScrollStyle = {
     scrollbarGutter: "stable",
   } as CSSProperties;
-  const { profile, structures, nodeGroups, metrics, isLoading, isConnected } =
+  const {
+    profile,
+    structures,
+    nodeGroups,
+    metrics,
+    isLoading,
+    isConnected,
+    isError,
+    warning,
+    errorMessage,
+  } =
     useAssetDiscovery();
   const { pins, assignPin, removePin } = useSpatialPins();
   useTribesRefresh();
@@ -79,6 +89,9 @@ function OperatorShell() {
           structures={structures}
           isConnected={isConnected}
           isLoading={isLoading}
+          isError={isError}
+          discoveryWarning={warning}
+          discoveryErrorMessage={errorMessage}
           onRequestHome={handleRequestHome}
         />
         <LogoBadge />

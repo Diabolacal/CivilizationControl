@@ -8,7 +8,8 @@
 import { useQuery } from "@tanstack/react-query";
 import { useConnection } from "@evefrontier/dapp-kit";
 import { useAssemblySummaryEnrichment } from "@/hooks/useAssemblySummaryEnrichment";
-import { discoverAssets } from "@/lib/suiReader";
+import { getSuiDiscoveryErrorMessage, getConfiguredSuiRpcUrl } from "@/lib/suiRpcClient";
+import { discoverAssets, fetchCharacterMetadata } from "@/lib/suiReader";
 import type {
   NetworkNodeGroup,
   Structure,
@@ -17,26 +18,52 @@ import type {
 
 export function useAssetDiscovery() {
   const { walletAddress, isConnected } = useConnection();
+  const rpcUrl = getConfiguredSuiRpcUrl();
 
   const discoveryQuery = useQuery({
-    queryKey: ["assetDiscovery", walletAddress],
+    queryKey: ["assetDiscovery", walletAddress, rpcUrl],
     queryFn: () => discoverAssets(walletAddress!),
-    enabled: !!walletAddress,
-    staleTime: 30_000,
-    refetchInterval: 60_000,
+    enabled: Boolean(isConnected && walletAddress),
+    staleTime: 60_000,
+    gcTime: 5 * 60_000,
+    placeholderData: (previousData) => previousData,
     refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: false,
   });
 
-  const discoveredStructures = discoveryQuery.data?.structures ?? [];
   const profile = discoveryQuery.data?.profile ?? null;
+  const profileMetadataQuery = useQuery({
+    queryKey: ["characterMetadata", profile?.characterId ?? null, rpcUrl],
+    queryFn: () => fetchCharacterMetadata(profile!.characterId),
+    enabled: profile?.characterId != null,
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: false,
+    refetchOnMount: false,
+    retry: false,
+  });
+
+  const resolvedProfile = profile ? {
+    ...profile,
+    characterName: profileMetadataQuery.data?.characterName ?? profile.characterName,
+    tribeId: profileMetadataQuery.data?.tribeId ?? profile.tribeId,
+  } : null;
+
+  const discoveredStructures = discoveryQuery.data?.structures ?? [];
   const { structures } = useAssemblySummaryEnrichment(discoveredStructures);
+  const discoveryWarning = discoveryQuery.data?.warning ?? null;
+  const discoveryErrorMessage = discoveryQuery.isError
+    ? getSuiDiscoveryErrorMessage(discoveryQuery.error)
+    : null;
 
   // Group structures by network node
   const nodeGroups = groupByNetworkNode(structures);
   const metrics = computeMetrics(structures);
 
   return {
-    profile,
+    profile: resolvedProfile,
     structures,
     nodeGroups,
     metrics,
@@ -44,6 +71,9 @@ export function useAssetDiscovery() {
     isConnected: isConnected ?? false,
     isError: discoveryQuery.isError,
     error: discoveryQuery.error,
+    warning: discoveryWarning,
+    errorMessage: discoveryErrorMessage,
+    diagnostics: discoveryQuery.data?.diagnostics ?? null,
     refetch: discoveryQuery.refetch,
   };
 }

@@ -76,12 +76,11 @@ async function bootstrapApp() {
     return;
   }
 
-  const [{ QueryClient }, { EveFrontierProvider }, { default: App }] = await Promise.all([
-    import("@tanstack/react-query"),
+  const [{ EveFrontierProvider }, { default: App }, { queryClient }] = await Promise.all([
     import("@evefrontier/dapp-kit"),
     import("./App.tsx"),
+    import("./lib/queryClient.ts"),
   ]);
-  const queryClient = new QueryClient();
   const appTree = <App />;
 
   renderApp(<EveFrontierProvider queryClient={queryClient}>{appTree}</EveFrontierProvider>);

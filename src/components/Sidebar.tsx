@@ -67,6 +67,9 @@ interface SidebarProps {
   structures?: Structure[];
   isConnected?: boolean;
   isLoading?: boolean;
+  isError?: boolean;
+  discoveryWarning?: string | null;
+  discoveryErrorMessage?: string | null;
   onRequestHome?: () => void;
 }
 
@@ -93,6 +96,9 @@ export function Sidebar({
   structures = [],
   isConnected = false,
   isLoading = false,
+  isError = false,
+  discoveryWarning = null,
+  discoveryErrorMessage = null,
   onRequestHome,
 }: SidebarProps) {
   const location = useLocation();
@@ -160,9 +166,21 @@ export function Sidebar({
             </p>
           )}
 
-          {isConnected && !isLoading && structures.length === 0 && (
+          {isConnected && !isLoading && discoveryErrorMessage && structures.length === 0 && (
+            <p className="px-3 text-[11px] text-amber-300/80">
+              {discoveryErrorMessage}
+            </p>
+          )}
+
+          {isConnected && !isLoading && !isError && structures.length === 0 && (
             <p className="px-3 text-[11px] text-muted-foreground/40">
               No structures discovered
+            </p>
+          )}
+
+          {isConnected && discoveryWarning && structures.length > 0 && (
+            <p className="px-3 text-[11px] text-amber-300/80">
+              {discoveryWarning}
             </p>
           )}
 

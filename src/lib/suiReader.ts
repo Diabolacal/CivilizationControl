@@ -7,7 +7,7 @@
  * Uses the @mysten/sui SDK for all RPC calls.
  */
 
-import { SuiJsonRpcClient, type SuiObjectResponse } from "@mysten/sui/jsonRpc";
+import type { SuiObjectResponse } from "@mysten/sui/jsonRpc";
 import type {
   ObjectId,
   OwnerCapInfo,
@@ -23,6 +23,16 @@ import type {
   PostureMode,
 } from "@/types/domain";
 import {
+  callSuiRead,
+  classifySuiRpcError,
+  formatSuiRpcFailureCounts,
+  getConfiguredSuiRpcUrl,
+  getSuiClient,
+  isSuiDiagnosticsEnabled,
+  isVerboseDiscoveryDebugEnabled,
+  type SuiRpcFailureKind,
+} from "@/lib/suiRpcClient";
+import {
   WORLD_ORIGINAL_PACKAGE_ID,
   WORLD_RUNTIME_PACKAGE_ID,
   CC_PACKAGE_ID,
@@ -30,16 +40,258 @@ import {
   GATE_CONFIG_ID,
 } from "@/constants";
 
-/** Default Sui RPC endpoint for Stillness testnet. */
-const DEFAULT_RPC = "https://fullnode.testnet.sui.io:443";
+export { getSuiClient };
 
-let clientInstance: SuiJsonRpcClient | null = null;
+const STRUCTURE_BATCH_SIZE = 50;
 
-export function getSuiClient(): SuiJsonRpcClient {
-  if (!clientInstance) {
-    clientInstance = new SuiJsonRpcClient({ url: DEFAULT_RPC, network: "testnet" });
+interface FetchPlayerProfileOptions {
+  includeCharacterMetadata?: boolean;
+}
+
+export interface DiscoveryDiagnostics {
+  runId: string;
+  rpcUrl: string;
+  wallet: string;
+  characterId: string | null;
+  ownerCapCount: number;
+  objectReadsRequested: number;
+  objectReadsResolved: number;
+  objectReadsFailed: number;
+  failures: Partial<Record<SuiRpcFailureKind, number>>;
+}
+
+export interface AssetDiscoveryResult {
+  profile: PlayerProfile | null;
+  ownerCaps: OwnerCapInfo[];
+  structures: Structure[];
+  diagnostics: DiscoveryDiagnostics;
+  warning: string | null;
+}
+
+interface DiscoveryInFlightEntry {
+  runId: string;
+  promise: Promise<AssetDiscoveryResult>;
+}
+
+const discoveryInFlight = new Map<string, DiscoveryInFlightEntry>();
+let discoverySequence = 0;
+
+function nextDiscoveryRunId(): string {
+  discoverySequence += 1;
+  return `disc-${Date.now().toString(36)}-${discoverySequence.toString(36)}`;
+}
+
+function shortenForLog(value: string | null | undefined): string {
+  if (!value) return "none";
+  if (value.length <= 12) return value;
+  return `${value.slice(0, 6)}…${value.slice(-4)}`;
+}
+
+function incrementFailure(
+  failures: Partial<Record<SuiRpcFailureKind, number>>,
+  kind: SuiRpcFailureKind,
+  amount = 1,
+) {
+  failures[kind] = (failures[kind] ?? 0) + amount;
+}
+
+function buildDiscoveryDiagnostics(walletAddress: string): DiscoveryDiagnostics {
+  return {
+    runId: nextDiscoveryRunId(),
+    rpcUrl: getConfiguredSuiRpcUrl(),
+    wallet: shortenForLog(walletAddress),
+    characterId: null,
+    ownerCapCount: 0,
+    objectReadsRequested: 0,
+    objectReadsResolved: 0,
+    objectReadsFailed: 0,
+    failures: {},
+  };
+}
+
+function buildPartialDiscoveryWarning(
+  resolvedCount: number,
+  diagnostics: DiscoveryDiagnostics,
+): string | null {
+  if (diagnostics.objectReadsFailed === 0) {
+    return null;
   }
-  return clientInstance;
+
+  const failureSummary = formatSuiRpcFailureCounts(diagnostics.failures);
+  return failureSummary
+    ? `Showing ${resolvedCount} structures. ${diagnostics.objectReadsFailed} structure reads failed (${failureSummary}).`
+    : `Showing ${resolvedCount} structures. ${diagnostics.objectReadsFailed} structure reads failed.`;
+}
+
+function logDiscoveryStart(diagnostics: DiscoveryDiagnostics) {
+  if (!isSuiDiagnosticsEnabled()) {
+    return;
+  }
+
+  console.info(`[discovery:${diagnostics.runId}] start`, {
+    rpcUrl: diagnostics.rpcUrl,
+    wallet: diagnostics.wallet,
+  });
+}
+
+function logDiscoveryJoin(runId: string, walletAddress: string) {
+  if (!isSuiDiagnosticsEnabled()) {
+    return;
+  }
+
+  console.info(`[discovery:${runId}] join`, {
+    wallet: shortenForLog(walletAddress),
+  });
+}
+
+function logDiscoverySummary(
+  diagnostics: DiscoveryDiagnostics,
+  warning: string | null,
+) {
+  if (!isSuiDiagnosticsEnabled()) {
+    return;
+  }
+
+  const summary = {
+    rpcUrl: diagnostics.rpcUrl,
+    wallet: diagnostics.wallet,
+    characterId: shortenForLog(diagnostics.characterId),
+    ownerCaps: diagnostics.ownerCapCount,
+    objectReadsRequested: diagnostics.objectReadsRequested,
+    objectReadsResolved: diagnostics.objectReadsResolved,
+    objectReadsFailed: diagnostics.objectReadsFailed,
+    failures: formatSuiRpcFailureCounts(diagnostics.failures) || "none",
+    warning: warning ?? "none",
+  };
+
+  if (diagnostics.objectReadsFailed > 0) {
+    console.warn(`[discovery:${diagnostics.runId}] summary`, summary);
+    return;
+  }
+
+  console.info(`[discovery:${diagnostics.runId}] summary`, summary);
+}
+
+function logDiscoveryFailure(diagnostics: DiscoveryDiagnostics, error: unknown) {
+  if (!isSuiDiagnosticsEnabled()) {
+    return;
+  }
+
+  const failure = classifySuiRpcError(error);
+  console.warn(`[discovery:${diagnostics.runId}] failed`, {
+    rpcUrl: diagnostics.rpcUrl,
+    wallet: diagnostics.wallet,
+    characterId: shortenForLog(diagnostics.characterId),
+    kind: failure.kind,
+    statusCode: failure.statusCode,
+    message: failure.message,
+  });
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let index = 0; index < items.length; index += size) {
+    chunks.push(items.slice(index, index + size));
+  }
+  return chunks;
+}
+
+function buildStructureFromResponse(
+  response: SuiObjectResponse,
+  ownerCapId: ObjectId,
+  structureType: StructureType,
+): Structure | null {
+  if (!response.data) return null;
+
+  const objectId = getObjectId(response);
+  if (!objectId) return null;
+
+  const content = getObjectContent(response);
+  const assemblyId = resolveAssemblyId(content);
+  const status = resolveStatus(content);
+  const name = resolveName(content, structureType, objectId);
+  const networkNodeId = resolveNetworkNodeId(content);
+  const linkedGateId = structureType === "gate" ? resolveLinkedGateId(content) : undefined;
+
+  return {
+    assemblyId,
+    objectId,
+    ownerCapId,
+    type: structureType,
+    name,
+    status,
+    networkNodeId,
+    fuel: resolveFuel(content),
+    linkedGateId,
+    extensionStatus: resolveExtensionAuth(content),
+  };
+}
+
+async function fetchStructureBatch(
+  ownerCaps: OwnerCapInfo[],
+  diagnostics: DiscoveryDiagnostics,
+): Promise<Structure[]> {
+  if (ownerCaps.length === 0) {
+    return [];
+  }
+
+  const structures: Structure[] = [];
+  const batches = chunkArray(ownerCaps, STRUCTURE_BATCH_SIZE);
+
+  for (const [batchIndex, batch] of batches.entries()) {
+    const ids = batch.map((cap) => cap.authorizedObjectId);
+
+    try {
+      const responses = await callSuiRead(
+        `discoverAssets.multiGetObjects[${batchIndex + 1}/${batches.length}]`,
+        (client) => client.multiGetObjects({
+          ids,
+          options: { showContent: true, showType: true },
+        }),
+      );
+
+      responses.forEach((response, responseIndex) => {
+        const cap = batch[responseIndex];
+        if (!cap) {
+          return;
+        }
+
+        const structure = buildStructureFromResponse(response, cap.ownerCapId, cap.structureType);
+        if (structure) {
+          diagnostics.objectReadsResolved += 1;
+          structures.push(structure);
+          return;
+        }
+
+        diagnostics.objectReadsFailed += 1;
+        incrementFailure(
+          diagnostics.failures,
+          classifySuiRpcError(response.error ?? "Missing object data").kind,
+        );
+
+        if (isVerboseDiscoveryDebugEnabled()) {
+          console.warn(`[discovery:${diagnostics.runId}] object read failed`, {
+            objectId: cap.authorizedObjectId,
+            structureType: cap.structureType,
+            error: response.error ?? "Missing object data",
+          });
+        }
+      });
+    } catch (error) {
+      diagnostics.objectReadsFailed += ids.length;
+      incrementFailure(diagnostics.failures, classifySuiRpcError(error).kind, ids.length);
+
+      if (isVerboseDiscoveryDebugEnabled()) {
+        console.warn(`[discovery:${diagnostics.runId}] batch read failed`, {
+          batchIndex: batchIndex + 1,
+          ids,
+          error,
+        });
+      }
+    }
+  }
+
+  return structures;
 }
 
 /**
@@ -49,15 +301,19 @@ export function getSuiClient(): SuiJsonRpcClient {
  */
 export async function fetchPlayerProfile(
   walletAddress: string,
+  options: FetchPlayerProfileOptions = {},
 ): Promise<PlayerProfile | null> {
-  const client = getSuiClient();
   const profileType = `${WORLD_ORIGINAL_PACKAGE_ID}::character::PlayerProfile`;
+  const includeCharacterMetadata = options.includeCharacterMetadata ?? true;
 
-  const { data } = await client.getOwnedObjects({
-    owner: walletAddress,
-    filter: { StructType: profileType },
-    options: { showContent: true },
-  });
+  const { data } = await callSuiRead(
+    "fetchPlayerProfile.getOwnedObjects",
+    (client) => client.getOwnedObjects({
+      owner: walletAddress,
+      filter: { StructType: profileType },
+      options: { showContent: true },
+    }),
+  );
 
   if (!data || data.length === 0) return null;
 
@@ -68,23 +324,17 @@ export async function fetchPlayerProfile(
   const characterId = String(content.character_id ?? content.characterId ?? "");
   if (!characterId) return null;
 
-  // Fetch Character shared object for name + tribe_id
   let characterName = "";
   let tribeId = 0;
-  try {
-    const charResp = await client.getObject({
-      id: characterId,
-      options: { showContent: true },
-    });
-    const charContent = getObjectContent(charResp);
-    if (charContent) {
-      const meta = charContent.metadata as Record<string, unknown> | undefined;
-      const metaFields = (meta?.fields ?? meta) as Record<string, unknown> | undefined;
-      characterName = String(metaFields?.name ?? "");
-      tribeId = Number(charContent.tribe_id ?? 0);
+
+  if (includeCharacterMetadata) {
+    try {
+      const metadata = await fetchCharacterMetadata(characterId);
+      characterName = metadata.characterName;
+      tribeId = metadata.tribeId;
+    } catch {
+      // Character metadata is optional — proceed with address/character fallback.
     }
-  } catch {
-    // Character fetch failed — proceed with empty name/tribe
   }
 
   return {
@@ -92,6 +342,27 @@ export async function fetchPlayerProfile(
     characterId,
     characterName,
     tribeId,
+  };
+}
+
+export async function fetchCharacterMetadata(
+  characterId: ObjectId,
+): Promise<Pick<PlayerProfile, "characterName" | "tribeId">> {
+  const charResp = await callSuiRead(
+    "fetchCharacterMetadata.getObject",
+    (client) => client.getObject({
+      id: characterId,
+      options: { showContent: true },
+    }),
+  );
+
+  const charContent = getObjectContent(charResp);
+  const meta = charContent?.metadata as Record<string, unknown> | undefined;
+  const metaFields = (meta?.fields ?? meta) as Record<string, unknown> | undefined;
+
+  return {
+    characterName: String(metaFields?.name ?? ""),
+    tribeId: Number(charContent?.tribe_id ?? 0),
   };
 }
 
@@ -103,17 +374,19 @@ export async function fetchPlayerProfile(
 export async function fetchOwnerCaps(
   characterId: ObjectId,
 ): Promise<OwnerCapInfo[]> {
-  const client = getSuiClient();
   const caps: OwnerCapInfo[] = [];
   let cursor: string | null | undefined = undefined;
   let hasNext = true;
 
   while (hasNext) {
-    const response = await client.getOwnedObjects({
-      owner: characterId,
-      options: { showContent: true, showType: true },
-      ...(cursor ? { cursor } : {}),
-    });
+    const response = await callSuiRead(
+      "fetchOwnerCaps.getOwnedObjects",
+      (client) => client.getOwnedObjects({
+        owner: characterId,
+        options: { showContent: true, showType: true },
+        ...(cursor ? { cursor } : {}),
+      }),
+    );
 
     const data = response.data ?? [];
     for (const obj of data) {
@@ -156,34 +429,15 @@ export async function fetchStructure(
   ownerCapId: ObjectId,
   structureType: StructureType,
 ): Promise<Structure | null> {
-  const client = getSuiClient();
+  const response = await callSuiRead(
+    `fetchStructure.getObject:${structureType}`,
+    (client) => client.getObject({
+      id: objectId,
+      options: { showContent: true, showType: true },
+    }),
+  );
 
-  const response = await client.getObject({
-    id: objectId,
-    options: { showContent: true, showType: true },
-  });
-
-  if (!response.data) return null;
-
-  const content = getObjectContent(response);
-  const assemblyId = resolveAssemblyId(content);
-  const status = resolveStatus(content);
-  const name = resolveName(content, structureType, objectId);
-  const networkNodeId = resolveNetworkNodeId(content);
-  const linkedGateId = structureType === "gate" ? resolveLinkedGateId(content) : undefined;
-
-  return {
-    assemblyId,
-    objectId,
-    ownerCapId,
-    type: structureType,
-    name,
-    status,
-    networkNodeId,
-    fuel: resolveFuel(content),
-    linkedGateId,
-    extensionStatus: resolveExtensionAuth(content),
-  };
+  return buildStructureFromResponse(response, ownerCapId, structureType);
 }
 
 /**
@@ -193,38 +447,67 @@ export async function discoverAssets(walletAddress: string): Promise<{
   profile: PlayerProfile | null;
   ownerCaps: OwnerCapInfo[];
   structures: Structure[];
+  diagnostics: DiscoveryDiagnostics;
+  warning: string | null;
 }> {
-  console.log("[discovery] Starting for wallet:", walletAddress.slice(0, 10) + "…");
-
-  const profile = await fetchPlayerProfile(walletAddress);
-  if (!profile) {
-    console.warn("[discovery] No PlayerProfile found for wallet — chain query returned empty.");
-    return { profile: null, ownerCaps: [], structures: [] };
+  const normalizedWallet = walletAddress.trim().toLowerCase();
+  const existingRun = discoveryInFlight.get(normalizedWallet);
+  if (existingRun) {
+    logDiscoveryJoin(existingRun.runId, walletAddress);
+    return existingRun.promise;
   }
-  console.log("[discovery] PlayerProfile found:", profile.objectId.slice(0, 10) + "…", "character:", profile.characterId.slice(0, 10) + "…");
 
-  const ownerCaps = await fetchOwnerCaps(profile.characterId);
-  console.log("[discovery] OwnerCaps found:", ownerCaps.length, ownerCaps.map(c => c.structureType));
+  const diagnostics = buildDiscoveryDiagnostics(walletAddress);
+  logDiscoveryStart(diagnostics);
 
-  // Fetch structures in parallel
-  const structurePromises = ownerCaps.map((cap) =>
-    fetchStructure(cap.authorizedObjectId, cap.ownerCapId, cap.structureType),
-  );
-  const resolved = await Promise.allSettled(structurePromises);
+  const promise = (async (): Promise<AssetDiscoveryResult> => {
+    try {
+      const profile = await fetchPlayerProfile(walletAddress, {
+        includeCharacterMetadata: false,
+      });
 
-  const structures: Structure[] = [];
-  let failCount = 0;
-  for (const result of resolved) {
-    if (result.status === "fulfilled" && result.value) {
-      structures.push(result.value);
-    } else if (result.status === "rejected") {
-      failCount++;
-      console.warn("[discovery] Structure fetch failed:", result.reason);
+      diagnostics.characterId = profile?.characterId ?? null;
+
+      if (!profile) {
+        logDiscoverySummary(diagnostics, null);
+        return {
+          profile: null,
+          ownerCaps: [],
+          structures: [],
+          diagnostics,
+          warning: null,
+        };
+      }
+
+      const ownerCaps = await fetchOwnerCaps(profile.characterId);
+      diagnostics.ownerCapCount = ownerCaps.length;
+      diagnostics.objectReadsRequested = ownerCaps.length;
+
+      const structures = await fetchStructureBatch(ownerCaps, diagnostics);
+      const warning = buildPartialDiscoveryWarning(structures.length, diagnostics);
+      logDiscoverySummary(diagnostics, warning);
+
+      return {
+        profile,
+        ownerCaps,
+        structures,
+        diagnostics,
+        warning,
+      };
+    } catch (error) {
+      logDiscoveryFailure(diagnostics, error);
+      throw error;
     }
-  }
-  console.log("[discovery] Resolved", structures.length, "structures,", failCount, "failed");
+  })().finally(() => {
+    discoveryInFlight.delete(normalizedWallet);
+  });
 
-  return { profile, ownerCaps, structures };
+  discoveryInFlight.set(normalizedWallet, {
+    runId: diagnostics.runId,
+    promise,
+  });
+
+  return promise;
 }
 
 /**
@@ -563,56 +846,27 @@ export async function fetchPosture(gateId: string): Promise<PostureMode> {
 export async function fetchRecentEvents(
   limit = 25,
 ): Promise<{ id: { txDigest: string; eventSeq: string }; type: string; parsedJson?: Record<string, unknown>; timestampMs?: string; sender?: string }[]> {
-  const client = getSuiClient();
+  const queryModuleEvents = (label: string, packageId: string, module: string) => callSuiRead(
+    `fetchRecentEvents.${label}`,
+    (client) => client.queryEvents({
+      query: { MoveModule: { package: packageId, module } },
+      order: "descending",
+      limit,
+    }),
+  );
 
   const [gateEvents, tradeEvents, postureEvents, bouncerEvents, defenseEvents, turretExtEvents, turretEvents, worldGateEvents, worldSsuEvents] = await Promise.all([
-    client.queryEvents({
-      query: { MoveModule: { package: CC_PACKAGE_ID, module: "gate_control" } },
-      order: "descending",
-      limit,
-    }),
-    client.queryEvents({
-      query: { MoveModule: { package: CC_PACKAGE_ID, module: "trade_post" } },
-      order: "descending",
-      limit,
-    }),
-    client.queryEvents({
-      query: { MoveModule: { package: CC_PACKAGE_ID, module: "posture" } },
-      order: "descending",
-      limit,
-    }),
-    client.queryEvents({
-      query: { MoveModule: { package: CC_PACKAGE_ID, module: "turret_bouncer" } },
-      order: "descending",
-      limit,
-    }),
-    client.queryEvents({
-      query: { MoveModule: { package: CC_PACKAGE_ID, module: "turret_defense" } },
-      order: "descending",
-      limit,
-    }),
-    client.queryEvents({
-      query: { MoveModule: { package: WORLD_RUNTIME_PACKAGE_ID, module: "turret" } },
-      order: "descending",
-      limit,
-    }),
-    client.queryEvents({
-      query: { MoveModule: { package: CC_PACKAGE_ID, module: "turret" } },
-      order: "descending",
-      limit,
-    }),
+    queryModuleEvents("gate_control", CC_PACKAGE_ID, "gate_control"),
+    queryModuleEvents("trade_post", CC_PACKAGE_ID, "trade_post"),
+    queryModuleEvents("posture", CC_PACKAGE_ID, "posture"),
+    queryModuleEvents("turret_bouncer", CC_PACKAGE_ID, "turret_bouncer"),
+    queryModuleEvents("turret_defense", CC_PACKAGE_ID, "turret_defense"),
+    queryModuleEvents("world_turret", WORLD_RUNTIME_PACKAGE_ID, "turret"),
+    queryModuleEvents("turret", CC_PACKAGE_ID, "turret"),
     // World-level gate events: StatusChangedEvent for gate power on/off
-    client.queryEvents({
-      query: { MoveModule: { package: WORLD_RUNTIME_PACKAGE_ID, module: "gate" } },
-      order: "descending",
-      limit,
-    }),
+    queryModuleEvents("world_gate", WORLD_RUNTIME_PACKAGE_ID, "gate"),
     // World-level SSU events: StatusChangedEvent for trade post power on/off
-    client.queryEvents({
-      query: { MoveModule: { package: WORLD_RUNTIME_PACKAGE_ID, module: "storage_unit" } },
-      order: "descending",
-      limit,
-    }),
+    queryModuleEvents("world_storage_unit", WORLD_RUNTIME_PACKAGE_ID, "storage_unit"),
   ]);
 
   // Tag StatusChangedEvent events with assembly type based on source module.
