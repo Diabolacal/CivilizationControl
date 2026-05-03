@@ -421,6 +421,48 @@ const reserveLookup = adapted.nodeLookupsByNodeId.get(NETWORK_NODE_EMPTY_VALID_I
 const groupFuelPresentation = buildFuelPresentation(group.node);
 const relayFuelPresentation = buildFuelPresentation(relayGroup.node);
 const reserveFuelPresentation = buildFuelPresentation(reserveGroup.node);
+const restoredQuantityFuelPresentation = buildFuelPresentation({
+  fuel: undefined,
+  indexedFuelAmount: null,
+  indexedPowerSummary: createPowerSummary({
+    fuelAmount: 1800,
+    fuelMaxCapacity: 10000,
+    fuelTypeId: 88335,
+    fuelTypeName: "D1 Fuel",
+    fuelGrade: "D1",
+    efficiencyPercent: 10,
+    burnRateUnitsPerHour: 10,
+    estimatedSecondsRemaining: 651600,
+    estimatedHoursRemaining: 181,
+    criticalFuelThresholdSeconds: 3600,
+    lowFuelThresholdSeconds: 86400,
+    isLowFuel: false,
+    isCriticalFuel: false,
+    confidence: "indexed",
+  }),
+  summary: undefined,
+});
+const smallerVisibleFuelPresentation = buildFuelPresentation({
+  fuel: undefined,
+  indexedFuelAmount: null,
+  indexedPowerSummary: createPowerSummary({
+    fuelAmount: 540,
+    fuelMaxCapacity: 10000,
+    fuelTypeId: 88335,
+    fuelTypeName: "D1 Fuel",
+    fuelGrade: "D1",
+    efficiencyPercent: 10,
+    burnRateUnitsPerHour: 10,
+    estimatedSecondsRemaining: 194400,
+    estimatedHoursRemaining: 54,
+    criticalFuelThresholdSeconds: 3600,
+    lowFuelThresholdSeconds: 86400,
+    isLowFuel: false,
+    isCriticalFuel: false,
+    confidence: "indexed",
+  }),
+  summary: undefined,
+});
 const lowOnlyFuelPresentation = buildFuelPresentation({
   fuel: undefined,
   indexedFuelAmount: null,
@@ -455,6 +497,7 @@ assert.equal(group.node.indexedPowerSummary?.criticalFuelThresholdSeconds, 3600)
 assert.equal(group.node.indexedPowerSummary?.lowFuelThresholdSeconds, 86400);
 assert.equal(groupFuelPresentation.runtimeLabel, "7d 14h");
 assert.equal(groupFuelPresentation.severity, "normal");
+assert.equal(groupFuelPresentation.fillReason, "indexed-canonical-capacity");
 assert.equal(relayFuelPresentation.severity, "critical");
 assert.equal(reserveGroup.node.indexedPowerSummary?.fuelGrade, "D1");
 assert.equal(reserveLookup?.node.fuelAmount, "900");
@@ -462,6 +505,16 @@ assert.equal(reserveLookup?.node.powerSummary?.criticalFuelThresholdSeconds, 360
 assert.equal(reserveLookup?.node.powerSummary?.lowFuelThresholdSeconds, 86400);
 assert.equal(reserveFuelPresentation.runtimeLabel, null);
 assert.equal(reserveFuelPresentation.severity, "partial");
+assert.equal(restoredQuantityFuelPresentation.runtimeLabel, "7d 13h");
+assert.equal(restoredQuantityFuelPresentation.severity, "normal");
+assert.equal(restoredQuantityFuelPresentation.fillReason, "indexed-canonical-capacity");
+assert.equal(restoredQuantityFuelPresentation.fillPercent, 50);
+assert(restoredQuantityFuelPresentation.fillRatio != null && restoredQuantityFuelPresentation.fillRatio > 0.49 && restoredQuantityFuelPresentation.fillRatio < 0.51);
+assert.equal(restoredQuantityFuelPresentation.amountLabel, "1,800 / 3,571 units");
+assert.equal(smallerVisibleFuelPresentation.runtimeLabel, "2d 6h");
+assert.equal(smallerVisibleFuelPresentation.fillReason, "indexed-canonical-capacity");
+assert.equal(smallerVisibleFuelPresentation.fillPercent, 15);
+assert(smallerVisibleFuelPresentation.fillRatio != null && smallerVisibleFuelPresentation.fillRatio > 0.14 && smallerVisibleFuelPresentation.fillRatio < 0.16);
 assert.equal(lowOnlyFuelPresentation.severity, "low");
 
 const viewModel = buildLiveNodeLocalViewModelWithObserved(group, lookup, { preferObservedMembership: true });
@@ -469,7 +522,7 @@ const reserveViewModel = buildLiveNodeLocalViewModelWithObserved(reserveGroup, r
 
 assert.equal(viewModel.sourceMode, "backend-membership");
 assert.equal(viewModel.structures.length, 4);
-assert.equal(reserveViewModel.node.fuelSummary, "D1 · 900 / 1,800 units");
+assert.equal(reserveViewModel.node.fuelSummary, "D1 · 900 / 3,571 units");
 assert.equal(reserveViewModel.node.fuelAmount, "900");
 
 const gate = viewModel.structures.find((structure) => structure.objectId === GATE_ID);

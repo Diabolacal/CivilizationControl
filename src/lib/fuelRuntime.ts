@@ -9,11 +9,13 @@
  * D1 (10%) burns 10× faster than 100% baseline.
  */
 
-import { getItemTypeById } from "@/lib/typeCatalog";
+import { getItemTypeById, getItemTypeByName } from "@/lib/typeCatalog";
 import type { IndexedPowerSummary, Structure } from "@/types/domain";
 
 export const DEFAULT_CRITICAL_FUEL_THRESHOLD_SECONDS = 60 * 60;
 export const DEFAULT_LOW_FUEL_THRESHOLD_SECONDS = 24 * 60 * 60;
+const CANONICAL_FUEL_TANK_RAW_CAPACITY = 1000;
+const CANONICAL_CAPACITY_TOLERANCE_RATIO = 0.25;
 
 export type FuelSeverity = "critical" | "low" | "normal" | "partial" | "unavailable";
 
@@ -23,7 +25,9 @@ export interface FuelPresentation {
   typeLabel: string | null;
   runtimeLabel: string | null;
   amountLabel: string | null;
+  fillRatio: number | null;
   fillPercent: number | null;
+  fillReason: string | null;
   quantityUnits: number | null;
   maxCapacityUnits: number | null;
   estimatedSecondsRemaining: number | null;
@@ -205,12 +209,83 @@ function resolvePowerSummaryTypeLabel(powerSummary: IndexedPowerSummary): string
     ?? null;
 }
 
-function resolveFillPercent(quantityUnits: number | null, maxCapacityUnits: number | null): number | null {
+function resolveFuelCatalogItem(powerSummary: IndexedPowerSummary) {
+  const byId = powerSummary.fuelTypeId != null ? getItemTypeById(powerSummary.fuelTypeId) : undefined;
+  if (byId) {
+    return byId;
+  }
+
+  const typeName = normalizeString(powerSummary.fuelTypeName);
+  if (typeName) {
+    const byName = getItemTypeByName(typeName);
+    if (byName) {
+      return byName;
+    }
+  }
+
+  const grade = resolvePowerSummaryTypeLabel(powerSummary);
+  if (grade) {
+    return getItemTypeByName(`${grade} Fuel`);
+  }
+
+  return undefined;
+}
+
+function resolveCanonicalFuelCapacityUnits(powerSummary: IndexedPowerSummary): number | null {
+  const itemType = resolveFuelCatalogItem(powerSummary);
+  if (!itemType || itemType.volume <= 0) {
+    return null;
+  }
+
+  return Math.floor(CANONICAL_FUEL_TANK_RAW_CAPACITY / itemType.volume);
+}
+
+function isWithinTolerance(value: number, target: number, ratio: number): boolean {
+  const tolerance = Math.max(1, target * ratio);
+  return Math.abs(value - target) <= tolerance;
+}
+
+function resolveIndexedCapacityUnits(powerSummary: IndexedPowerSummary): {
+  maxCapacityUnits: number | null;
+  fillReason: string | null;
+} {
+  const rawCapacity = normalizeNonNegativeNumber(powerSummary.fuelMaxCapacity);
+  const canonicalCapacityUnits = resolveCanonicalFuelCapacityUnits(powerSummary);
+
+  if (rawCapacity != null && canonicalCapacityUnits != null && isWithinTolerance(rawCapacity, canonicalCapacityUnits, CANONICAL_CAPACITY_TOLERANCE_RATIO)) {
+    return {
+      maxCapacityUnits: rawCapacity,
+      fillReason: "indexed-usable-capacity",
+    };
+  }
+
+  if (canonicalCapacityUnits != null) {
+    return {
+      maxCapacityUnits: canonicalCapacityUnits,
+      fillReason: rawCapacity != null ? "indexed-canonical-capacity" : "indexed-canonical-capacity-fallback",
+    };
+  }
+
+  return {
+    maxCapacityUnits: rawCapacity,
+    fillReason: rawCapacity != null ? "indexed-raw-capacity" : null,
+  };
+}
+
+function resolveFillRatio(quantityUnits: number | null, maxCapacityUnits: number | null): number | null {
   if (quantityUnits == null || maxCapacityUnits == null || maxCapacityUnits <= 0) {
     return null;
   }
 
-  return Math.min(100, Math.max(0, Math.round((quantityUnits / maxCapacityUnits) * 100)));
+  return Math.min(1, Math.max(0, quantityUnits / maxCapacityUnits));
+}
+
+function resolveFillPercent(fillRatio: number | null): number | null {
+  if (fillRatio == null) {
+    return null;
+  }
+
+  return Math.min(100, Math.max(0, Math.round(fillRatio * 100)));
 }
 
 function formatUnitCount(value: number): string {
@@ -303,12 +378,13 @@ export function buildFuelPresentation(structure: FuelStructureLike): FuelPresent
 
   if (indexedPowerSummary) {
     const quantityUnits = normalizeNonNegativeNumber(indexedPowerSummary.fuelAmount);
-    const maxCapacityUnits = normalizeNonNegativeNumber(indexedPowerSummary.fuelMaxCapacity);
+    const { maxCapacityUnits, fillReason } = resolveIndexedCapacityUnits(indexedPowerSummary);
     const estimatedSecondsRemaining = resolvePowerSummaryRuntimeSeconds(indexedPowerSummary);
     const confidence = normalizeString(indexedPowerSummary.confidence);
     const isRuntimeKnown = confidence?.toLowerCase() === "indexed" && estimatedSecondsRemaining != null;
     const amountLabel = formatAmountLabel(quantityUnits, maxCapacityUnits)
       ?? formatIndexedFuelAmount(indexedFuelAmount);
+    const fillRatio = resolveFillRatio(quantityUnits, maxCapacityUnits);
 
     return {
       source: "indexed-power-summary",
@@ -326,7 +402,9 @@ export function buildFuelPresentation(structure: FuelStructureLike): FuelPresent
         ? formatRuntimeSeconds(estimatedSecondsRemaining)
         : null,
       amountLabel,
-      fillPercent: resolveFillPercent(quantityUnits, maxCapacityUnits),
+      fillRatio,
+      fillPercent: resolveFillPercent(fillRatio),
+      fillReason,
       quantityUnits,
       maxCapacityUnits,
       estimatedSecondsRemaining,
@@ -351,6 +429,7 @@ export function buildFuelPresentation(structure: FuelStructureLike): FuelPresent
       : undefined;
     const estimatedSecondsRemaining = runtimeMs != null ? Math.round(runtimeMs / 1000) : null;
     const amountLabel = formatAmountLabel(quantityUnits, maxCapacityUnits);
+    const fillRatio = resolveFillRatio(quantityUnits, maxCapacityUnits);
 
     return {
       source: "direct-fuel",
@@ -364,7 +443,9 @@ export function buildFuelPresentation(structure: FuelStructureLike): FuelPresent
       typeLabel: fuelTypeLabel(structure.fuel.typeId) ?? null,
       runtimeLabel: runtimeMs != null ? formatRuntime(runtimeMs) : null,
       amountLabel,
-      fillPercent: resolveFillPercent(quantityUnits, maxCapacityUnits),
+      fillRatio,
+      fillPercent: resolveFillPercent(fillRatio),
+      fillReason: maxCapacityUnits != null ? "direct-fuel-capacity" : null,
       quantityUnits,
       maxCapacityUnits,
       estimatedSecondsRemaining,
@@ -382,7 +463,9 @@ export function buildFuelPresentation(structure: FuelStructureLike): FuelPresent
       typeLabel: null,
       runtimeLabel: null,
       amountLabel: formatIndexedFuelAmount(indexedFuelAmount),
+      fillRatio: null,
       fillPercent: null,
+      fillReason: null,
       quantityUnits: normalizeNonNegativeNumber(indexedFuelAmount),
       maxCapacityUnits: null,
       estimatedSecondsRemaining: null,
@@ -399,7 +482,9 @@ export function buildFuelPresentation(structure: FuelStructureLike): FuelPresent
     typeLabel: null,
     runtimeLabel: null,
     amountLabel: null,
+    fillRatio: null,
     fillPercent: null,
+    fillReason: null,
     quantityUnits: null,
     maxCapacityUnits: null,
     estimatedSecondsRemaining: null,
