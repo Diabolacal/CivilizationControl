@@ -40,19 +40,19 @@ export function getNodeLocalPowerToggleIntent(
 export function formatNodeLocalActionAuthorityLabel(structure: NodeLocalStructure): string {
   switch (structure.actionAuthority.state) {
     case "verified-supported":
-      return "Verified for online/offline";
+      return "Verified supported";
     case "backend-only":
       return "Backend-only";
     case "ambiguous-match":
-      return `Ambiguous direct-chain match (${structure.actionAuthority.candidateTargets.length})`;
+      return `Ambiguous match (${structure.actionAuthority.candidateTargets.length})`;
     case "unsupported-family":
-      return "Unsupported family in this slice";
+      return "Unsupported family";
     case "missing-owner-cap":
-      return "OwnerCap proof missing";
+      return "Missing OwnerCap";
     case "missing-node-context":
-      return "Missing node link";
+      return "Missing node context";
     case "synthetic":
-      return "Lab preview only";
+      return "Synthetic preview row";
   }
 }
 
@@ -79,7 +79,7 @@ export function formatNodeLocalActionTooltip(structure: NodeLocalStructure): str
   if (structure.actionAuthority.state === "verified-supported") {
     const actionStatus = getNodeLocalActionStatus(structure);
     if (actionStatus === "warning" || actionStatus === "neutral") {
-      return "Status is not resolved to online or offline.";
+      return "Status unresolved";
     }
   }
 

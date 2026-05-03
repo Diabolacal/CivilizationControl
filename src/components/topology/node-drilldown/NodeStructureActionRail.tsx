@@ -21,7 +21,12 @@ interface NodeStructureActionRailProps {
   variant?: "rail" | "panel";
 }
 
-type PowerSegment = "off" | "on";
+const POWER_SEGMENT_LABELS = {
+  offline: "Offline",
+  online: "Online",
+} as const;
+
+type PowerSegment = keyof typeof POWER_SEGMENT_LABELS;
 
 interface SegmentedPowerToggleProps {
   selectedSegment: PowerSegment | null;
@@ -33,36 +38,61 @@ interface SegmentedPowerToggleProps {
 
 function getSelectedSegment(status: StructureStatus): PowerSegment | null {
   if (status === "online") {
-    return "on";
+    return "online";
   }
 
   if (status === "offline") {
-    return "off";
+    return "offline";
   }
 
   return null;
 }
 
-function segmentSelectedClass(segment: PowerSegment, isBusy: boolean): string {
-  if (segment === "on") {
-    return isBusy
-      ? "border-teal-500/35 bg-teal-500/10 text-teal-200/70"
-      : "border-teal-500/45 bg-teal-500/14 text-teal-200";
-  }
-
-  return isBusy
-    ? "border-red-500/35 bg-red-500/10 text-red-200/70"
-    : "border-red-500/45 bg-red-500/14 text-red-200";
+function segmentTone(segment: PowerSegment): string {
+  return segment === "online" ? "var(--topo-state-online)" : "var(--topo-state-offline)";
 }
 
-function segmentIdleClass(segment: PowerSegment, isInteractive: boolean): string {
+function segmentSelectedStyle(segment: PowerSegment, isBusy: boolean): React.CSSProperties {
+  const tone = segmentTone(segment);
+
+  return {
+    borderColor: `color-mix(in srgb, ${tone} ${isBusy ? "38%" : "46%"}, var(--border) ${isBusy ? "62%" : "54%"})`,
+    backgroundColor: `color-mix(in srgb, ${tone} ${isBusy ? "10%" : "16%"}, transparent)`,
+    color: tone,
+    opacity: isBusy ? 0.72 : 1,
+  };
+}
+
+function segmentIdleStyle(segment: PowerSegment, isInteractive: boolean): React.CSSProperties | undefined {
   if (!isInteractive) {
-    return "text-muted-foreground/45";
+    return undefined;
   }
 
-  return segment === "on"
-    ? "text-teal-200/70 hover:bg-teal-500/8 hover:text-teal-200"
-    : "text-red-200/70 hover:bg-red-500/8 hover:text-red-200";
+  return {
+    color: `color-mix(in srgb, ${segmentTone(segment)} 78%, var(--foreground) 22%)`,
+  };
+}
+
+function segmentTitle(
+  segment: PowerSegment,
+  isSelected: boolean,
+  isInteractive: boolean,
+  isBusy: boolean,
+  disabledReason: string | null,
+): string {
+  if (isBusy) {
+    return "Submitting structure power action…";
+  }
+
+  if (!isInteractive) {
+    return disabledReason ?? POWER_SEGMENT_LABELS[segment];
+  }
+
+  if (isSelected) {
+    return `Currently ${POWER_SEGMENT_LABELS[segment]}`;
+  }
+
+  return segment === "online" ? "Bring Online" : "Take Offline";
 }
 
 function SegmentedPowerToggle({
@@ -73,15 +103,12 @@ function SegmentedPowerToggle({
   onSelectSegment,
 }: SegmentedPowerToggleProps) {
   return (
-    <div
-      title={disabledReason ?? undefined}
-      aria-label={disabledReason ?? "Power state control"}
-      className="w-[116px]"
-    >
+    <div aria-label={disabledReason ?? "Online or Offline control"} className="w-[146px]">
       <div className="flex overflow-hidden rounded border border-border/60 bg-background/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-        {(["off", "on"] as const).map((segment, index) => {
+        {(["offline", "online"] as const).map((segment, index) => {
           const isSelected = selectedSegment === segment;
-          const isDisabled = isBusy || !isInteractive || isSelected;
+          const isDisabled = isBusy || !isInteractive;
+          const title = segmentTitle(segment, isSelected, isInteractive, isBusy, disabledReason);
 
           return (
             <button
@@ -89,16 +116,27 @@ function SegmentedPowerToggle({
               type="button"
               disabled={isDisabled}
               aria-pressed={isSelected}
-              onClick={() => onSelectSegment?.(segment)}
+              aria-disabled={isDisabled || isSelected}
+              title={title}
+              onClick={() => {
+                if (isSelected || isDisabled) {
+                  return;
+                }
+
+                onSelectSegment?.(segment);
+              }}
               className={cn(
-                "flex-1 px-0 py-1 text-[10px] font-mono uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed",
+                "flex-1 px-2 py-1 text-[11px] font-medium transition-colors",
                 index === 1 ? "border-l border-border/60" : null,
-                isSelected
-                  ? segmentSelectedClass(segment, isBusy)
-                  : segmentIdleClass(segment, isInteractive && !isBusy),
+                isDisabled
+                  ? "cursor-not-allowed text-muted-foreground/45"
+                  : isSelected
+                    ? "cursor-default"
+                    : "cursor-pointer hover:bg-background/50",
               )}
+              style={isSelected ? segmentSelectedStyle(segment, isBusy) : segmentIdleStyle(segment, isInteractive && !isBusy)}
             >
-              {segment}
+              {POWER_SEGMENT_LABELS[segment]}
             </button>
           );
         })}
@@ -132,7 +170,7 @@ export function NodeStructureActionRail({
   const handleTogglePower = (segment: PowerSegment) => {
     if (!toggleIntent || !onTogglePower) return;
 
-    const nextOnline = segment === "on";
+    const nextOnline = segment === "online";
     if (toggleIntent.nextOnline !== nextOnline) return;
 
     onFocusStructure?.(structure.id);
@@ -173,7 +211,7 @@ export function NodeStructureActionRail({
   }
 
   return (
-    <div className="ml-1 flex w-[116px] shrink-0 flex-col items-end justify-center gap-1 text-right">
+    <div className="ml-1 flex w-[146px] shrink-0 flex-col items-end justify-center gap-1 text-right">
       {isHidden ? (
         <button
           type="button"

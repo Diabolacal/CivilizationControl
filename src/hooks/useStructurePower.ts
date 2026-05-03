@@ -65,10 +65,12 @@ export function useStructurePower() {
         setResult({ digest });
         setStatus("success");
         queryClient.invalidateQueries({ queryKey: ["assetDiscovery"] });
+        return true;
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         setError(friendlyError(message));
         setStatus("error");
+        return false;
       }
     },
     [executeTx, queryClient],

@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { NodeDrilldownSurface } from "@/components/topology/node-drilldown/NodeDrilldownSurface";
+import { NodeDrilldownContextMenu } from "@/components/topology/node-drilldown/NodeDrilldownContextMenu";
 import { NodeSelectionInspector } from "@/components/topology/node-drilldown/NodeSelectionInspector";
 import { NodeStructureListPanel } from "@/components/topology/node-drilldown/NodeStructureListPanel";
 import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState";
+import { useNodeDrilldownStructureMenu } from "@/hooks/useNodeDrilldownStructureMenu";
 import { NODE_DRILLDOWN_SCENARIOS } from "@/lib/nodeDrilldownScenarios";
 import { cn } from "@/lib/utils";
 
@@ -52,6 +54,16 @@ export function NodeDrilldownLabScreen() {
     () => (scenarioViewModel ? { ...scenarioViewModel, structures: visibleStructures } : null),
     [scenarioViewModel, visibleStructures],
   );
+  const {
+    contextMenu,
+    menuRef,
+    openStructureMenu,
+    closeStructureMenu,
+  } = useNodeDrilldownStructureMenu();
+  const scenarioStructureMap = useMemo(
+    () => new Map((scenarioViewModel?.structures ?? []).map((structure) => [structure.id, structure])),
+    [scenarioViewModel],
+  );
 
   const handlePreviewTogglePower = (structure: NodeLocalStructure, nextOnline: boolean) => {
     setSelectedStructureId(structure.id);
@@ -88,7 +100,8 @@ export function NodeDrilldownLabScreen() {
 
   useEffect(() => {
     setSelectedStructureId(null);
-  }, [scenarioId]);
+    closeStructureMenu();
+  }, [closeStructureMenu, scenarioId]);
 
   useEffect(() => {
     if (!scenario) {
@@ -172,10 +185,14 @@ export function NodeDrilldownLabScreen() {
               viewModel={visibleViewModel}
               selectedStructureId={selectedStructureId}
               onSelectStructure={setSelectedStructureId}
-              onHideStructure={hideStructure}
-              onTogglePower={handlePreviewTogglePower}
+              onOpenStructureMenu={(params) => {
+                setSelectedStructureId(params.structure.id);
+                openStructureMenu(params);
+              }}
+              onCloseStructureMenu={closeStructureMenu}
               totalStructureCount={scenarioViewModel?.structures.length ?? 0}
               hiddenStructureCount={hiddenCount}
+              isStructureMenuOpen={contextMenu != null}
               title="Node Drilldown Lab"
               subtitle={scenario.description}
               headerAction={
@@ -195,6 +212,11 @@ export function NodeDrilldownLabScreen() {
               onSelectStructure={setSelectedStructureId}
               hiddenCanonicalKeySet={hiddenCanonicalKeySet}
               onUnhideStructure={unhideStructure}
+              onOpenStructureMenu={(params) => {
+                setSelectedStructureId(params.structure.id);
+                openStructureMenu(params);
+              }}
+              onCloseStructureMenu={closeStructureMenu}
               onTogglePower={handlePreviewTogglePower}
               powerStructureId={selectedStructureId}
               previewMode
@@ -211,6 +233,38 @@ export function NodeDrilldownLabScreen() {
             />
           </div>
         </div>
+
+        {contextMenu ? (
+          <NodeDrilldownContextMenu
+            menuRef={menuRef}
+            structureName={contextMenu.structureName}
+            left={contextMenu.left}
+            top={contextMenu.top}
+            visibilityActionLabel={contextMenu.visibilityActionLabel}
+            powerActionLabel={contextMenu.powerActionLabel ?? undefined}
+            onVisibilityAction={() => {
+              if (contextMenu.visibilityAction === "unhide") {
+                unhideStructure(contextMenu.canonicalDomainKey);
+              } else {
+                hideStructure(contextMenu.canonicalDomainKey);
+              }
+              closeStructureMenu();
+            }}
+            onPowerAction={contextMenu.nextOnline != null
+              ? () => {
+                const structure = scenarioStructureMap.get(contextMenu.structureId);
+                if (!structure) {
+                  closeStructureMenu();
+                  return;
+                }
+
+                handlePreviewTogglePower(structure, contextMenu.nextOnline as boolean);
+                closeStructureMenu();
+              }
+              : undefined}
+            onClose={closeStructureMenu}
+          />
+        ) : null}
       </main>
     </div>
   );

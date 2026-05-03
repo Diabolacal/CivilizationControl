@@ -319,6 +319,113 @@ assert.equal(refineryRows[0]?.actionAuthority.state, "backend-only", "expected b
 assert.ok(structures.every((structure) => structure.familyLabel !== "Trade Post"), "expected no visible Trade Post terminology");
 assert.ok(structures.every((structure) => structure.source !== "live"), "expected no live display rows in backend-membership mode");
 
+const aliasBridgeGroup: NetworkNodeGroup = {
+  node: {
+    objectId: "0x00000000000000000000000000000000000000000000000000000000000000bb",
+    ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000000cbb",
+    assemblyId: "9010",
+    type: "network_node",
+    name: "Alias Bridge Node",
+    status: "online",
+    extensionStatus: "authorized",
+  },
+  gates: [],
+  storageUnits: [
+    {
+      objectId: "0x0000000000000000000000000000000000000000000000000000000000000201",
+      ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000d201",
+      assemblyId: "4201",
+      type: "storage_unit",
+      name: "Storage bridge4201",
+      status: "online",
+      networkNodeId: "0x00000000000000000000000000000000000000000000000000000000000000bb",
+      extensionStatus: "authorized",
+    },
+  ],
+  turrets: [],
+};
+
+const aliasBridgeLookup: NodeAssembliesLookupResult = {
+  status: "success",
+  networkNodeId: aliasBridgeGroup.node.objectId,
+  node: {
+    objectId: aliasBridgeGroup.node.objectId,
+    name: "Alias Bridge Node",
+    status: "ONLINE",
+    assemblyId: "9010",
+    solarSystemId: null,
+    energySourceId: null,
+  },
+  assemblies: [
+    {
+      objectId: null,
+      assemblyId: "4201",
+      linkedGateId: null,
+      assemblyType: "storage_unit",
+      typeId: 88083,
+      typeName: "Storage",
+      name: "Storage",
+      status: "ONLINE",
+      fuelAmount: null,
+      solarSystemId: null,
+      energySourceId: null,
+      url: null,
+      lastUpdated: "2026-05-03T09:00:00.000Z",
+      source: "shared-frontier-backend",
+      provenance: "node-local-indexer",
+    },
+    {
+      objectId: "0x0000000000000000000000000000000000000000000000000000000000000abc",
+      assemblyId: "4201",
+      linkedGateId: null,
+      assemblyType: "storage_unit",
+      typeId: 88083,
+      typeName: "Storage",
+      name: "Storage",
+      status: "ONLINE",
+      fuelAmount: null,
+      solarSystemId: null,
+      energySourceId: null,
+      url: null,
+      lastUpdated: "2026-05-03T09:00:00.000Z",
+      source: "shared-frontier-backend",
+      provenance: "node-local-indexer",
+    },
+    {
+      objectId: "0x0000000000000000000000000000000000000000000000000000000000000abc",
+      assemblyId: "5201",
+      linkedGateId: null,
+      assemblyType: "storage_unit",
+      typeId: 88083,
+      typeName: "Storage",
+      name: "Storage",
+      status: "ONLINE",
+      fuelAmount: null,
+      solarSystemId: null,
+      energySourceId: null,
+      url: null,
+      lastUpdated: "2026-05-03T09:00:00.000Z",
+      source: "shared-frontier-backend",
+      provenance: "node-local-indexer",
+    },
+  ],
+  fetchedAt: "2026-05-03T09:00:00.000Z",
+  source: "shared-frontier-backend",
+  error: null,
+  isPartial: false,
+  droppedCount: 0,
+};
+
+const aliasBridgeViewModel = buildLiveNodeLocalViewModelWithObserved(aliasBridgeGroup, aliasBridgeLookup);
+const aliasBridgeRow = aliasBridgeViewModel.structures.find((structure) => structure.family === "tradePost");
+
+assert.ok(aliasBridgeRow, "expected alias-bridge storage row to render");
+assert.equal(aliasBridgeViewModel.sourceMode, "backend-membership", "expected alias-bridge view model to stay in backend-membership mode");
+assert.equal(aliasBridgeRow?.source, "backendMembership", "expected alias-bridge storage row to render from backend membership");
+assert.equal(aliasBridgeRow?.directChainMatchCount, 1, "expected alias-bridge storage row to keep exactly one direct-chain match");
+assert.equal(aliasBridgeRow?.actionAuthority.state, "verified-supported", "expected merged observed aliases to preserve one verified-supported storage match");
+assert.equal(aliasBridgeRow?.actionAuthority.verifiedTarget?.structureId, aliasBridgeGroup.storageUnits[0]?.objectId, "expected alias-bridge storage row to resolve back to the live storage object");
+
 console.log(JSON.stringify({
   sourceMode: viewModel.sourceMode,
   totalRows: structures.length,

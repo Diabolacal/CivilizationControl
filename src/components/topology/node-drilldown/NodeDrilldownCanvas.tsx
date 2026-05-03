@@ -1,45 +1,23 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { NodeIconPreviewGlyph } from "@/components/topology/node-icon-catalogue/NodeIconPreviewGlyph";
-import { getNodeLocalPowerToggleIntent } from "@/lib/nodeDrilldownActionAuthority";
 import { layoutNodeDrilldown } from "@/lib/nodeDrilldownLayout";
 import { cn } from "@/lib/utils";
 
-import { NodeDrilldownContextMenu } from "./NodeDrilldownContextMenu";
 import { NodeDrilldownTooltip, type NodeDrilldownTooltipData } from "./NodeDrilldownTooltip";
 
-import type { TxStatus } from "@/types/domain";
-import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
+import type { OpenNodeDrilldownStructureMenuParams } from "@/hooks/useNodeDrilldownStructureMenu";
+import type { NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 
 interface NodeDrilldownCanvasProps {
   viewModel: NodeLocalViewModel;
   selectedStructureId: string | null;
   onSelectStructure: (structureId: string | null) => void;
-  onHideStructure: (canonicalDomainKey: string) => void;
-  onTogglePower?: (structure: NodeLocalStructure, nextOnline: boolean) => void;
-  powerStatus?: TxStatus;
+  onOpenStructureMenu?: (params: OpenNodeDrilldownStructureMenuParams) => void;
+  onCloseStructureMenu?: () => void;
   totalStructureCount: number;
   hiddenStructureCount: number;
-}
-
-interface StructureContextMenuState {
-  structureId: string;
-  canonicalDomainKey: string;
-  structureName: string;
-  left: number;
-  top: number;
-  powerActionLabel: string | null;
-  nextOnline: boolean | null;
-}
-
-const CONTEXT_MENU_MARGIN_PX = 12;
-const CONTEXT_MENU_WIDTH_PX = 196;
-const CONTEXT_MENU_ITEM_HEIGHT_PX = 36;
-const CONTEXT_MENU_CHROME_HEIGHT_PX = 12;
-
-function clampPosition(value: number, min: number, max: number): number {
-  if (max < min) return min;
-  return Math.min(max, Math.max(min, value));
+  isStructureMenuOpen?: boolean;
 }
 
 function formatTitleCase(value: string): string {
@@ -107,17 +85,14 @@ export function NodeDrilldownCanvas({
   viewModel,
   selectedStructureId,
   onSelectStructure,
-  onHideStructure,
-  onTogglePower,
-  powerStatus = "idle",
+  onOpenStructureMenu,
+  onCloseStructureMenu,
   totalStructureCount,
   hiddenStructureCount,
+  isStructureMenuOpen = false,
 }: NodeDrilldownCanvasProps) {
   const layout = useMemo(() => layoutNodeDrilldown(viewModel), [viewModel]);
   const [tooltip, setTooltip] = useState<NodeDrilldownTooltipData | null>(null);
-  const [contextMenu, setContextMenu] = useState<StructureContextMenuState | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const menuRef = useRef<HTMLDivElement>(null);
   const structureMap = useMemo(
     () => new Map(viewModel.structures.map((structure) => [structure.id, structure])),
     [viewModel.structures],
@@ -125,68 +100,15 @@ export function NodeDrilldownCanvas({
   const visibleStructureCount = viewModel.structures.length;
 
   useEffect(() => {
-    if (!contextMenu) return;
-
-    const handleMouseDown = (event: MouseEvent) => {
-      const target = event.target;
-      if (target instanceof Node && menuRef.current?.contains(target)) {
-        return;
-      }
-
-      setContextMenu(null);
-    };
-
-    document.addEventListener("mousedown", handleMouseDown);
-    return () => document.removeEventListener("mousedown", handleMouseDown);
-  }, [contextMenu]);
-
-  useEffect(() => {
-    if (!contextMenu) return;
-
-    const isStructureStillVisible = viewModel.structures.some((structure) => structure.id === contextMenu.structureId);
-    if (!isStructureStillVisible) {
-      setContextMenu(null);
+    if (!isStructureMenuOpen) {
+      return;
     }
-  }, [contextMenu, viewModel.structures]);
-
-  const openStructureContextMenu = (
-    structure: NodeLocalViewModel["structures"][number],
-    clientX: number,
-    clientY: number,
-  ) => {
-    const bounds = containerRef.current?.getBoundingClientRect();
-    if (!bounds) return;
-
-    const toggleIntent = onTogglePower ? getNodeLocalPowerToggleIntent(structure) : null;
-    const menuHeight = CONTEXT_MENU_CHROME_HEIGHT_PX + (toggleIntent ? 2 : 1) * CONTEXT_MENU_ITEM_HEIGHT_PX;
-
-    const left = clampPosition(
-      clientX - bounds.left,
-      CONTEXT_MENU_MARGIN_PX,
-      bounds.width - CONTEXT_MENU_WIDTH_PX - CONTEXT_MENU_MARGIN_PX,
-    );
-    const top = clampPosition(
-      clientY - bounds.top,
-      CONTEXT_MENU_MARGIN_PX,
-      bounds.height - menuHeight - CONTEXT_MENU_MARGIN_PX,
-    );
 
     setTooltip(null);
-    setContextMenu({
-      structureId: structure.id,
-      canonicalDomainKey: structure.canonicalDomainKey,
-      structureName: structure.displayName,
-      left,
-      top,
-      powerActionLabel: toggleIntent?.actionLabel ?? null,
-      nextOnline: toggleIntent?.nextOnline ?? null,
-    });
-  };
-
-  const closeContextMenu = () => setContextMenu(null);
+  }, [isStructureMenuOpen]);
 
   return (
-    <div ref={containerRef} className="relative h-full overflow-hidden">
+    <div className="relative h-full overflow-hidden">
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -199,16 +121,16 @@ export function NodeDrilldownCanvas({
       <button
         type="button"
         onClick={() => {
-          closeContextMenu();
+          onCloseStructureMenu?.();
           onSelectStructure(null);
         }}
         onMouseEnter={() => {
-          if (contextMenu) return;
+          if (isStructureMenuOpen) return;
           setTooltip(buildNodeTooltip(viewModel, layout.anchor.xPercent, layout.anchor.yPercent));
         }}
         onMouseLeave={() => setTooltip((current) => (current?.id === viewModel.node.id ? null : current))}
         onFocus={() => {
-          if (contextMenu) return;
+          if (isStructureMenuOpen) return;
           setTooltip(buildNodeTooltip(viewModel, layout.anchor.xPercent, layout.anchor.yPercent));
         }}
         onBlur={() => setTooltip((current) => (current?.id === viewModel.node.id ? null : current))}
@@ -252,12 +174,20 @@ export function NodeDrilldownCanvas({
             key={structure.id}
             type="button"
             onClick={() => {
-              closeContextMenu();
+              onCloseStructureMenu?.();
               onSelectStructure(structure.id);
             }}
             onContextMenu={(event) => {
               event.preventDefault();
-              openStructureContextMenu(structure, event.clientX, event.clientY);
+              event.stopPropagation();
+              setTooltip(null);
+              onSelectStructure(structure.id);
+              onOpenStructureMenu?.({
+                structure,
+                clientX: event.clientX,
+                clientY: event.clientY,
+                isHidden: false,
+              });
             }}
             onKeyDown={(event) => {
               if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) {
@@ -266,20 +196,23 @@ export function NodeDrilldownCanvas({
 
               event.preventDefault();
               event.stopPropagation();
+              setTooltip(null);
               const bounds = event.currentTarget.getBoundingClientRect();
-              openStructureContextMenu(
+              onSelectStructure(structure.id);
+              onOpenStructureMenu?.({
                 structure,
-                bounds.left + bounds.width / 2,
-                bounds.top + bounds.height / 2,
-              );
+                clientX: bounds.left + bounds.width / 2,
+                clientY: bounds.top + bounds.height / 2,
+                isHidden: false,
+              });
             }}
             onMouseEnter={() => {
-              if (contextMenu) return;
+              if (isStructureMenuOpen) return;
               setTooltip(buildStructureTooltip(structure, item.xPercent, item.yPercent));
             }}
             onMouseLeave={() => setTooltip((current) => (current?.id === structure.id ? null : current))}
             onFocus={() => {
-              if (contextMenu) return;
+              if (isStructureMenuOpen) return;
               setTooltip(buildStructureTooltip(structure, item.xPercent, item.yPercent));
             }}
             onBlur={() => setTooltip((current) => (current?.id === structure.id ? null : current))}
@@ -302,42 +235,7 @@ export function NodeDrilldownCanvas({
         );
       })}
 
-      {tooltip && !contextMenu ? <NodeDrilldownTooltip tooltip={tooltip} /> : null}
-
-      {contextMenu ? (
-        <NodeDrilldownContextMenu
-          menuRef={menuRef}
-          structureName={contextMenu.structureName}
-          left={contextMenu.left}
-          top={contextMenu.top}
-          powerActionLabel={contextMenu.powerActionLabel ?? undefined}
-          powerActionDisabled={powerStatus === "pending"}
-          onPowerAction={contextMenu.nextOnline != null && onTogglePower
-            ? () => {
-              const structure = structureMap.get(contextMenu.structureId);
-              const nextOnline = contextMenu.nextOnline;
-              if (!structure) {
-                closeContextMenu();
-                return;
-              }
-
-              if (nextOnline == null) {
-                closeContextMenu();
-                return;
-              }
-
-              onSelectStructure(contextMenu.structureId);
-              onTogglePower(structure, nextOnline);
-              closeContextMenu();
-            }
-            : undefined}
-          onClose={closeContextMenu}
-          onHideStructure={() => {
-            onHideStructure(contextMenu.canonicalDomainKey);
-            closeContextMenu();
-          }}
-        />
-      ) : null}
+      {tooltip && !isStructureMenuOpen ? <NodeDrilldownTooltip tooltip={tooltip} /> : null}
     </div>
   );
 }

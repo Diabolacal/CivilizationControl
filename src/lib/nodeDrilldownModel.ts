@@ -140,8 +140,13 @@ const SIZE_ORDER: Record<Exclude<NodeLocalSizeVariant, null>, number> = {
 
 type ObservedAssembly = NodeAssembliesLookupResult["assemblies"][number];
 
+interface ObservedAssemblyBucket {
+  entry: ObservedAssembly;
+  aliasSet: string[];
+}
+
 interface ObservedAssemblyIndex {
-  byCanonicalKey: Map<string, ObservedAssembly>;
+  byCanonicalKey: Map<string, ObservedAssemblyBucket>;
   aliasToCanonicalKey: Map<string, string>;
 }
 
@@ -270,7 +275,7 @@ function mergeObservedAssemblyEntry(
 function createObservedAssemblyIndex(
   observedEntries: ObservedAssembly[],
 ): ObservedAssemblyIndex {
-  const byCanonicalKey = new Map<string, ObservedAssembly>();
+  const byCanonicalKey = new Map<string, ObservedAssemblyBucket>();
   const aliasToCanonicalKey = new Map<string, string>();
 
   for (const observed of observedEntries) {
@@ -287,11 +292,11 @@ function createObservedAssemblyIndex(
     const mergedAliases = new Set(entryAliases);
 
     for (const canonicalKey of matchedCanonicalKeys) {
-      const existingEntry = byCanonicalKey.get(canonicalKey);
-      if (!existingEntry) continue;
+      const existingBucket = byCanonicalKey.get(canonicalKey);
+      if (!existingBucket) continue;
 
-      mergedEntry = mergeObservedAssemblyEntry(existingEntry, mergedEntry);
-      for (const alias of createAssemblyIdentityAliases(existingEntry)) {
+      mergedEntry = mergeObservedAssemblyEntry(existingBucket.entry, mergedEntry);
+      for (const alias of existingBucket.aliasSet) {
         mergedAliases.add(alias);
       }
       byCanonicalKey.delete(canonicalKey);
@@ -304,7 +309,10 @@ function createObservedAssemblyIndex(
     const canonicalKey = selectCanonicalAssemblyKey(mergedEntry, mergedAliases);
     if (!canonicalKey) continue;
 
-    byCanonicalKey.set(canonicalKey, mergedEntry);
+    byCanonicalKey.set(canonicalKey, {
+      entry: mergedEntry,
+      aliasSet: [...mergedAliases],
+    });
     for (const alias of mergedAliases) {
       aliasToCanonicalKey.set(alias, canonicalKey);
     }
@@ -745,11 +753,12 @@ function createLiveStructureIndex(liveStructures: Structure[]): LiveStructureInd
 function findMatchingLiveStructures(
   liveIndex: LiveStructureIndex,
   identity: { objectId?: string | null; assemblyId?: string | null },
+  fallbackAliases: Iterable<string> = [],
 ): Structure[] {
   const matches: Structure[] = [];
   const seenCanonicalKeys = new Set<string>();
 
-  for (const alias of createAssemblyIdentityAliases(identity)) {
+  for (const alias of [...new Set([...createAssemblyIdentityAliases(identity), ...fallbackAliases])]) {
     const canonicalKey = liveIndex.aliasToCanonicalKey.get(alias);
     if (!canonicalKey || seenCanonicalKeys.has(canonicalKey)) continue;
 
@@ -849,7 +858,8 @@ function buildBackendMembershipStructures(
   const structures: NodeLocalStructure[] = [];
   let omittedBackendCount = 0;
 
-  for (const observed of observedIndex.byCanonicalKey.values()) {
+  for (const observedBucket of observedIndex.byCanonicalKey.values()) {
+    const observed = observedBucket.entry;
     const family = resolveObservedFamily(observed);
     if (!family || family === "networkNode") {
       omittedBackendCount += 1;
@@ -859,7 +869,7 @@ function buildBackendMembershipStructures(
     const liveMatches = findMatchingLiveStructures(liveIndex, {
       objectId: observed.objectId,
       assemblyId: observed.assemblyId,
-    });
+    }, observedBucket.aliasSet);
     const primaryLiveMatch = liveMatches[0];
     const normalizedAssemblyId = normalizeNodeDrilldownAssemblyId(observed.assemblyId)
       ?? normalizeNodeDrilldownAssemblyId(primaryLiveMatch?.assemblyId)

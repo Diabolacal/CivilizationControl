@@ -4,19 +4,19 @@ import { NodeDrilldownCanvas } from "./NodeDrilldownCanvas";
 import { NodeDrilldownLegend } from "./NodeDrilldownLegend";
 import { TopologyPanelFade, TopologyPanelFrame } from "@/components/topology/TopologyPanelFrame";
 
-import type { TxStatus } from "@/types/domain";
-import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
+import type { OpenNodeDrilldownStructureMenuParams } from "@/hooks/useNodeDrilldownStructureMenu";
+import type { NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 import type { ReactNode } from "react";
 
 interface NodeDrilldownSurfaceProps {
   viewModel: NodeLocalViewModel;
   selectedStructureId: string | null;
   onSelectStructure: (structureId: string | null) => void;
-  onHideStructure: (canonicalDomainKey: string) => void;
-  onTogglePower?: (structure: NodeLocalStructure, nextOnline: boolean) => void;
-  powerStatus?: TxStatus;
+  onOpenStructureMenu?: (params: OpenNodeDrilldownStructureMenuParams) => void;
+  onCloseStructureMenu?: () => void;
   totalStructureCount: number;
   hiddenStructureCount: number;
+  isStructureMenuOpen?: boolean;
   title: string;
   subtitle: string;
   headerAction?: ReactNode;
@@ -27,12 +27,12 @@ function NodeDrilldownSurfaceBody({
   viewModel,
   selectedStructureId,
   onSelectStructure,
-  onHideStructure,
-  onTogglePower,
-  powerStatus,
+  onOpenStructureMenu,
+  onCloseStructureMenu,
   totalStructureCount,
   hiddenStructureCount,
-}: Pick<NodeDrilldownSurfaceProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "onHideStructure" | "onTogglePower" | "powerStatus" | "totalStructureCount" | "hiddenStructureCount">) {
+  isStructureMenuOpen,
+}: Pick<NodeDrilldownSurfaceProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "onOpenStructureMenu" | "onCloseStructureMenu" | "totalStructureCount" | "hiddenStructureCount" | "isStructureMenuOpen">) {
   const [isLegendVisible, setIsLegendVisible] = useState(true);
 
   return (
@@ -41,11 +41,11 @@ function NodeDrilldownSurfaceBody({
         viewModel={viewModel}
         selectedStructureId={selectedStructureId}
         onSelectStructure={onSelectStructure}
-        onHideStructure={onHideStructure}
-        onTogglePower={onTogglePower}
-        powerStatus={powerStatus}
+        onOpenStructureMenu={onOpenStructureMenu}
+        onCloseStructureMenu={onCloseStructureMenu}
         totalStructureCount={totalStructureCount}
         hiddenStructureCount={hiddenStructureCount}
+        isStructureMenuOpen={isStructureMenuOpen}
       />
 
       <div className="pointer-events-none absolute inset-0 z-20">
@@ -74,11 +74,11 @@ export function NodeDrilldownSurface({
   viewModel,
   selectedStructureId,
   onSelectStructure,
-  onHideStructure,
-  onTogglePower,
-  powerStatus,
+  onOpenStructureMenu,
+  onCloseStructureMenu,
   totalStructureCount,
   hiddenStructureCount,
+  isStructureMenuOpen,
   title,
   subtitle,
   headerAction,
@@ -89,11 +89,11 @@ export function NodeDrilldownSurface({
       viewModel={viewModel}
       selectedStructureId={selectedStructureId}
       onSelectStructure={onSelectStructure}
-      onHideStructure={onHideStructure}
-      onTogglePower={onTogglePower}
-      powerStatus={powerStatus}
+      onOpenStructureMenu={onOpenStructureMenu}
+      onCloseStructureMenu={onCloseStructureMenu}
       totalStructureCount={totalStructureCount}
       hiddenStructureCount={hiddenStructureCount}
+      isStructureMenuOpen={isStructureMenuOpen}
     />
   );
 

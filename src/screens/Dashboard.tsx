@@ -12,7 +12,7 @@
  * "Enforced Directives", "Telemetry Signals" per narrative spec.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
 import {
   Building2,
@@ -27,6 +27,7 @@ import { DashboardPanelFrame } from "@/components/dashboard/DashboardPanelFrame"
 import { MetricCard } from "@/components/MetricCard";
 import { PostureControl } from "@/components/PostureControl";
 import { StrategicMapPanel } from "@/components/topology/StrategicMapPanel";
+import { NodeDrilldownContextMenu } from "@/components/topology/node-drilldown/NodeDrilldownContextMenu";
 import { TopologyPanelFade, TopologyPanelFrame } from "@/components/topology/TopologyPanelFrame";
 import { NodeDrilldownSurface } from "@/components/topology/node-drilldown/NodeDrilldownSurface";
 import { NodeSelectionInspector } from "@/components/topology/node-drilldown/NodeSelectionInspector";
@@ -36,12 +37,13 @@ import { useSignalFeed } from "@/hooks/useSignalFeed";
 import { useNodeAssemblies } from "@/hooks/useNodeAssemblies";
 import { useCharacterId } from "@/hooks/useCharacter";
 import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState";
+import { useNodeDrilldownStructureMenu } from "@/hooks/useNodeDrilldownStructureMenu";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import { formatLux, formatEve } from "@/lib/currency";
 import { computeRuntimeMs, getFuelEfficiency, formatRuntime } from "@/lib/fuelRuntime";
 import { resolveNodeDrilldownScopeKey } from "@/lib/nodeDrilldownHiddenState";
 import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapshot } from "@/lib/nodeDrilldownModel";
-import type { NetworkNodeGroup, NetworkMetrics, SpatialPin, Structure } from "@/types/domain";
+import type { NetworkMetrics, NetworkNodeGroup, SpatialPin, Structure } from "@/types/domain";
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
 
 interface DashboardProps {
@@ -67,6 +69,7 @@ export function Dashboard({
   const characterId = useCharacterId();
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
+  const selectedStructureCanonicalKeyRef = useRef<string | null>(null);
   const ownedObjectIds = useMemo(
     () => structures.map((s) => s.objectId),
     [structures],
@@ -99,6 +102,12 @@ export function Dashboard({
   const structurePower = useStructurePower();
   const [powerStructureId, setPowerStructureId] = useState<string | null>(null);
   const [powerSuccessLabel, setPowerSuccessLabel] = useState("Structure power state updated");
+  const {
+    contextMenu,
+    menuRef,
+    openStructureMenu,
+    closeStructureMenu,
+  } = useNodeDrilldownStructureMenu();
   const selectedNodeViewModel = useMemo(
     () => (selectedNodeGroup
       ? buildLiveNodeLocalViewModelWithObserved(selectedNodeGroup, selectedNodeAssembliesLookup, { isLoading: isNodeAssembliesLoading })
@@ -124,10 +133,41 @@ export function Dashboard({
     () => (selectedNodeViewModel ? { ...selectedNodeViewModel, structures: visibleStructures } : null),
     [selectedNodeViewModel, visibleStructures],
   );
+  const selectedNodeStructureMap = useMemo(
+    () => new Map((selectedNodeViewModel?.structures ?? []).map((structure) => [structure.id, structure])),
+    [selectedNodeViewModel],
+  );
+  const handleSelectNodeLocalStructure = useCallback(
+    (structureId: string | null) => {
+      if (structureId == null) {
+        selectedStructureCanonicalKeyRef.current = null;
+        setSelectedStructureId(null);
+        return;
+      }
+
+      const structure = selectedNodeStructureMap.get(structureId);
+      if (structure) {
+        selectedStructureCanonicalKeyRef.current = structure.canonicalDomainKey;
+      }
+
+      setSelectedStructureId(structureId);
+    },
+    [selectedNodeStructureMap, selectedStructureCanonicalKeyRef],
+  );
+  const handleOpenNodeLocalStructureMenu = useCallback(
+    (params: Parameters<typeof openStructureMenu>[0]) => {
+      selectedStructureCanonicalKeyRef.current = params.structure.canonicalDomainKey;
+      setSelectedStructureId(params.structure.id);
+      openStructureMenu(params);
+    },
+    [openStructureMenu, selectedStructureCanonicalKeyRef],
+  );
   const handleExitNodeControl = useCallback(() => {
+    closeStructureMenu();
+    selectedStructureCanonicalKeyRef.current = null;
     setSelectedStructureId(null);
     setSelectedNodeId(null);
-  }, []);
+  }, [closeStructureMenu, selectedStructureCanonicalKeyRef]);
   const handleDismissNodeLocalPowerFeedback = useCallback(() => {
     structurePower.reset();
     setPowerStructureId(null);
@@ -137,11 +177,13 @@ export function Dashboard({
       const verifiedTarget = structure.actionAuthority.verifiedTarget;
       if (!verifiedTarget) return;
 
+      closeStructureMenu();
+      selectedStructureCanonicalKeyRef.current = structure.canonicalDomainKey;
       setSelectedStructureId(structure.id);
       setPowerStructureId(structure.id);
       setPowerSuccessLabel(`${structure.familyLabel} ${nextOnline ? "brought online" : "taken offline"}`);
 
-      await structurePower.toggleSingle({
+      const succeeded = await structurePower.toggleSingle({
         structureType: verifiedTarget.structureType,
         structureId: verifiedTarget.structureId,
         ownerCapId: verifiedTarget.ownerCapId,
@@ -149,9 +191,11 @@ export function Dashboard({
         online: nextOnline,
       });
 
-      await refetchSelectedNodeAssemblies();
+      if (succeeded) {
+        await refetchSelectedNodeAssemblies();
+      }
     },
-    [refetchSelectedNodeAssemblies, structurePower],
+    [closeStructureMenu, refetchSelectedNodeAssemblies, selectedStructureCanonicalKeyRef, structurePower],
   );
   const topologyModeKey = selectedNodeViewModel ? `node-${selectedNodeViewModel.node.id}` : "macro";
   const isNodeDrilldownDebugEnabled = useMemo(() => {
@@ -186,7 +230,9 @@ export function Dashboard({
 
   useEffect(() => {
     setSelectedStructureId(null);
-  }, [selectedNodeId]);
+    closeStructureMenu();
+    selectedStructureCanonicalKeyRef.current = null;
+  }, [closeStructureMenu, selectedNodeId, selectedStructureCanonicalKeyRef]);
 
   useEffect(() => {
     if (homeRequestToken === 0) return;
@@ -195,10 +241,41 @@ export function Dashboard({
 
   useEffect(() => {
     if (selectedNodeId != null && selectedNodeGroup == null) {
+      closeStructureMenu();
+      selectedStructureCanonicalKeyRef.current = null;
       setSelectedStructureId(null);
       setSelectedNodeId(null);
     }
-  }, [selectedNodeGroup, selectedNodeId]);
+  }, [closeStructureMenu, selectedNodeGroup, selectedNodeId, selectedStructureCanonicalKeyRef]);
+
+  useEffect(() => {
+    if (!selectedNodeViewModel || selectedStructureId == null) {
+      return;
+    }
+
+    const currentStructure = selectedNodeViewModel.structures.find((structure) => structure.id === selectedStructureId);
+    if (currentStructure) {
+      selectedStructureCanonicalKeyRef.current = currentStructure.canonicalDomainKey;
+      return;
+    }
+
+    const canonicalDomainKey = selectedStructureCanonicalKeyRef.current;
+    if (!canonicalDomainKey) {
+      setSelectedStructureId(null);
+      return;
+    }
+
+    const rematchedStructure = selectedNodeViewModel.structures.find(
+      (structure) => structure.canonicalDomainKey === canonicalDomainKey,
+    );
+    if (rematchedStructure) {
+      setSelectedStructureId(rematchedStructure.id);
+      return;
+    }
+
+    selectedStructureCanonicalKeyRef.current = null;
+    setSelectedStructureId(null);
+  }, [selectedNodeViewModel, selectedStructureId, selectedStructureCanonicalKeyRef]);
 
   useEffect(() => {
     if (selectedNodeViewModel == null) return undefined;
@@ -309,12 +386,12 @@ export function Dashboard({
                 embedded
                 viewModel={visibleNodeViewModel}
                 selectedStructureId={selectedStructureId}
-                onSelectStructure={setSelectedStructureId}
-                onHideStructure={hideStructure}
-                onTogglePower={handleToggleNodeLocalPower}
-                powerStatus={structurePower.status}
+                onSelectStructure={handleSelectNodeLocalStructure}
+                onOpenStructureMenu={handleOpenNodeLocalStructureMenu}
+                onCloseStructureMenu={closeStructureMenu}
                 totalStructureCount={selectedNodeViewModel.structures.length}
                 hiddenStructureCount={hiddenCount}
+                isStructureMenuOpen={contextMenu != null}
                 title=""
                 subtitle=""
               />
@@ -356,9 +433,11 @@ export function Dashboard({
                   embedded
                   viewModel={selectedNodeViewModel}
                   selectedStructureId={selectedStructureId}
-                  onSelectStructure={setSelectedStructureId}
+                  onSelectStructure={handleSelectNodeLocalStructure}
                   hiddenCanonicalKeySet={hiddenCanonicalKeySet}
                   onUnhideStructure={unhideStructure}
+                  onOpenStructureMenu={handleOpenNodeLocalStructureMenu}
+                  onCloseStructureMenu={closeStructureMenu}
                   onTogglePower={handleToggleNodeLocalPower}
                   powerStatus={structurePower.status}
                   powerStructureId={powerStructureId}
@@ -421,6 +500,38 @@ export function Dashboard({
       {/* Loading state */}
       {isLoading && (
         <div className="text-center py-12">
+
+      {contextMenu ? (
+        <NodeDrilldownContextMenu
+          menuRef={menuRef}
+          structureName={contextMenu.structureName}
+          left={contextMenu.left}
+          top={contextMenu.top}
+          visibilityActionLabel={contextMenu.visibilityActionLabel}
+          powerActionLabel={contextMenu.powerActionLabel ?? undefined}
+          powerActionDisabled={structurePower.status === "pending"}
+          onVisibilityAction={() => {
+            if (contextMenu.visibilityAction === "unhide") {
+              unhideStructure(contextMenu.canonicalDomainKey);
+            } else {
+              hideStructure(contextMenu.canonicalDomainKey);
+            }
+            closeStructureMenu();
+          }}
+          onPowerAction={contextMenu.nextOnline != null
+            ? () => {
+              const structure = selectedNodeStructureMap.get(contextMenu.structureId);
+              if (!structure) {
+                closeStructureMenu();
+                return;
+              }
+
+              handleToggleNodeLocalPower(structure, contextMenu.nextOnline as boolean);
+            }
+            : undefined}
+          onClose={closeStructureMenu}
+        />
+      ) : null}
           <p className="text-sm text-muted-foreground animate-pulse">
             Resolving chain state…
           </p>

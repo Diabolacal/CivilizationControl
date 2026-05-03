@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import { NodeIconPreviewGlyph } from "@/components/topology/node-icon-catalogue/NodeIconPreviewGlyph";
 import { DashboardPanelFrame } from "@/components/dashboard/DashboardPanelFrame";
 import { NodeStructureActionRail } from "@/components/topology/node-drilldown/NodeStructureActionRail";
+import type { OpenNodeDrilldownStructureMenuParams } from "@/hooks/useNodeDrilldownStructureMenu";
 import { getNodeLocalActionStatus } from "@/lib/nodeDrilldownActionAuthority";
 import { formatNodeLocalSize, formatNodeLocalStatus, sortNodeLocalStructures } from "@/lib/nodeDrilldownModel";
 import { cn } from "@/lib/utils";
@@ -16,6 +17,8 @@ interface NodeStructureListPanelProps {
   onSelectStructure: (structureId: string) => void;
   hiddenCanonicalKeySet: ReadonlySet<string>;
   onUnhideStructure: (canonicalDomainKey: string) => void;
+  onOpenStructureMenu?: (params: OpenNodeDrilldownStructureMenuParams) => void;
+  onCloseStructureMenu?: () => void;
   onTogglePower?: (structure: NodeLocalStructure, nextOnline: boolean) => void;
   powerStatus?: TxStatus;
   powerStructureId?: string | null;
@@ -80,10 +83,12 @@ function NodeStructureListContent({
   onSelectStructure,
   hiddenCanonicalKeySet,
   onUnhideStructure,
+  onOpenStructureMenu,
+  onCloseStructureMenu,
   onTogglePower,
   powerStatus,
   powerStructureId,
-}: Pick<NodeStructureListPanelProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "hiddenCanonicalKeySet" | "onUnhideStructure" | "onTogglePower" | "powerStatus" | "powerStructureId">) {
+}: Pick<NodeStructureListPanelProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "hiddenCanonicalKeySet" | "onUnhideStructure" | "onOpenStructureMenu" | "onCloseStructureMenu" | "onTogglePower" | "powerStatus" | "powerStructureId">) {
   const structures = useMemo(
     () => {
       const sortedStructures = sortNodeLocalStructures(viewModel.structures);
@@ -114,6 +119,17 @@ function NodeStructureListContent({
           return (
             <div
               key={structure.id}
+              onContextMenu={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onSelectStructure(structure.id);
+                onOpenStructureMenu?.({
+                  structure,
+                  clientX: event.clientX,
+                  clientY: event.clientY,
+                  isHidden,
+                });
+              }}
               className={cn(
                 "rounded border px-3 py-2 transition-colors",
                 isHidden ? "border-dashed" : null,
@@ -127,7 +143,26 @@ function NodeStructureListContent({
               <div className="flex items-center justify-between gap-3">
                 <button
                   type="button"
-                  onClick={() => onSelectStructure(structure.id)}
+                  onClick={() => {
+                    onCloseStructureMenu?.();
+                    onSelectStructure(structure.id);
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) {
+                      return;
+                    }
+
+                    event.preventDefault();
+                    event.stopPropagation();
+                    const bounds = event.currentTarget.getBoundingClientRect();
+                    onSelectStructure(structure.id);
+                    onOpenStructureMenu?.({
+                      structure,
+                      clientX: bounds.left + bounds.width / 2,
+                      clientY: bounds.top + bounds.height / 2,
+                      isHidden,
+                    });
+                  }}
                   className="flex min-w-0 flex-1 items-center gap-3 text-left"
                 >
                   <NodeIconPreviewGlyph
@@ -177,6 +212,8 @@ export function NodeStructureListPanel({
   onSelectStructure,
   hiddenCanonicalKeySet,
   onUnhideStructure,
+  onOpenStructureMenu,
+  onCloseStructureMenu,
   onTogglePower,
   powerStatus,
   powerStructureId,
@@ -189,6 +226,8 @@ export function NodeStructureListPanel({
       onSelectStructure={onSelectStructure}
       hiddenCanonicalKeySet={hiddenCanonicalKeySet}
       onUnhideStructure={onUnhideStructure}
+      onOpenStructureMenu={onOpenStructureMenu}
+      onCloseStructureMenu={onCloseStructureMenu}
       onTogglePower={onTogglePower}
       powerStatus={powerStatus}
       powerStructureId={powerStructureId}

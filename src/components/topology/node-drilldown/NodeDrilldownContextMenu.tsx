@@ -4,7 +4,8 @@ interface NodeDrilldownContextMenuProps {
   structureName: string;
   left: number;
   top: number;
-  onHideStructure: () => void;
+  onVisibilityAction: () => void;
+  visibilityActionLabel: string;
   onPowerAction?: () => void;
   powerActionLabel?: string;
   powerActionDisabled?: boolean;
@@ -16,7 +17,8 @@ export function NodeDrilldownContextMenu({
   structureName,
   left,
   top,
-  onHideStructure,
+  onVisibilityAction,
+  visibilityActionLabel,
   onPowerAction,
   powerActionLabel,
   powerActionDisabled = false,
@@ -34,7 +36,7 @@ export function NodeDrilldownContextMenu({
         event.stopPropagation();
         onClose();
       }}
-      className="pointer-events-auto absolute z-30 min-w-[172px]"
+      className="pointer-events-auto fixed z-40 min-w-[172px]"
       style={{ left, top }}
     >
       <NodeDrilldownOverlayPanel className="overflow-hidden py-1">
@@ -42,10 +44,10 @@ export function NodeDrilldownContextMenu({
           type="button"
           role="menuitem"
           autoFocus
-          onClick={onHideStructure}
+          onClick={onVisibilityAction}
           className="w-full whitespace-nowrap px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/20 focus:bg-muted/20 focus:outline-none"
         >
-          <span>Hide from Node View</span>
+          <span>{visibilityActionLabel}</span>
         </button>
 
         {onPowerAction && powerActionLabel ? (
