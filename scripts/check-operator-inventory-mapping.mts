@@ -10,6 +10,7 @@ import type { OperatorInventoryResponse } from "../src/types/operatorInventory";
 
 const NETWORK_NODE_A_ID = "0x00000000000000000000000000000000000000000000000000000000000000aa";
 const NETWORK_NODE_B_ID = "0x00000000000000000000000000000000000000000000000000000000000000bb";
+const NETWORK_NODE_B_ALIAS_ID = "0x00000000000000000000000000000000000000000000000000000000000000bc";
 const STRAY_NETWORK_NODE_ID = "0x00000000000000000000000000000000000000000000000000000000000000cc";
 const LEGACY_FALLBACK_NODE_ID = "0x00000000000000000000000000000000000000000000000000000000000000dd";
 const GATE_ID = "0x0000000000000000000000000000000000000000000000000000000000000101";
@@ -156,7 +157,7 @@ const response: OperatorInventoryResponse = {
     },
     {
       node: networkNodeRow({
-        objectId: NETWORK_NODE_B_ID,
+        objectId: NETWORK_NODE_B_ALIAS_ID,
         assemblyId: "9002",
         ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000000fab",
         displayName: "Relay Node Duplicate",
@@ -262,11 +263,12 @@ const displayNodeGroups = selectDisplayNodeGroups({
 assert.equal(adapted.profile?.characterId, response.operator?.characterId);
 assert.equal(adapted.metrics.networkNodeCount, 2);
 assert.equal(adapted.metrics.gateCount, 2);
-assert.equal(adapted.metrics.storageUnitCount, 2);
-assert.equal(adapted.metrics.turretCount, 4);
+assert.equal(adapted.metrics.storageUnitCount, 1);
+assert.equal(adapted.metrics.turretCount, 2);
 assert.equal(adapted.diagnostics.ignoredUnlinkedNodeLikeCount, 1);
 assert.match(adapted.warning ?? "", /unlinked/i);
 assert(adapted.structures.every((structure) => structure.readModelSource === "operator-inventory"));
+assert.equal(adapted.unlinkedStructures.length, 3);
 assert.equal(adapted.nodeGroups.length, 2);
 assert.deepEqual(adapted.nodeGroups.map((group) => group.node.objectId), [NETWORK_NODE_A_ID, NETWORK_NODE_B_ID]);
 assert.equal(displayNodeGroups.length, 2);
@@ -304,12 +306,18 @@ assert.equal(getNodeLocalPowerToggleIntent(printer!), null);
 const unlinkedStorage = adapted.structures.find((structure) => structure.objectId === UNLINKED_STORAGE_ID);
 const suspiciousTurretA = adapted.structures.find((structure) => structure.objectId === SUSPICIOUS_TURRET_A_ID);
 const suspiciousTurretB = adapted.structures.find((structure) => structure.objectId === SUSPICIOUS_TURRET_B_ID);
+const hiddenUnlinkedStorage = adapted.unlinkedStructures.find((structure) => structure.objectId === UNLINKED_STORAGE_ID);
+const hiddenSuspiciousTurretA = adapted.unlinkedStructures.find((structure) => structure.objectId === SUSPICIOUS_TURRET_A_ID);
+const hiddenSuspiciousTurretB = adapted.unlinkedStructures.find((structure) => structure.objectId === SUSPICIOUS_TURRET_B_ID);
 
-assert(unlinkedStorage, "expected unlinked structure in compatibility inventory");
-assert.equal(unlinkedStorage?.networkNodeId, undefined);
-assert.equal(unlinkedStorage?.extensionStatus, "stale");
-assert(suspiciousTurretA, "expected suspicious turret A to remain visible as an unlinked operator-inventory row");
-assert(suspiciousTurretB, "expected suspicious turret B to remain visible as an unlinked operator-inventory row");
+assert.equal(unlinkedStorage, undefined);
+assert.equal(suspiciousTurretA, undefined);
+assert.equal(suspiciousTurretB, undefined);
+assert(hiddenUnlinkedStorage, "expected unlinked structure to remain outside governed inventory");
+assert.equal(hiddenUnlinkedStorage?.networkNodeId, undefined);
+assert.equal(hiddenUnlinkedStorage?.extensionStatus, "stale");
+assert(hiddenSuspiciousTurretA, "expected suspicious turret A to remain visible only in hidden unlinked rows");
+assert(hiddenSuspiciousTurretB, "expected suspicious turret B to remain visible only in hidden unlinked rows");
 assert.equal(
   displayNodeGroups.flatMap((entry) => [...entry.gates, ...entry.storageUnits, ...entry.turrets]).filter(
     (structure) => structure.objectId === SUSPICIOUS_TURRET_A_ID || structure.objectId === SUSPICIOUS_TURRET_B_ID,
@@ -341,14 +349,19 @@ const debugSnapshot = buildOperatorInventoryDebugSnapshot({
 
 assert.equal(debugSnapshot.rawNetworkNodeCount, 3);
 assert.equal(debugSnapshot.rawUnlinkedStructureCount, 4);
+assert.equal(debugSnapshot.rawGroupedDuplicateBucketsByCanonicalDomainKey.length, 1);
 assert.equal(debugSnapshot.renderedMacroNetworkNodeCount, 2);
 assert.equal(debugSnapshot.renderedNodeControlSelectedNodeStructuresCount, 4);
 assert.equal(debugSnapshot.mergedIntoDisplay, false);
 assert.equal(debugSnapshot.displayUsesDirectChainFallback, false);
 assert.equal(debugSnapshot.directChainFallbackRan, true);
+assert.equal(debugSnapshot.adaptedStructureCount, adapted.structures.length);
+assert.equal(debugSnapshot.adaptedUnlinkedStructureCount, adapted.unlinkedStructures.length);
 assert(debugSnapshot.rawUnlinkedRows.some((row) => row.objectId === STRAY_NETWORK_NODE_ID));
 assert(debugSnapshot.rawUnlinkedRows.some((row) => row.objectId === SUSPICIOUS_TURRET_A_ID));
 assert(debugSnapshot.rawUnlinkedRows.some((row) => row.objectId === SUSPICIOUS_TURRET_B_ID));
+assert(debugSnapshot.adaptedUnlinkedRows.some((row) => row.objectId === SUSPICIOUS_TURRET_A_ID));
+assert(debugSnapshot.adaptedUnlinkedRows.some((row) => row.objectId === SUSPICIOUS_TURRET_B_ID));
 assert.equal(debugSnapshot.duplicateBucketsByObjectId.length, 0);
 assert.equal(debugSnapshot.duplicateBucketsByCanonicalDomainKey.length, 0);
 

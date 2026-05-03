@@ -1,5 +1,6 @@
 import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
 import { normalizeNodeDrilldownAssemblyId } from "@/lib/nodeDrilldownIdentity";
+import { buildOperatorInventoryUrl } from "@/lib/operatorInventoryClient";
 import type { NodeLocalStructure, NodeLocalSourceMode } from "@/lib/nodeDrilldownTypes";
 import type { AdaptedOperatorInventory } from "@/lib/operatorInventoryAdapter";
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
@@ -47,15 +48,21 @@ export interface OperatorInventoryDebugRenderedMacroNode {
 
 export interface OperatorInventoryDebugSnapshot {
   operatorWalletAddress: string | null;
+  operatorInventoryUrl: string | null;
   operatorInventorySucceeded: boolean;
   operatorInventoryFailed: boolean;
   operatorInventoryErrorMessage: string | null;
   rawNetworkNodeCount: number;
   rawNetworkNodes: OperatorInventoryDebugRawNode[];
   rawGroupedRows: OperatorInventoryDebugIdentityRow[];
+  rawGroupedDuplicateBucketsByObjectId: OperatorInventoryDebugDuplicateBucket[];
+  rawGroupedDuplicateBucketsByOwnerCapId: OperatorInventoryDebugDuplicateBucket[];
+  rawGroupedDuplicateBucketsByCanonicalDomainKey: OperatorInventoryDebugDuplicateBucket[];
   rawUnlinkedStructureCount: number;
   rawUnlinkedRows: OperatorInventoryDebugIdentityRow[];
   adaptedStructureCount: number;
+  adaptedUnlinkedStructureCount: number;
+  adaptedUnlinkedRows: OperatorInventoryDebugIdentityRow[];
   adaptedNetworkNodeGroupCount: number;
   displayStructureRows: OperatorInventoryDebugIdentityRow[];
   renderedMacroNetworkNodeCount: number;
@@ -114,6 +121,7 @@ export function buildOperatorInventoryDebugSnapshot(
 
   return {
     operatorWalletAddress: input.inventory?.operator?.walletAddress ?? null,
+    operatorInventoryUrl: buildDebugOperatorInventoryUrl(input.inventory?.operator?.walletAddress ?? null),
     operatorInventorySucceeded: input.readModelDebug.operatorInventorySucceeded,
     operatorInventoryFailed: input.readModelDebug.operatorInventoryFailed,
     operatorInventoryErrorMessage: input.operatorInventoryErrorMessage,
@@ -127,9 +135,14 @@ export function buildOperatorInventoryDebugSnapshot(
       structureCount: group.structures.length,
     })) ?? [],
     rawGroupedRows,
+    rawGroupedDuplicateBucketsByObjectId: buildDuplicateBuckets(rawGroupedRows, (row) => row.objectId),
+    rawGroupedDuplicateBucketsByOwnerCapId: buildDuplicateBuckets(rawGroupedRows, (row) => row.ownerCapId),
+    rawGroupedDuplicateBucketsByCanonicalDomainKey: buildDuplicateBuckets(rawGroupedRows, (row) => row.canonicalDomainKey),
     rawUnlinkedStructureCount: input.inventory?.unlinkedStructures.length ?? 0,
     rawUnlinkedRows,
     adaptedStructureCount: input.adapted?.structures.length ?? 0,
+    adaptedUnlinkedStructureCount: input.adapted?.unlinkedStructures.length ?? 0,
+    adaptedUnlinkedRows: input.adapted?.unlinkedStructures.map(describeDisplayStructure) ?? [],
     adaptedNetworkNodeGroupCount: input.adapted?.nodeGroups.length ?? 0,
     displayStructureRows,
     renderedMacroNetworkNodeCount: input.displayNodeGroups.length,
@@ -265,15 +278,27 @@ function buildDuplicateBuckets(
 }
 
 function canonicalDomainKey(objectId: string | null | undefined, assemblyId: string | null | undefined): string | null {
-  const normalizedObjectId = normalizeCanonicalObjectId(objectId);
-  if (normalizedObjectId) {
-    return `object:${normalizedObjectId}`;
-  }
-
   const normalizedAssemblyId = normalizeNodeDrilldownAssemblyId(assemblyId);
   if (normalizedAssemblyId) {
     return `assembly:${normalizedAssemblyId}`;
   }
 
+  const normalizedObjectId = normalizeCanonicalObjectId(objectId);
+  if (normalizedObjectId) {
+    return `object:${normalizedObjectId}`;
+  }
+
   return null;
+}
+
+function buildDebugOperatorInventoryUrl(walletAddress: string | null): string | null {
+  if (!walletAddress) {
+    return null;
+  }
+
+  try {
+    return buildOperatorInventoryUrl(walletAddress);
+  } catch {
+    return null;
+  }
 }
