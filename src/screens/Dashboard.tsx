@@ -311,6 +311,8 @@ export function Dashboard({
                 selectedStructureId={selectedStructureId}
                 onSelectStructure={setSelectedStructureId}
                 onHideStructure={hideStructure}
+                onTogglePower={handleToggleNodeLocalPower}
+                powerStatus={structurePower.status}
                 totalStructureCount={selectedNodeViewModel.structures.length}
                 hiddenStructureCount={hiddenCount}
                 title=""
@@ -338,7 +340,7 @@ export function Dashboard({
         <div className="lg:col-span-2">
           <DashboardPanelFrame
             title={selectedNodeViewModel ? `Attached Structures (${selectedNodeViewModel.structures.length})` : "Recent Telemetry Signals"}
-            subtitle={selectedNodeViewModel ? "Verified controls plus local hide state" : "Signal feed across governed infrastructure"}
+            subtitle={selectedNodeViewModel ? "Compact power controls plus local hide state" : "Signal feed across governed infrastructure"}
             headerAction={selectedNodeViewModel ? undefined : (
               <Link
                 to="/activity"

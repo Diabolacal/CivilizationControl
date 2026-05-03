@@ -1,19 +1,23 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { NodeIconPreviewGlyph } from "@/components/topology/node-icon-catalogue/NodeIconPreviewGlyph";
+import { getNodeLocalPowerToggleIntent } from "@/lib/nodeDrilldownActionAuthority";
 import { layoutNodeDrilldown } from "@/lib/nodeDrilldownLayout";
 import { cn } from "@/lib/utils";
 
 import { NodeDrilldownContextMenu } from "./NodeDrilldownContextMenu";
 import { NodeDrilldownTooltip, type NodeDrilldownTooltipData } from "./NodeDrilldownTooltip";
 
-import type { NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
+import type { TxStatus } from "@/types/domain";
+import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 
 interface NodeDrilldownCanvasProps {
   viewModel: NodeLocalViewModel;
   selectedStructureId: string | null;
   onSelectStructure: (structureId: string | null) => void;
   onHideStructure: (canonicalDomainKey: string) => void;
+  onTogglePower?: (structure: NodeLocalStructure, nextOnline: boolean) => void;
+  powerStatus?: TxStatus;
   totalStructureCount: number;
   hiddenStructureCount: number;
 }
@@ -24,11 +28,14 @@ interface StructureContextMenuState {
   structureName: string;
   left: number;
   top: number;
+  powerActionLabel: string | null;
+  nextOnline: boolean | null;
 }
 
 const CONTEXT_MENU_MARGIN_PX = 12;
 const CONTEXT_MENU_WIDTH_PX = 196;
-const CONTEXT_MENU_HEIGHT_PX = 84;
+const CONTEXT_MENU_ITEM_HEIGHT_PX = 36;
+const CONTEXT_MENU_CHROME_HEIGHT_PX = 12;
 
 function clampPosition(value: number, min: number, max: number): number {
   if (max < min) return min;
@@ -101,6 +108,8 @@ export function NodeDrilldownCanvas({
   selectedStructureId,
   onSelectStructure,
   onHideStructure,
+  onTogglePower,
+  powerStatus = "idle",
   totalStructureCount,
   hiddenStructureCount,
 }: NodeDrilldownCanvasProps) {
@@ -148,6 +157,9 @@ export function NodeDrilldownCanvas({
     const bounds = containerRef.current?.getBoundingClientRect();
     if (!bounds) return;
 
+    const toggleIntent = onTogglePower ? getNodeLocalPowerToggleIntent(structure) : null;
+    const menuHeight = CONTEXT_MENU_CHROME_HEIGHT_PX + (toggleIntent ? 2 : 1) * CONTEXT_MENU_ITEM_HEIGHT_PX;
+
     const left = clampPosition(
       clientX - bounds.left,
       CONTEXT_MENU_MARGIN_PX,
@@ -156,7 +168,7 @@ export function NodeDrilldownCanvas({
     const top = clampPosition(
       clientY - bounds.top,
       CONTEXT_MENU_MARGIN_PX,
-      bounds.height - CONTEXT_MENU_HEIGHT_PX - CONTEXT_MENU_MARGIN_PX,
+      bounds.height - menuHeight - CONTEXT_MENU_MARGIN_PX,
     );
 
     setTooltip(null);
@@ -166,6 +178,8 @@ export function NodeDrilldownCanvas({
       structureName: structure.displayName,
       left,
       top,
+      powerActionLabel: toggleIntent?.actionLabel ?? null,
+      nextOnline: toggleIntent?.nextOnline ?? null,
     });
   };
 
@@ -296,6 +310,27 @@ export function NodeDrilldownCanvas({
           structureName={contextMenu.structureName}
           left={contextMenu.left}
           top={contextMenu.top}
+          powerActionLabel={contextMenu.powerActionLabel ?? undefined}
+          powerActionDisabled={powerStatus === "pending"}
+          onPowerAction={contextMenu.nextOnline != null && onTogglePower
+            ? () => {
+              const structure = structureMap.get(contextMenu.structureId);
+              const nextOnline = contextMenu.nextOnline;
+              if (!structure) {
+                closeContextMenu();
+                return;
+              }
+
+              if (nextOnline == null) {
+                closeContextMenu();
+                return;
+              }
+
+              onSelectStructure(contextMenu.structureId);
+              onTogglePower(structure, nextOnline);
+              closeContextMenu();
+            }
+            : undefined}
           onClose={closeContextMenu}
           onHideStructure={() => {
             onHideStructure(contextMenu.canonicalDomainKey);

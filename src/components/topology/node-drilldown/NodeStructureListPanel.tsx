@@ -3,8 +3,8 @@ import { useMemo } from "react";
 import { NodeIconPreviewGlyph } from "@/components/topology/node-icon-catalogue/NodeIconPreviewGlyph";
 import { DashboardPanelFrame } from "@/components/dashboard/DashboardPanelFrame";
 import { NodeStructureActionRail } from "@/components/topology/node-drilldown/NodeStructureActionRail";
-import { formatNodeLocalActionBadgeText, formatNodeLocalActionAuthorityLabel } from "@/lib/nodeDrilldownActionAuthority";
-import { formatNodeLocalSize, sortNodeLocalStructures } from "@/lib/nodeDrilldownModel";
+import { getNodeLocalActionStatus } from "@/lib/nodeDrilldownActionAuthority";
+import { formatNodeLocalSize, formatNodeLocalStatus, sortNodeLocalStructures } from "@/lib/nodeDrilldownModel";
 import { cn } from "@/lib/utils";
 
 import type { TxStatus } from "@/types/domain";
@@ -23,6 +23,57 @@ interface NodeStructureListPanelProps {
   embedded?: boolean;
 }
 
+function normalizeComparisonLabel(value: string | null | undefined): string {
+  return (value ?? "")
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function buildStructureKindLabel(structure: NodeLocalStructure): string | null {
+  const typeLabel = structure.typeLabel?.trim() ?? null;
+  const sizeLabel = formatNodeLocalSize(structure.sizeVariant);
+  const compactSizeLabel = sizeLabel === "Standard" ? null : sizeLabel;
+
+  if (!typeLabel && !compactSizeLabel) {
+    return null;
+  }
+
+  if (!typeLabel) {
+    return compactSizeLabel;
+  }
+
+  if (!compactSizeLabel) {
+    return typeLabel;
+  }
+
+  const normalizedType = normalizeComparisonLabel(typeLabel);
+  const normalizedSize = normalizeComparisonLabel(compactSizeLabel);
+  if (normalizedSize && !normalizedType.includes(normalizedSize)) {
+    return `${compactSizeLabel} ${typeLabel}`;
+  }
+
+  return typeLabel;
+}
+
+function buildStructureSubtitle(structure: NodeLocalStructure, isHidden: boolean): string | null {
+  const parts: string[] = [];
+  const kindLabel = buildStructureKindLabel(structure);
+  const normalizedName = normalizeComparisonLabel(structure.displayName);
+  const normalizedKind = normalizeComparisonLabel(kindLabel);
+
+  if (kindLabel && normalizedKind && !normalizedName.includes(normalizedKind)) {
+    parts.push(kindLabel);
+  }
+
+  if (isHidden) {
+    parts.push(formatNodeLocalStatus(getNodeLocalActionStatus(structure)));
+  }
+
+  return parts.length > 0 ? parts.join(" · ") : null;
+}
+
 function NodeStructureListContent({
   viewModel,
   selectedStructureId,
@@ -32,8 +83,7 @@ function NodeStructureListContent({
   onTogglePower,
   powerStatus,
   powerStructureId,
-  previewMode,
-}: Pick<NodeStructureListPanelProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "hiddenCanonicalKeySet" | "onUnhideStructure" | "onTogglePower" | "powerStatus" | "powerStructureId" | "previewMode">) {
+}: Pick<NodeStructureListPanelProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "hiddenCanonicalKeySet" | "onUnhideStructure" | "onTogglePower" | "powerStatus" | "powerStructureId">) {
   const structures = useMemo(
     () => {
       const sortedStructures = sortNodeLocalStructures(viewModel.structures);
@@ -59,26 +109,7 @@ function NodeStructureListContent({
       <div className="space-y-1.5">
         {structures.map((structure) => {
           const isHidden = hiddenCanonicalKeySet.has(structure.canonicalDomainKey);
-          const sizeLabel = formatNodeLocalSize(structure.sizeVariant);
-          const authorityMeta = structure.source === "backendMembership"
-            ? structure.hasDirectChainAuthority
-              ? structure.directChainMatchCount > 1
-                ? `Chain-backed (${structure.directChainMatchCount})`
-                : "Chain-backed"
-              : "Backend-only"
-            : structure.source === "backendObserved"
-              ? "Observed"
-              : null;
-          const stateBadges = [
-            isHidden ? "Hidden from map" : null,
-            formatNodeLocalActionBadgeText(structure),
-          ].filter(Boolean);
-          const meta = [
-            structure.typeLabel,
-            structure.familyLabel,
-            sizeLabel,
-            authorityMeta,
-          ].filter(Boolean).join(" • ");
+          const subtitle = buildStructureSubtitle(structure, isHidden);
 
           return (
             <div
@@ -93,7 +124,7 @@ function NodeStructureListContent({
                     : "border-transparent hover:border-border/70 hover:bg-muted/10",
               )}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center justify-between gap-3">
                 <button
                   type="button"
                   onClick={() => onSelectStructure(structure.id)}
@@ -107,25 +138,17 @@ function NodeStructureListContent({
                     warningPip={structure.warningPip}
                     size={20}
                   />
-                  <div className="min-w-0 flex-1">
+                  <div className="min-w-0 flex-1 space-y-1">
                     <p className="truncate text-sm font-medium text-foreground">{structure.displayName}</p>
-                    <p className="truncate text-[11px] text-muted-foreground">{meta}</p>
-                    {stateBadges.length > 0 ? (
-                      <div className="mt-1.5 flex flex-wrap gap-1.5">
-                        {stateBadges.map((badge) => (
-                          <span
-                            key={badge}
-                            className="inline-flex rounded border border-border/50 bg-background/60 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground/75"
-                          >
-                            {badge}
-                          </span>
-                        ))}
-                      </div>
+                    {subtitle ? (
+                      <p className="truncate text-[11px] text-muted-foreground">{subtitle}</p>
                     ) : null}
-                    {structure.actionAuthority.state !== "verified-supported" ? (
-                      <p className="mt-1 text-[11px] text-muted-foreground/75">
-                        {formatNodeLocalActionAuthorityLabel(structure)}
-                      </p>
+                    {isHidden ? (
+                      <div className="flex flex-wrap gap-1.5">
+                        <span className="inline-flex rounded border border-border/50 bg-background/60 px-2 py-0.5 text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground/75">
+                          Hidden from map
+                        </span>
+                      </div>
                     ) : null}
                   </div>
                 </button>
@@ -138,7 +161,6 @@ function NodeStructureListContent({
                   onFocusStructure={onSelectStructure}
                   powerStatus={powerStatus}
                   powerStructureId={powerStructureId}
-                  previewMode={previewMode}
                 />
               </div>
             </div>
@@ -158,7 +180,6 @@ export function NodeStructureListPanel({
   onTogglePower,
   powerStatus,
   powerStructureId,
-  previewMode,
   embedded = false,
 }: NodeStructureListPanelProps) {
   const content = (
@@ -171,7 +192,6 @@ export function NodeStructureListPanel({
       onTogglePower={onTogglePower}
       powerStatus={powerStatus}
       powerStructureId={powerStructureId}
-      previewMode={previewMode}
     />
   );
 
@@ -182,7 +202,7 @@ export function NodeStructureListPanel({
   return (
     <DashboardPanelFrame
       title={`Attached Structures (${viewModel.structures.length})`}
-      subtitle="Verified controls plus local hide state"
+      subtitle="Compact power controls plus local hide state"
     >
       {content}
     </DashboardPanelFrame>

@@ -26,11 +26,15 @@ export function getNodeLocalPowerToggleIntent(
     };
   }
 
-  return {
-    actionLabel: "Bring Online",
-    currentStatus: verifiedTarget.status,
-    nextOnline: true,
-  };
+  if (verifiedTarget.status === "offline") {
+    return {
+      actionLabel: "Bring Online",
+      currentStatus: verifiedTarget.status,
+      nextOnline: true,
+    };
+  }
+
+  return null;
 }
 
 export function formatNodeLocalActionAuthorityLabel(structure: NodeLocalStructure): string {
@@ -69,6 +73,17 @@ export function formatNodeLocalActionAuthorityDetail(structure: NodeLocalStructu
     case "synthetic":
       return "Action controls in the lab are browser-only previews and never submit transactions.";
   }
+}
+
+export function formatNodeLocalActionTooltip(structure: NodeLocalStructure): string {
+  if (structure.actionAuthority.state === "verified-supported") {
+    const actionStatus = getNodeLocalActionStatus(structure);
+    if (actionStatus === "warning" || actionStatus === "neutral") {
+      return "Status is not resolved to online or offline.";
+    }
+  }
+
+  return formatNodeLocalActionAuthorityLabel(structure);
 }
 
 export function formatNodeLocalActionBadgeText(structure: NodeLocalStructure): string {

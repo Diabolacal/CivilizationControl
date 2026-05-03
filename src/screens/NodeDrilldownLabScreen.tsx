@@ -173,6 +173,7 @@ export function NodeDrilldownLabScreen() {
               selectedStructureId={selectedStructureId}
               onSelectStructure={setSelectedStructureId}
               onHideStructure={hideStructure}
+              onTogglePower={handlePreviewTogglePower}
               totalStructureCount={scenarioViewModel?.structures.length ?? 0}
               hiddenStructureCount={hiddenCount}
               title="Node Drilldown Lab"

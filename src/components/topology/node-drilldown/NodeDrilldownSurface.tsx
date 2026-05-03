@@ -4,7 +4,8 @@ import { NodeDrilldownCanvas } from "./NodeDrilldownCanvas";
 import { NodeDrilldownLegend } from "./NodeDrilldownLegend";
 import { TopologyPanelFade, TopologyPanelFrame } from "@/components/topology/TopologyPanelFrame";
 
-import type { NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
+import type { TxStatus } from "@/types/domain";
+import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 import type { ReactNode } from "react";
 
 interface NodeDrilldownSurfaceProps {
@@ -12,6 +13,8 @@ interface NodeDrilldownSurfaceProps {
   selectedStructureId: string | null;
   onSelectStructure: (structureId: string | null) => void;
   onHideStructure: (canonicalDomainKey: string) => void;
+  onTogglePower?: (structure: NodeLocalStructure, nextOnline: boolean) => void;
+  powerStatus?: TxStatus;
   totalStructureCount: number;
   hiddenStructureCount: number;
   title: string;
@@ -25,9 +28,11 @@ function NodeDrilldownSurfaceBody({
   selectedStructureId,
   onSelectStructure,
   onHideStructure,
+  onTogglePower,
+  powerStatus,
   totalStructureCount,
   hiddenStructureCount,
-}: Pick<NodeDrilldownSurfaceProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "onHideStructure" | "totalStructureCount" | "hiddenStructureCount">) {
+}: Pick<NodeDrilldownSurfaceProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "onHideStructure" | "onTogglePower" | "powerStatus" | "totalStructureCount" | "hiddenStructureCount">) {
   const [isLegendVisible, setIsLegendVisible] = useState(true);
 
   return (
@@ -37,6 +42,8 @@ function NodeDrilldownSurfaceBody({
         selectedStructureId={selectedStructureId}
         onSelectStructure={onSelectStructure}
         onHideStructure={onHideStructure}
+        onTogglePower={onTogglePower}
+        powerStatus={powerStatus}
         totalStructureCount={totalStructureCount}
         hiddenStructureCount={hiddenStructureCount}
       />
@@ -68,6 +75,8 @@ export function NodeDrilldownSurface({
   selectedStructureId,
   onSelectStructure,
   onHideStructure,
+  onTogglePower,
+  powerStatus,
   totalStructureCount,
   hiddenStructureCount,
   title,
@@ -81,6 +90,8 @@ export function NodeDrilldownSurface({
       selectedStructureId={selectedStructureId}
       onSelectStructure={onSelectStructure}
       onHideStructure={onHideStructure}
+      onTogglePower={onTogglePower}
+      powerStatus={powerStatus}
       totalStructureCount={totalStructureCount}
       hiddenStructureCount={hiddenStructureCount}
     />

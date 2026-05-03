@@ -5,6 +5,9 @@ interface NodeDrilldownContextMenuProps {
   left: number;
   top: number;
   onHideStructure: () => void;
+  onPowerAction?: () => void;
+  powerActionLabel?: string;
+  powerActionDisabled?: boolean;
   onClose: () => void;
   menuRef: React.RefObject<HTMLDivElement | null>;
 }
@@ -14,6 +17,9 @@ export function NodeDrilldownContextMenu({
   left,
   top,
   onHideStructure,
+  onPowerAction,
+  powerActionLabel,
+  powerActionDisabled = false,
   onClose,
   menuRef,
 }: NodeDrilldownContextMenuProps) {
@@ -41,6 +47,18 @@ export function NodeDrilldownContextMenu({
         >
           <span>Hide from Node View</span>
         </button>
+
+        {onPowerAction && powerActionLabel ? (
+          <button
+            type="button"
+            role="menuitem"
+            disabled={powerActionDisabled}
+            onClick={onPowerAction}
+            className="w-full whitespace-nowrap px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/20 focus:bg-muted/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            <span>{powerActionLabel}</span>
+          </button>
+        ) : null}
       </NodeDrilldownOverlayPanel>
     </div>
   );

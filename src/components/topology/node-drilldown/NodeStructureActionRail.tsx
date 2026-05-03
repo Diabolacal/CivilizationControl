@@ -1,13 +1,12 @@
-import { formatNodeLocalStatus } from "@/lib/nodeDrilldownModel";
 import {
   formatNodeLocalActionAuthorityDetail,
-  formatNodeLocalActionAuthorityLabel,
+  formatNodeLocalActionTooltip,
   getNodeLocalActionStatus,
   getNodeLocalPowerToggleIntent,
 } from "@/lib/nodeDrilldownActionAuthority";
 import { cn } from "@/lib/utils";
 
-import type { TxStatus } from "@/types/domain";
+import type { StructureStatus, TxStatus } from "@/types/domain";
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
 
 interface NodeStructureActionRailProps {
@@ -22,23 +21,90 @@ interface NodeStructureActionRailProps {
   variant?: "rail" | "panel";
 }
 
-function statusToneClass(status: ReturnType<typeof getNodeLocalActionStatus>): string {
-  switch (status) {
-    case "online":
-      return "text-teal-300/80";
-    case "offline":
-      return "text-red-300/80";
-    case "warning":
-      return "text-amber-300/80";
-    default:
-      return "text-muted-foreground/70";
-  }
+type PowerSegment = "off" | "on";
+
+interface SegmentedPowerToggleProps {
+  selectedSegment: PowerSegment | null;
+  isInteractive: boolean;
+  isBusy: boolean;
+  disabledReason: string | null;
+  onSelectSegment?: (segment: PowerSegment) => void;
 }
 
-function actionButtonClass(nextOnline: boolean): string {
-  return nextOnline
-    ? "border-teal-500/30 bg-teal-500/10 text-teal-300/85 hover:bg-teal-500/15"
-    : "border-red-500/30 bg-red-500/10 text-red-300/85 hover:bg-red-500/15";
+function getSelectedSegment(status: StructureStatus): PowerSegment | null {
+  if (status === "online") {
+    return "on";
+  }
+
+  if (status === "offline") {
+    return "off";
+  }
+
+  return null;
+}
+
+function segmentSelectedClass(segment: PowerSegment, isBusy: boolean): string {
+  if (segment === "on") {
+    return isBusy
+      ? "border-teal-500/35 bg-teal-500/10 text-teal-200/70"
+      : "border-teal-500/45 bg-teal-500/14 text-teal-200";
+  }
+
+  return isBusy
+    ? "border-red-500/35 bg-red-500/10 text-red-200/70"
+    : "border-red-500/45 bg-red-500/14 text-red-200";
+}
+
+function segmentIdleClass(segment: PowerSegment, isInteractive: boolean): string {
+  if (!isInteractive) {
+    return "text-muted-foreground/45";
+  }
+
+  return segment === "on"
+    ? "text-teal-200/70 hover:bg-teal-500/8 hover:text-teal-200"
+    : "text-red-200/70 hover:bg-red-500/8 hover:text-red-200";
+}
+
+function SegmentedPowerToggle({
+  selectedSegment,
+  isInteractive,
+  isBusy,
+  disabledReason,
+  onSelectSegment,
+}: SegmentedPowerToggleProps) {
+  return (
+    <div
+      title={disabledReason ?? undefined}
+      aria-label={disabledReason ?? "Power state control"}
+      className="w-[116px]"
+    >
+      <div className="flex overflow-hidden rounded border border-border/60 bg-background/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        {(["off", "on"] as const).map((segment, index) => {
+          const isSelected = selectedSegment === segment;
+          const isDisabled = isBusy || !isInteractive || isSelected;
+
+          return (
+            <button
+              key={segment}
+              type="button"
+              disabled={isDisabled}
+              aria-pressed={isSelected}
+              onClick={() => onSelectSegment?.(segment)}
+              className={cn(
+                "flex-1 px-0 py-1 text-[10px] font-mono uppercase tracking-[0.16em] transition-colors disabled:cursor-not-allowed",
+                index === 1 ? "border-l border-border/60" : null,
+                isSelected
+                  ? segmentSelectedClass(segment, isBusy)
+                  : segmentIdleClass(segment, isInteractive && !isBusy),
+              )}
+            >
+              {segment}
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
 }
 
 export function NodeStructureActionRail({
@@ -49,38 +115,49 @@ export function NodeStructureActionRail({
   onFocusStructure,
   powerStatus = "idle",
   powerStructureId = null,
-  previewMode = false,
   variant = "rail",
 }: NodeStructureActionRailProps) {
   const toggleIntent = getNodeLocalPowerToggleIntent(structure);
   const effectiveStatus = getNodeLocalActionStatus(structure);
+  const selectedSegment = getSelectedSegment(effectiveStatus);
   const isPending = powerStatus === "pending" && powerStructureId === structure.id;
   const isBusy = powerStatus === "pending";
   const showPowerAction = toggleIntent != null && onTogglePower != null;
+  const disabledReason = isPending
+    ? "Submitting structure power action…"
+    : showPowerAction
+      ? null
+      : formatNodeLocalActionTooltip(structure);
 
-  const handleTogglePower = () => {
+  const handleTogglePower = (segment: PowerSegment) => {
     if (!toggleIntent || !onTogglePower) return;
+
+    const nextOnline = segment === "on";
+    if (toggleIntent.nextOnline !== nextOnline) return;
+
     onFocusStructure?.(structure.id);
-    onTogglePower(structure, toggleIntent.nextOnline);
+    onTogglePower(structure, nextOnline);
   };
 
   if (variant === "panel") {
     return (
       <div className="space-y-3 rounded border border-border/50 bg-muted/5 px-3 py-3">
-        <div className="flex items-start justify-between gap-4">
-          <div className="space-y-1">
-            <p className="text-[11px] font-mono uppercase tracking-wide text-muted-foreground/70">
-              Action Authority
-            </p>
-            <p className="text-sm text-foreground">{formatNodeLocalActionAuthorityLabel(structure)}</p>
-            <p className="text-xs text-muted-foreground">{formatNodeLocalActionAuthorityDetail(structure)}</p>
-          </div>
-          <span className={cn("text-[11px] uppercase tracking-wide", statusToneClass(effectiveStatus))}>
-            {formatNodeLocalStatus(effectiveStatus)}
-          </span>
+        <div className="space-y-1">
+          <p className="text-[11px] font-mono uppercase tracking-wide text-muted-foreground/70">
+            Action Control
+          </p>
+          <p className="text-xs text-muted-foreground">{formatNodeLocalActionAuthorityDetail(structure)}</p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
+          <SegmentedPowerToggle
+            selectedSegment={selectedSegment}
+            isInteractive={showPowerAction && !isBusy}
+            isBusy={isBusy}
+            disabledReason={disabledReason}
+            onSelectSegment={handleTogglePower}
+          />
+
           {isHidden ? (
             <button
               type="button"
@@ -90,37 +167,13 @@ export function NodeStructureActionRail({
               Unhide
             </button>
           ) : null}
-
-          {showPowerAction ? (
-            <button
-              type="button"
-              onClick={handleTogglePower}
-              disabled={isBusy}
-              className={cn(
-                "rounded border px-2.5 py-1 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-                actionButtonClass(toggleIntent.nextOnline),
-              )}
-            >
-              {isPending ? "Executing…" : toggleIntent.actionLabel}
-            </button>
-          ) : null}
-
-          {previewMode ? (
-            <span className="rounded border border-border/50 bg-background/60 px-2 py-1 text-[10px] font-mono uppercase tracking-[0.16em] text-muted-foreground/70">
-              Preview only
-            </span>
-          ) : null}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="ml-1 flex w-[132px] shrink-0 flex-col items-end gap-1 text-right">
-      <span className={cn("text-[11px] uppercase tracking-wide", statusToneClass(effectiveStatus))}>
-        {formatNodeLocalStatus(effectiveStatus)}
-      </span>
-
+    <div className="ml-1 flex w-[116px] shrink-0 flex-col items-end justify-center gap-1 text-right">
       {isHidden ? (
         <button
           type="button"
@@ -129,29 +182,15 @@ export function NodeStructureActionRail({
         >
           Unhide
         </button>
-      ) : showPowerAction ? (
-        <button
-          type="button"
-          onClick={handleTogglePower}
-          disabled={isBusy}
-          className={cn(
-            "rounded border px-2 py-1 text-[11px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50",
-            actionButtonClass(toggleIntent.nextOnline),
-          )}
-        >
-          {isPending ? "Executing…" : toggleIntent.actionLabel}
-        </button>
       ) : (
-        <span className="text-[10px] font-mono uppercase tracking-[0.18em] text-muted-foreground/55">
-          Unavailable
-        </span>
+        <SegmentedPowerToggle
+          selectedSegment={selectedSegment}
+          isInteractive={showPowerAction && !isBusy}
+          isBusy={isBusy}
+          disabledReason={disabledReason}
+          onSelectSegment={handleTogglePower}
+        />
       )}
-
-      {previewMode && showPowerAction ? (
-        <span className="text-[9px] font-mono uppercase tracking-[0.16em] text-muted-foreground/50">
-          Preview
-        </span>
-      ) : null}
     </div>
   );
 }
