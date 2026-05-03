@@ -14,16 +14,25 @@ import { TagChip } from "@/components/TagChip";
 import { NetworkNodeGlyph } from "@/components/topology/Glyphs";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { useStructurePower } from "@/hooks/useStructurePower";
-import {
-  fuelTypeLabel,
-  getFuelEfficiency,
-  computeRuntimeMs,
-  formatRuntime,
-  formatIndexedFuelAmount,
-  getIndexedFuelAmount,
-} from "@/lib/fuelRuntime";
+import { buildFuelPresentation, type FuelSeverity } from "@/lib/fuelRuntime";
 import { shortId } from "@/lib/formatAddress";
 import type { Structure, NetworkNodeGroup } from "@/types/domain";
+
+const FUEL_BAR_CLASS_BY_SEVERITY: Record<FuelSeverity, string> = {
+  critical: "bg-red-500/80",
+  low: "bg-amber-500/80",
+  normal: "bg-teal-500/70",
+  partial: "bg-muted-foreground/45",
+  unavailable: "bg-transparent",
+};
+
+const FUEL_VALUE_CLASS_BY_SEVERITY: Record<FuelSeverity, string> = {
+  critical: "text-red-400",
+  low: "text-amber-400",
+  normal: "text-foreground",
+  partial: "text-muted-foreground",
+  unavailable: "text-muted-foreground",
+};
 
 interface NetworkNodeListScreenProps {
   structures: Structure[];
@@ -144,7 +153,10 @@ function NodeRow({ node, group }: { node: Structure; group?: NetworkNodeGroup })
   const attachedCount = group
     ? group.gates.length + group.storageUnits.length + group.turrets.length
     : 0;
-  const indexedFuelLabel = formatIndexedFuelAmount(getIndexedFuelAmount(node));
+  const fuelPresentation = buildFuelPresentation(node);
+  const primaryFuelLabel = fuelPresentation.runtimeLabel
+    ? `~${fuelPresentation.runtimeLabel}`
+    : fuelPresentation.amountLabel;
 
   return (
     <tr className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors">
@@ -164,46 +176,27 @@ function NodeRow({ node, group }: { node: Structure; group?: NetworkNodeGroup })
         </div>
       </td>
       <td className="py-3 px-4">
-        {node.fuel != null ? (
-          (() => {
-            const label = fuelTypeLabel(node.fuel.typeId);
-            const eff = getFuelEfficiency(node.fuel.typeId);
-            const runtimeMs = eff && node.fuel.burnRateMs > 0 && node.fuel.quantity > 0
-              ? computeRuntimeMs(node.fuel.quantity, node.fuel.burnRateMs, eff)
-              : undefined;
-            const maxUnits = node.fuel.unitVolume && node.fuel.unitVolume > 0
-              ? Math.floor(node.fuel.maxCapacity / node.fuel.unitVolume)
-              : undefined;
-            const fillPct = maxUnits != null && maxUnits > 0
-              ? Math.min(100, Math.round((node.fuel.quantity / maxUnits) * 100))
-              : undefined;
-
-            return (
-              <div className="flex items-center gap-2 text-[11px] font-mono">
-                {/* Compact fuel gauge */}
-                {fillPct != null && (
-                  <div className="w-14 h-1.5 rounded-full bg-muted/30 overflow-hidden shrink-0" title={`${node.fuel.quantity.toLocaleString()} / ${maxUnits!.toLocaleString()} units`}>
-                    <div
-                      className={`h-full rounded-full ${fillPct > 20 ? "bg-teal-500/70" : fillPct > 0 ? "bg-amber-500/70" : "bg-transparent"}`}
-                      style={{ width: `${fillPct}%` }}
-                    />
-                  </div>
-                )}
-                {label && <span className="text-muted-foreground">{label}</span>}
-                {runtimeMs != null ? (
-                  <span className="text-foreground">~{formatRuntime(runtimeMs)}</span>
-                ) : node.fuel.quantity > 0 && !eff ? (
-                  <span className="text-amber-400/80">unknown type</span>
-                ) : node.fuel.quantity === 0 ? (
-                  <span className="text-amber-400/80">empty</span>
-                ) : null}
+        {fuelPresentation.source !== "none" ? (
+          <div className="flex items-center gap-2 text-[11px] font-mono">
+            {fuelPresentation.fillPercent != null ? (
+              <div className="h-1.5 w-14 shrink-0 overflow-hidden rounded-full bg-muted/30" title={fuelPresentation.amountLabel ?? undefined}>
+                <div
+                  className={`h-full rounded-full ${FUEL_BAR_CLASS_BY_SEVERITY[fuelPresentation.severity]}`}
+                  style={{ width: `${fuelPresentation.fillPercent}%` }}
+                />
               </div>
-            );
-          })()
-        ) : indexedFuelLabel ? (
-          <span className="text-[11px] font-mono text-foreground">{indexedFuelLabel}</span>
+            ) : null}
+            {fuelPresentation.typeLabel ? (
+              <span className="text-muted-foreground">{fuelPresentation.typeLabel}</span>
+            ) : null}
+            {primaryFuelLabel ? (
+              <span className={FUEL_VALUE_CLASS_BY_SEVERITY[fuelPresentation.severity]}>{primaryFuelLabel}</span>
+            ) : (
+              <span className="text-muted-foreground">—</span>
+            )}
+          </div>
         ) : (
-          <span className="text-[11px] text-muted-foreground">Unavailable</span>
+          <span className="text-[11px] text-muted-foreground">—</span>
         )}
       </td>
       <td className="py-3 px-4">

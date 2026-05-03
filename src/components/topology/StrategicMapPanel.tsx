@@ -23,7 +23,7 @@ import { usePostureState } from "@/hooks/usePosture";
 import { useMapViewTransform } from "@/hooks/useMapViewTransform";
 import type { WorldBounds } from "@/hooks/useMapViewTransform";
 import { getSolarSystemById, getSolarSystemCatalog } from "@/lib/solarSystemCatalog";
-import { computeRuntimeMs, getFuelEfficiency } from "@/lib/fuelRuntime";
+import { buildFuelPresentation } from "@/lib/fuelRuntime";
 import { PostureControl } from "@/components/PostureControl";
 import { NodeDrilldownTooltip, type NodeDrilldownTooltipData } from "@/components/topology/node-drilldown/NodeDrilldownTooltip";
 import { NodeClusterSvg } from "@/components/topology/NodeCluster";
@@ -257,17 +257,11 @@ export function StrategicMapPanel({
     [structures],
   );
 
-  // Low-fuel detection: same 24h threshold as AttentionAlerts
-  const LOW_RUNTIME_THRESHOLD_MS = 24 * 60 * 60 * 1000;
   const lowFuelNodeIds = useMemo(() => {
     const ids = new Set<string>();
     for (const group of nodeGroups) {
-      const fuel = group.node.fuel;
-      if (!fuel?.isBurning) continue;
-      const eff = getFuelEfficiency(fuel.typeId);
-      if (eff === undefined) continue;
-      const runtimeMs = computeRuntimeMs(fuel.quantity, fuel.burnRateMs, eff);
-      if (runtimeMs !== undefined && runtimeMs < LOW_RUNTIME_THRESHOLD_MS) {
+      const severity = buildFuelPresentation(group.node).severity;
+      if (severity === "low" || severity === "critical") {
         ids.add(group.node.objectId);
       }
     }

@@ -1,5 +1,5 @@
 import type { AssemblySummary, NetworkNodeGroup, Structure, StructureStatus } from "@/types/domain";
-import { formatIndexedFuelAmount, getIndexedFuelAmount } from "@/lib/fuelRuntime";
+import { buildFuelPresentation, formatFuelPresentationSummary, getIndexedFuelAmount } from "@/lib/fuelRuntime";
 import { getItemTypeById, getItemTypeByName } from "@/lib/typeCatalog";
 import { normalizeCanonicalObjectId, type NodeAssembliesLookupResult } from "@/lib/nodeAssembliesClient";
 import {
@@ -1130,13 +1130,7 @@ function buildSelectedNodeStructures(
 }
 
 function fuelSummary(structure: Structure): string | undefined {
-  const indexedFuelSummary = formatIndexedFuelAmount(getIndexedFuelAmount(structure));
-  if (!structure.fuel) {
-    return indexedFuelSummary ?? undefined;
-  }
-  const units = structure.fuel.quantity.toLocaleString();
-  if (!structure.fuel.isBurning) return `${units} units loaded`;
-  return `${units} units burning`;
+  return formatFuelPresentationSummary(buildFuelPresentation(structure)) ?? undefined;
 }
 
 export function sortNodeLocalStructures(structures: NodeLocalStructure[]): NodeLocalStructure[] {

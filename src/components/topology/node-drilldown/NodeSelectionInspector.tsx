@@ -7,6 +7,7 @@ import {
   formatNodeLocalActionAuthorityLabel,
   getNodeLocalActionStatus,
 } from "@/lib/nodeDrilldownActionAuthority";
+import { buildFuelPresentation, type FuelPresentation, type FuelSeverity } from "@/lib/fuelRuntime";
 import { selectCanonicalNodeDrilldownDomainKey } from "@/lib/nodeDrilldownIdentity";
 import { findNodeLocalStructure, formatNodeLocalSize, formatNodeLocalStatus, summarizeNodeLocalFamilies } from "@/lib/nodeDrilldownModel";
 
@@ -189,6 +190,69 @@ function formatNodeProofSignals(selectedNode: Structure | null): string | null {
     }
   }).join(" • ");
 }
+
+const FUEL_ACCENT_CLASS_BY_SEVERITY: Record<FuelSeverity, string> = {
+  critical: "text-red-400",
+  low: "text-amber-400",
+  normal: "text-foreground",
+  partial: "text-muted-foreground",
+  unavailable: "text-muted-foreground",
+};
+
+const FUEL_BAR_CLASS_BY_SEVERITY: Record<FuelSeverity, string> = {
+  critical: "bg-red-500/80",
+  low: "bg-amber-500/80",
+  normal: "bg-teal-500/70",
+  partial: "bg-muted-foreground/45",
+  unavailable: "bg-transparent",
+};
+
+function fuelStatusLabel(presentation: FuelPresentation): string | null {
+  switch (presentation.severity) {
+    case "critical":
+      return "Critical fuel";
+    case "low":
+      return "Low fuel";
+    case "partial":
+      return "Runtime estimate unavailable";
+    default:
+      return null;
+  }
+}
+
+function renderNodeFuelValue(presentation: FuelPresentation): React.ReactNode {
+  const primaryLabel = [
+    presentation.typeLabel,
+    presentation.runtimeLabel ? `~${presentation.runtimeLabel}` : presentation.amountLabel,
+  ].filter((value): value is string => Boolean(value)).join(" · ");
+  const secondaryLabel = presentation.runtimeLabel && presentation.amountLabel
+    ? presentation.amountLabel
+    : null;
+  const statusLabel = fuelStatusLabel(presentation);
+
+  return (
+    <div className="ml-auto flex min-w-[11rem] flex-col items-end gap-1">
+      <span className={`text-right text-sm font-mono ${FUEL_ACCENT_CLASS_BY_SEVERITY[presentation.severity]}`}>
+        {primaryLabel || "Unavailable"}
+      </span>
+      {secondaryLabel ? (
+        <span className="text-[11px] font-mono text-muted-foreground">{secondaryLabel}</span>
+      ) : null}
+      {presentation.fillPercent != null ? (
+        <div className="h-1.5 w-28 overflow-hidden rounded-full bg-muted/30">
+          <div
+            className={`h-full rounded-full ${FUEL_BAR_CLASS_BY_SEVERITY[presentation.severity]}`}
+            style={{ width: `${presentation.fillPercent}%` }}
+          />
+        </div>
+      ) : null}
+      {statusLabel ? (
+        <span className={`text-[11px] ${FUEL_ACCENT_CLASS_BY_SEVERITY[presentation.severity]}`}>{statusLabel}</span>
+      ) : null}
+    </div>
+  );
+}
+
 function NodeSelectionInspectorContent({
   viewModel,
   selectedNode,
@@ -235,6 +299,7 @@ function NodeSelectionInspectorContent({
   const ownerCapId = hasValue(selectedNode?.ownerCapId) ? selectedNode.ownerCapId : null;
   const assemblyId = hasValue(selectedNode?.assemblyId) ? selectedNode.assemblyId : null;
   const energySourceId = hasValue(selectedNode?.summary?.energySourceId) ? selectedNode.summary.energySourceId : null;
+  const nodeFuelPresentation = selectedNode ? buildFuelPresentation(selectedNode) : null;
   const proofSignals = formatNodeProofSignals(selectedNode ?? null);
   const showStructureFeedback = Boolean(
     selectedStructure
@@ -294,12 +359,21 @@ function NodeSelectionInspectorContent({
             <InspectorRow label="OwnerCap ID" value={renderIdentifierValue(ownerCapId, "Not indexed", "Copy node owner cap ID")} muted={ownerCapId == null} />
             <InspectorRow label="Energy Source ID" value={renderIdentifierValue(energySourceId, "None", "Copy node energy source ID")} muted={energySourceId == null} />
             <InspectorRow label="Canonical Identity" value={renderIdentifierValue(canonicalIdentity, "Not supplied", "Copy canonical node identity")} muted={canonicalIdentity == null} />
-            <InspectorRow label="Fuel" value={viewModel.node.fuelSummary ?? "Unavailable"} muted={viewModel.node.fuelSummary == null} />
+            <InspectorRow
+              label="Fuel"
+              value={nodeFuelPresentation && nodeFuelPresentation.source !== "none"
+                ? renderNodeFuelValue(nodeFuelPresentation)
+                : viewModel.node.fuelSummary ?? "Unavailable"}
+              muted={(!nodeFuelPresentation || nodeFuelPresentation.source === "none") && viewModel.node.fuelSummary == null}
+            />
             {debugOperatorInventoryEnabled ? (
               <>
                 <InspectorRow label="Source" value={formatSourceMode(viewModel)} muted />
                 <InspectorRow label="Raw Source Mode" value={viewModel.sourceMode} mono muted />
                 <InspectorRow label="Coverage" value={formatCoverage(viewModel)} muted />
+                {nodeFuelPresentation?.confidence ? (
+                  <InspectorRow label="Fuel Confidence" value={nodeFuelPresentation.confidence} muted />
+                ) : null}
                 <InspectorRow label="Eligibility" value={formatNodeRenderEligibility(selectedNode ?? null)} muted />
                 {proofSignals ? <InspectorRow label="Proof Signals" value={proofSignals} muted /> : null}
                 {selectedNode?.networkNodeRenderMeta?.rawNodeIndex != null ? (

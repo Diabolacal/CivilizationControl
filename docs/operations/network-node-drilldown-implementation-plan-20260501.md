@@ -10,6 +10,22 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Indexed runtime restoration from operator-inventory power summaries - 2026-05-03
+
+This tracked follow-up stays on the accepted `feat/node-drilldown-render-shell` read-model boundary. It does not add browser Sui JSON-RPC, change Signal Feed scope, change backend contracts, change sponsor-worker behavior, change package IDs, change Move code, change vendor state, or change production deploy state.
+
+- `Command Overview` / `Attention Required` now derives critical and low-fuel state from the operator-inventory read model, frontend network-node runtime UI now derives from indexed `networkNodes[].node.powerSummary`, and `Selection Inspector` now shows a compact indexed fuel summary for selected network nodes
+- low-fuel threshold is 24 hours (`86400` seconds) and critical fuel threshold is 1 hour (`3600` seconds)
+- indexed runtime is rendered only when confidence is `indexed` and both `estimatedSecondsRemaining` plus `estimatedHoursRemaining` are present. When runtime is null, rows stay partial and show units only; the UI does not fabricate time
+- assembly-less indexed rows now preserve `powerSummary` through adaptation on a root-level structure field, so runtime surfaces do not lose indexed runtime only because a grouped node has no `assemblyId`
+- no browser JSON-RPC was added for runtime recovery. Runtime and alert restoration come from the operator-inventory read model only, and Signal Feed remains a separate deferred slice that was not changed here
+- validation passed: `npm run typecheck`; `npm run build`; `git diff --check` with only the pre-existing LF/CRLF warning on `contracts/civilization_control/Move.lock`; `npx tsx scripts/check-operator-inventory-mapping.mts`; and `npx tsx scripts/check-node-drilldown-reconciliation.mts`
+- preview evidence was captured on `https://be1df70f.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`
+- preview route smoke confirmed `/`, `/nodes`, `/settings`, and `/dev/node-drilldown-lab`; disconnected preview checks for those same routes made no browser Sui RPC requests and no `operator-inventory` or `node-assemblies` requests; and the dev lab remained isolated from wallet, shared-backend, and sponsor flows
+- served preview HTML on both unique and alias URLs resolved `assets/index-CbtN9RIx.js`
+- served-bundle scanning across 12 deployed JS assets found `civilizationcontrol-sponsor` in `App-CyzGoJCr.js` and `SmartObjectProvider-DEp_I87K.js`; found `https://ef-map.com` in `SmartObjectProvider-DEp_I87K.js` and `useNodeDrilldownStructureMenu-CblxiTR6.js`; found `https://fullnode.testnet.sui.io:443` in `SmartObjectProvider-DEp_I87K.js` and `suiRpcClient-BibKDPwo.js`; found no `flappy-frontier-sponsor`, `ASSEMBLY_API_TOKEN`, `X-API-Key`, `SPONSOR_PRIVATE_KEY`, `CF_API_TOKEN`, or `CLOUDFLARE_ACCOUNT_ID`; found no exact-case `Authorization`; and found only the existing lowercase user-facing text `Turret extension authorization revoked` in `App-CyzGoJCr.js`
+- limitation: a wallet-connected preview session with live indexed node rows was not available in this environment, so browser proof of the restored fuel bar, fuel grade, and runtime on live `/nodes` plus the live `Node Control` inspector is still pending. Route-level browser proof for `Node Control` therefore remains limited to the disconnected shell and deterministic probes rather than live wallet-owned node interaction
+
 ### Indexed fuel consistency and calm Signal Feed fallback - 2026-05-03
 
 This follow-up stays on the accepted `feat/node-drilldown-render-shell` frontend baseline. It does not change EF-Map code, shared-backend runtime behavior, write paths, sponsor-worker behavior, package IDs, Move code, vendor state, or production deploy state.

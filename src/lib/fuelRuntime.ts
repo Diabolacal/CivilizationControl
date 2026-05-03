@@ -10,7 +10,30 @@
  */
 
 import { getItemTypeById } from "@/lib/typeCatalog";
-import type { Structure } from "@/types/domain";
+import type { IndexedPowerSummary, Structure } from "@/types/domain";
+
+export const DEFAULT_CRITICAL_FUEL_THRESHOLD_SECONDS = 60 * 60;
+export const DEFAULT_LOW_FUEL_THRESHOLD_SECONDS = 24 * 60 * 60;
+
+export type FuelSeverity = "critical" | "low" | "normal" | "partial" | "unavailable";
+
+export interface FuelPresentation {
+  source: "indexed-power-summary" | "direct-fuel" | "indexed-quantity" | "none";
+  severity: FuelSeverity;
+  typeLabel: string | null;
+  runtimeLabel: string | null;
+  amountLabel: string | null;
+  fillPercent: number | null;
+  quantityUnits: number | null;
+  maxCapacityUnits: number | null;
+  estimatedSecondsRemaining: number | null;
+  criticalThresholdSeconds: number | null;
+  lowThresholdSeconds: number | null;
+  isRuntimeKnown: boolean;
+  confidence: string | null;
+}
+
+type FuelStructureLike = Pick<Structure, "fuel" | "indexedFuelAmount" | "indexedPowerSummary" | "summary">;
 
 // ─── Fuel Efficiency Lookup ──────────────────────────────
 
@@ -58,24 +81,42 @@ export function computeRuntimeMs(
   return (quantity * burnRateMs * efficiency) / 100;
 }
 
-/** Format runtime milliseconds to human-readable string (e.g., "14d 21h"). */
+/** Format runtime milliseconds to human-readable string (e.g., "7d 14h"). */
 export function formatRuntime(runtimeMs: number): string {
-  const totalHours = runtimeMs / 3_600_000;
-  if (totalHours >= 48) {
-    const days = Math.floor(totalHours / 24);
-    const hours = Math.round(totalHours % 24);
-    return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
-  }
-  if (totalHours >= 1) {
-    const h = Math.floor(totalHours);
-    const m = Math.round((totalHours - h) * 60);
-    return m > 0 ? `${h}h ${m}m` : `${h}h`;
-  }
-  return `${Math.max(1, Math.round(totalHours * 60))}m`;
+  return formatRuntimeSeconds(runtimeMs / 1000);
 }
 
-function normalizeFuelAmount(fuelAmount: string | null | undefined): string | null {
-  const trimmed = fuelAmount?.trim();
+export function formatRuntimeSeconds(seconds: number): string {
+  if (!Number.isFinite(seconds)) {
+    return "1m";
+  }
+
+  const clampedSeconds = Math.max(0, seconds);
+  const totalMinutes = Math.max(1, Math.round(clampedSeconds / 60));
+  if (totalMinutes < 60) {
+    return `${totalMinutes}m`;
+  }
+
+  const totalHours = Math.max(1, Math.round(clampedSeconds / 3600));
+  if (totalHours < 24) {
+    return `${totalHours}h`;
+  }
+
+  const days = Math.floor(totalHours / 24);
+  const hours = totalHours % 24;
+  return hours > 0 ? `${days}d ${hours}h` : `${days}d`;
+}
+
+function normalizeFuelAmount(fuelAmount: string | number | null | undefined): string | null {
+  if (typeof fuelAmount === "number" && Number.isFinite(fuelAmount)) {
+    return `${fuelAmount}`;
+  }
+
+  if (typeof fuelAmount !== "string") {
+    return null;
+  }
+
+  const trimmed = fuelAmount.trim();
   return trimmed ? trimmed : null;
 }
 
@@ -87,13 +128,21 @@ function formatIntegerString(value: string): string {
 }
 
 export function getIndexedFuelAmount(
-  structure: Pick<Structure, "indexedFuelAmount" | "summary">,
+  structure: Pick<Structure, "indexedFuelAmount" | "indexedPowerSummary" | "summary">,
 ): string | null {
   return normalizeFuelAmount(structure.indexedFuelAmount)
+    ?? normalizeFuelAmount(structure.indexedPowerSummary?.fuelAmount)
+    ?? normalizeFuelAmount(structure.summary?.powerSummary?.fuelAmount)
     ?? normalizeFuelAmount(structure.summary?.fuelAmount);
 }
 
-export function formatIndexedFuelAmount(fuelAmount: string | null | undefined): string | null {
+export function getIndexedPowerSummary(
+  structure: Pick<Structure, "indexedPowerSummary" | "summary">,
+): IndexedPowerSummary | null {
+  return structure.indexedPowerSummary ?? structure.summary?.powerSummary ?? null;
+}
+
+export function formatIndexedFuelAmount(fuelAmount: string | number | null | undefined): string | null {
   const normalized = normalizeFuelAmount(fuelAmount);
   if (!normalized) {
     return null;
@@ -103,4 +152,260 @@ export function formatIndexedFuelAmount(fuelAmount: string | null | undefined): 
     ? formatIntegerString(normalized)
     : normalized;
   return /\bunits?\b/i.test(formatted) ? formatted : `${formatted} units`;
+}
+
+function normalizeNumber(value: number | string | null | undefined): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+
+    const parsed = Number(trimmed);
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function normalizeNonNegativeNumber(value: number | string | null | undefined): number | null {
+  const normalized = normalizeNumber(value);
+  if (normalized == null) {
+    return null;
+  }
+
+  return normalized >= 0 ? normalized : null;
+}
+
+function normalizeString(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  return trimmed ? trimmed : null;
+}
+
+function resolvePowerSummaryRuntimeSeconds(powerSummary: IndexedPowerSummary): number | null {
+  const seconds = normalizeNonNegativeNumber(powerSummary.estimatedSecondsRemaining);
+  if (seconds != null) {
+    return seconds;
+  }
+
+  const hours = normalizeNonNegativeNumber(powerSummary.estimatedHoursRemaining);
+  if (hours == null) {
+    return null;
+  }
+
+  return Math.round(hours * 3600);
+}
+
+function resolvePowerSummaryTypeLabel(powerSummary: IndexedPowerSummary): string | null {
+  return normalizeString(powerSummary.fuelGrade)
+    ?? normalizeString(powerSummary.fuelTypeName)?.replace(/ Fuel$/i, "")
+    ?? fuelTypeLabel(powerSummary.fuelTypeId ?? undefined)
+    ?? null;
+}
+
+function resolveFillPercent(quantityUnits: number | null, maxCapacityUnits: number | null): number | null {
+  if (quantityUnits == null || maxCapacityUnits == null || maxCapacityUnits <= 0) {
+    return null;
+  }
+
+  return Math.min(100, Math.max(0, Math.round((quantityUnits / maxCapacityUnits) * 100)));
+}
+
+function formatUnitCount(value: number): string {
+  return Number.isInteger(value)
+    ? value.toLocaleString()
+    : value.toLocaleString(undefined, { maximumFractionDigits: 2 });
+}
+
+function formatAmountLabel(quantityUnits: number | null, maxCapacityUnits: number | null): string | null {
+  if (quantityUnits == null) {
+    return null;
+  }
+
+  if (maxCapacityUnits != null && maxCapacityUnits > 0) {
+    return `${formatUnitCount(quantityUnits)} / ${formatUnitCount(maxCapacityUnits)} units`;
+  }
+
+  return `${formatUnitCount(quantityUnits)} units`;
+}
+
+export function resolveFuelSeverity({
+  isCriticalFuel,
+  isLowFuel,
+  estimatedSecondsRemaining,
+  criticalThresholdSeconds,
+  lowThresholdSeconds,
+  hasQuantity,
+  runtimeKnown,
+}: {
+  isCriticalFuel?: boolean | null;
+  isLowFuel?: boolean | null;
+  estimatedSecondsRemaining: number | null;
+  criticalThresholdSeconds?: number | null;
+  lowThresholdSeconds?: number | null;
+  hasQuantity: boolean;
+  runtimeKnown: boolean;
+}): FuelSeverity {
+  const resolvedCriticalThreshold = criticalThresholdSeconds ?? DEFAULT_CRITICAL_FUEL_THRESHOLD_SECONDS;
+  const resolvedLowThreshold = lowThresholdSeconds ?? DEFAULT_LOW_FUEL_THRESHOLD_SECONDS;
+
+  if (isCriticalFuel === true) {
+    return "critical";
+  }
+
+  if (estimatedSecondsRemaining != null && estimatedSecondsRemaining <= resolvedCriticalThreshold) {
+    return "critical";
+  }
+
+  if (isLowFuel === true) {
+    return "low";
+  }
+
+  if (estimatedSecondsRemaining != null && estimatedSecondsRemaining <= resolvedLowThreshold) {
+    return "low";
+  }
+
+  if (runtimeKnown && estimatedSecondsRemaining != null) {
+    return "normal";
+  }
+
+  if (hasQuantity) {
+    return "partial";
+  }
+
+  return "unavailable";
+}
+
+export function formatFuelPresentationSummary(presentation: FuelPresentation): string | null {
+  if (presentation.source === "none") {
+    return null;
+  }
+
+  const segments: string[] = [];
+  if (presentation.typeLabel) {
+    segments.push(presentation.typeLabel);
+  }
+
+  if (presentation.runtimeLabel) {
+    segments.push(`~${presentation.runtimeLabel}`);
+  } else if (presentation.amountLabel) {
+    segments.push(presentation.amountLabel);
+  }
+
+  return segments.length > 0 ? segments.join(" · ") : null;
+}
+
+export function buildFuelPresentation(structure: FuelStructureLike): FuelPresentation {
+  const indexedPowerSummary = getIndexedPowerSummary(structure);
+  const indexedFuelAmount = getIndexedFuelAmount(structure);
+
+  if (indexedPowerSummary) {
+    const quantityUnits = normalizeNonNegativeNumber(indexedPowerSummary.fuelAmount);
+    const maxCapacityUnits = normalizeNonNegativeNumber(indexedPowerSummary.fuelMaxCapacity);
+    const estimatedSecondsRemaining = resolvePowerSummaryRuntimeSeconds(indexedPowerSummary);
+    const confidence = normalizeString(indexedPowerSummary.confidence);
+    const isRuntimeKnown = confidence?.toLowerCase() === "indexed" && estimatedSecondsRemaining != null;
+    const amountLabel = formatAmountLabel(quantityUnits, maxCapacityUnits)
+      ?? formatIndexedFuelAmount(indexedFuelAmount);
+
+    return {
+      source: "indexed-power-summary",
+      severity: resolveFuelSeverity({
+        isCriticalFuel: indexedPowerSummary.isCriticalFuel,
+        isLowFuel: indexedPowerSummary.isLowFuel,
+        estimatedSecondsRemaining,
+        criticalThresholdSeconds: indexedPowerSummary.criticalFuelThresholdSeconds,
+        lowThresholdSeconds: indexedPowerSummary.lowFuelThresholdSeconds,
+        hasQuantity: amountLabel != null,
+        runtimeKnown: isRuntimeKnown,
+      }),
+      typeLabel: resolvePowerSummaryTypeLabel(indexedPowerSummary),
+      runtimeLabel: isRuntimeKnown && estimatedSecondsRemaining != null
+        ? formatRuntimeSeconds(estimatedSecondsRemaining)
+        : null,
+      amountLabel,
+      fillPercent: resolveFillPercent(quantityUnits, maxCapacityUnits),
+      quantityUnits,
+      maxCapacityUnits,
+      estimatedSecondsRemaining,
+      criticalThresholdSeconds: indexedPowerSummary.criticalFuelThresholdSeconds ?? DEFAULT_CRITICAL_FUEL_THRESHOLD_SECONDS,
+      lowThresholdSeconds: indexedPowerSummary.lowFuelThresholdSeconds ?? DEFAULT_LOW_FUEL_THRESHOLD_SECONDS,
+      isRuntimeKnown,
+      confidence,
+    };
+  }
+
+  if (structure.fuel) {
+    const quantityUnits = structure.fuel.quantity;
+    const maxCapacityUnits = structure.fuel.unitVolume && structure.fuel.unitVolume > 0
+      ? Math.floor(structure.fuel.maxCapacity / structure.fuel.unitVolume)
+      : null;
+    const efficiency = getFuelEfficiency(structure.fuel.typeId);
+    const runtimeMs = efficiency != null
+      && structure.fuel.burnRateMs > 0
+      && structure.fuel.quantity >= 0
+      && structure.fuel.isBurning
+      ? computeRuntimeMs(structure.fuel.quantity, structure.fuel.burnRateMs, efficiency)
+      : undefined;
+    const estimatedSecondsRemaining = runtimeMs != null ? Math.round(runtimeMs / 1000) : null;
+    const amountLabel = formatAmountLabel(quantityUnits, maxCapacityUnits);
+
+    return {
+      source: "direct-fuel",
+      severity: resolveFuelSeverity({
+        estimatedSecondsRemaining,
+        criticalThresholdSeconds: DEFAULT_CRITICAL_FUEL_THRESHOLD_SECONDS,
+        lowThresholdSeconds: DEFAULT_LOW_FUEL_THRESHOLD_SECONDS,
+        hasQuantity: amountLabel != null,
+        runtimeKnown: runtimeMs != null,
+      }),
+      typeLabel: fuelTypeLabel(structure.fuel.typeId) ?? null,
+      runtimeLabel: runtimeMs != null ? formatRuntime(runtimeMs) : null,
+      amountLabel,
+      fillPercent: resolveFillPercent(quantityUnits, maxCapacityUnits),
+      quantityUnits,
+      maxCapacityUnits,
+      estimatedSecondsRemaining,
+      criticalThresholdSeconds: DEFAULT_CRITICAL_FUEL_THRESHOLD_SECONDS,
+      lowThresholdSeconds: DEFAULT_LOW_FUEL_THRESHOLD_SECONDS,
+      isRuntimeKnown: runtimeMs != null,
+      confidence: null,
+    };
+  }
+
+  if (indexedFuelAmount) {
+    return {
+      source: "indexed-quantity",
+      severity: "partial",
+      typeLabel: null,
+      runtimeLabel: null,
+      amountLabel: formatIndexedFuelAmount(indexedFuelAmount),
+      fillPercent: null,
+      quantityUnits: normalizeNonNegativeNumber(indexedFuelAmount),
+      maxCapacityUnits: null,
+      estimatedSecondsRemaining: null,
+      criticalThresholdSeconds: null,
+      lowThresholdSeconds: null,
+      isRuntimeKnown: false,
+      confidence: null,
+    };
+  }
+
+  return {
+    source: "none",
+    severity: "unavailable",
+    typeLabel: null,
+    runtimeLabel: null,
+    amountLabel: null,
+    fillPercent: null,
+    quantityUnits: null,
+    maxCapacityUnits: null,
+    estimatedSecondsRemaining: null,
+    criticalThresholdSeconds: null,
+    lowThresholdSeconds: null,
+    isRuntimeKnown: false,
+    confidence: null,
+  };
 }

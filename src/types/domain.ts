@@ -20,6 +20,25 @@ export type StructureType = "gate" | "storage_unit" | "turret" | "network_node";
 /** Operational status derived from on-chain state. */
 export type StructureStatus = "online" | "warning" | "offline" | "neutral";
 
+export interface IndexedPowerSummary {
+  fuelAmount: number | null;
+  fuelMaxCapacity: number | null;
+  fuelTypeId: number | null;
+  fuelTypeName: string | null;
+  fuelGrade: string | null;
+  efficiencyPercent: number | null;
+  burnRateUnitsPerHour: number | null;
+  estimatedSecondsRemaining: number | null;
+  estimatedHoursRemaining: number | null;
+  criticalFuelThresholdSeconds: number | null;
+  lowFuelThresholdSeconds: number | null;
+  isLowFuel: boolean | null;
+  isCriticalFuel: boolean | null;
+  source: string | null;
+  lastUpdated: string | null;
+  confidence: string | null;
+}
+
 export interface IndexedActionRequiredIds {
   structureId: ObjectId | null;
   structureType: StructureType | null;
@@ -73,7 +92,7 @@ export interface AssemblySummary {
   displayName?: string | null;
   status: string | null;
   fuelAmount: string | null;
-  powerSummary?: string | null;
+  powerSummary?: IndexedPowerSummary | null;
   solarSystemId: string | null;
   energySourceId: string | null;
   url: string | null;
@@ -106,6 +125,8 @@ export interface NodeAssemblyNode {
   assemblyId: string | null;
   solarSystemId: string | null;
   energySourceId: string | null;
+  fuelAmount?: string | null;
+  powerSummary?: IndexedPowerSummary | null;
 }
 
 /** Backend-observed linked assembly returned for a selected network node. */
@@ -121,7 +142,7 @@ export interface NodeAssemblySummary extends NodeAssemblyProvenance {
   size?: string | null;
   status: string | null;
   fuelAmount: string | null;
-  powerSummary?: string | null;
+  powerSummary?: IndexedPowerSummary | null;
   solarSystemId: string | null;
   energySourceId: string | null;
   url: string | null;
@@ -178,6 +199,8 @@ export interface Structure {
   fuel?: FuelState;
   /** Indexed fuel quantity when runtime fuel fields are not available. */
   indexedFuelAmount?: string | null;
+  /** Indexed power summary when runtime is supplied by the shared read model. */
+  indexedPowerSummary?: IndexedPowerSummary | null;
   /** Linked destination gate ID — only present for linked gates. */
   linkedGateId?: ObjectId;
   /** Optional shared-backend enrichment; direct-chain fields remain authoritative. */

@@ -6,11 +6,12 @@ import { MemoryRouter } from "react-router";
 
 import { Sidebar } from "../src/components/Sidebar";
 import { selectDisplayNodeGroups } from "../src/lib/assetDiscoveryDisplayModel";
+import { buildFuelPresentation } from "../src/lib/fuelRuntime";
 import { getNodeLocalPowerToggleIntent } from "../src/lib/nodeDrilldownActionAuthority";
 import { buildOperatorInventoryDebugCopySummary, buildOperatorInventoryDebugSnapshot } from "../src/lib/operatorInventoryDebug";
 import { adaptOperatorInventory } from "../src/lib/operatorInventoryAdapter";
 import { buildLiveNodeLocalViewModelWithObserved } from "../src/lib/nodeDrilldownModel";
-import type { NetworkNodeGroup, Structure } from "../src/types/domain";
+import type { IndexedPowerSummary, NetworkNodeGroup, Structure } from "../src/types/domain";
 import type { OperatorInventoryResponse } from "../src/types/operatorInventory";
 
 const NETWORK_NODE_A_ID = "0x00000000000000000000000000000000000000000000000000000000000000aa";
@@ -55,6 +56,22 @@ const response: OperatorInventoryResponse = {
         displayName: "Index Node",
         solarSystemId: "30000142",
         fuelAmount: "1200",
+        powerSummary: createPowerSummary({
+          fuelAmount: 1200,
+          fuelMaxCapacity: 2400,
+          fuelTypeId: 88319,
+          fuelTypeName: "D2 Fuel",
+          fuelGrade: "D2",
+          efficiencyPercent: 15,
+          burnRateUnitsPerHour: 6.6,
+          estimatedSecondsRemaining: 655200,
+          estimatedHoursRemaining: 182,
+          criticalFuelThresholdSeconds: 3600,
+          lowFuelThresholdSeconds: 86400,
+          isLowFuel: false,
+          isCriticalFuel: false,
+          confidence: "indexed",
+        }),
       }),
       structures: [
         actionRow({
@@ -124,6 +141,22 @@ const response: OperatorInventoryResponse = {
         displayName: "Relay Node",
         solarSystemId: "30000143",
         fuelAmount: "1400",
+        powerSummary: createPowerSummary({
+          fuelAmount: 1400,
+          fuelMaxCapacity: 2200,
+          fuelTypeId: 78516,
+          fuelTypeName: "EU-40 Fuel",
+          fuelGrade: "EU40",
+          efficiencyPercent: 40,
+          burnRateUnitsPerHour: 10,
+          estimatedSecondsRemaining: 1800,
+          estimatedHoursRemaining: 0.5,
+          criticalFuelThresholdSeconds: 3600,
+          lowFuelThresholdSeconds: 86400,
+          isLowFuel: true,
+          isCriticalFuel: true,
+          confidence: "indexed",
+        }),
       }),
       structures: [
         actionRow({
@@ -173,6 +206,22 @@ const response: OperatorInventoryResponse = {
         displayName: "Relay Node Duplicate",
         solarSystemId: "30000143",
         fuelAmount: "1400",
+        powerSummary: createPowerSummary({
+          fuelAmount: 1400,
+          fuelMaxCapacity: 2200,
+          fuelTypeId: 78516,
+          fuelTypeName: "EU-40 Fuel",
+          fuelGrade: "EU40",
+          efficiencyPercent: 40,
+          burnRateUnitsPerHour: 10,
+          estimatedSecondsRemaining: 1800,
+          estimatedHoursRemaining: 0.5,
+          criticalFuelThresholdSeconds: 3600,
+          lowFuelThresholdSeconds: 86400,
+          isLowFuel: true,
+          isCriticalFuel: true,
+          confidence: "indexed",
+        }),
       }),
       structures: [
         actionRow({
@@ -205,6 +254,22 @@ const response: OperatorInventoryResponse = {
         solarSystemId: "30000144",
         fuelAmount: "900",
         status: "unknown",
+        powerSummary: createPowerSummary({
+          fuelAmount: 900,
+          fuelMaxCapacity: 1800,
+          fuelTypeId: 88335,
+          fuelTypeName: "D1 Fuel",
+          fuelGrade: "D1",
+          efficiencyPercent: 10,
+          burnRateUnitsPerHour: 0,
+          estimatedSecondsRemaining: null,
+          estimatedHoursRemaining: null,
+          criticalFuelThresholdSeconds: 3600,
+          lowFuelThresholdSeconds: 86400,
+          isLowFuel: null,
+          isCriticalFuel: null,
+          confidence: "indexed",
+        }),
       }),
       structures: [],
     },
@@ -353,6 +418,30 @@ const lookup = adapted.nodeLookupsByNodeId.get(NETWORK_NODE_A_ID);
 const relayGroup = buildGroup(displayNodeGroups, NETWORK_NODE_B_ID);
 const reserveGroup = buildGroup(displayNodeGroups, NETWORK_NODE_EMPTY_VALID_ID);
 const reserveLookup = adapted.nodeLookupsByNodeId.get(NETWORK_NODE_EMPTY_VALID_ID);
+const groupFuelPresentation = buildFuelPresentation(group.node);
+const relayFuelPresentation = buildFuelPresentation(relayGroup.node);
+const reserveFuelPresentation = buildFuelPresentation(reserveGroup.node);
+const lowOnlyFuelPresentation = buildFuelPresentation({
+  fuel: undefined,
+  indexedFuelAmount: null,
+  indexedPowerSummary: createPowerSummary({
+    fuelAmount: 600,
+    fuelMaxCapacity: 1200,
+    fuelTypeId: 84868,
+    fuelTypeName: "SOF-40 Fuel",
+    fuelGrade: "SOF40",
+    efficiencyPercent: 40,
+    burnRateUnitsPerHour: 8,
+    estimatedSecondsRemaining: 14400,
+    estimatedHoursRemaining: 4,
+    criticalFuelThresholdSeconds: 3600,
+    lowFuelThresholdSeconds: 86400,
+    isLowFuel: true,
+    isCriticalFuel: false,
+    confidence: "indexed",
+  }),
+  summary: undefined,
+});
 
 assert(lookup, "expected a selected-node lookup from operator inventory");
 assert.equal(lookup?.assemblies.length, 4);
@@ -362,13 +451,25 @@ assert.equal(relayGroup.turrets.length, 1);
 assert.equal(reserveGroup.gates.length + reserveGroup.storageUnits.length + reserveGroup.turrets.length, 0);
 assert.equal(reserveGroup.node.assemblyId, undefined);
 assert.equal(reserveGroup.node.indexedFuelAmount, "900");
+assert.equal(group.node.indexedPowerSummary?.criticalFuelThresholdSeconds, 3600);
+assert.equal(group.node.indexedPowerSummary?.lowFuelThresholdSeconds, 86400);
+assert.equal(groupFuelPresentation.runtimeLabel, "7d 14h");
+assert.equal(groupFuelPresentation.severity, "normal");
+assert.equal(relayFuelPresentation.severity, "critical");
+assert.equal(reserveGroup.node.indexedPowerSummary?.fuelGrade, "D1");
+assert.equal(reserveLookup?.node.fuelAmount, "900");
+assert.equal(reserveLookup?.node.powerSummary?.criticalFuelThresholdSeconds, 3600);
+assert.equal(reserveLookup?.node.powerSummary?.lowFuelThresholdSeconds, 86400);
+assert.equal(reserveFuelPresentation.runtimeLabel, null);
+assert.equal(reserveFuelPresentation.severity, "partial");
+assert.equal(lowOnlyFuelPresentation.severity, "low");
 
 const viewModel = buildLiveNodeLocalViewModelWithObserved(group, lookup, { preferObservedMembership: true });
 const reserveViewModel = buildLiveNodeLocalViewModelWithObserved(reserveGroup, reserveLookup, { preferObservedMembership: true });
 
 assert.equal(viewModel.sourceMode, "backend-membership");
 assert.equal(viewModel.structures.length, 4);
-assert.equal(reserveViewModel.node.fuelSummary, "900 units");
+assert.equal(reserveViewModel.node.fuelSummary, "D1 · 900 / 1,800 units");
 assert.equal(reserveViewModel.node.fuelAmount, "900");
 
 const gate = viewModel.structures.find((structure) => structure.objectId === GATE_ID);
@@ -582,7 +683,7 @@ function networkNodeRow(input: {
   solarSystemId: string | null;
   fuelAmount: string | null;
   status?: "online" | "offline" | "warning" | "unknown" | "unanchored";
-  powerSummary?: string | null;
+  powerSummary?: IndexedPowerSummary | null;
   energySourceId?: string | null;
 }) {
   return {
@@ -615,6 +716,27 @@ function networkNodeRow(input: {
     partial: false,
     warnings: [],
     actionCandidate: null,
+  };
+}
+
+function createPowerSummary(overrides: Partial<IndexedPowerSummary> = {}): IndexedPowerSummary {
+  return {
+    fuelAmount: overrides.fuelAmount ?? null,
+    fuelMaxCapacity: overrides.fuelMaxCapacity ?? null,
+    fuelTypeId: overrides.fuelTypeId ?? null,
+    fuelTypeName: overrides.fuelTypeName ?? null,
+    fuelGrade: overrides.fuelGrade ?? null,
+    efficiencyPercent: overrides.efficiencyPercent ?? null,
+    burnRateUnitsPerHour: overrides.burnRateUnitsPerHour ?? null,
+    estimatedSecondsRemaining: overrides.estimatedSecondsRemaining ?? null,
+    estimatedHoursRemaining: overrides.estimatedHoursRemaining ?? null,
+    criticalFuelThresholdSeconds: overrides.criticalFuelThresholdSeconds ?? null,
+    lowFuelThresholdSeconds: overrides.lowFuelThresholdSeconds ?? null,
+    isLowFuel: overrides.isLowFuel ?? null,
+    isCriticalFuel: overrides.isCriticalFuel ?? null,
+    source: overrides.source ?? "operator-inventory",
+    lastUpdated: overrides.lastUpdated ?? OBSERVED_AT,
+    confidence: overrides.confidence ?? "indexed",
   };
 }
 

@@ -1,4 +1,4 @@
-import type { IndexedActionCandidate, ObjectId } from "@/types/domain";
+import type { IndexedActionCandidate, IndexedPowerSummary, ObjectId } from "@/types/domain";
 
 export type OperatorInventorySchemaVersion = "operator-inventory.v1";
 
@@ -47,7 +47,7 @@ export interface OperatorInventoryStructure {
   characterId: ObjectId | null;
   extensionStatus: "authorized" | "stale" | "none" | null;
   fuelAmount: string | null;
-  powerSummary: string | null;
+  powerSummary: IndexedPowerSummary | null;
   solarSystemId: string | null;
   url: string | null;
   lastObservedCheckpoint: string | null;

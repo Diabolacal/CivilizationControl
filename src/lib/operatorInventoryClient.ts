@@ -4,6 +4,7 @@ import type {
   IndexedActionCandidate,
   IndexedActionRequiredIds,
   IndexedStructureAction,
+  IndexedPowerSummary,
   StructureType,
 } from "@/types/domain";
 import type {
@@ -278,7 +279,7 @@ function normalizeOperatorInventoryStructure(
     characterId: normalizeCanonicalObjectId(normalizeNullableString(candidate.characterId)),
     extensionStatus: normalizeExtensionStatus(candidate.extensionStatus),
     fuelAmount: normalizeNullableString(candidate.fuelAmount),
-    powerSummary: normalizeNullableString(candidate.powerSummary),
+    powerSummary: normalizeIndexedPowerSummary(candidate.powerSummary),
     solarSystemId: normalizeNullableString(candidate.solarSystemId),
     url: normalizeNullableString(candidate.url),
     lastObservedCheckpoint: normalizeNullableString(candidate.lastObservedCheckpoint),
@@ -291,6 +292,70 @@ function normalizeOperatorInventoryStructure(
       ? normalizeStringArray(candidate.warnings)
       : defaults.warnings,
     actionCandidate,
+  };
+}
+
+function normalizeIndexedPowerSummary(value: unknown): IndexedPowerSummary | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Record<string, unknown>;
+  const fuelAmount = normalizeNumber(candidate.fuelAmount);
+  const fuelMaxCapacity = normalizeNumber(candidate.fuelMaxCapacity);
+  const fuelTypeId = normalizeNumber(candidate.fuelTypeId);
+  const fuelTypeName = normalizeNullableString(candidate.fuelTypeName);
+  const fuelGrade = normalizeNullableString(candidate.fuelGrade);
+  const efficiencyPercent = normalizeNumber(candidate.efficiencyPercent);
+  const burnRateUnitsPerHour = normalizeNumber(candidate.burnRateUnitsPerHour);
+  const estimatedSecondsRemaining = normalizeNumber(candidate.estimatedSecondsRemaining);
+  const estimatedHoursRemaining = normalizeNumber(candidate.estimatedHoursRemaining);
+  const criticalFuelThresholdSeconds = normalizeNumber(candidate.criticalFuelThresholdSeconds);
+  const lowFuelThresholdSeconds = normalizeNumber(candidate.lowFuelThresholdSeconds);
+  const isLowFuel = normalizeBoolean(candidate.isLowFuel);
+  const isCriticalFuel = normalizeBoolean(candidate.isCriticalFuel);
+  const source = normalizeNullableString(candidate.source);
+  const lastUpdated = normalizeNullableTimestamp(candidate.lastUpdated);
+  const confidence = normalizeNullableString(candidate.confidence);
+
+  const hasUsefulField = [
+    fuelAmount,
+    fuelMaxCapacity,
+    fuelTypeId,
+    fuelTypeName,
+    fuelGrade,
+    efficiencyPercent,
+    burnRateUnitsPerHour,
+    estimatedSecondsRemaining,
+    estimatedHoursRemaining,
+    criticalFuelThresholdSeconds,
+    lowFuelThresholdSeconds,
+    source,
+    lastUpdated,
+    confidence,
+  ].some((field) => field != null)
+    || isLowFuel != null
+    || isCriticalFuel != null;
+
+  if (!hasUsefulField) {
+    return null;
+  }
+
+  return {
+    fuelAmount,
+    fuelMaxCapacity,
+    fuelTypeId,
+    fuelTypeName,
+    fuelGrade,
+    efficiencyPercent,
+    burnRateUnitsPerHour,
+    estimatedSecondsRemaining,
+    estimatedHoursRemaining,
+    criticalFuelThresholdSeconds,
+    lowFuelThresholdSeconds,
+    isLowFuel,
+    isCriticalFuel,
+    source,
+    lastUpdated,
+    confidence,
   };
 }
 

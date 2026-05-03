@@ -477,7 +477,7 @@ function collectNodeProofSignals(row: OperatorInventoryStructure): IndexedNetwor
     signals.push("fuel-amount");
   }
 
-  if (row.powerSummary && row.powerSummary.trim().length > 0) {
+  if (row.powerSummary) {
     signals.push("power-summary");
   }
 
@@ -550,6 +550,8 @@ function toNodeAssemblyNode(row: OperatorInventoryStructure): NodeAssemblyNode {
     assemblyId: row.assemblyId,
     solarSystemId: row.solarSystemId,
     energySourceId: row.energySourceId,
+    fuelAmount: row.fuelAmount,
+    powerSummary: row.powerSummary,
   };
 }
 
@@ -627,6 +629,7 @@ function toCompatibleStructure(
     status: mapOperatorInventoryStatusToStructureStatus(row.status),
     networkNodeId: compatibleType === "network_node" ? undefined : networkNodeId ?? undefined,
     indexedFuelAmount: row.fuelAmount,
+    indexedPowerSummary: row.powerSummary,
     linkedGateId: row.linkedGateId ?? undefined,
     summary: summary ?? undefined,
     extensionStatus: row.extensionStatus ?? "none",
@@ -777,6 +780,7 @@ function preferCompatibleStructure(existing: Structure, incoming: Structure): St
   if (incomingScore < existingScore) return existing;
   if (!existing.networkNodeId && incoming.networkNodeId) return incoming;
   if (!existing.indexedFuelAmount && incoming.indexedFuelAmount) return incoming;
+  if (!existing.indexedPowerSummary && incoming.indexedPowerSummary) return incoming;
   return existing;
 }
 
@@ -785,6 +789,7 @@ function compatibilityStructureScore(structure: Structure): number {
   if (structure.ownerCapId) score += 3;
   if (structure.summary) score += 2;
   if (structure.indexedFuelAmount) score += 1;
+  if (structure.indexedPowerSummary) score += 2;
   if (structure.networkNodeId) score += 1;
   if (structure.extensionStatus === "authorized") score += 1;
   return score;
@@ -821,8 +826,18 @@ function preferNodeAssemblyNode(
   if (!existing) return incoming;
   if (!incoming) return existing;
 
-  const existingScore = (existing.displayName ? 2 : 0) + (existing.name ? 1 : 0) + (existing.assemblyId ? 1 : 0);
-  const incomingScore = (incoming.displayName ? 2 : 0) + (incoming.name ? 1 : 0) + (incoming.assemblyId ? 1 : 0);
+  const existingScore = (existing.displayName ? 2 : 0)
+    + (existing.name ? 1 : 0)
+    + (existing.assemblyId ? 1 : 0)
+    + (existing.fuelAmount ? 1 : 0)
+    + (existing.powerSummary ? 2 : 0)
+    + (existing.energySourceId ? 1 : 0);
+  const incomingScore = (incoming.displayName ? 2 : 0)
+    + (incoming.name ? 1 : 0)
+    + (incoming.assemblyId ? 1 : 0)
+    + (incoming.fuelAmount ? 1 : 0)
+    + (incoming.powerSummary ? 2 : 0)
+    + (incoming.energySourceId ? 1 : 0);
 
   return incomingScore > existingScore ? incoming : existing;
 }
@@ -836,6 +851,7 @@ function preferNodeAssemblySummary(
   if (incomingScore > existingScore) return incoming;
   if (incomingScore < existingScore) return existing;
   if (!existing.energySourceId && incoming.energySourceId) return incoming;
+  if (!existing.powerSummary && incoming.powerSummary) return incoming;
   return existing;
 }
 
@@ -845,6 +861,7 @@ function nodeAssemblySummaryScore(summary: NodeAssemblySummary): number {
   if (summary.ownerCapId) score += 3;
   if (summary.assemblyId) score += 1;
   if (summary.actionCandidate) score += 1;
+  if (summary.powerSummary) score += 2;
   if (summary.displayName || summary.name) score += 1;
   return score;
 }

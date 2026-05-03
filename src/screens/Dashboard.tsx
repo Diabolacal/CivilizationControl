@@ -42,7 +42,7 @@ import { useOperatorInventory } from "@/hooks/useOperatorInventory";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
 import { formatLux, formatEve } from "@/lib/currency";
-import { computeRuntimeMs, getFuelEfficiency, formatRuntime } from "@/lib/fuelRuntime";
+import { buildFuelPresentation, formatRuntimeSeconds } from "@/lib/fuelRuntime";
 import { resolveNodeDrilldownScopeKey } from "@/lib/nodeDrilldownHiddenState";
 import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapshot } from "@/lib/nodeDrilldownModel";
 import { buildOperatorInventoryDebugCopySummary, buildOperatorInventoryDebugSnapshot } from "@/lib/operatorInventoryDebug";
@@ -675,31 +675,40 @@ function AttentionAlerts({ metrics, structures }: { metrics: NetworkMetrics; str
     });
   }
 
-  // Low-fuel: network nodes with < 24h runtime remaining
-  const LOW_RUNTIME_THRESHOLD_MS = 24 * 60 * 60 * 1000; // 24 hours
-  const nodes = structures.filter((s) => s.type === "network_node" && s.fuel?.isBurning);
-  const lowFuelNodes = nodes.filter((s) => {
-    const fuel = s.fuel!;
-    const eff = getFuelEfficiency(fuel.typeId);
-    if (eff === undefined) return false;
-    const runtimeMs = computeRuntimeMs(fuel.quantity, fuel.burnRateMs, eff);
-    return runtimeMs !== undefined && runtimeMs < LOW_RUNTIME_THRESHOLD_MS;
-  });
+  const nodeFuelStates = structures
+    .filter((structure) => structure.type === "network_node")
+    .map((structure) => ({ structure, fuel: buildFuelPresentation(structure) }));
+  const criticalFuelNodes = nodeFuelStates.filter((entry) => entry.fuel.severity === "critical");
+  const lowFuelNodes = nodeFuelStates.filter((entry) => entry.fuel.severity === "low");
+
+  const shortestRuntimeLabel = (entries: typeof nodeFuelStates) => {
+    const shortestRuntime = entries.reduce<number | null>((shortest, entry) => {
+      const runtime = entry.fuel.estimatedSecondsRemaining;
+      if (runtime == null) {
+        return shortest;
+      }
+
+      return shortest == null || runtime < shortest ? runtime : shortest;
+    }, null);
+
+    return shortestRuntime != null ? formatRuntimeSeconds(shortestRuntime) : null;
+  };
+
+  if (criticalFuelNodes.length > 0) {
+    alerts.push({
+      icon: <Flame className="w-3.5 h-3.5" />,
+      name: "Critical Fuel",
+      issue: `${criticalFuelNodes.length} node${criticalFuelNodes.length !== 1 ? "s" : ""} under 1h${shortestRuntimeLabel(criticalFuelNodes) ? ` — shortest ${shortestRuntimeLabel(criticalFuelNodes)}` : ""}`,
+      severity: "critical",
+      to: "/nodes",
+    });
+  }
 
   if (lowFuelNodes.length > 0) {
-    // Show shortest runtime for urgency context
-    const shortestMs = lowFuelNodes.reduce((min, s) => {
-      const fuel = s.fuel!;
-      const eff = getFuelEfficiency(fuel.typeId);
-      if (eff === undefined) return min;
-      const rt = computeRuntimeMs(fuel.quantity, fuel.burnRateMs, eff) ?? Infinity;
-      return rt < min ? rt : min;
-    }, Infinity);
-
     alerts.push({
       icon: <Flame className="w-3.5 h-3.5" />,
       name: "Low Fuel",
-      issue: `${lowFuelNodes.length} node${lowFuelNodes.length !== 1 ? "s" : ""} under 24h — shortest ${formatRuntime(shortestMs)}`,
+      issue: `${lowFuelNodes.length} node${lowFuelNodes.length !== 1 ? "s" : ""} under 24h${shortestRuntimeLabel(lowFuelNodes) ? ` — shortest ${shortestRuntimeLabel(lowFuelNodes)}` : ""}`,
       severity: "warning",
       to: "/nodes",
     });
