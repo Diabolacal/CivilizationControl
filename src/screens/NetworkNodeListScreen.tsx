@@ -14,10 +14,8 @@ import { TagChip } from "@/components/TagChip";
 import { NetworkNodeGlyph } from "@/components/topology/Glyphs";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { useStructurePower } from "@/hooks/useStructurePower";
-import { getAssemblySummarySolarSystemName } from "@/lib/assemblyEnrichment";
 import { fuelTypeLabel, getFuelEfficiency, computeRuntimeMs, formatRuntime } from "@/lib/fuelRuntime";
 import { shortId } from "@/lib/formatAddress";
-import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, NetworkNodeGroup } from "@/types/domain";
 
 interface NetworkNodeListScreenProps {
@@ -110,7 +108,7 @@ export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeList
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Status</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Fuel</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Attached</th>
-                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Location</th>
+                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Object ID</th>
               </tr>
             </thead>
             <tbody>
@@ -202,17 +200,14 @@ function NodeRow({ node, group }: { node: Structure; group?: NetworkNodeGroup })
         <TagChip label={`${attachedCount} structures`} variant="default" size="sm" />
       </td>
       <td className="py-3 px-4">
-        {(() => {
-          const pin = getSpatialPin(node.objectId);
-          const locationName = pin?.solarSystemName ?? getAssemblySummarySolarSystemName(node);
-          return locationName ? (
-            <span className="text-[11px] text-muted-foreground">{locationName}</span>
-          ) : (
-            <span className="text-[11px] font-mono text-muted-foreground/50" title={node.objectId}>
-              {shortId(node.objectId)}
-            </span>
-          );
-        })()}
+        <div className="space-y-0.5" title={node.objectId}>
+          <span className="block text-[11px] font-mono text-foreground" aria-label={`Object ID ${node.objectId}`}>
+            {shortId(node.objectId)}
+          </span>
+          <span className="block text-[10px] font-mono text-muted-foreground/70">
+            {node.assemblyId ? `Assembly ${node.assemblyId}` : "Assembly not indexed"}
+          </span>
+        </div>
       </td>
     </tr>
   );

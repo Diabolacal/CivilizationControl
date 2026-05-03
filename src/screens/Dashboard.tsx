@@ -45,7 +45,7 @@ import { formatLux, formatEve } from "@/lib/currency";
 import { computeRuntimeMs, getFuelEfficiency, formatRuntime } from "@/lib/fuelRuntime";
 import { resolveNodeDrilldownScopeKey } from "@/lib/nodeDrilldownHiddenState";
 import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapshot } from "@/lib/nodeDrilldownModel";
-import { buildOperatorInventoryDebugSnapshot } from "@/lib/operatorInventoryDebug";
+import { buildOperatorInventoryDebugCopySummary, buildOperatorInventoryDebugSnapshot } from "@/lib/operatorInventoryDebug";
 import type { NetworkMetrics, NetworkNodeGroup, SpatialPin, Structure } from "@/types/domain";
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
 
@@ -380,6 +380,7 @@ export function Dashboard({
         if (!window.__CC_OPERATOR_INVENTORY_DEBUG__) return;
         window.__CC_OPERATOR_INVENTORY_DEBUG__.latest = null;
       },
+      copySummary: () => null,
     };
 
     controller.enabled = true;
@@ -397,6 +398,18 @@ export function Dashboard({
       nodeAssembliesFallbackRan: shouldUseNodeAssembliesFallback && hasAttemptedNodeAssembliesFallback,
       operatorInventoryErrorMessage: operatorInventory.errorMessage,
     });
+    controller.copySummary = () => {
+      const summary = buildOperatorInventoryDebugCopySummary(controller.latest);
+      if (!summary) {
+        return null;
+      }
+
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(JSON.stringify(summary, null, 2)).catch(() => undefined);
+      }
+
+      return summary;
+    };
     window.__CC_OPERATOR_INVENTORY_DEBUG__ = controller;
 
     console.info("[operator-inventory-debug] window.__CC_OPERATOR_INVENTORY_DEBUG__.latest updated");
@@ -566,6 +579,7 @@ export function Dashboard({
                 <NodeSelectionInspector
                   embedded
                   viewModel={selectedNodeViewModel}
+                  selectedNode={selectedNodeGroup?.node ?? null}
                   selectedStructureId={selectedStructureId}
                   hiddenCanonicalKeySet={hiddenCanonicalKeySet}
                   onUnhideStructure={unhideStructure}
@@ -576,6 +590,7 @@ export function Dashboard({
                   powerStructureId={powerStructureId}
                   powerSuccessLabel={powerSuccessLabel}
                   onDismissPowerFeedback={handleDismissNodeLocalPowerFeedback}
+                  debugOperatorInventoryEnabled={isOperatorInventoryDebugEnabled}
                 />
               ) : (
                 <div className="divide-y divide-border/50">

@@ -46,6 +46,24 @@ export interface IndexedActionCandidate {
   unavailableReason: string | null;
 }
 
+export type IndexedNetworkNodeProofSignal =
+  | "assembly-id"
+  | "owner-cap-id"
+  | "non-neutral-status"
+  | "fuel-amount"
+  | "power-summary"
+  | "energy-source-id";
+
+export type IndexedNetworkNodeRenderEligibility = "grouped-structures" | "strong-owned-node-proof";
+
+export interface IndexedNetworkNodeRenderMeta {
+  rawNodeIndex: number | null;
+  canonicalIdentity: string | null;
+  strongOwnedNodeProof: boolean;
+  proofSignals: IndexedNetworkNodeProofSignal[];
+  renderEligibility: IndexedNetworkNodeRenderEligibility | null;
+}
+
 /** Optional shared-backend assembly summary keyed by decimal assembly ID. */
 export interface AssemblySummary {
   assemblyId: string;
@@ -55,6 +73,7 @@ export interface AssemblySummary {
   displayName?: string | null;
   status: string | null;
   fuelAmount: string | null;
+  powerSummary?: string | null;
   solarSystemId: string | null;
   energySourceId: string | null;
   url: string | null;
@@ -161,6 +180,8 @@ export interface Structure {
   linkedGateId?: ObjectId;
   /** Optional shared-backend enrichment; direct-chain fields remain authoritative. */
   summary?: AssemblySummary;
+  /** Render metadata for grouped operator-inventory network nodes. */
+  networkNodeRenderMeta?: IndexedNetworkNodeRenderMeta | null;
   /**
    * Extension authorization status:
    * - "authorized" — extension matches the current CC package witness type

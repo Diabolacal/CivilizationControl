@@ -7,7 +7,12 @@ import { buildOperatorInventoryUrl } from "@/lib/operatorInventoryClient";
 import type { NodeLocalStructure, NodeLocalSourceMode } from "@/lib/nodeDrilldownTypes";
 import type { AdaptedOperatorInventory } from "@/lib/operatorInventoryAdapter";
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
-import type { NetworkNodeGroup, Structure } from "@/types/domain";
+import type {
+  IndexedNetworkNodeProofSignal,
+  IndexedNetworkNodeRenderEligibility,
+  NetworkNodeGroup,
+  Structure,
+} from "@/types/domain";
 import type { OperatorInventoryResponse, OperatorInventoryStructure } from "@/types/operatorInventory";
 
 export interface OperatorInventoryDebugIdentityRow {
@@ -42,6 +47,11 @@ export interface OperatorInventoryDebugRawNode {
   source: string | null;
   provenance: string | null;
   structureCount: number;
+  rendered: boolean;
+  quarantineReason: string | null;
+  strongOwnedNodeProof: boolean;
+  proofSignals: IndexedNetworkNodeProofSignal[];
+  renderEligibility: IndexedNetworkNodeRenderEligibility | null;
 }
 
 export interface OperatorInventoryDebugRenderedMacroNode {
@@ -69,6 +79,7 @@ export interface OperatorInventoryDebugSnapshot {
   rawNetworkNodeDuplicateBucketsByAssemblyId: OperatorInventoryDebugDuplicateBucket[];
   rawNetworkNodeDuplicateBucketsByOwnerCapId: OperatorInventoryDebugDuplicateBucket[];
   rawNetworkNodeDuplicateBucketsByCanonicalIdentity: OperatorInventoryDebugDuplicateBucket[];
+  groupedNodeEligibilityDecisions: OperatorInventoryDebugRawNode[];
   rawGroupedRows: OperatorInventoryDebugIdentityRow[];
   rawGroupedDuplicateBucketsByObjectId: OperatorInventoryDebugDuplicateBucket[];
   rawGroupedDuplicateBucketsByOwnerCapId: OperatorInventoryDebugDuplicateBucket[];
@@ -92,11 +103,23 @@ export interface OperatorInventoryDebugSnapshot {
     source: string | null;
     provenance: string | null;
     reason: string;
+    strongOwnedNodeProof: boolean;
+    proofSignals: IndexedNetworkNodeProofSignal[];
+    renderEligibility: IndexedNetworkNodeRenderEligibility | null;
   }>;
   displayStructureRows: OperatorInventoryDebugIdentityRow[];
   renderedMacroNetworkNodeCount: number;
   renderedNetworkNodeListCount: number;
   renderedMacroNodes: OperatorInventoryDebugRenderedMacroNode[];
+  renderedNodeGroups: OperatorInventoryDebugRenderedMacroNode[];
+  renderedNetworkNodeListRows: Array<{
+    objectId: string | null;
+    assemblyId: string | null;
+    displayName: string | null;
+    status: string | null;
+    attachedStructureCount: number;
+    canonicalIdentity: string | null;
+  }>;
   renderedNodeControlSourceMode: NodeLocalSourceMode | null;
   renderedNodeControlSelectedNodeId: string | null;
   renderedNodeControlSelectedNodeStructuresCount: number;
@@ -115,10 +138,45 @@ export interface OperatorInventoryDebugSnapshot {
   localStorageOrDebugFixturesParticipated: boolean;
 }
 
+export interface OperatorInventoryDebugCopySummary {
+  requestedWalletAddress: string | null;
+  rawOperatorWalletAddress: string | null;
+  rawNetworkNodes: Array<{
+    index: number;
+    objectId: string | null;
+    assemblyId: string | null;
+    ownerCapId: string | null;
+    status: string | null;
+    structureCount: number;
+    rendered: boolean;
+    quarantineReason: string | null;
+    strongOwnedNodeProof: boolean;
+    proofSignals: IndexedNetworkNodeProofSignal[];
+  }>;
+  renderedNetworkNodes: Array<{
+    objectId: string | null;
+    assemblyId: string | null;
+    status: string | null;
+    attachedStructureCount: number;
+    canonicalIdentity: string | null;
+  }>;
+  quarantinedNodes: Array<{
+    index: number;
+    objectId: string | null;
+    assemblyId: string | null;
+    ownerCapId: string | null;
+    status: string | null;
+    structureCount: number;
+    reason: string;
+    proofSignals: IndexedNetworkNodeProofSignal[];
+  }>;
+}
+
 export interface OperatorInventoryDebugController {
   enabled: boolean;
   latest: OperatorInventoryDebugSnapshot | null;
   clear: () => void;
+  copySummary?: () => OperatorInventoryDebugCopySummary | null;
 }
 
 interface BuildOperatorInventoryDebugSnapshotInput {
@@ -139,11 +197,16 @@ interface BuildOperatorInventoryDebugSnapshotInput {
 export function buildOperatorInventoryDebugSnapshot(
   input: BuildOperatorInventoryDebugSnapshotInput,
 ): OperatorInventoryDebugSnapshot {
+  const eligibilityByIndex = new Map(
+    input.adapted?.nodeEligibilityDecisions.map((decision) => [decision.index, decision]) ?? [],
+  );
   const rawGroupedRows = input.inventory?.networkNodes.flatMap((group) => (
     group.structures.map((row) => describeRawStructure(row, "grouped", group.node.objectId))
   )) ?? [];
   const rawUnlinkedRows = input.inventory?.unlinkedStructures.map((row) => describeRawStructure(row, "unlinked", null)) ?? [];
-  const rawNetworkNodes = input.inventory?.networkNodes.map((group, index) => describeRawNode(group.node, group.structures.length, index)) ?? [];
+  const rawNetworkNodes = input.inventory?.networkNodes.map((group, index) => (
+    describeRawNode(group.node, group.structures.length, index, eligibilityByIndex.get(index) ?? null)
+  )) ?? [];
   const displayStructureRows = input.displayStructures.map(describeDisplayStructure);
   const renderedNodeControlRows = input.selectedNodeRows.map(describeNodeControlRow);
   const renderedMacroNodes = input.displayNodeGroups.map((group) => describeRenderedMacroNode(group, input.readModelDebug));
@@ -168,6 +231,7 @@ export function buildOperatorInventoryDebugSnapshot(
     rawNetworkNodeDuplicateBucketsByAssemblyId: buildRawNodeDuplicateBuckets(rawNetworkNodes, (row) => row.assemblyId),
     rawNetworkNodeDuplicateBucketsByOwnerCapId: buildRawNodeDuplicateBuckets(rawNetworkNodes, (row) => row.ownerCapId),
     rawNetworkNodeDuplicateBucketsByCanonicalIdentity: buildRawNodeDuplicateBuckets(rawNetworkNodes, (row) => row.canonicalIdentity),
+    groupedNodeEligibilityDecisions: rawNetworkNodes,
     rawGroupedRows,
     rawGroupedDuplicateBucketsByObjectId: buildDuplicateBuckets(rawGroupedRows, (row) => row.objectId),
     rawGroupedDuplicateBucketsByOwnerCapId: buildDuplicateBuckets(rawGroupedRows, (row) => row.ownerCapId),
@@ -191,11 +255,23 @@ export function buildOperatorInventoryDebugSnapshot(
       source: row.source,
       provenance: row.provenance,
       reason: row.reason,
+      strongOwnedNodeProof: row.strongOwnedNodeProof,
+      proofSignals: row.proofSignals,
+      renderEligibility: row.renderEligibility,
     })) ?? [],
     displayStructureRows,
     renderedMacroNetworkNodeCount: input.displayNodeGroups.length,
     renderedNetworkNodeListCount: input.displayNodeGroups.length,
     renderedMacroNodes,
+    renderedNodeGroups: renderedMacroNodes,
+    renderedNetworkNodeListRows: input.displayNodeGroups.map((group) => ({
+      objectId: normalizeCanonicalObjectId(group.node.objectId),
+      assemblyId: normalizeNodeDrilldownAssemblyId(group.node.assemblyId),
+      displayName: group.node.name,
+      status: group.node.status,
+      attachedStructureCount: group.gates.length + group.storageUnits.length + group.turrets.length,
+      canonicalIdentity: canonicalDomainKey(group.node.objectId, group.node.assemblyId),
+    })),
     renderedNodeControlSourceMode: input.selectedNodeSourceMode,
     renderedNodeControlSelectedNodeId: input.selectedNodeId,
     renderedNodeControlSelectedNodeStructuresCount: input.selectedNodeRows.length,
@@ -219,6 +295,7 @@ function describeRawNode(
   row: OperatorInventoryStructure,
   structureCount: number,
   index: number,
+  eligibilityDecision: AdaptedOperatorInventory["nodeEligibilityDecisions"][number] | null,
 ): OperatorInventoryDebugRawNode {
   return {
     index,
@@ -233,6 +310,11 @@ function describeRawNode(
     source: row.source ?? null,
     provenance: row.provenance ?? null,
     structureCount,
+    rendered: eligibilityDecision?.rendered ?? false,
+    quarantineReason: eligibilityDecision?.quarantineReason ?? null,
+    strongOwnedNodeProof: eligibilityDecision?.strongOwnedNodeProof ?? false,
+    proofSignals: eligibilityDecision?.proofSignals ?? [],
+    renderEligibility: eligibilityDecision?.renderEligibility ?? null,
   };
 }
 
@@ -405,4 +487,46 @@ function buildDebugOperatorInventoryUrl(walletAddress: string | null): string | 
   } catch {
     return null;
   }
+}
+
+export function buildOperatorInventoryDebugCopySummary(
+  snapshot: OperatorInventoryDebugSnapshot | null,
+): OperatorInventoryDebugCopySummary | null {
+  if (!snapshot) {
+    return null;
+  }
+
+  return {
+    requestedWalletAddress: snapshot.requestedWalletAddress,
+    rawOperatorWalletAddress: snapshot.rawOperatorWalletAddress,
+    rawNetworkNodes: snapshot.rawNetworkNodes.map((row) => ({
+      index: row.index,
+      objectId: row.objectId,
+      assemblyId: row.assemblyId,
+      ownerCapId: row.ownerCapId,
+      status: row.status,
+      structureCount: row.structureCount,
+      rendered: row.rendered,
+      quarantineReason: row.quarantineReason,
+      strongOwnedNodeProof: row.strongOwnedNodeProof,
+      proofSignals: row.proofSignals,
+    })),
+    renderedNetworkNodes: snapshot.renderedNetworkNodeListRows.map((row) => ({
+      objectId: row.objectId,
+      assemblyId: row.assemblyId,
+      status: row.status,
+      attachedStructureCount: row.attachedStructureCount,
+      canonicalIdentity: row.canonicalIdentity,
+    })),
+    quarantinedNodes: snapshot.quarantinedNodeRows.map((row) => ({
+      index: row.index,
+      objectId: row.objectId,
+      assemblyId: row.assemblyId,
+      ownerCapId: row.ownerCapId,
+      status: row.status,
+      structureCount: row.structureCount,
+      reason: row.reason,
+      proofSignals: row.proofSignals,
+    })),
+  };
 }

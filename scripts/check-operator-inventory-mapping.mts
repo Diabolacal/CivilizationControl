@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
@@ -6,7 +7,7 @@ import { MemoryRouter } from "react-router";
 import { Sidebar } from "../src/components/Sidebar";
 import { selectDisplayNodeGroups } from "../src/lib/assetDiscoveryDisplayModel";
 import { getNodeLocalPowerToggleIntent } from "../src/lib/nodeDrilldownActionAuthority";
-import { buildOperatorInventoryDebugSnapshot } from "../src/lib/operatorInventoryDebug";
+import { buildOperatorInventoryDebugCopySummary, buildOperatorInventoryDebugSnapshot } from "../src/lib/operatorInventoryDebug";
 import { adaptOperatorInventory } from "../src/lib/operatorInventoryAdapter";
 import { buildLiveNodeLocalViewModelWithObserved } from "../src/lib/nodeDrilldownModel";
 import type { NetworkNodeGroup, Structure } from "../src/types/domain";
@@ -16,7 +17,8 @@ const NETWORK_NODE_A_ID = "0x000000000000000000000000000000000000000000000000000
 const NETWORK_NODE_B_ID = "0x00000000000000000000000000000000000000000000000000000000000000bb";
 const NETWORK_NODE_B_ALIAS_ID = "0x00000000000000000000000000000000000000000000000000000000000000bc";
 const NETWORK_NODE_EMPTY_VALID_ID = "0x00000000000000000000000000000000000000000000000000000000000000be";
-const NETWORK_NODE_EMPTY_INVALID_ID = "0x00000000000000000000000000000000000000000000000000000000000000bf";
+const NETWORK_NODE_OBJECT_ONLY_ID = "0x00000000000000000000000000000000000000000000000000000000000000bf";
+const NETWORK_NODE_WEAK_NEUTRAL_ID = "0x00000000000000000000000000000000000000000000000000000000000000c0";
 const STRAY_NETWORK_NODE_ID = "0x00000000000000000000000000000000000000000000000000000000000000cc";
 const MISSING_IDENTITY_NODE_OWNER_CAP_ID = "0x00000000000000000000000000000000000000000000000000000000000000ce";
 const LEGACY_FALLBACK_NODE_ID = "0x00000000000000000000000000000000000000000000000000000000000000dd";
@@ -202,17 +204,31 @@ const response: OperatorInventoryResponse = {
         displayName: "Reserve Node",
         solarSystemId: "30000144",
         fuelAmount: "900",
+        status: "unknown",
       }),
       structures: [],
     },
     {
       node: networkNodeRow({
-        objectId: NETWORK_NODE_EMPTY_INVALID_ID,
-        assemblyId: "9004",
+        objectId: NETWORK_NODE_OBJECT_ONLY_ID,
+        assemblyId: null,
         ownerCapId: null,
-        displayName: "Phantom Candidate",
+        displayName: "Object-Only Phantom",
         solarSystemId: "30000145",
         fuelAmount: null,
+        status: "unknown",
+      }),
+      structures: [],
+    },
+    {
+      node: networkNodeRow({
+        objectId: NETWORK_NODE_WEAK_NEUTRAL_ID,
+        assemblyId: "9004",
+        ownerCapId: null,
+        displayName: "Weak Neutral Node",
+        solarSystemId: "30000146",
+        fuelAmount: null,
+        status: "unknown",
       }),
       structures: [],
     },
@@ -222,8 +238,9 @@ const response: OperatorInventoryResponse = {
         assemblyId: null,
         ownerCapId: MISSING_IDENTITY_NODE_OWNER_CAP_ID,
         displayName: "Identityless Node",
-        solarSystemId: "30000146",
+        solarSystemId: "30000147",
         fuelAmount: null,
+        status: "unknown",
       }),
       structures: [],
     },
@@ -303,6 +320,8 @@ const displayNodeGroups = selectDisplayNodeGroups({
 
 assert.equal(adapted.profile?.characterId, response.operator?.characterId);
 assert.equal(adapted.metrics.networkNodeCount, 3);
+assert.equal(adapted.metrics.totalStructures, 8);
+assert.equal(adapted.metrics.onlineCount, 6);
 assert.equal(adapted.metrics.gateCount, 2);
 assert.equal(adapted.metrics.storageUnitCount, 1);
 assert.equal(adapted.metrics.turretCount, 2);
@@ -312,15 +331,22 @@ assert(adapted.structures.every((structure) => structure.readModelSource === "op
 assert.equal(adapted.unlinkedStructures.length, 3);
 assert.equal(adapted.nodeGroups.length, 3);
 assert.deepEqual(adapted.nodeGroups.map((group) => group.node.objectId), [NETWORK_NODE_A_ID, NETWORK_NODE_B_ID, NETWORK_NODE_EMPTY_VALID_ID]);
+assert.equal(adapted.nodeEligibilityDecisions.length, 7);
 assert.equal(displayNodeGroups.length, 3);
 assert(!displayNodeGroups.some((group) => group.node.objectId === LEGACY_FALLBACK_NODE_ID));
 assert(!adapted.structures.some((structure) => structure.objectId === STRAY_NETWORK_NODE_ID));
-assert(!adapted.structures.some((structure) => structure.objectId === NETWORK_NODE_EMPTY_INVALID_ID));
-assert(!displayNodeGroups.some((group) => group.node.objectId === NETWORK_NODE_EMPTY_INVALID_ID));
-assert.equal(adapted.quarantinedNodeRows.length, 3);
+assert(!adapted.structures.some((structure) => structure.objectId === NETWORK_NODE_OBJECT_ONLY_ID));
+assert(!adapted.structures.some((structure) => structure.objectId === NETWORK_NODE_WEAK_NEUTRAL_ID));
+assert(!displayNodeGroups.some((group) => group.node.objectId === NETWORK_NODE_OBJECT_ONLY_ID));
+assert(!displayNodeGroups.some((group) => group.node.objectId === NETWORK_NODE_WEAK_NEUTRAL_ID));
+assert.equal(adapted.quarantinedNodeRows.length, 4);
 assert(adapted.quarantinedNodeRows.some((row) => row.objectId === NETWORK_NODE_B_ALIAS_ID && row.reason === "duplicate-canonical-node"));
-assert(adapted.quarantinedNodeRows.some((row) => row.objectId === NETWORK_NODE_EMPTY_INVALID_ID && row.reason === "zero-structure-missing-owned-node-identity"));
+assert(adapted.quarantinedNodeRows.some((row) => row.objectId === NETWORK_NODE_OBJECT_ONLY_ID && row.reason === "zero-structure-missing-strong-owned-proof"));
+assert(adapted.quarantinedNodeRows.some((row) => row.objectId === NETWORK_NODE_WEAK_NEUTRAL_ID && row.reason === "zero-structure-missing-strong-owned-proof"));
 assert(adapted.quarantinedNodeRows.some((row) => row.displayName === "Identityless Node" && row.reason === "missing-canonical-identity"));
+assert(adapted.nodeEligibilityDecisions.some((row) => row.objectId === NETWORK_NODE_EMPTY_VALID_ID && row.rendered && row.strongOwnedNodeProof && row.renderEligibility === "strong-owned-node-proof"));
+assert(adapted.nodeEligibilityDecisions.some((row) => row.objectId === NETWORK_NODE_OBJECT_ONLY_ID && !row.rendered && row.quarantineReason === "zero-structure-missing-strong-owned-proof"));
+assert(adapted.nodeEligibilityDecisions.some((row) => row.objectId === NETWORK_NODE_WEAK_NEUTRAL_ID && !row.rendered && row.quarantineReason === "zero-structure-missing-strong-owned-proof"));
 
 const group = buildGroup(displayNodeGroups, NETWORK_NODE_A_ID);
 const lookup = adapted.nodeLookupsByNodeId.get(NETWORK_NODE_A_ID);
@@ -400,23 +426,29 @@ const debugSnapshot = buildOperatorInventoryDebugSnapshot({
 assert.equal(debugSnapshot.requestedWalletAddress, OPERATOR_WALLET);
 assert.equal(debugSnapshot.rawOperatorWalletAddress, OPERATOR_WALLET);
 assert.match(debugSnapshot.operatorInventoryUrl ?? "", /walletAddress=/i);
-assert.equal(debugSnapshot.rawNetworkNodeCount, 6);
+assert.equal(debugSnapshot.rawNetworkNodeCount, 7);
 assert.equal(debugSnapshot.rawUnlinkedStructureCount, 4);
 assert.equal(debugSnapshot.rawNetworkNodeDuplicateBucketsByCanonicalIdentity.length, 1);
 assert.equal(debugSnapshot.rawNetworkNodeDuplicateBucketsByOwnerCapId.length, 1);
+assert.equal(debugSnapshot.groupedNodeEligibilityDecisions.length, 7);
 assert.equal(debugSnapshot.rawGroupedDuplicateBucketsByCanonicalDomainKey.length, 1);
 assert.equal(debugSnapshot.renderedMacroNetworkNodeCount, 3);
 assert.equal(debugSnapshot.renderedNetworkNodeListCount, 3);
+assert.equal(debugSnapshot.renderedNodeGroups.length, 3);
+assert.equal(debugSnapshot.renderedNetworkNodeListRows.length, 3);
 assert.equal(debugSnapshot.renderedNodeControlSelectedNodeStructuresCount, 4);
 assert.equal(debugSnapshot.mergedIntoDisplay, false);
 assert.equal(debugSnapshot.displayUsesDirectChainFallback, false);
 assert.equal(debugSnapshot.directChainFallbackRan, true);
 assert.equal(debugSnapshot.adaptedStructureCount, adapted.structures.length);
 assert.equal(debugSnapshot.adaptedUnlinkedStructureCount, adapted.unlinkedStructures.length);
-assert.equal(debugSnapshot.quarantinedNodeRows.length, 3);
-assert.equal(debugSnapshot.zeroStructureGroupedNodes.length, 3);
+assert.equal(debugSnapshot.quarantinedNodeRows.length, 4);
+assert.equal(debugSnapshot.zeroStructureGroupedNodes.length, 4);
 assert.equal(debugSnapshot.missingIdentityNodeRows.length, 1);
 assert.equal(debugSnapshot.localStorageOrDebugFixturesParticipated, false);
+assert(debugSnapshot.rawNetworkNodes.some((row) => row.objectId === NETWORK_NODE_EMPTY_VALID_ID && row.rendered && row.strongOwnedNodeProof && row.renderEligibility === "strong-owned-node-proof"));
+assert(debugSnapshot.rawNetworkNodes.some((row) => row.objectId === NETWORK_NODE_OBJECT_ONLY_ID && !row.rendered && row.quarantineReason === "zero-structure-missing-strong-owned-proof" && row.proofSignals.length === 0));
+assert(debugSnapshot.rawNetworkNodes.some((row) => row.objectId === NETWORK_NODE_WEAK_NEUTRAL_ID && !row.rendered && row.quarantineReason === "zero-structure-missing-strong-owned-proof" && row.proofSignals.includes("assembly-id")));
 assert(debugSnapshot.rawUnlinkedRows.some((row) => row.objectId === STRAY_NETWORK_NODE_ID));
 assert(debugSnapshot.rawUnlinkedRows.some((row) => row.objectId === SUSPICIOUS_TURRET_A_ID));
 assert(debugSnapshot.rawUnlinkedRows.some((row) => row.objectId === SUSPICIOUS_TURRET_B_ID));
@@ -424,6 +456,16 @@ assert(debugSnapshot.adaptedUnlinkedRows.some((row) => row.objectId === SUSPICIO
 assert(debugSnapshot.adaptedUnlinkedRows.some((row) => row.objectId === SUSPICIOUS_TURRET_B_ID));
 assert.equal(debugSnapshot.duplicateBucketsByObjectId.length, 0);
 assert.equal(debugSnapshot.duplicateBucketsByCanonicalDomainKey.length, 0);
+
+const debugCopySummary = buildOperatorInventoryDebugCopySummary(debugSnapshot);
+assert.equal(debugCopySummary?.rawNetworkNodes.length, 7);
+assert.equal(debugCopySummary?.renderedNetworkNodes.length, 3);
+assert.equal(debugCopySummary?.quarantinedNodes.length, 4);
+assert(debugCopySummary?.quarantinedNodes.some((row) => row.objectId === NETWORK_NODE_OBJECT_ONLY_ID && row.reason === "zero-structure-missing-strong-owned-proof"));
+
+const nodeListScreenSource = readFileSync(new URL("../src/screens/NetworkNodeListScreen.tsx", import.meta.url), "utf8");
+assert.match(nodeListScreenSource, />\s*Object ID\s*<\/th>/);
+assert.doesNotMatch(nodeListScreenSource, />\s*Location\s*<\/th>/);
 
 const sidebarMarkup = renderToStaticMarkup(
   React.createElement(
@@ -532,6 +574,9 @@ function networkNodeRow(input: {
   displayName: string;
   solarSystemId: string | null;
   fuelAmount: string | null;
+  status?: "online" | "offline" | "warning" | "unknown" | "unanchored";
+  powerSummary?: string | null;
+  energySourceId?: string | null;
 }) {
   return {
     objectId: input.objectId,
@@ -544,15 +589,15 @@ function networkNodeRow(input: {
     typeId: 99001,
     typeName: "Network Node",
     assemblyType: "network_node",
-    status: "online",
+    status: input.status ?? "online",
     networkNodeId: null,
-    energySourceId: null,
+    energySourceId: input.energySourceId ?? null,
     linkedGateId: null,
     ownerWalletAddress: OPERATOR_WALLET,
     characterId: CHARACTER_ID,
     extensionStatus: "authorized",
     fuelAmount: input.fuelAmount,
-    powerSummary: null,
+    powerSummary: input.powerSummary ?? null,
     solarSystemId: input.solarSystemId,
     url: null,
     lastObservedCheckpoint: "101010",

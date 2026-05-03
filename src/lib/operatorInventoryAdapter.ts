@@ -1,6 +1,9 @@
 import type { NodeAssembliesLookupResult } from "@/lib/nodeAssembliesClient";
 import type {
   AssemblySummary,
+  IndexedNetworkNodeProofSignal,
+  IndexedNetworkNodeRenderEligibility,
+  IndexedNetworkNodeRenderMeta,
   NetworkMetrics,
   NetworkNodeGroup,
   NodeAssemblyNode,
@@ -36,8 +39,27 @@ export type OperatorInventoryQuarantinedNodeReason =
   | "missing-canonical-identity"
   | "missing-displayable-object-id"
   | "invalid-node-family"
-  | "zero-structure-missing-owned-node-identity"
+  | "zero-structure-missing-strong-owned-proof"
   | "duplicate-canonical-node";
+
+export interface OperatorInventoryNodeEligibilityDecision {
+  index: number;
+  objectId: string | null;
+  assemblyId: string | null;
+  ownerCapId: string | null;
+  displayName: string | null;
+  status: OperatorInventoryStatus | null;
+  energySourceId: string | null;
+  canonicalIdentity: string | null;
+  structureCount: number;
+  source: string | null;
+  provenance: string | null;
+  rendered: boolean;
+  quarantineReason: OperatorInventoryQuarantinedNodeReason | null;
+  strongOwnedNodeProof: boolean;
+  proofSignals: IndexedNetworkNodeProofSignal[];
+  renderEligibility: IndexedNetworkNodeRenderEligibility | null;
+}
 
 export interface OperatorInventoryQuarantinedNodeRow {
   index: number;
@@ -52,12 +74,16 @@ export interface OperatorInventoryQuarantinedNodeRow {
   source: string | null;
   provenance: string | null;
   reason: OperatorInventoryQuarantinedNodeReason;
+  strongOwnedNodeProof: boolean;
+  proofSignals: IndexedNetworkNodeProofSignal[];
+  renderEligibility: IndexedNetworkNodeRenderEligibility | null;
 }
 
 export interface AdaptedOperatorInventory {
   profile: PlayerProfile | null;
   structures: Structure[];
   unlinkedStructures: Structure[];
+  nodeEligibilityDecisions: OperatorInventoryNodeEligibilityDecision[];
   quarantinedNodeRows: OperatorInventoryQuarantinedNodeRow[];
   nodeGroups: NetworkNodeGroup[];
   metrics: NetworkMetrics;
@@ -76,6 +102,7 @@ interface MutableNetworkNodeGroupBucket {
 interface BuildOperatorInventoryNodeGroupsResult {
   nodeGroups: NetworkNodeGroup[];
   renderedNodeIdentityKeys: Set<string>;
+  nodeEligibilityDecisions: OperatorInventoryNodeEligibilityDecision[];
   quarantinedNodeRows: OperatorInventoryQuarantinedNodeRow[];
 }
 
@@ -140,6 +167,7 @@ export function adaptOperatorInventory(response: OperatorInventoryResponse): Ada
   const {
     nodeGroups,
     renderedNodeIdentityKeys,
+    nodeEligibilityDecisions,
     quarantinedNodeRows,
   } = buildOperatorInventoryNodeGroups(response, groupedStructuresByKey);
   const structures = [...groupedStructuresByKey.values()].filter((structure) => {
@@ -156,6 +184,7 @@ export function adaptOperatorInventory(response: OperatorInventoryResponse): Ada
     profile: toPlayerProfile(response),
     structures,
     unlinkedStructures,
+    nodeEligibilityDecisions,
     quarantinedNodeRows,
     nodeGroups,
     metrics: computeMetrics(structures, nodeGroups.length),
@@ -258,51 +287,78 @@ function buildOperatorInventoryNodeGroups(
 ): BuildOperatorInventoryNodeGroupsResult {
   const groups = new Map<string, MutableNetworkNodeGroupBucket>();
   const renderedNodeIdentityKeys = new Set<string>();
+  const nodeEligibilityDecisions: OperatorInventoryNodeEligibilityDecision[] = [];
   const quarantinedNodeRows: OperatorInventoryQuarantinedNodeRow[] = [];
 
   for (const [index, rawGroup] of response.networkNodes.entries()) {
     const groupKey = structureIdentityKey(rawGroup.node.objectId, rawGroup.node.assemblyId);
-    if (!groupKey) {
-      quarantinedNodeRows.push(describeQuarantinedNodeRow(index, rawGroup.node, rawGroup.structures.length, "missing-canonical-identity"));
-      continue;
-    }
-
     const compatibleType = rawGroup.node.family ? COMPATIBLE_TYPE_BY_FAMILY[rawGroup.node.family] : null;
-    if (compatibleType !== "network_node") {
-      quarantinedNodeRows.push(describeQuarantinedNodeRow(index, rawGroup.node, rawGroup.structures.length, "invalid-node-family"));
+    const proofSignals = collectNodeProofSignals(rawGroup.node);
+    const strongOwnedNodeProof = hasStrongOwnedNodeProof(rawGroup.node, proofSignals);
+    const renderEligibility = resolveNetworkNodeRenderEligibility(rawGroup.structures.length, strongOwnedNodeProof);
+    let quarantineReason: OperatorInventoryQuarantinedNodeReason | null = null;
+
+    if (!groupKey) {
+      quarantineReason = "missing-canonical-identity";
+    } else if (compatibleType !== "network_node") {
+      quarantineReason = "invalid-node-family";
+    } else if (!normalizeCanonicalObjectId(rawGroup.node.objectId)) {
+      quarantineReason = "missing-displayable-object-id";
+    }
+
+    const existing = groupKey ? groups.get(groupKey) : undefined;
+    if (quarantineReason == null && existing) {
+      quarantineReason = "duplicate-canonical-node";
+    }
+
+    if (quarantineReason == null && !existing && rawGroup.structures.length === 0 && !strongOwnedNodeProof) {
+      quarantineReason = "zero-structure-missing-strong-owned-proof";
+    }
+
+    const node = groupKey ? resolveCompatibleStructure(rawGroup.node, rawGroup.node.objectId ?? null, structuresByKey) : null;
+    const decision = describeNodeEligibilityDecision({
+      index,
+      row: rawGroup.node,
+      structureCount: rawGroup.structures.length,
+      rendered: quarantineReason == null,
+      quarantineReason,
+      strongOwnedNodeProof,
+      proofSignals,
+      renderEligibility,
+    });
+    nodeEligibilityDecisions.push(decision);
+
+    if (quarantineReason && quarantineReason !== "duplicate-canonical-node") {
+      quarantinedNodeRows.push(describeQuarantinedNodeRow(decision));
       continue;
     }
 
-    if (!normalizeCanonicalObjectId(rawGroup.node.objectId)) {
-      quarantinedNodeRows.push(describeQuarantinedNodeRow(index, rawGroup.node, rawGroup.structures.length, "missing-displayable-object-id"));
-      continue;
-    }
-
-    const existing = groups.get(groupKey);
-    if (existing) {
-      quarantinedNodeRows.push(describeQuarantinedNodeRow(index, rawGroup.node, rawGroup.structures.length, "duplicate-canonical-node"));
-    }
-
-    const hasOwnedNodeIdentity = normalizeCanonicalObjectId(rawGroup.node.ownerCapId) != null;
-    if (!existing && rawGroup.structures.length === 0 && !hasOwnedNodeIdentity) {
-      quarantinedNodeRows.push(describeQuarantinedNodeRow(index, rawGroup.node, rawGroup.structures.length, "zero-structure-missing-owned-node-identity"));
-      continue;
-    }
-
-    const node = resolveCompatibleStructure(rawGroup.node, rawGroup.node.objectId ?? null, structuresByKey);
     if (!node || node.type !== "network_node") {
-      quarantinedNodeRows.push(describeQuarantinedNodeRow(index, rawGroup.node, rawGroup.structures.length, "missing-displayable-object-id"));
+      quarantinedNodeRows.push(describeQuarantinedNodeRow({
+        ...decision,
+        rendered: false,
+        quarantineReason: decision.quarantineReason ?? "missing-displayable-object-id",
+      }));
       continue;
     }
+
+    if (quarantineReason === "duplicate-canonical-node") {
+      quarantinedNodeRows.push(describeQuarantinedNodeRow(decision));
+    }
+
+    const renderMeta = existing?.node.networkNodeRenderMeta ?? buildNetworkNodeRenderMeta(decision);
+    const renderAnnotatedNode = applyNetworkNodeRenderMeta(node, renderMeta);
 
     const bucket = existing ?? {
-      node,
+      node: renderAnnotatedNode,
       gates: new Map<string, Structure>(),
       storageUnits: new Map<string, Structure>(),
       turrets: new Map<string, Structure>(),
     };
 
-    bucket.node = existing ? preferCompatibleStructure(existing.node, node) : node;
+    bucket.node = existing
+      ? applyNetworkNodeRenderMeta(preferCompatibleStructure(existing.node, renderAnnotatedNode), renderMeta)
+      : renderAnnotatedNode;
     rebindBucketStructuresToNode(bucket, bucket.node.objectId);
 
     for (const rawStructure of rawGroup.structures) {
@@ -326,8 +382,8 @@ function buildOperatorInventoryNodeGroups(
       }
     }
 
-    groups.set(groupKey, bucket);
-    renderedNodeIdentityKeys.add(groupKey);
+    groups.set(groupKey!, bucket);
+    renderedNodeIdentityKeys.add(groupKey!);
   }
 
   return {
@@ -338,16 +394,30 @@ function buildOperatorInventoryNodeGroups(
       turrets: [...bucket.turrets.values()],
     })),
     renderedNodeIdentityKeys,
+    nodeEligibilityDecisions,
     quarantinedNodeRows,
   };
 }
 
-function describeQuarantinedNodeRow(
-  index: number,
-  row: OperatorInventoryStructure,
-  structureCount: number,
-  reason: OperatorInventoryQuarantinedNodeReason,
-): OperatorInventoryQuarantinedNodeRow {
+function describeNodeEligibilityDecision({
+  index,
+  row,
+  structureCount,
+  rendered,
+  quarantineReason,
+  strongOwnedNodeProof,
+  proofSignals,
+  renderEligibility,
+}: {
+  index: number;
+  row: OperatorInventoryStructure;
+  structureCount: number;
+  rendered: boolean;
+  quarantineReason: OperatorInventoryQuarantinedNodeReason | null;
+  strongOwnedNodeProof: boolean;
+  proofSignals: IndexedNetworkNodeProofSignal[];
+  renderEligibility: IndexedNetworkNodeRenderEligibility | null;
+}): OperatorInventoryNodeEligibilityDecision {
   return {
     index,
     objectId: normalizeCanonicalObjectId(row.objectId),
@@ -360,7 +430,114 @@ function describeQuarantinedNodeRow(
     structureCount,
     source: row.source ?? null,
     provenance: row.provenance ?? null,
-    reason,
+    rendered,
+    quarantineReason,
+    strongOwnedNodeProof,
+    proofSignals,
+    renderEligibility,
+  };
+}
+
+function describeQuarantinedNodeRow(decision: OperatorInventoryNodeEligibilityDecision): OperatorInventoryQuarantinedNodeRow {
+  return {
+    index: decision.index,
+    objectId: decision.objectId,
+    assemblyId: decision.assemblyId,
+    ownerCapId: decision.ownerCapId,
+    displayName: decision.displayName,
+    status: decision.status,
+    energySourceId: decision.energySourceId,
+    canonicalIdentity: decision.canonicalIdentity,
+    structureCount: decision.structureCount,
+    source: decision.source,
+    provenance: decision.provenance,
+    reason: decision.quarantineReason ?? "missing-canonical-identity",
+    strongOwnedNodeProof: decision.strongOwnedNodeProof,
+    proofSignals: decision.proofSignals,
+    renderEligibility: decision.renderEligibility,
+  };
+}
+
+function collectNodeProofSignals(row: OperatorInventoryStructure): IndexedNetworkNodeProofSignal[] {
+  const signals: IndexedNetworkNodeProofSignal[] = [];
+
+  if (row.assemblyId) {
+    signals.push("assembly-id");
+  }
+
+  if (normalizeCanonicalObjectId(row.ownerCapId)) {
+    signals.push("owner-cap-id");
+  }
+
+  if (row.status === "online" || row.status === "offline" || row.status === "warning") {
+    signals.push("non-neutral-status");
+  }
+
+  if (row.fuelAmount && row.fuelAmount.trim().length > 0) {
+    signals.push("fuel-amount");
+  }
+
+  if (row.powerSummary && row.powerSummary.trim().length > 0) {
+    signals.push("power-summary");
+  }
+
+  if (row.energySourceId && row.energySourceId.trim().length > 0) {
+    signals.push("energy-source-id");
+  }
+
+  return signals;
+}
+
+function hasStrongOwnedNodeProof(
+  row: OperatorInventoryStructure,
+  proofSignals: IndexedNetworkNodeProofSignal[],
+): boolean {
+  if (!normalizeCanonicalObjectId(row.objectId) || !proofSignals.includes("owner-cap-id")) {
+    return false;
+  }
+
+  return proofSignals.includes("non-neutral-status")
+    || proofSignals.includes("fuel-amount")
+    || proofSignals.includes("power-summary")
+    || proofSignals.includes("energy-source-id");
+}
+
+function resolveNetworkNodeRenderEligibility(
+  groupedStructureCount: number,
+  strongOwnedNodeProof: boolean,
+): IndexedNetworkNodeRenderEligibility | null {
+  if (groupedStructureCount > 0) {
+    return "grouped-structures";
+  }
+
+  if (strongOwnedNodeProof) {
+    return "strong-owned-node-proof";
+  }
+
+  return null;
+}
+
+function buildNetworkNodeRenderMeta(decision: OperatorInventoryNodeEligibilityDecision): IndexedNetworkNodeRenderMeta {
+  return {
+    rawNodeIndex: decision.index,
+    canonicalIdentity: decision.canonicalIdentity,
+    strongOwnedNodeProof: decision.strongOwnedNodeProof,
+    proofSignals: decision.proofSignals,
+    renderEligibility: decision.renderEligibility,
+  };
+}
+
+function applyNetworkNodeRenderMeta(
+  structure: Structure,
+  networkNodeRenderMeta: IndexedNetworkNodeRenderMeta,
+): Structure {
+  if (structure.type !== "network_node") {
+    return structure;
+  }
+
+  return {
+    ...structure,
+    networkNodeRenderMeta,
   };
 }
 
@@ -468,6 +645,7 @@ function toAssemblySummary(row: OperatorInventoryStructure): AssemblySummary | n
     displayName: row.displayName,
     status: row.status,
     fuelAmount: row.fuelAmount,
+    powerSummary: row.powerSummary,
     solarSystemId: row.solarSystemId,
     energySourceId: row.energySourceId,
     url: row.url,
