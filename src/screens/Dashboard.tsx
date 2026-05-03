@@ -40,10 +40,12 @@ import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState
 import { useNodeDrilldownStructureMenu } from "@/hooks/useNodeDrilldownStructureMenu";
 import { useOperatorInventory } from "@/hooks/useOperatorInventory";
 import { useStructurePower } from "@/hooks/useStructurePower";
+import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
 import { formatLux, formatEve } from "@/lib/currency";
 import { computeRuntimeMs, getFuelEfficiency, formatRuntime } from "@/lib/fuelRuntime";
 import { resolveNodeDrilldownScopeKey } from "@/lib/nodeDrilldownHiddenState";
 import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapshot } from "@/lib/nodeDrilldownModel";
+import { buildOperatorInventoryDebugSnapshot } from "@/lib/operatorInventoryDebug";
 import type { NetworkMetrics, NetworkNodeGroup, SpatialPin, Structure } from "@/types/domain";
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
 
@@ -54,6 +56,7 @@ interface DashboardProps {
   structures: Structure[];
   isLoading: boolean;
   isConnected: boolean;
+  readModelDebug: AssetDiscoveryDisplayDebugState;
   homeRequestToken: number;
 }
 
@@ -64,6 +67,7 @@ export function Dashboard({
   structures,
   isLoading,
   isConnected,
+  readModelDebug,
   homeRequestToken,
 }: DashboardProps) {
   const { walletAddress } = useConnection();
@@ -111,6 +115,7 @@ export function Dashboard({
   const {
     lookup: selectedNodeAssembliesLookup,
     isLoading: isNodeAssembliesLoading,
+    hasAttempted: hasAttemptedNodeAssembliesFallback,
     refetch: refetchSelectedNodeAssemblies,
   } = useNodeAssemblies(selectedNodeGroup?.node.objectId ?? null, {
     enabled: shouldUseNodeAssembliesFallback,
@@ -234,6 +239,12 @@ export function Dashboard({
     if (value == null) return false;
     return value !== "0" && value.toLowerCase() !== "false";
   }, []);
+  const isOperatorInventoryDebugEnabled = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const value = new URLSearchParams(window.location.search).get("debugOperatorInventory");
+    if (value == null) return false;
+    return value !== "0" && value.toLowerCase() !== "false";
+  }, []);
   const topologyTitle = selectedNodeViewModel ? "Node Control" : "Strategic Network";
   const topologySubtitle = selectedNodeViewModel
     ? `${selectedNodeViewModel.node.displayName} • ${selectedNodeViewModel.sourceMode === "backend-membership"
@@ -353,6 +364,54 @@ export function Dashboard({
       console.info("[node-drilldown-debug] window.__CC_NODE_DRILLDOWN_DEBUG__.latest updated");
     }
   }, [isNodeDrilldownDebugEnabled, selectedNodeBuildOptions, selectedNodeGroup, selectedNodeObservedLookup]);
+
+  useEffect(() => {
+    if (!isOperatorInventoryDebugEnabled) {
+      if (window.__CC_OPERATOR_INVENTORY_DEBUG__) {
+        window.__CC_OPERATOR_INVENTORY_DEBUG__.clear();
+      }
+      return;
+    }
+
+    const controller = window.__CC_OPERATOR_INVENTORY_DEBUG__ ?? {
+      enabled: true,
+      latest: null,
+      clear: () => {
+        if (!window.__CC_OPERATOR_INVENTORY_DEBUG__) return;
+        window.__CC_OPERATOR_INVENTORY_DEBUG__.latest = null;
+      },
+    };
+
+    controller.enabled = true;
+    controller.latest = buildOperatorInventoryDebugSnapshot({
+      inventory: operatorInventory.inventory,
+      adapted: operatorInventory.adapted,
+      displayStructures: structures,
+      displayNodeGroups: nodeGroups,
+      selectedNodeRows: selectedNodeViewModel?.structures ?? [],
+      selectedNodeSourceMode: selectedNodeViewModel?.sourceMode ?? null,
+      selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
+      readModelDebug,
+      nodeAssembliesFallbackEnabled: shouldUseNodeAssembliesFallback,
+      nodeAssembliesFallbackRan: shouldUseNodeAssembliesFallback && hasAttemptedNodeAssembliesFallback,
+      operatorInventoryErrorMessage: operatorInventory.errorMessage,
+    });
+    window.__CC_OPERATOR_INVENTORY_DEBUG__ = controller;
+
+    console.info("[operator-inventory-debug] window.__CC_OPERATOR_INVENTORY_DEBUG__.latest updated");
+  }, [
+    hasAttemptedNodeAssembliesFallback,
+    isOperatorInventoryDebugEnabled,
+    nodeGroups,
+    operatorInventory.adapted,
+    operatorInventory.errorMessage,
+    operatorInventory.inventory,
+    readModelDebug,
+    selectedNodeGroup,
+    selectedNodeViewModel,
+    shouldUseNodeAssembliesFallback,
+    structures,
+  ]);
 
   return (
     <div>

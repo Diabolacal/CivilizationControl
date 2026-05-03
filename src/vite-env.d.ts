@@ -1,6 +1,7 @@
 /// <reference types="vite/client" />
 
 import type { NodeDrilldownDebugController } from "@/lib/nodeDrilldownIdentity";
+import type { OperatorInventoryDebugController } from "@/lib/operatorInventoryDebug";
 
 declare global {
 	interface ImportMetaEnv {
@@ -13,6 +14,7 @@ declare global {
 
 	interface Window {
 		__CC_NODE_DRILLDOWN_DEBUG__?: NodeDrilldownDebugController;
+		__CC_OPERATOR_INVENTORY_DEBUG__?: OperatorInventoryDebugController;
 	}
 }
 

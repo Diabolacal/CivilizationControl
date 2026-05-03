@@ -2,6 +2,7 @@ import type { NodeAssembliesLookupResult } from "@/lib/nodeAssembliesClient";
 import type {
   AssemblySummary,
   NetworkMetrics,
+  NetworkNodeGroup,
   NodeAssemblyNode,
   NodeAssemblySummary,
   ObjectId,
@@ -25,16 +26,25 @@ interface OperatorInventoryDiagnostics {
   networkNodeCount: number;
   groupedStructureCount: number;
   unlinkedStructureCount: number;
+  ignoredUnlinkedNodeLikeCount: number;
   warnings: string[];
 }
 
 export interface AdaptedOperatorInventory {
   profile: PlayerProfile | null;
   structures: Structure[];
+  nodeGroups: NetworkNodeGroup[];
   metrics: NetworkMetrics;
   warning: string | null;
   diagnostics: OperatorInventoryDiagnostics;
   nodeLookupsByNodeId: Map<ObjectId, NodeAssembliesLookupResult>;
+}
+
+interface MutableNetworkNodeGroupBucket {
+  node: Structure;
+  gates: Map<string, Structure>;
+  storageUnits: Map<string, Structure>;
+  turrets: Map<string, Structure>;
 }
 
 const COMPATIBLE_TYPE_BY_FAMILY: Partial<Record<OperatorInventoryFamily, StructureType>> = {
@@ -61,6 +71,7 @@ const DEFAULT_LABEL_BY_FAMILY: Record<OperatorInventoryFamily, string> = {
 
 export function adaptOperatorInventory(response: OperatorInventoryResponse): AdaptedOperatorInventory {
   const structuresByKey = new Map<string, Structure>();
+  let ignoredUnlinkedNodeLikeCount = 0;
 
   for (const nodeGroup of response.networkNodes) {
     const nodeStructure = toCompatibleStructure(nodeGroup.node, nodeGroup.node.objectId ?? null);
@@ -79,16 +90,23 @@ export function adaptOperatorInventory(response: OperatorInventoryResponse): Ada
   for (const structure of response.unlinkedStructures) {
     const compatible = toCompatibleStructure(structure, null);
     if (compatible) {
+      if (compatible.type === "network_node") {
+        ignoredUnlinkedNodeLikeCount += 1;
+        continue;
+      }
+
       mergeCompatibleStructure(structuresByKey, compatible);
     }
   }
 
   const structures = [...structuresByKey.values()];
+  const nodeGroups = buildOperatorInventoryNodeGroups(response, structuresByKey);
 
   return {
     profile: toPlayerProfile(response),
     structures,
-    metrics: computeMetrics(structures),
+    nodeGroups,
+    metrics: computeMetrics(structures, nodeGroups.length),
     warning: buildOperatorInventoryWarning(response),
     diagnostics: {
       source: response.source,
@@ -97,6 +115,7 @@ export function adaptOperatorInventory(response: OperatorInventoryResponse): Ada
       networkNodeCount: response.networkNodes.length,
       groupedStructureCount: response.networkNodes.reduce((sum, group) => sum + group.structures.length, 0),
       unlinkedStructureCount: response.unlinkedStructures.length,
+      ignoredUnlinkedNodeLikeCount,
       warnings: response.warnings,
     },
     nodeLookupsByNodeId: buildNodeLookupMap(response),
@@ -124,7 +143,7 @@ function buildNodeLookupMap(response: OperatorInventoryResponse): Map<ObjectId, 
     const nodeObjectId = nodeGroup.node.objectId;
     if (!nodeObjectId) continue;
 
-    lookups.set(nodeObjectId, {
+    const nextLookup: NodeAssembliesLookupResult = {
       status: "success",
       networkNodeId: nodeObjectId,
       node: toNodeAssemblyNode(nodeGroup.node),
@@ -134,10 +153,82 @@ function buildNodeLookupMap(response: OperatorInventoryResponse): Map<ObjectId, 
       error: null,
       isPartial: response.partial || nodeGroup.node.partial || nodeGroup.structures.some((structure) => structure.partial),
       droppedCount: 0,
+    };
+
+    const existing = lookups.get(nodeObjectId);
+    if (!existing) {
+      lookups.set(nodeObjectId, nextLookup);
+      continue;
+    }
+
+    lookups.set(nodeObjectId, {
+      ...existing,
+      node: preferNodeAssemblyNode(existing.node, nextLookup.node),
+      assemblies: mergeNodeAssemblySummaries(existing.assemblies, nextLookup.assemblies),
+      fetchedAt: existing.fetchedAt ?? nextLookup.fetchedAt,
+      source: existing.source ?? nextLookup.source,
+      isPartial: existing.isPartial || nextLookup.isPartial,
     });
   }
 
   return lookups;
+}
+
+function buildOperatorInventoryNodeGroups(
+  response: OperatorInventoryResponse,
+  structuresByKey: Map<string, Structure>,
+): NetworkNodeGroup[] {
+  const groups = new Map<ObjectId, MutableNetworkNodeGroupBucket>();
+
+  for (const rawGroup of response.networkNodes) {
+    const nodeObjectId = rawGroup.node.objectId;
+    if (!nodeObjectId) {
+      continue;
+    }
+
+    const node = resolveCompatibleStructure(rawGroup.node, nodeObjectId, structuresByKey);
+    if (!node || node.type !== "network_node") {
+      continue;
+    }
+
+    const existing = groups.get(nodeObjectId);
+    const bucket = existing ?? {
+      node,
+      gates: new Map<string, Structure>(),
+      storageUnits: new Map<string, Structure>(),
+      turrets: new Map<string, Structure>(),
+    };
+
+    bucket.node = existing ? preferCompatibleStructure(existing.node, node) : node;
+
+    for (const rawStructure of rawGroup.structures) {
+      const structure = resolveCompatibleStructure(rawStructure, nodeObjectId, structuresByKey);
+      if (!structure || structure.type === "network_node") {
+        continue;
+      }
+
+      switch (structure.type) {
+        case "gate":
+          mergeGroupedStructure(bucket.gates, structure);
+          break;
+        case "storage_unit":
+          mergeGroupedStructure(bucket.storageUnits, structure);
+          break;
+        case "turret":
+          mergeGroupedStructure(bucket.turrets, structure);
+          break;
+      }
+    }
+
+    groups.set(nodeObjectId, bucket);
+  }
+
+  return [...groups.values()].map((bucket) => ({
+    node: bucket.node,
+    gates: [...bucket.gates.values()],
+    storageUnits: [...bucket.storageUnits.values()],
+    turrets: [...bucket.turrets.values()],
+  }));
 }
 
 function toNodeAssemblyNode(row: OperatorInventoryStructure): NodeAssemblyNode {
@@ -186,6 +277,22 @@ function toNodeAssemblySummary(
     source: row.source ?? response.source,
     provenance: row.provenance ?? "operator-inventory",
   };
+}
+
+function resolveCompatibleStructure(
+  row: OperatorInventoryStructure,
+  networkNodeId: ObjectId | null,
+  structuresByKey: Map<string, Structure>,
+): Structure | null {
+  const key = structureIdentityKey(row.objectId, row.assemblyId);
+  if (key) {
+    const existing = structuresByKey.get(key);
+    if (existing) {
+      return existing;
+    }
+  }
+
+  return toCompatibleStructure(row, networkNodeId);
 }
 
 function toCompatibleStructure(
@@ -297,7 +404,7 @@ function mergeCompatibleStructure(
   structuresByKey: Map<string, Structure>,
   structure: Structure,
 ) {
-  const key = structure.objectId || (structure.assemblyId ? `assembly:${structure.assemblyId}` : null);
+  const key = structureIdentityKey(structure.objectId, structure.assemblyId);
   if (!key) return;
 
   const existing = structuresByKey.get(key);
@@ -307,6 +414,21 @@ function mergeCompatibleStructure(
   }
 
   structuresByKey.set(key, preferCompatibleStructure(existing, structure));
+}
+
+function mergeGroupedStructure(bucket: Map<string, Structure>, structure: Structure) {
+  const key = structureIdentityKey(structure.objectId, structure.assemblyId);
+  if (!key) {
+    return;
+  }
+
+  const existing = bucket.get(key);
+  if (!existing) {
+    bucket.set(key, structure);
+    return;
+  }
+
+  bucket.set(key, preferCompatibleStructure(existing, structure));
 }
 
 function preferCompatibleStructure(existing: Structure, incoming: Structure): Structure {
@@ -325,6 +447,77 @@ function compatibilityStructureScore(structure: Structure): number {
   if (structure.networkNodeId) score += 1;
   if (structure.extensionStatus === "authorized") score += 1;
   return score;
+}
+
+function mergeNodeAssemblySummaries(
+  existing: NodeAssemblySummary[],
+  incoming: NodeAssemblySummary[],
+): NodeAssemblySummary[] {
+  const summaries = new Map<string, NodeAssemblySummary>();
+
+  for (const summary of [...existing, ...incoming]) {
+    const key = structureIdentityKey(summary.objectId, summary.assemblyId);
+    if (!key) {
+      continue;
+    }
+
+    const previous = summaries.get(key);
+    if (!previous) {
+      summaries.set(key, summary);
+      continue;
+    }
+
+    summaries.set(key, preferNodeAssemblySummary(previous, summary));
+  }
+
+  return [...summaries.values()];
+}
+
+function preferNodeAssemblyNode(
+  existing: NodeAssemblyNode | null,
+  incoming: NodeAssemblyNode | null,
+): NodeAssemblyNode | null {
+  if (!existing) return incoming;
+  if (!incoming) return existing;
+
+  const existingScore = (existing.displayName ? 2 : 0) + (existing.name ? 1 : 0) + (existing.assemblyId ? 1 : 0);
+  const incomingScore = (incoming.displayName ? 2 : 0) + (incoming.name ? 1 : 0) + (incoming.assemblyId ? 1 : 0);
+
+  return incomingScore > existingScore ? incoming : existing;
+}
+
+function preferNodeAssemblySummary(
+  existing: NodeAssemblySummary,
+  incoming: NodeAssemblySummary,
+): NodeAssemblySummary {
+  const existingScore = nodeAssemblySummaryScore(existing);
+  const incomingScore = nodeAssemblySummaryScore(incoming);
+  if (incomingScore > existingScore) return incoming;
+  if (incomingScore < existingScore) return existing;
+  if (!existing.energySourceId && incoming.energySourceId) return incoming;
+  return existing;
+}
+
+function nodeAssemblySummaryScore(summary: NodeAssemblySummary): number {
+  let score = 0;
+  if (summary.objectId) score += 3;
+  if (summary.ownerCapId) score += 3;
+  if (summary.assemblyId) score += 1;
+  if (summary.actionCandidate) score += 1;
+  if (summary.displayName || summary.name) score += 1;
+  return score;
+}
+
+function structureIdentityKey(objectId: string | null | undefined, assemblyId: string | null | undefined): string | null {
+  if (objectId) {
+    return objectId;
+  }
+
+  if (assemblyId) {
+    return `assembly:${assemblyId}`;
+  }
+
+  return null;
 }
 
 function buildOperatorInventoryWarning(response: OperatorInventoryResponse): string | null {
@@ -354,7 +547,7 @@ function buildOperatorInventoryWarning(response: OperatorInventoryResponse): str
   return parts.join(" ");
 }
 
-function computeMetrics(structures: Structure[]): NetworkMetrics {
+function computeMetrics(structures: Structure[], networkNodeCount: number): NetworkMetrics {
   return {
     totalStructures: structures.length,
     onlineCount: structures.filter((structure) => structure.status === "online").length,
@@ -362,7 +555,7 @@ function computeMetrics(structures: Structure[]): NetworkMetrics {
     governedGateCount: structures.filter((structure) => structure.type === "gate" && structure.extensionStatus === "authorized").length,
     storageUnitCount: structures.filter((structure) => structure.type === "storage_unit").length,
     turretCount: structures.filter((structure) => structure.type === "turret").length,
-    networkNodeCount: structures.filter((structure) => structure.type === "network_node").length,
+    networkNodeCount,
     enforcedDirectives: structures.filter((structure) => structure.extensionStatus === "authorized").length,
   };
 }

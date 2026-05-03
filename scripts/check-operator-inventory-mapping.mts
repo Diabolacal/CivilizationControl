@@ -1,19 +1,30 @@
 import assert from "node:assert/strict";
 
+import { selectDisplayNodeGroups } from "../src/lib/assetDiscoveryDisplayModel";
 import { getNodeLocalPowerToggleIntent } from "../src/lib/nodeDrilldownActionAuthority";
+import { buildOperatorInventoryDebugSnapshot } from "../src/lib/operatorInventoryDebug";
 import { adaptOperatorInventory } from "../src/lib/operatorInventoryAdapter";
 import { buildLiveNodeLocalViewModelWithObserved } from "../src/lib/nodeDrilldownModel";
-import type { NetworkNodeGroup } from "../src/types/domain";
+import type { NetworkNodeGroup, Structure } from "../src/types/domain";
 import type { OperatorInventoryResponse } from "../src/types/operatorInventory";
 
-const NETWORK_NODE_ID = "0x00000000000000000000000000000000000000000000000000000000000000aa";
+const NETWORK_NODE_A_ID = "0x00000000000000000000000000000000000000000000000000000000000000aa";
+const NETWORK_NODE_B_ID = "0x00000000000000000000000000000000000000000000000000000000000000bb";
+const STRAY_NETWORK_NODE_ID = "0x00000000000000000000000000000000000000000000000000000000000000cc";
+const LEGACY_FALLBACK_NODE_ID = "0x00000000000000000000000000000000000000000000000000000000000000dd";
 const GATE_ID = "0x0000000000000000000000000000000000000000000000000000000000000101";
 const STORAGE_ID = "0x0000000000000000000000000000000000000000000000000000000000000102";
 const TURRET_ID = "0x0000000000000000000000000000000000000000000000000000000000000103";
 const PRINTER_ID = "0x0000000000000000000000000000000000000000000000000000000000000104";
 const UNLINKED_STORAGE_ID = "0x0000000000000000000000000000000000000000000000000000000000000105";
+const GATE_B_ID = "0x0000000000000000000000000000000000000000000000000000000000000201";
+const TURRET_B_ID = "0x0000000000000000000000000000000000000000000000000000000000000202";
+const SUSPICIOUS_TURRET_A_ID = "0x8a7ee45a74d7b1fe98e2eee787037e7c59245f2af1f17fe74bab19ec424fb3c5";
+const SUSPICIOUS_TURRET_B_ID = "0xc6234a6f3cd05a852b1d5635aa5495cb31de189da5a630a4acff82873dc61893";
 const OPERATOR_WALLET = "0x0000000000000000000000000000000000000000000000000000000000000abc";
 const CHARACTER_ID = "0x0000000000000000000000000000000000000000000000000000000000000def";
+const SHARED_BACKEND_SOURCE = "shared-frontier-backend";
+const OBSERVED_AT = "2026-05-03T12:00:00.000Z";
 
 const response: OperatorInventoryResponse = {
   schemaVersion: "operator-inventory.v1",
@@ -26,37 +37,14 @@ const response: OperatorInventoryResponse = {
   },
   networkNodes: [
     {
-      node: {
-        objectId: NETWORK_NODE_ID,
+      node: networkNodeRow({
+        objectId: NETWORK_NODE_A_ID,
         assemblyId: "9001",
         ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000000faa",
-        family: "networkNode",
-        size: "standard",
         displayName: "Index Node",
-        name: "Index Node",
-        typeId: 99001,
-        typeName: "Network Node",
-        assemblyType: "network_node",
-        status: "online",
-        networkNodeId: null,
-        energySourceId: null,
-        linkedGateId: null,
-        ownerWalletAddress: OPERATOR_WALLET,
-        characterId: CHARACTER_ID,
-        extensionStatus: "authorized",
-        fuelAmount: "1200",
-        powerSummary: null,
         solarSystemId: "30000142",
-        url: null,
-        lastObservedCheckpoint: "101010",
-        lastObservedTimestamp: "2026-05-03T12:00:00.000Z",
-        lastUpdated: "2026-05-03T12:00:00.000Z",
-        source: "shared-frontier-backend",
-        provenance: "operator-inventory",
-        partial: false,
-        warnings: [],
-        actionCandidate: null,
-      },
+        fuelAmount: "1200",
+      }),
       structures: [
         actionRow({
           objectId: GATE_ID,
@@ -73,7 +61,7 @@ const response: OperatorInventoryResponse = {
             structureId: GATE_ID,
             structureType: "gate",
             ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000c101",
-            networkNodeId: NETWORK_NODE_ID,
+            networkNodeId: NETWORK_NODE_A_ID,
           },
         }),
         actionRow({
@@ -92,7 +80,7 @@ const response: OperatorInventoryResponse = {
             structureId: STORAGE_ID,
             structureType: "storage_unit",
             ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000c102",
-            networkNodeId: NETWORK_NODE_ID,
+            networkNodeId: NETWORK_NODE_A_ID,
           },
         }),
         actionRow({
@@ -111,71 +99,95 @@ const response: OperatorInventoryResponse = {
             structureId: TURRET_ID,
             structureType: "turret",
             ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000c103",
-            networkNodeId: NETWORK_NODE_ID,
+            networkNodeId: NETWORK_NODE_A_ID,
           },
         }),
-        {
-          objectId: PRINTER_ID,
-          assemblyId: "9104",
-          ownerCapId: null,
-          family: "printer",
-          size: "standard",
-          displayName: "Field Printer",
-          name: "Field Printer",
-          typeId: 88067,
-          typeName: "Printer",
-          assemblyType: "printer",
-          status: "offline",
-          networkNodeId: NETWORK_NODE_ID,
-          energySourceId: null,
-          linkedGateId: null,
-          ownerWalletAddress: null,
-          characterId: null,
-          extensionStatus: null,
-          fuelAmount: null,
-          powerSummary: null,
-          solarSystemId: null,
-          url: null,
-          lastObservedCheckpoint: "101010",
-          lastObservedTimestamp: "2026-05-03T12:00:00.000Z",
-          lastUpdated: "2026-05-03T12:00:00.000Z",
-          source: "shared-frontier-backend",
-          provenance: "operator-inventory",
-          partial: false,
-          warnings: [],
-          actionCandidate: {
-            actions: {
-              power: {
-                candidate: true,
-                currentlyImplementedInCivilizationControl: false,
-                familySupported: true,
-                indexedOwnerCapPresent: true,
-                requiredIds: {
-                  structureId: PRINTER_ID,
-                  structureType: "storage_unit",
-                  ownerCapId: null,
-                  networkNodeId: NETWORK_NODE_ID,
-                },
-                unavailableReason: "Indexed for future power support only.",
-              },
-              rename: {
-                candidate: true,
-                currentlyImplementedInCivilizationControl: false,
-                familySupported: true,
-                indexedOwnerCapPresent: false,
-                requiredIds: null,
-                unavailableReason: "Rename is indexed but not surfaced in the web UI yet.",
-              },
-            },
-            supported: true,
-            familySupported: true,
-            unavailableReason: "Indexed for future power support only.",
+        futurePowerRow(),
+      ],
+    },
+    {
+      node: networkNodeRow({
+        objectId: NETWORK_NODE_B_ID,
+        assemblyId: "9002",
+        ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000000fab",
+        displayName: "Relay Node",
+        solarSystemId: "30000143",
+        fuelAmount: "1400",
+      }),
+      structures: [
+        actionRow({
+          objectId: GATE_B_ID,
+          assemblyId: "9201",
+          ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000d201",
+          family: "gate",
+          displayName: "Relay Gate",
+          typeId: 88010,
+          typeName: "Gate",
+          assemblyType: "gate",
+          status: "online",
+          extensionStatus: "authorized",
+          requiredIds: {
+            structureId: GATE_B_ID,
+            structureType: "gate",
+            ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000d201",
+            networkNodeId: NETWORK_NODE_B_ID,
           },
-        },
+        }),
+        actionRow({
+          objectId: TURRET_B_ID,
+          assemblyId: "9202",
+          ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000d202",
+          family: "turret",
+          displayName: "Relay Turret",
+          typeId: 92279,
+          typeName: "Mini Turret",
+          assemblyType: "turret",
+          status: "online",
+          extensionStatus: "authorized",
+          size: "mini",
+          requiredIds: {
+            structureId: TURRET_B_ID,
+            structureType: "turret",
+            ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000d202",
+            networkNodeId: NETWORK_NODE_B_ID,
+          },
+        }),
+      ],
+    },
+    {
+      node: networkNodeRow({
+        objectId: NETWORK_NODE_B_ID,
+        assemblyId: "9002",
+        ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000000fab",
+        displayName: "Relay Node Duplicate",
+        solarSystemId: "30000143",
+        fuelAmount: "1400",
+      }),
+      structures: [
+        actionRow({
+          objectId: TURRET_B_ID,
+          assemblyId: "9202",
+          ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000d202",
+          family: "turret",
+          displayName: "Relay Turret Duplicate",
+          typeId: 92279,
+          typeName: "Mini Turret",
+          assemblyType: "turret",
+          status: "online",
+          extensionStatus: "authorized",
+          size: "mini",
+          requiredIds: {
+            structureId: TURRET_B_ID,
+            structureType: "turret",
+            ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000d202",
+            networkNodeId: NETWORK_NODE_B_ID,
+          },
+        }),
       ],
     },
   ],
   unlinkedStructures: [
+    strayNodeLikeRow(),
     actionRow({
       objectId: UNLINKED_STORAGE_ID,
       assemblyId: "9199",
@@ -194,28 +206,81 @@ const response: OperatorInventoryResponse = {
         networkNodeId: null,
       },
     }),
+    actionRow({
+      objectId: SUSPICIOUS_TURRET_A_ID,
+      assemblyId: "9301",
+      ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000e301",
+      family: "turret",
+      displayName: "Suspicious Turret A",
+      typeId: 92279,
+      typeName: "Mini Turret",
+      assemblyType: "turret",
+      status: "offline",
+      extensionStatus: "stale",
+      size: "mini",
+      requiredIds: {
+        structureId: SUSPICIOUS_TURRET_A_ID,
+        structureType: "turret",
+        ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000e301",
+        networkNodeId: null,
+      },
+    }),
+    actionRow({
+      objectId: SUSPICIOUS_TURRET_B_ID,
+      assemblyId: "9302",
+      ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000e302",
+      family: "turret",
+      displayName: "Suspicious Turret B",
+      typeId: 92279,
+      typeName: "Mini Turret",
+      assemblyType: "turret",
+      status: "offline",
+      extensionStatus: "stale",
+      size: "mini",
+      requiredIds: {
+        structureId: SUSPICIOUS_TURRET_B_ID,
+        structureType: "turret",
+        ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000e302",
+        networkNodeId: null,
+      },
+    }),
   ],
-  warnings: ["One indexed structure is still unlinked."],
+  warnings: ["Several indexed structures are still unlinked."],
   partial: true,
-  source: "shared-frontier-backend",
-  fetchedAt: "2026-05-03T12:00:00.000Z",
+  source: SHARED_BACKEND_SOURCE,
+  fetchedAt: OBSERVED_AT,
 };
 
 const adapted = adaptOperatorInventory(response);
+const legacyFallbackStructures = buildLegacyFallbackStructures();
+const displayNodeGroups = selectDisplayNodeGroups({
+  operatorInventoryNodeGroups: adapted.nodeGroups,
+  structures: [...adapted.structures, ...legacyFallbackStructures],
+  useOperatorInventory: true,
+});
 
 assert.equal(adapted.profile?.characterId, response.operator?.characterId);
-assert.equal(adapted.metrics.networkNodeCount, 1);
-assert.equal(adapted.metrics.gateCount, 1);
+assert.equal(adapted.metrics.networkNodeCount, 2);
+assert.equal(adapted.metrics.gateCount, 2);
 assert.equal(adapted.metrics.storageUnitCount, 2);
-assert.equal(adapted.metrics.turretCount, 1);
+assert.equal(adapted.metrics.turretCount, 4);
+assert.equal(adapted.diagnostics.ignoredUnlinkedNodeLikeCount, 1);
 assert.match(adapted.warning ?? "", /unlinked/i);
 assert(adapted.structures.every((structure) => structure.readModelSource === "operator-inventory"));
+assert.equal(adapted.nodeGroups.length, 2);
+assert.deepEqual(adapted.nodeGroups.map((group) => group.node.objectId), [NETWORK_NODE_A_ID, NETWORK_NODE_B_ID]);
+assert.equal(displayNodeGroups.length, 2);
+assert(!displayNodeGroups.some((group) => group.node.objectId === LEGACY_FALLBACK_NODE_ID));
+assert(!adapted.structures.some((structure) => structure.objectId === STRAY_NETWORK_NODE_ID));
 
-const group = buildGroup(adapted.structures, NETWORK_NODE_ID);
-const lookup = adapted.nodeLookupsByNodeId.get(NETWORK_NODE_ID);
+const group = buildGroup(displayNodeGroups, NETWORK_NODE_A_ID);
+const lookup = adapted.nodeLookupsByNodeId.get(NETWORK_NODE_A_ID);
+const relayGroup = buildGroup(displayNodeGroups, NETWORK_NODE_B_ID);
 
 assert(lookup, "expected a selected-node lookup from operator inventory");
 assert.equal(lookup?.assemblies.length, 4);
+assert.equal(relayGroup.gates.length, 1);
+assert.equal(relayGroup.turrets.length, 1);
 
 const viewModel = buildLiveNodeLocalViewModelWithObserved(group, lookup, { preferObservedMembership: true });
 
@@ -237,12 +302,59 @@ assert.equal(getNodeLocalPowerToggleIntent(turret!)?.actionLabel, "Bring Online"
 assert.equal(getNodeLocalPowerToggleIntent(printer!), null);
 
 const unlinkedStorage = adapted.structures.find((structure) => structure.objectId === UNLINKED_STORAGE_ID);
+const suspiciousTurretA = adapted.structures.find((structure) => structure.objectId === SUSPICIOUS_TURRET_A_ID);
+const suspiciousTurretB = adapted.structures.find((structure) => structure.objectId === SUSPICIOUS_TURRET_B_ID);
+
 assert(unlinkedStorage, "expected unlinked structure in compatibility inventory");
 assert.equal(unlinkedStorage?.networkNodeId, undefined);
 assert.equal(unlinkedStorage?.extensionStatus, "stale");
+assert(suspiciousTurretA, "expected suspicious turret A to remain visible as an unlinked operator-inventory row");
+assert(suspiciousTurretB, "expected suspicious turret B to remain visible as an unlinked operator-inventory row");
+assert.equal(
+  displayNodeGroups.flatMap((entry) => [...entry.gates, ...entry.storageUnits, ...entry.turrets]).filter(
+    (structure) => structure.objectId === SUSPICIOUS_TURRET_A_ID || structure.objectId === SUSPICIOUS_TURRET_B_ID,
+  ).length,
+  0,
+);
+
+const debugSnapshot = buildOperatorInventoryDebugSnapshot({
+  inventory: response,
+  adapted,
+  displayStructures: adapted.structures,
+  displayNodeGroups,
+  selectedNodeRows: viewModel.structures,
+  selectedNodeSourceMode: viewModel.sourceMode,
+  selectedNodeId: NETWORK_NODE_A_ID,
+  readModelDebug: {
+    operatorInventoryDisplayActive: true,
+    operatorInventorySucceeded: true,
+    operatorInventoryFailed: false,
+    directChainFallbackEnabled: true,
+    directChainFallbackRan: true,
+    displayUsesDirectChainFallback: false,
+    mergedIntoDisplay: false,
+  },
+  nodeAssembliesFallbackEnabled: false,
+  nodeAssembliesFallbackRan: false,
+  operatorInventoryErrorMessage: null,
+});
+
+assert.equal(debugSnapshot.rawNetworkNodeCount, 3);
+assert.equal(debugSnapshot.rawUnlinkedStructureCount, 4);
+assert.equal(debugSnapshot.renderedMacroNetworkNodeCount, 2);
+assert.equal(debugSnapshot.renderedNodeControlSelectedNodeStructuresCount, 4);
+assert.equal(debugSnapshot.mergedIntoDisplay, false);
+assert.equal(debugSnapshot.displayUsesDirectChainFallback, false);
+assert.equal(debugSnapshot.directChainFallbackRan, true);
+assert(debugSnapshot.rawUnlinkedRows.some((row) => row.objectId === STRAY_NETWORK_NODE_ID));
+assert(debugSnapshot.rawUnlinkedRows.some((row) => row.objectId === SUSPICIOUS_TURRET_A_ID));
+assert(debugSnapshot.rawUnlinkedRows.some((row) => row.objectId === SUSPICIOUS_TURRET_B_ID));
+assert.equal(debugSnapshot.duplicateBucketsByObjectId.length, 0);
+assert.equal(debugSnapshot.duplicateBucketsByCanonicalDomainKey.length, 0);
 
 console.info("operator inventory mapping probe passed", {
   structures: adapted.structures.length,
+  renderedNodes: displayNodeGroups.length,
   nodeRows: viewModel.structures.length,
   sourceMode: viewModel.sourceMode,
 });
@@ -278,7 +390,7 @@ function actionRow(input: {
     typeName: input.typeName,
     assemblyType: input.assemblyType,
     status: input.status,
-    networkNodeId: NETWORK_NODE_ID,
+    networkNodeId: input.requiredIds.networkNodeId,
     energySourceId: null,
     linkedGateId: null,
     ownerWalletAddress: OPERATOR_WALLET,
@@ -289,9 +401,9 @@ function actionRow(input: {
     solarSystemId: null,
     url: null,
     lastObservedCheckpoint: "101010",
-    lastObservedTimestamp: "2026-05-03T12:00:00.000Z",
-    lastUpdated: "2026-05-03T12:00:00.000Z",
-    source: "shared-frontier-backend",
+    lastObservedTimestamp: OBSERVED_AT,
+    lastUpdated: OBSERVED_AT,
+    source: SHARED_BACKEND_SOURCE,
     provenance: "operator-inventory",
     partial: false,
     warnings: [],
@@ -321,16 +433,173 @@ function actionRow(input: {
   };
 }
 
-function buildGroup(structures: typeof adapted.structures, nodeId: string): NetworkNodeGroup {
-  const node = structures.find((structure) => structure.type === "network_node" && structure.objectId === nodeId);
-  if (!node) {
+function networkNodeRow(input: {
+  objectId: string;
+  assemblyId: string;
+  ownerCapId: string;
+  displayName: string;
+  solarSystemId: string | null;
+  fuelAmount: string | null;
+}) {
+  return {
+    objectId: input.objectId,
+    assemblyId: input.assemblyId,
+    ownerCapId: input.ownerCapId,
+    family: "networkNode",
+    size: "standard",
+    displayName: input.displayName,
+    name: input.displayName,
+    typeId: 99001,
+    typeName: "Network Node",
+    assemblyType: "network_node",
+    status: "online",
+    networkNodeId: null,
+    energySourceId: null,
+    linkedGateId: null,
+    ownerWalletAddress: OPERATOR_WALLET,
+    characterId: CHARACTER_ID,
+    extensionStatus: "authorized",
+    fuelAmount: input.fuelAmount,
+    powerSummary: null,
+    solarSystemId: input.solarSystemId,
+    url: null,
+    lastObservedCheckpoint: "101010",
+    lastObservedTimestamp: OBSERVED_AT,
+    lastUpdated: OBSERVED_AT,
+    source: SHARED_BACKEND_SOURCE,
+    provenance: "operator-inventory",
+    partial: false,
+    warnings: [],
+    actionCandidate: null,
+  };
+}
+
+function futurePowerRow() {
+  return {
+    objectId: PRINTER_ID,
+    assemblyId: "9104",
+    ownerCapId: null,
+    family: "printer",
+    size: "standard",
+    displayName: "Field Printer",
+    name: "Field Printer",
+    typeId: 88067,
+    typeName: "Printer",
+    assemblyType: "printer",
+    status: "offline",
+    networkNodeId: NETWORK_NODE_A_ID,
+    energySourceId: null,
+    linkedGateId: null,
+    ownerWalletAddress: null,
+    characterId: null,
+    extensionStatus: null,
+    fuelAmount: null,
+    powerSummary: null,
+    solarSystemId: null,
+    url: null,
+    lastObservedCheckpoint: "101010",
+    lastObservedTimestamp: OBSERVED_AT,
+    lastUpdated: OBSERVED_AT,
+    source: SHARED_BACKEND_SOURCE,
+    provenance: "operator-inventory",
+    partial: false,
+    warnings: [],
+    actionCandidate: {
+      actions: {
+        power: {
+          candidate: true,
+          currentlyImplementedInCivilizationControl: false,
+          familySupported: true,
+          indexedOwnerCapPresent: true,
+          requiredIds: {
+            structureId: PRINTER_ID,
+            structureType: "storage_unit",
+            ownerCapId: null,
+            networkNodeId: NETWORK_NODE_A_ID,
+          },
+          unavailableReason: "Indexed for future power support only.",
+        },
+        rename: {
+          candidate: true,
+          currentlyImplementedInCivilizationControl: false,
+          familySupported: true,
+          indexedOwnerCapPresent: false,
+          requiredIds: null,
+          unavailableReason: "Rename is indexed but not surfaced in the web UI yet.",
+        },
+      },
+      supported: true,
+      familySupported: true,
+      unavailableReason: "Indexed for future power support only.",
+    },
+  };
+}
+
+function strayNodeLikeRow() {
+  return {
+    objectId: STRAY_NETWORK_NODE_ID,
+    assemblyId: "9300",
+    ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000e300",
+    family: "networkNode",
+    size: "standard",
+    displayName: "Stray Node",
+    name: "Stray Node",
+    typeId: 99001,
+    typeName: "Network Node",
+    assemblyType: "network_node",
+    status: "unknown",
+    networkNodeId: null,
+    energySourceId: null,
+    linkedGateId: null,
+    ownerWalletAddress: OPERATOR_WALLET,
+    characterId: CHARACTER_ID,
+    extensionStatus: "stale",
+    fuelAmount: null,
+    powerSummary: null,
+    solarSystemId: null,
+    url: null,
+    lastObservedCheckpoint: "101012",
+    lastObservedTimestamp: "2026-05-03T12:02:00.000Z",
+    lastUpdated: "2026-05-03T12:02:00.000Z",
+    source: SHARED_BACKEND_SOURCE,
+    provenance: "operator-inventory",
+    partial: false,
+    warnings: ["Unlinked network node-like row should not render as a macro node."],
+    actionCandidate: null,
+  };
+}
+
+function buildGroup(nodeGroups: NetworkNodeGroup[], nodeId: string): NetworkNodeGroup {
+  const group = nodeGroups.find((entry) => entry.node.objectId === nodeId);
+  if (!group) {
     throw new Error("Missing node structure for probe group");
   }
 
-  return {
-    node,
-    gates: structures.filter((structure) => structure.type === "gate" && structure.networkNodeId === nodeId),
-    storageUnits: structures.filter((structure) => structure.type === "storage_unit" && structure.networkNodeId === nodeId),
-    turrets: structures.filter((structure) => structure.type === "turret" && structure.networkNodeId === nodeId),
-  };
+  return group;
+}
+
+function buildLegacyFallbackStructures(): Structure[] {
+  return [
+    {
+      objectId: LEGACY_FALLBACK_NODE_ID,
+      assemblyId: "9901",
+      ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000f901",
+      readModelSource: "direct-chain",
+      type: "network_node",
+      name: "Legacy Fallback Node",
+      status: "online",
+      extensionStatus: "authorized",
+    },
+    {
+      objectId: "0x000000000000000000000000000000000000000000000000000000000000f902",
+      assemblyId: "9902",
+      ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000f902",
+      readModelSource: "direct-chain",
+      type: "gate",
+      name: "Legacy Fallback Gate",
+      status: "online",
+      extensionStatus: "authorized",
+      networkNodeId: LEGACY_FALLBACK_NODE_ID,
+    },
+  ];
 }

@@ -26,8 +26,11 @@ interface NetworkNodeListScreenProps {
   isLoading: boolean;
 }
 
-export function NetworkNodeListScreen({ structures, nodeGroups, isLoading }: NetworkNodeListScreenProps) {
-  const nodes = structures.filter((s) => s.type === "network_node");
+export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeListScreenProps) {
+  const nodes = useMemo(
+    () => nodeGroups.map((group) => group.node),
+    [nodeGroups],
+  );
   const power = useStructurePower();
 
   const offlineNodes = useMemo(

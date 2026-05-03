@@ -32,6 +32,7 @@ import { useAssetDiscovery } from "@/hooks/useAssetDiscovery";
 import { useSpatialPins } from "@/hooks/useSpatialPins";
 import { useTribesRefresh } from "@/hooks/useTribesRefresh";
 import { CharacterContext } from "@/hooks/useCharacter";
+import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
 
 export default function App() {
   return (
@@ -71,6 +72,7 @@ function OperatorShell() {
     inventoryStatusLabel,
     warning,
     errorMessage,
+    readModelDebug,
   } =
     useAssetDiscovery();
   const { pins, assignPin, removePin } = useSpatialPins();
@@ -109,6 +111,7 @@ function OperatorShell() {
                   structures={structures}
                   isLoading={isLoading}
                   isConnected={isConnected}
+                  readModelDebug={readModelDebug}
                   homeRequestToken={homeRequestToken}
                   onAssignPin={assignPin}
                   onRemovePin={removePin}
@@ -130,6 +133,7 @@ interface OperatorShellRoutesProps {
   structures: import("@/types/domain").Structure[];
   isLoading: boolean;
   isConnected: boolean;
+  readModelDebug: AssetDiscoveryDisplayDebugState;
   homeRequestToken: number;
   onAssignPin: (nodeId: string, systemId: number, systemName: string) => void;
   onRemovePin: (nodeId: string) => void;
@@ -143,6 +147,7 @@ function OperatorShellRoutes({
   structures,
   isLoading,
   isConnected,
+  readModelDebug,
   homeRequestToken,
   onAssignPin,
   onRemovePin,
@@ -159,6 +164,7 @@ function OperatorShellRoutes({
             structures={structures}
             isLoading={isLoading}
             isConnected={isConnected}
+            readModelDebug={readModelDebug}
             homeRequestToken={homeRequestToken}
           />
         }

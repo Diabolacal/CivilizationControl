@@ -22,6 +22,7 @@ export function useNodeAssemblies(networkNodeId: string | null, options: UseNode
   return {
     lookup: query.data ?? null,
     isLoading: query.isLoading,
+    hasAttempted: query.fetchStatus !== "idle" || query.data != null || query.isError,
     refetch: query.refetch,
   };
 }

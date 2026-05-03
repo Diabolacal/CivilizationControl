@@ -24,8 +24,8 @@ interface NetworkNodeDetailScreenProps {
 
 export function NetworkNodeDetailScreen({ structures, nodeGroups, isLoading }: NetworkNodeDetailScreenProps) {
   const { id } = useParams<{ id: string }>();
-  const node = structures.find((s) => s.objectId === id && s.type === "network_node");
   const group = nodeGroups.find((g) => g.node.objectId === id);
+  const node = group?.node ?? structures.find((s) => s.objectId === id && s.type === "network_node");
 
   if (isLoading) {
     return (

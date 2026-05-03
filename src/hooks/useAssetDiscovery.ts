@@ -9,10 +9,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useConnection } from "@evefrontier/dapp-kit";
 import { useAssemblySummaryEnrichment } from "@/hooks/useAssemblySummaryEnrichment";
 import { useOperatorInventory } from "@/hooks/useOperatorInventory";
+import { buildDisplayNodeGroupsFromStructures, type AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
 import { getSuiDiscoveryErrorMessage, getConfiguredSuiRpcUrl } from "@/lib/suiRpcClient";
 import { discoverAssets, fetchCharacterMetadata } from "@/lib/suiReader";
 import type {
-  NetworkNodeGroup,
   Structure,
   NetworkMetrics,
 } from "@/types/domain";
@@ -70,10 +70,27 @@ export function useAssetDiscovery() {
   const profileResult = isUsingOperatorInventory
     ? operatorInventory.adapted?.profile ?? null
     : resolvedProfile;
-  const nodeGroups = groupByNetworkNode(structures);
+  const nodeGroups = isUsingOperatorInventory
+    ? operatorInventory.adapted?.nodeGroups ?? []
+    : buildDisplayNodeGroupsFromStructures(structures);
   const metrics = isUsingOperatorInventory
     ? operatorInventory.adapted?.metrics ?? computeMetrics(structures)
     : computeMetrics(structures);
+  const directChainFallbackRan = shouldUseDirectFallback && (
+    discoveryQuery.fetchStatus !== "idle"
+    || discoveryQuery.data != null
+    || discoveryQuery.isError
+  );
+  const readModelDebug: AssetDiscoveryDisplayDebugState = {
+    operatorInventoryDisplayActive: isUsingOperatorInventory,
+    operatorInventorySucceeded: operatorInventory.inventory != null,
+    operatorInventoryFailed: operatorInventory.isError,
+    directChainFallbackEnabled: shouldUseDirectFallback,
+    directChainFallbackRan,
+    displayUsesDirectChainFallback: !isUsingOperatorInventory && shouldUseDirectFallback,
+    mergedIntoDisplay: structures.some((structure) => structure.readModelSource === "operator-inventory")
+      && structures.some((structure) => structure.readModelSource === "direct-chain"),
+  };
 
   const warning = isUsingOperatorInventory
     ? operatorInventory.adapted?.warning ?? null
@@ -123,6 +140,7 @@ export function useAssetDiscovery() {
     warning,
     errorMessage,
     inventoryStatusLabel,
+    readModelDebug,
     diagnostics: isUsingOperatorInventory
       ? operatorInventory.adapted?.diagnostics ?? null
       : discoveryQuery.data?.diagnostics ?? null,
@@ -147,54 +165,6 @@ function formatInventoryStatusLabel(
     hour: "2-digit",
     minute: "2-digit",
   }).format(parsed)}`;
-}
-
-function groupByNetworkNode(structures: Structure[]): NetworkNodeGroup[] {
-  const nodes = structures.filter((s) => s.type === "network_node");
-  const others = structures.filter((s) => s.type !== "network_node");
-
-  // For each network node, find co-located structures
-  const groups: NetworkNodeGroup[] = nodes.map((node) => {
-    const colocated = others.filter(
-      (s) => s.networkNodeId === node.objectId,
-    );
-
-    return {
-      node,
-      gates: colocated.filter((s) => s.type === "gate"),
-      storageUnits: colocated.filter((s) => s.type === "storage_unit"),
-      turrets: colocated.filter((s) => s.type === "turret"),
-    };
-  });
-
-  // Structures without a network node go into an "unassigned" group
-  const assignedIds = new Set(
-    groups.flatMap((g) => [
-      ...g.gates.map((s) => s.objectId),
-      ...g.storageUnits.map((s) => s.objectId),
-      ...g.turrets.map((s) => s.objectId),
-    ]),
-  );
-
-  const unassigned = others.filter((s) => !assignedIds.has(s.objectId));
-  if (unassigned.length > 0) {
-    // Create a synthetic "unassigned" group
-    groups.push({
-      node: {
-        objectId: "unassigned",
-        ownerCapId: "",
-        type: "network_node",
-        name: "Unassigned Structures",
-        status: "neutral",
-        extensionStatus: "none" as const,
-      },
-      gates: unassigned.filter((s) => s.type === "gate"),
-      storageUnits: unassigned.filter((s) => s.type === "storage_unit"),
-      turrets: unassigned.filter((s) => s.type === "turret"),
-    });
-  }
-
-  return groups;
 }
 
 function computeMetrics(structures: Structure[]): NetworkMetrics {
