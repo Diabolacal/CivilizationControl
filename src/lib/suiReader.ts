@@ -29,7 +29,6 @@ import {
   getConfiguredSuiRpcUrl,
   getSuiClient,
   isSuiDiagnosticsEnabled,
-  isVerboseDiscoveryDebugEnabled,
   type SuiRpcFailureKind,
 } from "@/lib/suiRpcClient";
 import {
@@ -48,6 +47,23 @@ interface FetchPlayerProfileOptions {
   includeCharacterMetadata?: boolean;
 }
 
+export type DiscoveryIssueKind =
+  | "unsupported"
+  | "stale-or-deleted"
+  | "unreadable"
+  | "missing-fields"
+  | "rpc-failure"
+  | "other";
+
+export interface DiscoveryIssue {
+  kind: DiscoveryIssueKind;
+  ownerCapId: ObjectId | null;
+  authorizedObjectId: ObjectId | null;
+  structureType: StructureType | null;
+  ownerCapType: string | null;
+  detail: string | null;
+}
+
 export interface DiscoveryDiagnostics {
   runId: string;
   rpcUrl: string;
@@ -58,6 +74,8 @@ export interface DiscoveryDiagnostics {
   objectReadsResolved: number;
   objectReadsFailed: number;
   failures: Partial<Record<SuiRpcFailureKind, number>>;
+  issueCounts: Partial<Record<DiscoveryIssueKind, number>>;
+  issues: DiscoveryIssue[];
 }
 
 export interface AssetDiscoveryResult {
@@ -95,6 +113,95 @@ function incrementFailure(
   failures[kind] = (failures[kind] ?? 0) + amount;
 }
 
+function incrementIssueCount(
+  counts: Partial<Record<DiscoveryIssueKind, number>>,
+  kind: DiscoveryIssueKind,
+  amount = 1,
+) {
+  counts[kind] = (counts[kind] ?? 0) + amount;
+}
+
+function isUserVisibleIssueKind(kind: DiscoveryIssueKind): boolean {
+  return kind !== "unsupported";
+}
+
+function serializeDiscoveryDetail(value: unknown): string | null {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : null;
+  }
+
+  if (value instanceof Error) {
+    const trimmed = value.message.trim();
+    return trimmed.length > 0 ? trimmed : value.name;
+  }
+
+  try {
+    const serialized = JSON.stringify(value);
+    return serialized && serialized !== "{}" ? serialized : String(value);
+  } catch {
+    return String(value);
+  }
+}
+
+function classifyMissingObjectIssue(response: SuiObjectResponse): Pick<DiscoveryIssue, "kind" | "detail"> {
+  const detail = serializeDiscoveryDetail(response.error) ?? "Missing object data";
+  const normalized = detail.toLowerCase();
+
+  if (
+    normalized.includes("notexist")
+    || normalized.includes("not found")
+    || normalized.includes("deleted")
+    || normalized.includes("wrapped")
+    || normalized.includes("object does not exist")
+  ) {
+    return {
+      kind: "stale-or-deleted",
+      detail,
+    };
+  }
+
+  return {
+    kind: "unreadable",
+    detail,
+  };
+}
+
+function recordDiscoveryIssue(
+  diagnostics: DiscoveryDiagnostics,
+  issue: DiscoveryIssue,
+) {
+  incrementIssueCount(diagnostics.issueCounts, issue.kind);
+  diagnostics.issues.push(issue);
+
+  if (isUserVisibleIssueKind(issue.kind)) {
+    diagnostics.objectReadsFailed += 1;
+  }
+}
+
+function formatDiscoveryIssueCounts(
+  counts: Partial<Record<DiscoveryIssueKind, number>>,
+): string {
+  return (Object.entries(counts) as Array<[DiscoveryIssueKind, number | undefined]>)
+    .filter(([, count]) => (count ?? 0) > 0)
+    .map(([kind, count]) => `${kind}:${count}`)
+    .join(", ");
+}
+
+function pluralize(count: number, singular: string, plural: string): string {
+  return count === 1 ? singular : plural;
+}
+
+function getUserVisibleIssueCount(diagnostics: DiscoveryDiagnostics): number {
+  return Object.entries(diagnostics.issueCounts)
+    .filter(([kind, count]) => isUserVisibleIssueKind(kind as DiscoveryIssueKind) && (count ?? 0) > 0)
+    .reduce((total, [, count]) => total + (count ?? 0), 0);
+}
+
 function buildDiscoveryDiagnostics(walletAddress: string): DiscoveryDiagnostics {
   return {
     runId: nextDiscoveryRunId(),
@@ -106,6 +213,8 @@ function buildDiscoveryDiagnostics(walletAddress: string): DiscoveryDiagnostics 
     objectReadsResolved: 0,
     objectReadsFailed: 0,
     failures: {},
+    issueCounts: {},
+    issues: [],
   };
 }
 
@@ -113,14 +222,25 @@ function buildPartialDiscoveryWarning(
   resolvedCount: number,
   diagnostics: DiscoveryDiagnostics,
 ): string | null {
-  if (diagnostics.objectReadsFailed === 0) {
+  const skippedCount = getUserVisibleIssueCount(diagnostics);
+  if (skippedCount === 0) {
     return null;
   }
 
-  const failureSummary = formatSuiRpcFailureCounts(diagnostics.failures);
-  return failureSummary
-    ? `Showing ${resolvedCount} structures. ${diagnostics.objectReadsFailed} structure reads failed (${failureSummary}).`
-    : `Showing ${resolvedCount} structures. ${diagnostics.objectReadsFailed} structure reads failed.`;
+  const staleOrDeletedCount = diagnostics.issueCounts["stale-or-deleted"] ?? 0;
+  const rpcFailureCount = diagnostics.issueCounts["rpc-failure"] ?? 0;
+  const structureLabel = pluralize(resolvedCount, "controllable structure", "controllable structures");
+  const objectLabel = pluralize(skippedCount, "owned object", "owned objects");
+
+  if (staleOrDeletedCount === skippedCount) {
+    return `Showing ${resolvedCount} ${structureLabel}. ${skippedCount} ${objectLabel} ${pluralize(skippedCount, "is", "are")} missing on-chain and ${pluralize(skippedCount, "was", "were")} skipped.`;
+  }
+
+  if (rpcFailureCount === skippedCount) {
+    return `Showing ${resolvedCount} ${structureLabel}. ${skippedCount} expected ${pluralize(skippedCount, "structure", "structures")} could not be read from Sui RPC.`;
+  }
+
+  return `Showing ${resolvedCount} ${structureLabel}. ${skippedCount} ${objectLabel} could not be read and ${pluralize(skippedCount, "was", "were")} skipped.`;
 }
 
 function logDiscoveryStart(diagnostics: DiscoveryDiagnostics) {
@@ -161,6 +281,7 @@ function logDiscoverySummary(
     objectReadsResolved: diagnostics.objectReadsResolved,
     objectReadsFailed: diagnostics.objectReadsFailed,
     failures: formatSuiRpcFailureCounts(diagnostics.failures) || "none",
+    issues: formatDiscoveryIssueCounts(diagnostics.issueCounts) || "none",
     warning: warning ?? "none",
   };
 
@@ -170,6 +291,38 @@ function logDiscoverySummary(
   }
 
   console.info(`[discovery:${diagnostics.runId}] summary`, summary);
+}
+
+function logDiscoveryIssues(diagnostics: DiscoveryDiagnostics) {
+  if (!isSuiDiagnosticsEnabled() || diagnostics.issues.length === 0) {
+    return;
+  }
+
+  const entries = diagnostics.issues.slice(0, 20).map((issue) => ({
+    reason: issue.kind,
+    ownerCapId: issue.ownerCapId,
+    authorizedObjectId: issue.authorizedObjectId,
+    structureType: issue.structureType,
+    ownerCapType: issue.ownerCapType,
+    detail: issue.detail,
+  }));
+
+  const payload = {
+    totalIssues: diagnostics.issues.length,
+    shownIssues: entries.length,
+    issueCounts: formatDiscoveryIssueCounts(diagnostics.issueCounts) || "none",
+    issues: entries,
+    ...(diagnostics.issues.length > entries.length
+      ? { truncatedIssues: diagnostics.issues.length - entries.length }
+      : {}),
+  };
+
+  if (getUserVisibleIssueCount(diagnostics) > 0) {
+    console.warn(`[discovery:${diagnostics.runId}] issues`, payload);
+    return;
+  }
+
+  console.info(`[discovery:${diagnostics.runId}] issues`, payload);
 }
 
 function logDiscoveryFailure(diagnostics: DiscoveryDiagnostics, error: unknown) {
@@ -263,29 +416,34 @@ async function fetchStructureBatch(
           return;
         }
 
-        diagnostics.objectReadsFailed += 1;
-        incrementFailure(
-          diagnostics.failures,
-          classifySuiRpcError(response.error ?? "Missing object data").kind,
-        );
+        const classifiedIssue = !response.data
+          ? classifyMissingObjectIssue(response)
+          : {
+              kind: "missing-fields" as const,
+              detail: "Object response missing objectId",
+            };
 
-        if (isVerboseDiscoveryDebugEnabled()) {
-          console.warn(`[discovery:${diagnostics.runId}] object read failed`, {
-            objectId: cap.authorizedObjectId,
-            structureType: cap.structureType,
-            error: response.error ?? "Missing object data",
-          });
-        }
+        recordDiscoveryIssue(diagnostics, {
+          kind: classifiedIssue.kind,
+          ownerCapId: cap.ownerCapId,
+          authorizedObjectId: cap.authorizedObjectId,
+          structureType: cap.structureType,
+          ownerCapType: null,
+          detail: classifiedIssue.detail,
+        });
       });
     } catch (error) {
-      diagnostics.objectReadsFailed += ids.length;
-      incrementFailure(diagnostics.failures, classifySuiRpcError(error).kind, ids.length);
+      const failure = classifySuiRpcError(error);
+      incrementFailure(diagnostics.failures, failure.kind, ids.length);
 
-      if (isVerboseDiscoveryDebugEnabled()) {
-        console.warn(`[discovery:${diagnostics.runId}] batch read failed`, {
-          batchIndex: batchIndex + 1,
-          ids,
-          error,
+      for (const cap of batch) {
+        recordDiscoveryIssue(diagnostics, {
+          kind: "rpc-failure",
+          ownerCapId: cap.ownerCapId,
+          authorizedObjectId: cap.authorizedObjectId,
+          structureType: cap.structureType,
+          ownerCapType: null,
+          detail: failure.message,
         });
       }
     }
@@ -373,6 +531,7 @@ export async function fetchCharacterMetadata(
  */
 export async function fetchOwnerCaps(
   characterId: ObjectId,
+  diagnostics?: DiscoveryDiagnostics,
 ): Promise<OwnerCapInfo[]> {
   const caps: OwnerCapInfo[] = [];
   let cursor: string | null | undefined = undefined;
@@ -393,15 +552,47 @@ export async function fetchOwnerCaps(
       const typeName = getObjectType(obj);
       if (!typeName || !typeName.includes("OwnerCap")) continue;
 
-      const structureType = inferStructureType(typeName);
-      if (!structureType) continue;
-
+      const ownerCapId = getObjectId(obj);
       const content = getObjectContent(obj);
       const authorizedObjectId =
         content?.authorized_object_id ?? content?.authorizedObjectId ?? "";
 
+      const structureType = inferStructureType(typeName);
+      if (!structureType) {
+        if (diagnostics) {
+          recordDiscoveryIssue(diagnostics, {
+            kind: "unsupported",
+            ownerCapId,
+            authorizedObjectId: String(authorizedObjectId || "") || null,
+            structureType: null,
+            ownerCapType: typeName,
+            detail: typeName,
+          });
+        }
+        continue;
+      }
+
+      if (diagnostics) {
+        diagnostics.ownerCapCount += 1;
+        diagnostics.objectReadsRequested += 1;
+      }
+
+      if (!authorizedObjectId) {
+        if (diagnostics) {
+          recordDiscoveryIssue(diagnostics, {
+            kind: "missing-fields",
+            ownerCapId,
+            authorizedObjectId: null,
+            structureType,
+            ownerCapType: typeName,
+            detail: "OwnerCap is missing authorized_object_id",
+          });
+        }
+        continue;
+      }
+
       caps.push({
-        ownerCapId: getObjectId(obj),
+        ownerCapId,
         authorizedObjectId: String(authorizedObjectId),
         structureType,
       });
@@ -470,6 +661,7 @@ export async function discoverAssets(walletAddress: string): Promise<{
 
       if (!profile) {
         logDiscoverySummary(diagnostics, null);
+        logDiscoveryIssues(diagnostics);
         return {
           profile: null,
           ownerCaps: [],
@@ -479,13 +671,12 @@ export async function discoverAssets(walletAddress: string): Promise<{
         };
       }
 
-      const ownerCaps = await fetchOwnerCaps(profile.characterId);
-      diagnostics.ownerCapCount = ownerCaps.length;
-      diagnostics.objectReadsRequested = ownerCaps.length;
+      const ownerCaps = await fetchOwnerCaps(profile.characterId, diagnostics);
 
       const structures = await fetchStructureBatch(ownerCaps, diagnostics);
       const warning = buildPartialDiscoveryWarning(structures.length, diagnostics);
       logDiscoverySummary(diagnostics, warning);
+      logDiscoveryIssues(diagnostics);
 
       return {
         profile,
