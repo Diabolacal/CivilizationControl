@@ -41,6 +41,7 @@ export function useSignalFeed(options: UseSignalFeedOptions = {}) {
     () => (ownedObjectIds ? new Set(ownedObjectIds) : null),
     [ownedObjectIds],
   );
+  const hasOwnedScope = Boolean(walletAddress && ownedSet && ownedSet.size > 0);
 
   const { data, isLoading, isError, error, refetch } = useQuery<SignalEvent[]>({
     queryKey: [SIGNAL_FEED_KEY],
@@ -49,10 +50,12 @@ export function useSignalFeed(options: UseSignalFeedOptions = {}) {
       const parsed = parseChainEvents(rawEvents as RawSuiEvent[]);
       return foldPostureSignals(parsed);
     },
+    enabled: hasOwnedScope,
     staleTime: aggressiveRefetch ? 2_000 : 15_000,
-    refetchInterval: polling
+    refetchInterval: hasOwnedScope && polling
       ? (aggressiveRefetch ? FAST_POLL_INTERVAL_MS : POLL_INTERVAL_MS)
       : false,
+    retry: false,
   });
 
   const allSignals = data ?? [];

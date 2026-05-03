@@ -1,5 +1,5 @@
 /**
- * LogoBadge — Fixed-position brand badge (bottom-right corner).
+ * LogoBadge — Fixed-position brand badge anchored to the sidebar rail.
  *
  * Adapted from the EFMap CameraCompass badge pattern.
  * Glassmorphism background with triple-layer glow, accent hover.

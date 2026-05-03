@@ -86,7 +86,7 @@ export function TradePostGlyph({ className = "", size = 24 }: GlyphProps) {
       width={size}
       height={size}
       className={className}
-      aria-label="Trade Post"
+      aria-label="Storage"
     >
       <rect
         x="4"

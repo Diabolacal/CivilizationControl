@@ -29,6 +29,11 @@ This document does not implement runtime code, map behavior changes, transaction
 - That brief locks the recommended first implementation slice to a render-only, dashboard-local node drilldown using the current `NetworkNodeGroup` read model and the tracked node icon catalogue.
 - The first branch should keep the macro Strategic Network view unchanged and should defer write actions, user-named presets, drag persistence, and broader family hydration until the drilldown shell is stable.
 
+### 2026-05-02 historical/reference note
+- The accepted `Node Control` UI baseline now lives on `feat/node-drilldown-render-shell`.
+- `docs/operations/network-node-drilldown-implementation-plan-20260501.md` is the authoritative Node Control planning document going forward, including backend-membership source selection, action-authority boundaries, local hide or unhide sequencing, and later online or offline planning.
+- This 2026-04-29 document should now be used for icon taxonomy, badge rules, legend doctrine, and original design rationale only. Do not use it for current phase ordering or action sequencing.
+
 ## 2. Current product context
 ### Hackathon macro-posture model
 The shipped product centers on macro infrastructure posture:

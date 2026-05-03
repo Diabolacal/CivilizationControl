@@ -1,5 +1,9 @@
 /** Live Stillness object IDs for the owner-authorization harness. */
 
+/** Public Stillness JSON-RPC fallback for browser reads. Prefer VITE_SUI_RPC_URL overrides when available. */
+export const DEFAULT_SUI_RPC_URL =
+  "https://fullnode.testnet.sui.io:443";
+
 /** World runtime package for MoveCall targets and emitter-sensitive queries. */
 export const WORLD_RUNTIME_PACKAGE_ID =
   "0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780";

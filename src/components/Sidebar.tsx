@@ -37,7 +37,7 @@ const navItems: NavItem[] = [
     icon: <GateGlyph className="w-4 h-4" size={16} />,
   },
   {
-    label: "TradePosts",
+    label: "Storages",
     path: "/tradeposts",
     icon: <TradePostGlyph className="w-4 h-4" size={16} />,
   },
@@ -67,6 +67,9 @@ interface SidebarProps {
   structures?: Structure[];
   isConnected?: boolean;
   isLoading?: boolean;
+  isError?: boolean;
+  discoveryErrorMessage?: string | null;
+  onRequestHome?: () => void;
 }
 
 function structureStatus(s: Structure): StatusType {
@@ -88,7 +91,14 @@ function structurePath(s: Structure): string {
   }
 }
 
-export function Sidebar({ structures = [], isConnected = false, isLoading = false }: SidebarProps) {
+export function Sidebar({
+  structures = [],
+  isConnected = false,
+  isLoading = false,
+  isError = false,
+  discoveryErrorMessage = null,
+  onRequestHome,
+}: SidebarProps) {
   const location = useLocation();
   const [expandedSections, setExpandedSections] = useState<
     Record<string, boolean>
@@ -109,16 +119,18 @@ export function Sidebar({ structures = [], isConnected = false, isLoading = fals
   const nodes = structures.filter((s) => s.type === "network_node");
 
   return (
-    <aside className="fixed left-0 top-16 bottom-0 w-64 bg-[var(--sidebar)] border-r border-border overflow-y-auto">
-      <nav className="p-4">
+    <aside className="fixed left-0 top-16 bottom-0 w-64 overflow-y-auto overflow-x-hidden border-r border-border bg-[var(--sidebar)]">
+      <nav className="p-4 pb-32">
         {/* Primary navigation */}
         <div className="space-y-1 mb-6">
           {navItems.map((item) => {
             const isActive = location.pathname === item.path;
+            const isHomeItem = item.path === "/";
             return (
               <Link
                 key={item.path}
                 to={item.path}
+                onClick={isHomeItem ? onRequestHome : undefined}
                 className={`flex items-center gap-3 px-3 py-2 rounded-sm transition-colors border-l-2 ${
                   isActive
                     ? "bg-primary/10 text-primary font-medium border-primary"
@@ -152,7 +164,13 @@ export function Sidebar({ structures = [], isConnected = false, isLoading = fals
             </p>
           )}
 
-          {isConnected && !isLoading && structures.length === 0 && (
+          {isConnected && !isLoading && discoveryErrorMessage && structures.length === 0 && (
+            <p className="px-3 text-[11px] text-amber-300/80">
+              {discoveryErrorMessage}
+            </p>
+          )}
+
+          {isConnected && !isLoading && !isError && structures.length === 0 && (
             <p className="px-3 text-[11px] text-muted-foreground/40">
               No structures discovered
             </p>
@@ -169,7 +187,7 @@ export function Sidebar({ structures = [], isConnected = false, isLoading = fals
           />
 
           <StructureSection
-            label="TradePosts"
+            label="Storages"
             icon={<TradePostGlyph size={12} />}
             items={tradeposts}
             expanded={expandedSections.tradeposts}

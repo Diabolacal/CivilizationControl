@@ -254,8 +254,8 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
             <div className="w-px h-4 bg-border/50 mx-2" />
             <button
               disabled
-              className="flex items-center gap-2 px-3 py-1.5 text-[11px] font-medium tracking-wide rounded text-muted-foreground/60 border border-transparent cursor-not-allowed"
-              title="Save Preset — coming soon"
+              aria-label="Save Preset coming soon"
+              className="flex items-center gap-2 whitespace-nowrap rounded border border-transparent px-3 py-1.5 text-[11px] font-medium tracking-wide text-muted-foreground/60 cursor-not-allowed"
             >
               <Settings2 className="w-3 h-3" />
               Save Preset

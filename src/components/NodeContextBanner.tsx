@@ -7,7 +7,7 @@
 
 import { Link } from "react-router";
 import { getSpatialPin } from "@/lib/spatialPins";
-import { computeRuntimeMs, formatRuntime, fuelTypeLabel, getFuelEfficiency } from "@/lib/fuelRuntime";
+import { buildFuelPresentation } from "@/lib/fuelRuntime";
 import type { Structure } from "@/types/domain";
 
 interface NodeContextBannerProps {
@@ -25,23 +25,18 @@ export function NodeContextBanner({ structure, structures }: NodeContextBannerPr
 
   const pin = getSpatialPin(parentNode.objectId);
 
-  const fuel = parentNode.fuel;
-  let fuelLabel = "";
-  if (fuel && fuel.quantity > 0) {
-    const efficiency = getFuelEfficiency(fuel.typeId) ?? 100;
-    const runtimeMs = computeRuntimeMs(fuel.quantity, fuel.burnRateMs, efficiency);
-    const typeLabel = fuelTypeLabel(fuel.typeId);
-    const parts: string[] = [];
-    if (typeLabel) parts.push(typeLabel);
-    const pct = fuel.maxCapacity > 0
-      ? Math.round((fuel.quantity / (fuel.maxCapacity / (fuel.unitVolume ?? 1))) * 100)
-      : 0;
-    parts.push(`${pct}%`);
-    if (runtimeMs) parts.push(`~${formatRuntime(runtimeMs)}`);
-    fuelLabel = parts.join(" · ");
-  } else if (fuel) {
-    fuelLabel = "No fuel";
-  }
+  const fuelPresentation = buildFuelPresentation(parentNode);
+  const fuelLabel = fuelPresentation.source === "none"
+    ? ""
+    : [
+      fuelPresentation.typeLabel,
+      fuelPresentation.runtimeLabel ? `~${fuelPresentation.runtimeLabel}` : fuelPresentation.amountLabel,
+    ].filter((value): value is string => Boolean(value)).join(" · ");
+  const fuelTextClass = fuelPresentation.severity === "critical"
+    ? "text-red-400"
+    : fuelPresentation.severity === "low"
+      ? "text-amber-400"
+      : "text-muted-foreground";
 
   const statusLabel = parentNode.status === "online" ? "Online" : "Offline";
   const statusColor = parentNode.status === "online" ? "text-teal-400" : "text-red-400";
@@ -60,7 +55,7 @@ export function NodeContextBanner({ structure, structures }: NodeContextBannerPr
       )}
       <span className={statusColor}>{statusLabel}</span>
       {fuelLabel && (
-        <span className="text-muted-foreground">{fuelLabel}</span>
+        <span className={fuelTextClass}>{fuelLabel}</span>
       )}
     </div>
   );

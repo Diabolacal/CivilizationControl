@@ -12,6 +12,47 @@ CivilizationControl now consumes the production shared-backend assembly summary 
 
 This is an additive read-path enhancement only. No write path, wallet flow, sponsorship flow, package ID, or Move contract behavior changes.
 
+## Status update - 2026-05-02
+
+CivilizationControl now also consumes a second production shared-backend route for selected-node-local discovery inside `Node Control`:
+
+- endpoint: `https://ef-map.com/api/civilization-control/node-assemblies?networkNodeId=<canonical-network-node-object-id>`
+- caller: live `Dashboard` node-local mode only; the dev-only node drilldown lab remains isolated from this route
+- auth model: no API key, no browser Authorization header, no browser-visible secret
+- authority model: direct-chain live discovery remains authoritative while backend-only rows are read-only node-local observations only
+- UI scope: broader backend-observed rows appear only inside `Node Control`; macro `Strategic Network`, macro metrics, ownership truth, OwnerCap truth, and write eligibility remain unchanged
+- freshness scope: the current implementation fetches on selected-node entry or change only; interval polling and any event-driven invalidation remain deferred to the later node-local freshness pass
+
+This sibling node-local route does not replace the exact-ID `assemblies?ids=` enrichment path documented below. The exact-ID route still handles additive metadata for already-known structures, while the node-local route handles selected-node broader discovery for read-only display only.
+
+## Reconciliation update - 2026-05-02
+
+The first follow-up to the node-local route corrected how CivilizationControl consumes overlapping live and backend-observed rows.
+
+- overlapping live and backend-observed rows now reconcile by normalized object-ID and decimal assembly-ID aliases before the node-local model renders them
+- the direct-chain live lane stays authoritative for ownership, write eligibility, action eligibility, and wallet truth
+- the backend lane may enrich the live row with better type labels, size labels, observed status when direct-chain is neutral, `lastUpdated`, `fetchedAt`, `fuelAmount`, `source`, and `provenance`
+- backend-only rows remain read-only node-local observations and still do not widen macro topology or write behavior
+- node-local player-facing terminology now standardizes storage-family display to `Storage` in `Node Control` and the lab or legend surfaces only; this doc does not widen that rename into macro routes or dedicated `TradePosts` screens
+- selected-node polling was intentionally deferred in this pass, because the current node-local ordering still needs live human review before interval refetch can be added without visible churn
+- browser-origin inspection from preview confirmed healthy `200` responses from the node-local route and a `cache-control: public, max-age=60` policy, but the accessible wallet-owned nodes in this environment returned empty `assemblies` arrays, so the non-empty assembler payload from human preview testing could not be re-captured here
+
+## Identity invariant update - 2026-05-02
+
+The previous node-local reconciliation pass did not fully solve the real wallet-preview duplicate bug. A second pass was required to correct the end-to-end identity boundary.
+
+- previous failure mode: the earlier merge only collapsed overlapping observed rows before concatenation; the final candidate node-local structure array still had no last-boundary domain-identity invariant
+- why that mattered: if a duplicate row survived earlier pairwise matching, or if direct-chain discovery already carried a duplicate live row, both copies could still enter the single final `Node Control` structure array and be rendered by the map and list together
+- current rule: every rendered `Node Control` row now carries a `canonicalDomainKey`, and the final candidate row set is collapsed by alias overlap before it reaches layout or UI surfaces
+- canonical identity preference: normalized decimal `assemblyId` first, canonical `objectId` second, with render IDs only consulted when they literally encode one of those domain identifiers
+- authority rule unchanged: surviving live rows keep direct-chain ownership and action eligibility, while backend metadata can still enrich type, display name, size, freshness, and observed status when chain data is neutral or generic
+- backend-only rows remain read-only and non-actionable
+- browser debug aid added: with `?debugNodeDrilldown=1`, the preview publishes `window.__CC_NODE_DRILLDOWN_DEBUG__.latest` so a human can inspect selected-node `liveRows`, `backendRows`, `candidateRows`, `candidateBuckets`, `duplicateBuckets`, `finalRows`, and `finalRenderIds` without any new endpoint or visible UI change
+- deterministic regression probe added: `npx tsx scripts/check-node-drilldown-reconciliation.mts`
+- refreshed preview evidence for this pass: `https://add42d05.civilizationcontrol.pages.dev`
+
+Human wallet-connected validation is still required on that preview because the agent environment cannot drive the live wallet session that reproduces the non-empty node-local backend payload.
+
 ## Endpoint contract consumed
 
 - base URL default: `https://ef-map.com`

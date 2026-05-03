@@ -3,7 +3,7 @@ import type { AssemblySummary, Structure, StructureType } from "@/types/domain";
 
 const TYPE_LABELS: Record<StructureType, string> = {
   gate: "Gate",
-  storage_unit: "Trade Post",
+  storage_unit: "Storage",
   turret: "Turret",
   network_node: "Network Node",
 };

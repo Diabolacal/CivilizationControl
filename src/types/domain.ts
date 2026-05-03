@@ -20,19 +20,151 @@ export type StructureType = "gate" | "storage_unit" | "turret" | "network_node";
 /** Operational status derived from on-chain state. */
 export type StructureStatus = "online" | "warning" | "offline" | "neutral";
 
+export interface IndexedPowerSummary {
+  fuelAmount: number | null;
+  fuelMaxCapacity: number | null;
+  fuelTypeId: number | null;
+  fuelTypeName: string | null;
+  fuelGrade: string | null;
+  efficiencyPercent: number | null;
+  burnRateUnitsPerHour: number | null;
+  estimatedSecondsRemaining: number | null;
+  estimatedHoursRemaining: number | null;
+  criticalFuelThresholdSeconds: number | null;
+  lowFuelThresholdSeconds: number | null;
+  isLowFuel: boolean | null;
+  isCriticalFuel: boolean | null;
+  source: string | null;
+  lastUpdated: string | null;
+  confidence: string | null;
+}
+
+export interface IndexedActionRequiredIds {
+  structureId: ObjectId | null;
+  structureType: StructureType | null;
+  ownerCapId: ObjectId | null;
+  networkNodeId: ObjectId | null;
+}
+
+export interface IndexedStructureAction {
+  candidate: boolean;
+  currentlyImplementedInCivilizationControl: boolean;
+  familySupported: boolean | null;
+  indexedOwnerCapPresent: boolean | null;
+  requiredIds: IndexedActionRequiredIds | null;
+  unavailableReason: string | null;
+}
+
+export interface IndexedActionCandidate {
+  actions: {
+    power: IndexedStructureAction | null;
+    rename: IndexedStructureAction | null;
+  };
+  supported: boolean | null;
+  familySupported: boolean | null;
+  unavailableReason: string | null;
+}
+
+export type IndexedNetworkNodeProofSignal =
+  | "assembly-id"
+  | "owner-cap-id"
+  | "non-neutral-status"
+  | "fuel-amount"
+  | "power-summary"
+  | "energy-source-id";
+
+export type IndexedNetworkNodeRenderEligibility = "grouped-structures" | "strong-owned-node-proof";
+
+export interface IndexedNetworkNodeRenderMeta {
+  rawNodeIndex: number | null;
+  canonicalIdentity: string | null;
+  strongOwnedNodeProof: boolean;
+  proofSignals: IndexedNetworkNodeProofSignal[];
+  renderEligibility: IndexedNetworkNodeRenderEligibility | null;
+}
+
 /** Optional shared-backend assembly summary keyed by decimal assembly ID. */
 export interface AssemblySummary {
   assemblyId: string;
-  assemblyType: string;
-  typeId: number;
-  name: string;
-  status: string;
+  assemblyType: string | null;
+  typeId: number | null;
+  name: string | null;
+  displayName?: string | null;
+  status: string | null;
   fuelAmount: string | null;
+  powerSummary?: IndexedPowerSummary | null;
   solarSystemId: string | null;
   energySourceId: string | null;
   url: string | null;
   lastUpdated: string | null;
   typeName: string | null;
+  family?: string | null;
+  size?: string | null;
+  source?: string | null;
+  provenance?: string | null;
+  lastObservedCheckpoint?: string | null;
+  lastObservedTimestamp?: string | null;
+  extensionStatus?: "authorized" | "stale" | "none" | null;
+  partial?: boolean;
+  warnings?: string[];
+  actionCandidate?: IndexedActionCandidate | null;
+}
+
+/** Provenance metadata for backend-observed node-local discovery rows. */
+export interface NodeAssemblyProvenance {
+  source: string | null;
+  provenance: string | null;
+}
+
+/** Selected network node summary returned by the node-local backend discovery endpoint. */
+export interface NodeAssemblyNode {
+  objectId: ObjectId;
+  name: string | null;
+  displayName?: string | null;
+  status: string | null;
+  assemblyId: string | null;
+  solarSystemId: string | null;
+  energySourceId: string | null;
+  fuelAmount?: string | null;
+  powerSummary?: IndexedPowerSummary | null;
+}
+
+/** Backend-observed linked assembly returned for a selected network node. */
+export interface NodeAssemblySummary extends NodeAssemblyProvenance {
+  objectId: ObjectId | null;
+  assemblyId: string | null;
+  linkedGateId: ObjectId | null;
+  assemblyType: string | null;
+  typeId: number | null;
+  name: string | null;
+  displayName?: string | null;
+  family?: string | null;
+  size?: string | null;
+  status: string | null;
+  fuelAmount: string | null;
+  powerSummary?: IndexedPowerSummary | null;
+  solarSystemId: string | null;
+  energySourceId: string | null;
+  url: string | null;
+  lastUpdated: string | null;
+  lastObservedCheckpoint?: string | null;
+  lastObservedTimestamp?: string | null;
+  typeName: string | null;
+  ownerCapId?: ObjectId | null;
+  ownerWalletAddress?: string | null;
+  characterId?: ObjectId | null;
+  extensionStatus?: "authorized" | "stale" | "none" | null;
+  partial?: boolean;
+  warnings?: string[];
+  actionCandidate?: IndexedActionCandidate | null;
+}
+
+/** Browser-safe node-local discovery response keyed by selected network-node object ID. */
+export interface NodeAssembliesResponse {
+  node: NodeAssemblyNode;
+  assemblies: NodeAssemblySummary[];
+  fetchedAt: string | null;
+  source: string | null;
 }
 
 /** Player profile resolved from wallet connection. */
@@ -56,6 +188,8 @@ export interface Structure {
   assemblyId?: string;
   objectId: ObjectId;
   ownerCapId: ObjectId;
+  /** Indicates whether the row came from direct-chain discovery or the indexed read model. */
+  readModelSource?: "direct-chain" | "operator-inventory";
   type: StructureType;
   name: string;
   status: StructureStatus;
@@ -63,10 +197,16 @@ export interface Structure {
   networkNodeId?: ObjectId;
   /** Fuel state for network nodes. */
   fuel?: FuelState;
+  /** Indexed fuel quantity when runtime fuel fields are not available. */
+  indexedFuelAmount?: string | null;
+  /** Indexed power summary when runtime is supplied by the shared read model. */
+  indexedPowerSummary?: IndexedPowerSummary | null;
   /** Linked destination gate ID — only present for linked gates. */
   linkedGateId?: ObjectId;
   /** Optional shared-backend enrichment; direct-chain fields remain authoritative. */
   summary?: AssemblySummary;
+  /** Render metadata for grouped operator-inventory network nodes. */
+  networkNodeRenderMeta?: IndexedNetworkNodeRenderMeta | null;
   /**
    * Extension authorization status:
    * - "authorized" — extension matches the current CC package witness type

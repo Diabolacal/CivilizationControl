@@ -19,12 +19,15 @@ interface NodeClusterSvgProps {
   posture: Posture;
   childSlots: ChildSlot[];
   collapsedTurretCount: number;
-  childRadius: number;
   onHover?: (target: HoverTarget | null) => void;
   /** Staggered delay (ms) for posture cascade — left-to-right sweep. */
   cascadeDelayMs?: number;
   /** Low-fuel or other warning condition on the network node itself. */
   hasWarning?: boolean;
+  hoveredNode?: boolean;
+  selected?: boolean;
+  canSelectNode?: boolean;
+  onSelectNode?: (nodeId: string, button: number) => void;
 }
 
 export function NodeClusterSvg({
@@ -34,10 +37,13 @@ export function NodeClusterSvg({
   posture,
   childSlots,
   collapsedTurretCount,
-  childRadius,
   onHover,
   cascadeDelayMs = 0,
   hasWarning = false,
+  hoveredNode = false,
+  selected = false,
+  canSelectNode = false,
+  onSelectNode,
 }: NodeClusterSvgProps) {
   const isOnline = group.node.status === "online";
   const nodeId = group.node.objectId;
@@ -50,19 +56,38 @@ export function NodeClusterSvg({
 
   return (
     <g onMouseLeave={() => onHover?.(null)}>
-      {/* Background cluster hit area — catches gaps between children */}
-      <circle
-        cx={cx} cy={cy} r={childRadius + 8}
-        fill="transparent"
-        onMouseEnter={() => onHover?.({ kind: "node", nodeId, svgX: cx, svgY: cy })}
-      />
-
       {/* Subtle halo behind center node */}
       <circle
         cx={cx} cy={cy} r={22}
         fill={isOnline ? "var(--topo-state-online)" : "var(--topo-state-offline)"}
-        opacity={0.06} pointerEvents="none"
+        opacity={hoveredNode && canSelectNode ? 0.11 : 0.06} pointerEvents="none"
       />
+
+      {hoveredNode && canSelectNode && !selected ? (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={19}
+          fill="none"
+          stroke={nodeColor}
+          strokeWidth="1.25"
+          opacity={0.45}
+          pointerEvents="none"
+        />
+      ) : null}
+
+      {selected ? (
+        <circle
+          cx={cx}
+          cy={cy}
+          r={19}
+          fill="none"
+          stroke="var(--topo-selected)"
+          strokeWidth="1.5"
+          opacity={0.9}
+          pointerEvents="none"
+        />
+      ) : null}
 
       {/* Idle heartbeat pulse — network node center (online only) */}
       {isOnline && (
@@ -171,6 +196,8 @@ export function NodeClusterSvg({
         cx={cx} cy={cy} r={16}
         fill="transparent"
         onMouseEnter={() => onHover?.({ kind: "node", nodeId, svgX: cx, svgY: cy })}
+        onPointerUp={(event) => onSelectNode?.(nodeId, event.button)}
+        style={canSelectNode ? { cursor: "pointer" } : undefined}
       />
     </g>
   );

@@ -84,7 +84,7 @@ export function TradePostListScreen({ structures, isLoading }: TradePostListScre
       <div className="flex items-center justify-between border-b border-border/50 pb-4">
         <div>
           <h1 className="text-xl font-bold tracking-tight text-foreground mb-1">
-            TradePosts
+            Storages
           </h1>
           <p className="text-[11px] font-mono text-muted-foreground tracking-wide">
             Commerce Infrastructure // {posts.length} Enrolled
@@ -113,7 +113,7 @@ export function TradePostListScreen({ structures, isLoading }: TradePostListScre
           status={ssuStatus}
           result={ssuResult}
           error={ssuError}
-          successLabel="TradePost extensions authorized"
+          successLabel="Storage extensions authorized"
           onDismiss={resetSsu}
         />
       )}
@@ -152,7 +152,7 @@ export function TradePostListScreen({ structures, isLoading }: TradePostListScre
           status={power.status}
           result={power.result}
           error={power.error}
-          successLabel="TradePost power state updated"
+          successLabel="Storage power state updated"
           onDismiss={power.reset}
         />
       )}
@@ -166,7 +166,7 @@ export function TradePostListScreen({ structures, isLoading }: TradePostListScre
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/20">
-                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">TradePost</th>
+                <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Storage</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Status</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Extension</th>
                 <th className="text-left py-2.5 px-4 text-xs font-medium text-muted-foreground">Location</th>
@@ -234,8 +234,8 @@ function EmptyState() {
   return (
     <div className="border border-dashed border-border rounded py-16 flex flex-col items-center gap-3">
       <TradePostGlyph size={32} />
-      <p className="text-sm text-muted-foreground/60">No trade posts discovered</p>
-      <p className="text-[11px] text-muted-foreground/40">Connect a wallet with SSU OwnerCaps to view trade posts</p>
+      <p className="text-sm text-muted-foreground/60">No storage structures discovered</p>
+      <p className="text-[11px] text-muted-foreground/40">Connect a wallet with SSU OwnerCaps to view storage structures</p>
     </div>
   );
 }
@@ -243,7 +243,7 @@ function EmptyState() {
 function LoadingState() {
   return (
     <div className="text-center py-12">
-      <p className="text-sm text-muted-foreground animate-pulse">Discovering trade posts…</p>
+      <p className="text-sm text-muted-foreground animate-pulse">Discovering storage structures…</p>
     </div>
   );
 }

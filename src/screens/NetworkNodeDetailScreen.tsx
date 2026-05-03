@@ -12,9 +12,38 @@ import { StructureDetailHeader } from "@/components/StructureDetailHeader";
 import { StatusDot } from "@/components/StatusDot";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { useStructurePower } from "@/hooks/useStructurePower";
-import { fuelTypeLabel, getFuelEfficiency, computeRuntimeMs, formatRuntime } from "@/lib/fuelRuntime";
+import { buildFuelPresentation, type FuelSeverity } from "@/lib/fuelRuntime";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, NetworkNodeGroup } from "@/types/domain";
+
+const FUEL_BAR_CLASS_BY_SEVERITY: Record<FuelSeverity, string> = {
+  critical: "bg-red-500/80",
+  low: "bg-amber-500/80",
+  normal: "bg-teal-500/70",
+  partial: "bg-muted-foreground/45",
+  unavailable: "bg-transparent",
+};
+
+const FUEL_ACCENT_CLASS_BY_SEVERITY: Record<FuelSeverity, string> = {
+  critical: "text-red-400",
+  low: "text-amber-400",
+  normal: "text-foreground",
+  partial: "text-muted-foreground",
+  unavailable: "text-muted-foreground",
+};
+
+function fuelSeverityLabel(severity: FuelSeverity): string | null {
+  switch (severity) {
+    case "critical":
+      return "Critical fuel";
+    case "low":
+      return "Low fuel";
+    case "partial":
+      return "Runtime estimate unavailable for this node.";
+    default:
+      return null;
+  }
+}
 
 interface NetworkNodeDetailScreenProps {
   structures: Structure[];
@@ -24,8 +53,8 @@ interface NetworkNodeDetailScreenProps {
 
 export function NetworkNodeDetailScreen({ structures, nodeGroups, isLoading }: NetworkNodeDetailScreenProps) {
   const { id } = useParams<{ id: string }>();
-  const node = structures.find((s) => s.objectId === id && s.type === "network_node");
   const group = nodeGroups.find((g) => g.node.objectId === id);
+  const node = group?.node ?? structures.find((s) => s.objectId === id && s.type === "network_node");
 
   if (isLoading) {
     return (
@@ -73,6 +102,11 @@ function BackLink() {
 function PowerControlSection({ node }: { node: Structure }) {
   const power = useStructurePower();
   const isOnline = node.status === "online";
+  const fuelPresentation = buildFuelPresentation(node);
+  const primaryFuelLabel = fuelPresentation.runtimeLabel
+    ? `~${fuelPresentation.runtimeLabel}`
+    : fuelPresentation.amountLabel;
+  const severityLabel = fuelSeverityLabel(fuelPresentation.severity);
 
   const handleOnline = () => {
     power.bringNodeOnline({
@@ -99,55 +133,34 @@ function PowerControlSection({ node }: { node: Structure }) {
           </span>
         )}
       </div>
-      {node.fuel != null && (
-        (() => {
-          const label = fuelTypeLabel(node.fuel.typeId);
-          const eff = getFuelEfficiency(node.fuel.typeId);
-          const runtimeMs = eff && node.fuel.burnRateMs > 0 && node.fuel.quantity > 0
-            ? computeRuntimeMs(node.fuel.quantity, node.fuel.burnRateMs, eff)
-            : undefined;
-          const maxUnits = node.fuel.unitVolume && node.fuel.unitVolume > 0
-            ? Math.floor(node.fuel.maxCapacity / node.fuel.unitVolume)
-            : undefined;
-          const fillPct = maxUnits != null && maxUnits > 0
-            ? Math.min(100, Math.round((node.fuel.quantity / maxUnits) * 100))
-            : undefined;
-
-          return (
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <span className="text-[11px] text-muted-foreground">Fuel</span>
-                <span className="text-sm font-mono text-foreground">
-                  {label && <span className="text-muted-foreground mr-1.5">{label} •</span>}
-                  {node.fuel.quantity.toLocaleString()}
-                  {maxUnits != null ? ` / ${maxUnits.toLocaleString()}` : ""} units
-                </span>
-              </div>
-              {fillPct != null && (
-                <div className="h-1.5 rounded-full bg-muted/30 overflow-hidden">
-                  <div
-                    className={`h-full rounded-full transition-all ${fillPct > 20 ? "bg-teal-500/60" : "bg-amber-500/60"}`}
-                    style={{ width: `${fillPct}%` }}
-                  />
-                </div>
-              )}
-              {runtimeMs != null ? (
-                <p className="text-[11px] text-muted-foreground">
-                  Est. runtime: ~{formatRuntime(runtimeMs)} ({label} @ {eff}% efficiency)
-                </p>
-              ) : node.fuel.quantity > 0 && !eff ? (
-                <p className="text-[11px] text-amber-400/80">
-                  Unknown fuel type — cannot estimate runtime
-                </p>
+      {fuelPresentation.source !== "none" ? (
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between">
+            <span className="text-[11px] text-muted-foreground">Fuel</span>
+            <span className={`text-sm font-mono ${FUEL_ACCENT_CLASS_BY_SEVERITY[fuelPresentation.severity]}`}>
+              {fuelPresentation.typeLabel ? (
+                <span className="mr-1.5 text-muted-foreground">{fuelPresentation.typeLabel} •</span>
               ) : null}
-              {node.fuel.quantity === 0 && (
-                <p className="text-[11px] text-amber-400/80">
-                  No fuel loaded — node will shut down when current cycle expires
-                </p>
-              )}
+              {primaryFuelLabel ?? "Unavailable"}
+            </span>
+          </div>
+          {fuelPresentation.fillPercent != null ? (
+            <div className="h-1.5 overflow-hidden rounded-full bg-muted/30">
+              <div
+                className={`h-full rounded-full transition-all ${FUEL_BAR_CLASS_BY_SEVERITY[fuelPresentation.severity]}`}
+                style={{ width: `${fuelPresentation.fillPercent}%` }}
+              />
             </div>
-          );
-        })()
+          ) : null}
+          {fuelPresentation.amountLabel && fuelPresentation.runtimeLabel ? (
+            <p className="text-[11px] font-mono text-muted-foreground">{fuelPresentation.amountLabel}</p>
+          ) : null}
+          {severityLabel ? (
+            <p className={`text-[11px] ${FUEL_ACCENT_CLASS_BY_SEVERITY[fuelPresentation.severity]}`}>{severityLabel}</p>
+          ) : null}
+        </div>
+      ) : (
+        <p className="text-[11px] text-muted-foreground">Fuel data unavailable.</p>
       )}
       {(power.status === "success" || power.status === "error") && (
         <TxFeedbackBanner

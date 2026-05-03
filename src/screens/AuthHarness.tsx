@@ -55,7 +55,7 @@ function AuthHarness() {
         </table>
         <p style={{ fontSize: 11, color: "#666", marginTop: 8 }}>
           Gate/SSU IDs are resolved dynamically from the connected wallet.
-          Use the Gate and Trade Post list screens for extension authorization.
+          Use the Gate and Storage list screens for extension authorization.
         </p>
       </section>
 
@@ -74,9 +74,9 @@ function AuthHarness() {
 
       {/* Action 2: SSU — now informational only */}
       <section>
-        <h2 style={{ fontSize: 16 }}>SSU Extension Authorization</h2>
+        <h2 style={{ fontSize: 16 }}>Storage Extension Authorization</h2>
         <p style={{ fontSize: 12, color: "#aaa" }}>
-          Use the Trade Posts list screen to authorize TradeAuth on discovered SSUs.
+          Use the Storage list screen to authorize TradeAuth on discovered SSUs.
         </p>
         <StatusDisplay status={ssuStatus} digest={ssuResult?.digest} error={ssuError} />
       </section>

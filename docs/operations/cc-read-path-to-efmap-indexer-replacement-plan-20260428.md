@@ -1,6 +1,26 @@
 # CivilizationControl Read Path -> EF-Map Indexer Replacement Plan — 2026-04-28
 
 > Status note (2026-04-29): Phase 1 shipped via `docs/operations/shared-backend-assembly-enrichment-20260429.md`. This file remains as later-phase roadmap and historical planning context only.
+>
+> Status update (2026-05-03, newest): the final accepted frontend-only polish on `feat/node-drilldown-render-shell` compacted the selected network-node `Fuel` row in `Selection Inspector` into a one-row quantity-plus-runtime summary where space allows, while keeping fill quantity-based, runtime indexed-only, and severity thresholded at `86400`/`3600`. No browser JSON-RPC, backend contract, package, or write-path behavior changed in this pass. The branch should now merge after preview validation, and the next implementation slice should start in EF-Map/shared-backend with the wallet-scoped signal-history endpoint rather than reopening frontend branch scope. See `docs/operations/network-node-drilldown-implementation-plan-20260501.md` under `Next work order after merge`.
+>
+> Status update (2026-05-03, newest): the latest frontend-only follow-up on `feat/node-drilldown-render-shell` corrected two app-owned operator-shell seams without changing shared-backend or chain contracts. First, `src/lib/fuelRuntime.ts` now derives network-node fill from honest quantity fullness, normalizing indexed `powerSummary.fuelMaxCapacity` when it is not in the same usable-unit scale as indexed `fuelAmount`; runtime labels still come only from indexed estimated time, severity still uses `86400`/`3600`, and partial states stay units-only with no fabricated time. Second, `src/main.tsx` now paints an immediate static boot shell before async app and provider imports resolve and records `window.__CC_BOOT_TIMING__`. Local timing on `http://127.0.0.1:4185/` showed shell paint at `49.8ms` and app paint at `244.6ms`; deployed preview `https://3cb28fb6.civilizationcontrol.pages.dev` showed shell paint at `269ms` and app paint at `770.7ms`, while disconnected `/`, `/nodes`, `/settings`, and `/dev/node-drilldown-lab` still made no browser Sui RPC, `operator-inventory`, or `node-assemblies` requests. Validation passed: `npm run typecheck`; `npm run build`; `git diff --check` with only the pre-existing LF/CRLF warning on `contracts/civilization_control/Move.lock`; `npx tsx scripts/check-operator-inventory-mapping.mts`; and `npx tsx scripts/check-node-drilldown-reconciliation.mts`. Served preview HTML on both unique and alias URLs resolved `assets/index-BPekTQv0.js`; served-bundle scanning across 12 deployed JS assets found `civilizationcontrol-sponsor` in `App-Brh6xqfh.js` and `SmartObjectProvider-tq4WYpYI.js`, `https://ef-map.com` in `SmartObjectProvider-tq4WYpYI.js` and `useNodeDrilldownStructureMenu-B4vRh3iM.js`, `https://fullnode.testnet.sui.io:443` in `SmartObjectProvider-tq4WYpYI.js` and `suiRpcClient-BibKDPwo.js`, and no `flappy-frontier-sponsor`, exact-case `Authorization`, `ASSEMBLY_API_TOKEN`, `X-API-Key`, `SPONSOR_PRIVATE_KEY`, `CF_API_TOKEN`, or `CLOUDFLARE_ACCOUNT_ID`. Live wallet-connected browser proof of the corrected fuel bar remains pending in this environment.
+>
+> Status update (2026-05-03, newest): the indexed-runtime follow-up on `feat/node-drilldown-render-shell` now treats `networkNodes[].node.powerSummary` as the frontend source for network-node runtime UI and for `Command Overview` / `Attention Required` low- and critical-fuel state. Low fuel is `86400` seconds and critical is `3600` seconds. Runtime is rendered only when indexed confidence is `indexed` and both `estimatedSecondsRemaining` plus `estimatedHoursRemaining` are present; otherwise rows stay partial and units-only so no time is fabricated. Assembly-less indexed rows preserve a root-level `powerSummary` through adaptation, `Selection Inspector` now shows a compact indexed fuel summary for selected network nodes, no browser Sui JSON-RPC was added for runtime recovery, and Signal Feed remains a separate deferred slice unchanged by this pass. Validation passed: `npm run typecheck`; `npm run build`; `git diff --check` with only the pre-existing LF/CRLF warning on `contracts/civilization_control/Move.lock`; `npx tsx scripts/check-operator-inventory-mapping.mts`; and `npx tsx scripts/check-node-drilldown-reconciliation.mts`. Preview evidence: `https://be1df70f.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`; preview route smoke confirmed `/`, `/nodes`, `/settings`, and `/dev/node-drilldown-lab`; disconnected checks for those same routes made no browser Sui RPC requests and no `operator-inventory` or `node-assemblies` requests; the dev lab remained isolated from wallet, shared-backend, and sponsor flows; unique and alias HTML both resolved `assets/index-CbtN9RIx.js`; served-bundle scanning across 12 deployed JS assets found `civilizationcontrol-sponsor` in `App-CyzGoJCr.js` and `SmartObjectProvider-DEp_I87K.js`, `https://ef-map.com` in `SmartObjectProvider-DEp_I87K.js` and `useNodeDrilldownStructureMenu-CblxiTR6.js`, `https://fullnode.testnet.sui.io:443` in `SmartObjectProvider-DEp_I87K.js` and `suiRpcClient-BibKDPwo.js`, and no `flappy-frontier-sponsor`, `ASSEMBLY_API_TOKEN`, `X-API-Key`, `SPONSOR_PRIVATE_KEY`, `CF_API_TOKEN`, or `CLOUDFLARE_ACCOUNT_ID`; exact-case `Authorization` was absent and the only lowercase `authorization` marker remained the existing user-facing text `Turret extension authorization revoked` in `App-CyzGoJCr.js`. Live wallet-connected browser proof for restored indexed runtime on `/nodes` and `Node Control` remains pending in this environment.
+>
+> Status update (2026-05-03): live Node Control experience on `feat/node-drilldown-render-shell` proved that the additive `assemblies?ids=` plus selected-node `node-assemblies` model is still too dependent on browser Sui JSON-RPC for app boot and operator inventory. The next shared-backend slice should therefore be accelerated from exact-ID enrichment toward a wallet-scoped operator-inventory endpoint that can become CivilizationControl's primary read path, while chain reads remain final for signing, execution, and narrow fallback or debug only.
+>
+> Status update (2026-05-03, later): the frontend adoption phase is now implemented on `feat/node-drilldown-render-shell`. `useAssetDiscovery` boots from `GET /api/civilization-control/operator-inventory?walletAddress=0x...` through a browser-safe client and compatibility adapter, direct-chain discovery now falls back only on complete shared-read-model failure, and selected-node `Node Control` now prefers grouped operator-inventory rows plus indexed `actionCandidate.actions.power` hints over a mandatory selected-node `node-assemblies` fetch. Deterministic proof now includes `scripts/check-operator-inventory-mapping.mts`. Preview evidence for this implementation pass: `https://a7e61d2e.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`.
+>
+> Status update (2026-05-03, latest): the frontend read-model correction now enforces raw operator-inventory `networkNodes[]` as the only authoritative source of displayed network-node groups. Unlinked node-like rows and unlinked turret rows remain diagnostics or unlinked inventory only and no longer become standalone network nodes or synthetic macro-node clusters through generic regrouping. Browser-only proof now includes `?debugOperatorInventory=1`, and refreshed preview evidence for this correction pass was captured on `https://3a32a175.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`.
+>
+> Status update (2026-05-03, newest): the follow-up frontend correction now quarantines raw operator-inventory `unlinkedStructures` out of normal governed inventory entirely while preserving them in `adapted.unlinkedStructures` for diagnostics and explicit future surfaces only. Raw grouped node buckets and selected-node lookups now also dedupe by canonical object-or-assembly identity instead of raw `node.objectId` only, and `?debugOperatorInventory=1` now exposes `operatorInventoryUrl`, raw grouped duplicate buckets, and `adaptedUnlinkedRows` for wallet-connected live classification. Refreshed preview evidence for this correction pass: `https://2db728c4.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`.
+>
+> Status update (2026-05-03, final): the next frontend correctness pass now narrows the remaining phantom-node class to raw grouped operator-inventory rows admitted by frontend eligibility rather than by fallback merging. Grouped nodes now render only when they have stable canonical identity plus a displayable node object ID, and zero-structure grouped rows must also carry owned-node proof; ownerless empty grouped rows, missing-identity rows, and missing-displayable-ID rows are quarantined into debug instead of rendering or counting as governed network nodes. The browser-only `?debugOperatorInventory=1` export now includes `requestedWalletAddress`, raw returned operator wallet, indexed `rawNetworkNodes[]`, raw-node duplicate buckets by object or assembly or owner-cap or canonical identity, `quarantinedNodeRows`, `missingIdentityNodeRows`, `zeroStructureGroupedNodes`, and `renderedNetworkNodeListCount`, while the sidebar shell no longer renders read-model status or raw backend warning paragraphs. Refreshed preview evidence for this correction pass: `https://a91ed23d.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`.
+>
+> Status update (2026-05-03, newest): the phantom-node follow-up now tightens the zero-structure grouped-node rule one step further and exposes enough identity in the shipped UI to classify the remaining suspicious node without devtools-first inspection. Empty grouped nodes now render only when they still have a displayable object ID plus `ownerCapId` and at least one stronger indexed proof signal (`status` not neutral or unknown, indexed fuel amount, indexed power summary, or indexed energy-source ID); weak neutral object-only or assembly-only grouped rows are quarantined into debug. The normal `Selection Inspector` now shows full selected node identity (`Object ID`, `Assembly ID`, `OwnerCap ID`, `Energy Source ID`, `Canonical Identity`) with calm fallback copy, `/nodes` now labels the identity column as `Object ID` with an `Assembly ...` subline instead of the misleading `Location` label, and the browser-only `?debugOperatorInventory=1` export now adds `groupedNodeEligibilityDecisions`, `renderedNodeGroups`, `renderedNetworkNodeListRows`, and `copySummary()` for wallet-connected proof capture. Refreshed preview evidence for this correction pass: `https://4964256d.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`.
+>
+> Status update (2026-05-03, latest): the next frontend pass now closes two remaining read-model seams without changing backend code. First, indexed operator-inventory `fuelAmount` is now carried through compatibility `Structure` rows as `indexedFuelAmount`, so `/nodes`, node detail, parent-node banners, and `Selection Inspector` can show honest quantity-only fuel even when grouped node rows have no `assemblyId`. Runtime estimates and low-fuel heuristics remain chain-derived only when real on-chain `fuel` runtime fields exist. Second, `/activity` no longer drives its normal UI from browser `queryEvents`; the route is intentionally paused with calm migration copy until a wallet-scoped shared history endpoint exists. The legacy `useSignalFeed` hook remains only as a non-polling dashboard preview dependency for now, so browser `queryEvents` is no longer the normal Signal Feed route contract. Refreshed preview evidence for this pass: `https://66c402a7.civilizationcontrol.pages.dev` with alias `https://feat-node-drilldown-render-s.civilizationcontrol.pages.dev`.
 
 ## 1. Executive summary
 
@@ -59,7 +79,7 @@ What this implies:
 | Linked-gate lookup | `src/hooks/useTransitProof.ts`, `src/lib/suiReader.ts` | Sui JSON-RPC | `getObject`; no polling | Low | destination gate ID | Control-path dependency for transit/permit workflows | Keep direct chain |
 | Marketplace listing discovery | `src/hooks/useListings.ts`, `src/lib/suiReader.ts` | Sui JSON-RPC | `queryEvents` on `ListingCreatedEvent`, then `multiGetObjects`; stale 15s | Medium to high | live shared listings filtered by SSU | Event-scan-based, rescans full event history, no index-backed summary | Enrich, later partial replace |
 | SSU inventory discovery | `src/hooks/useSsuInventory.ts`, `src/lib/suiReader.ts` | Sui JSON-RPC | `getObject` plus one `getDynamicFieldObject` per inventory key; stale 15s | High | inventory slots, capacities, item entries | Expensive for large inventories; browser enumerates inventory DFs itself | Enrich, later partial replace |
-| Recent Signals / activity feed | `src/hooks/useSignalFeed.ts`, `src/lib/suiReader.ts`, `src/lib/eventParser.ts`, `src/lib/signalFolder.ts` | Sui JSON-RPC | nine parallel `queryEvents` `MoveModule` calls; 30s default, 4s aggressive | High | recent policy, trade, posture, turret, and status signals | Hard-coded module list, hard-coded 50-per-module fetch, client-only parsing and scoping, no server-side filtering or durable history | Replace |
+| Recent Signals / activity feed | `src/hooks/useSignalFeed.ts`, `src/screens/ActivityFeedScreen.tsx`, `src/screens/Dashboard.tsx`, `src/lib/suiReader.ts`, `src/lib/eventParser.ts`, `src/lib/signalFolder.ts` | Browser Sui JSON-RPC only for dashboard preview; `/activity` paused pending shared endpoint | dashboard preview only: single non-polling or invalidated `queryEvents` fetch via `useSignalFeed`; `/activity` no longer runs browser polling in normal UI | Medium | dashboard gross-yield and recent-telemetry preview only; `/activity` renders migration shell | No wallet-scoped shared history endpoint yet; legacy hook still hard-codes module coverage, client parsing, and browser scoping | Replace |
 | Seller/player profile display | `src/components/ListingCard.tsx`, `src/screens/SsuMarketplacePage.tsx`, `src/lib/suiReader.ts` | Sui JSON-RPC | `fetchPlayerProfile`; stale 60s | Medium | seller or current player character name and tribe | Repeats profile resolution for display-only enrichment | Enrich |
 | Tribe directory refresh | `src/hooks/useTribesRefresh.ts`, `src/lib/tribeCatalog.ts` | Stillness World API plus bundled JSON | browser `fetch()` once per mount; stale Infinity | Low | fresher tribe names over a bundled catalog fallback | Separate non-EF-Map source; enrich-only | Defer |
 | Bundled type catalog | `src/lib/typeCatalog.ts`, `src/hooks/useItemType.ts`, `src/data/itemTypes.json` | Bundled static data | module-load JSON use | Low | item names | Build-time snapshot only | Replace or enrich |
@@ -76,14 +96,15 @@ Key repo-grounded notes:
 
 ## 3. Current event and polling model
 
-### Current event polling paths
+### Current event surfaces
 
-- Recent Signals is driven by `src/hooks/useSignalFeed.ts`.
-- The hook calls `fetchRecentEvents()` in `src/lib/suiReader.ts`, then parses and folds those events client-side through `src/lib/eventParser.ts` and `src/lib/signalFolder.ts`.
+- `/activity` no longer uses browser event polling as a normal UI contract. `src/screens/ActivityFeedScreen.tsx` now renders a paused migration shell until a wallet-scoped shared history endpoint exists.
+- `src/hooks/useSignalFeed.ts` still exists and still calls `fetchRecentEvents()` in `src/lib/suiReader.ts`, then parses and folds those events client-side through `src/lib/eventParser.ts` and `src/lib/signalFolder.ts`.
+- the remaining live use is `Dashboard`, where the hook is now invoked with `polling: false`. That keeps the legacy revenue and telemetry preview available without leaving recurring `queryEvents` polling active on the main shell.
 
-### Current modules and events queried
+### Legacy hook coverage when it runs
 
-Every Recent Signals poll currently performs nine parallel `queryEvents` `MoveModule` calls:
+When `useSignalFeed` does run, it still performs nine parallel `queryEvents` `MoveModule` calls:
 
 - CC `gate_control`
 - CC `trade_post`
@@ -99,14 +120,16 @@ The parser then maps a fixed event-type list, including gate policy events, perm
 
 ### Polling intervals in live code
 
-- Recent Signals: 30 seconds by default
-- Recent Signals during posture transitions: 4 seconds
+- `/activity`: no browser polling in the shipped normal route for this pass
+- dashboard signal preview: no recurring polling (`polling: false`), but the legacy hook still contains the older timer settings if explicitly re-enabled elsewhere
+- legacy `useSignalFeed` defaults: 30 seconds, or 4 seconds during posture transitions
 - Asset discovery: 60 seconds
 - Gate policy, listings, SSU inventory, permit preloads: cache-based or on-demand, not timer-driven
 
-### Recent Signals source today
+### Signal history source today
 
-Recent Signals is entirely browser-derived today:
+- `/activity` intentionally has no live history source right now; it is paused until the shared backend route exists
+- dashboard signal preview remains browser-derived for now:
 
 1. fetch recent on-chain events with `queryEvents`
 2. parse them into `SignalEvent`
@@ -115,12 +138,13 @@ Recent Signals is entirely browser-derived today:
 
 ### Current limitations
 
+- no wallet-scoped shared history endpoint exists yet for CivilizationControl
+- dashboard preview is still browser-derived until that endpoint ships
 - hard-coded module coverage
 - hard-coded fixed fetch window of 50 events per module
 - no durable history or time-window query surface
-- no server-side filtering by assembly IDs
+- no server-side filtering by wallet-scoped operator inventory
 - one global query cache key for all signal consumers
-- repeated polling against the public fullnode from the browser
 - no first-party use of EF-Map `activity_log`, `raw_events`, or the universe-events Worker yet
 
 ### Can EF-Map replace this?
@@ -129,10 +153,56 @@ Yes, but not by exposing raw tables or a global firehose directly to the browser
 
 Best replacement shape:
 
-- near term: a filtered EF-Map Recent Signals endpoint keyed by known assembly IDs, backed primarily by `ef_sui.activity_log`
+- near term: a wallet-scoped EF-Map signal-history endpoint backed primarily by `ef_sui.activity_log`
 - later: a filtered EF-Map realtime channel or Worker stream once the auth/CORS contract is stable
 
 `ef_sui.activity_log` is the best first event replacement source because it is already normalized. `ef_sui.raw_events` is better treated as a server-side backing table or fallback for event families not yet normalized.
+
+### Required next shared signal-history contract
+
+The next backend slice should define one browser-safe endpoint for normal Signal Feed UI:
+
+- endpoint: `GET /api/civilization-control/signal-history?walletAddress=0x...`
+- required query params: `walletAddress`
+- optional query params: `limit` (default `50`, max `100`), `cursor`, `categories` (comma-separated canonical groups such as `governance,trade,posture,defense,status`), `networkNodeId`, `structureId`, and `since`
+- server-side scope rule: resolve the wallet's indexed operator inventory first, then return only signals tied to that wallet's governed infrastructure; do not expose a global unscoped firehose to the browser
+- response shape:
+
+```json
+{
+  "schemaVersion": "signal-history.v1",
+  "walletAddress": "0x...",
+  "generatedAt": "2026-05-03T18:00:00.000Z",
+  "partial": false,
+  "warnings": [],
+  "signals": [
+    {
+      "id": "0xTXDIGEST:17",
+      "timestamp": "2026-05-03T17:58:41.000Z",
+      "category": "trade",
+      "kind": "listing.created",
+      "title": "Listing Posted",
+      "summary": "Storage Alpha posted 120 units",
+      "severity": "info",
+      "networkNodeId": "0x...",
+      "structureId": "0x...",
+      "assemblyId": "0x...",
+      "ownerCapId": "0x...",
+      "txDigest": "0xTXDIGEST",
+      "checkpoint": 123456789,
+      "actorCharacterId": "0x...",
+      "amount": "120",
+      "metadata": {
+        "module": "trade_post",
+        "eventType": "ListingCreatedEvent"
+      }
+    }
+  ],
+  "nextCursor": "opaque-cursor"
+}
+```
+
+The frontend should map this endpoint into the existing Signal Feed categories and dashboard summary cards, then delete browser `queryEvents` from normal UI routes once parity is reached.
 
 ## 4. Current structure / ownership discovery model
 
