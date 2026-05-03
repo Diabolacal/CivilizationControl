@@ -68,8 +68,6 @@ interface SidebarProps {
   isConnected?: boolean;
   isLoading?: boolean;
   isError?: boolean;
-  inventoryStatusLabel?: string | null;
-  discoveryWarning?: string | null;
   discoveryErrorMessage?: string | null;
   onRequestHome?: () => void;
 }
@@ -98,8 +96,6 @@ export function Sidebar({
   isConnected = false,
   isLoading = false,
   isError = false,
-  inventoryStatusLabel = null,
-  discoveryWarning = null,
   discoveryErrorMessage = null,
   onRequestHome,
 }: SidebarProps) {
@@ -123,7 +119,7 @@ export function Sidebar({
   const nodes = structures.filter((s) => s.type === "network_node");
 
   return (
-    <aside className="fixed left-0 top-16 bottom-0 w-64 overflow-y-auto border-r border-border bg-[var(--sidebar)]">
+    <aside className="fixed left-0 top-16 bottom-0 w-64 overflow-y-auto overflow-x-hidden border-r border-border bg-[var(--sidebar)]">
       <nav className="p-4 pb-32">
         {/* Primary navigation */}
         <div className="space-y-1 mb-6">
@@ -156,12 +152,6 @@ export function Sidebar({
             Structure Inventory
           </h3>
 
-          {inventoryStatusLabel ? (
-            <p className="px-3 text-[11px] text-muted-foreground/50">
-              {inventoryStatusLabel}
-            </p>
-          ) : null}
-
           {!isConnected && (
             <p className="px-3 text-[11px] text-muted-foreground/40">
               Connect wallet to discover structures
@@ -183,12 +173,6 @@ export function Sidebar({
           {isConnected && !isLoading && !isError && structures.length === 0 && (
             <p className="px-3 text-[11px] text-muted-foreground/40">
               No structures discovered
-            </p>
-          )}
-
-          {isConnected && discoveryWarning && structures.length > 0 && (
-            <p className="px-3 text-[11px] text-amber-300/80">
-              {discoveryWarning}
             </p>
           )}
 

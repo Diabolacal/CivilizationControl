@@ -1,5 +1,9 @@
 import assert from "node:assert/strict";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter } from "react-router";
 
+import { Sidebar } from "../src/components/Sidebar";
 import { selectDisplayNodeGroups } from "../src/lib/assetDiscoveryDisplayModel";
 import { getNodeLocalPowerToggleIntent } from "../src/lib/nodeDrilldownActionAuthority";
 import { buildOperatorInventoryDebugSnapshot } from "../src/lib/operatorInventoryDebug";
@@ -11,7 +15,10 @@ import type { OperatorInventoryResponse } from "../src/types/operatorInventory";
 const NETWORK_NODE_A_ID = "0x00000000000000000000000000000000000000000000000000000000000000aa";
 const NETWORK_NODE_B_ID = "0x00000000000000000000000000000000000000000000000000000000000000bb";
 const NETWORK_NODE_B_ALIAS_ID = "0x00000000000000000000000000000000000000000000000000000000000000bc";
+const NETWORK_NODE_EMPTY_VALID_ID = "0x00000000000000000000000000000000000000000000000000000000000000be";
+const NETWORK_NODE_EMPTY_INVALID_ID = "0x00000000000000000000000000000000000000000000000000000000000000bf";
 const STRAY_NETWORK_NODE_ID = "0x00000000000000000000000000000000000000000000000000000000000000cc";
+const MISSING_IDENTITY_NODE_OWNER_CAP_ID = "0x00000000000000000000000000000000000000000000000000000000000000ce";
 const LEGACY_FALLBACK_NODE_ID = "0x00000000000000000000000000000000000000000000000000000000000000dd";
 const GATE_ID = "0x0000000000000000000000000000000000000000000000000000000000000101";
 const STORAGE_ID = "0x0000000000000000000000000000000000000000000000000000000000000102";
@@ -26,6 +33,7 @@ const OPERATOR_WALLET = "0x00000000000000000000000000000000000000000000000000000
 const CHARACTER_ID = "0x0000000000000000000000000000000000000000000000000000000000000def";
 const SHARED_BACKEND_SOURCE = "shared-frontier-backend";
 const OBSERVED_AT = "2026-05-03T12:00:00.000Z";
+const RAW_WARNING_TEXT = "action_candidates_are_indexed_hints_only_and_not_operator_copy";
 
 const response: OperatorInventoryResponse = {
   schemaVersion: "operator-inventory.v1",
@@ -186,6 +194,39 @@ const response: OperatorInventoryResponse = {
         }),
       ],
     },
+    {
+      node: networkNodeRow({
+        objectId: NETWORK_NODE_EMPTY_VALID_ID,
+        assemblyId: "9003",
+        ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000000fac",
+        displayName: "Reserve Node",
+        solarSystemId: "30000144",
+        fuelAmount: "900",
+      }),
+      structures: [],
+    },
+    {
+      node: networkNodeRow({
+        objectId: NETWORK_NODE_EMPTY_INVALID_ID,
+        assemblyId: "9004",
+        ownerCapId: null,
+        displayName: "Phantom Candidate",
+        solarSystemId: "30000145",
+        fuelAmount: null,
+      }),
+      structures: [],
+    },
+    {
+      node: networkNodeRow({
+        objectId: null,
+        assemblyId: null,
+        ownerCapId: MISSING_IDENTITY_NODE_OWNER_CAP_ID,
+        displayName: "Identityless Node",
+        solarSystemId: "30000146",
+        fuelAmount: null,
+      }),
+      structures: [],
+    },
   ],
   unlinkedStructures: [
     strayNodeLikeRow(),
@@ -246,7 +287,7 @@ const response: OperatorInventoryResponse = {
       },
     }),
   ],
-  warnings: ["Several indexed structures are still unlinked."],
+  warnings: ["Several indexed structures are still unlinked.", RAW_WARNING_TEXT],
   partial: true,
   source: SHARED_BACKEND_SOURCE,
   fetchedAt: OBSERVED_AT,
@@ -261,7 +302,7 @@ const displayNodeGroups = selectDisplayNodeGroups({
 });
 
 assert.equal(adapted.profile?.characterId, response.operator?.characterId);
-assert.equal(adapted.metrics.networkNodeCount, 2);
+assert.equal(adapted.metrics.networkNodeCount, 3);
 assert.equal(adapted.metrics.gateCount, 2);
 assert.equal(adapted.metrics.storageUnitCount, 1);
 assert.equal(adapted.metrics.turretCount, 2);
@@ -269,20 +310,28 @@ assert.equal(adapted.diagnostics.ignoredUnlinkedNodeLikeCount, 1);
 assert.match(adapted.warning ?? "", /unlinked/i);
 assert(adapted.structures.every((structure) => structure.readModelSource === "operator-inventory"));
 assert.equal(adapted.unlinkedStructures.length, 3);
-assert.equal(adapted.nodeGroups.length, 2);
-assert.deepEqual(adapted.nodeGroups.map((group) => group.node.objectId), [NETWORK_NODE_A_ID, NETWORK_NODE_B_ID]);
-assert.equal(displayNodeGroups.length, 2);
+assert.equal(adapted.nodeGroups.length, 3);
+assert.deepEqual(adapted.nodeGroups.map((group) => group.node.objectId), [NETWORK_NODE_A_ID, NETWORK_NODE_B_ID, NETWORK_NODE_EMPTY_VALID_ID]);
+assert.equal(displayNodeGroups.length, 3);
 assert(!displayNodeGroups.some((group) => group.node.objectId === LEGACY_FALLBACK_NODE_ID));
 assert(!adapted.structures.some((structure) => structure.objectId === STRAY_NETWORK_NODE_ID));
+assert(!adapted.structures.some((structure) => structure.objectId === NETWORK_NODE_EMPTY_INVALID_ID));
+assert(!displayNodeGroups.some((group) => group.node.objectId === NETWORK_NODE_EMPTY_INVALID_ID));
+assert.equal(adapted.quarantinedNodeRows.length, 3);
+assert(adapted.quarantinedNodeRows.some((row) => row.objectId === NETWORK_NODE_B_ALIAS_ID && row.reason === "duplicate-canonical-node"));
+assert(adapted.quarantinedNodeRows.some((row) => row.objectId === NETWORK_NODE_EMPTY_INVALID_ID && row.reason === "zero-structure-missing-owned-node-identity"));
+assert(adapted.quarantinedNodeRows.some((row) => row.displayName === "Identityless Node" && row.reason === "missing-canonical-identity"));
 
 const group = buildGroup(displayNodeGroups, NETWORK_NODE_A_ID);
 const lookup = adapted.nodeLookupsByNodeId.get(NETWORK_NODE_A_ID);
 const relayGroup = buildGroup(displayNodeGroups, NETWORK_NODE_B_ID);
+const reserveGroup = buildGroup(displayNodeGroups, NETWORK_NODE_EMPTY_VALID_ID);
 
 assert(lookup, "expected a selected-node lookup from operator inventory");
 assert.equal(lookup?.assemblies.length, 4);
 assert.equal(relayGroup.gates.length, 1);
 assert.equal(relayGroup.turrets.length, 1);
+assert.equal(reserveGroup.gates.length + reserveGroup.storageUnits.length + reserveGroup.turrets.length, 0);
 
 const viewModel = buildLiveNodeLocalViewModelWithObserved(group, lookup, { preferObservedMembership: true });
 
@@ -326,6 +375,7 @@ assert.equal(
 );
 
 const debugSnapshot = buildOperatorInventoryDebugSnapshot({
+  requestedWalletAddress: OPERATOR_WALLET,
   inventory: response,
   adapted,
   displayStructures: adapted.structures,
@@ -347,16 +397,26 @@ const debugSnapshot = buildOperatorInventoryDebugSnapshot({
   operatorInventoryErrorMessage: null,
 });
 
-assert.equal(debugSnapshot.rawNetworkNodeCount, 3);
+assert.equal(debugSnapshot.requestedWalletAddress, OPERATOR_WALLET);
+assert.equal(debugSnapshot.rawOperatorWalletAddress, OPERATOR_WALLET);
+assert.match(debugSnapshot.operatorInventoryUrl ?? "", /walletAddress=/i);
+assert.equal(debugSnapshot.rawNetworkNodeCount, 6);
 assert.equal(debugSnapshot.rawUnlinkedStructureCount, 4);
+assert.equal(debugSnapshot.rawNetworkNodeDuplicateBucketsByCanonicalIdentity.length, 1);
+assert.equal(debugSnapshot.rawNetworkNodeDuplicateBucketsByOwnerCapId.length, 1);
 assert.equal(debugSnapshot.rawGroupedDuplicateBucketsByCanonicalDomainKey.length, 1);
-assert.equal(debugSnapshot.renderedMacroNetworkNodeCount, 2);
+assert.equal(debugSnapshot.renderedMacroNetworkNodeCount, 3);
+assert.equal(debugSnapshot.renderedNetworkNodeListCount, 3);
 assert.equal(debugSnapshot.renderedNodeControlSelectedNodeStructuresCount, 4);
 assert.equal(debugSnapshot.mergedIntoDisplay, false);
 assert.equal(debugSnapshot.displayUsesDirectChainFallback, false);
 assert.equal(debugSnapshot.directChainFallbackRan, true);
 assert.equal(debugSnapshot.adaptedStructureCount, adapted.structures.length);
 assert.equal(debugSnapshot.adaptedUnlinkedStructureCount, adapted.unlinkedStructures.length);
+assert.equal(debugSnapshot.quarantinedNodeRows.length, 3);
+assert.equal(debugSnapshot.zeroStructureGroupedNodes.length, 3);
+assert.equal(debugSnapshot.missingIdentityNodeRows.length, 1);
+assert.equal(debugSnapshot.localStorageOrDebugFixturesParticipated, false);
 assert(debugSnapshot.rawUnlinkedRows.some((row) => row.objectId === STRAY_NETWORK_NODE_ID));
 assert(debugSnapshot.rawUnlinkedRows.some((row) => row.objectId === SUSPICIOUS_TURRET_A_ID));
 assert(debugSnapshot.rawUnlinkedRows.some((row) => row.objectId === SUSPICIOUS_TURRET_B_ID));
@@ -364,6 +424,25 @@ assert(debugSnapshot.adaptedUnlinkedRows.some((row) => row.objectId === SUSPICIO
 assert(debugSnapshot.adaptedUnlinkedRows.some((row) => row.objectId === SUSPICIOUS_TURRET_B_ID));
 assert.equal(debugSnapshot.duplicateBucketsByObjectId.length, 0);
 assert.equal(debugSnapshot.duplicateBucketsByCanonicalDomainKey.length, 0);
+
+const sidebarMarkup = renderToStaticMarkup(
+  React.createElement(
+    MemoryRouter,
+    null,
+    React.createElement(Sidebar, {
+      structures: adapted.structures,
+      isConnected: true,
+      isLoading: false,
+      isError: false,
+      discoveryErrorMessage: null,
+      inventoryStatusLabel: "Shared read model • Updated 15:07",
+      discoveryWarning: RAW_WARNING_TEXT,
+    } as any),
+  ),
+);
+
+assert(!sidebarMarkup.includes("Shared read model • Updated 15:07"));
+assert(!sidebarMarkup.includes(RAW_WARNING_TEXT));
 
 console.info("operator inventory mapping probe passed", {
   structures: adapted.structures.length,
@@ -447,9 +526,9 @@ function actionRow(input: {
 }
 
 function networkNodeRow(input: {
-  objectId: string;
-  assemblyId: string;
-  ownerCapId: string;
+  objectId: string | null;
+  assemblyId: string | null;
+  ownerCapId: string | null;
   displayName: string;
   solarSystemId: string | null;
   fuelAmount: string | null;

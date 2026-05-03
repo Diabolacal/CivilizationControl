@@ -384,6 +384,7 @@ export function Dashboard({
 
     controller.enabled = true;
     controller.latest = buildOperatorInventoryDebugSnapshot({
+      requestedWalletAddress: operatorInventory.walletAddress,
       inventory: operatorInventory.inventory,
       adapted: operatorInventory.adapted,
       displayStructures: structures,

@@ -60,7 +60,6 @@ export function useAssetDiscovery() {
   const { structures: enrichedFallbackStructures } = useAssemblySummaryEnrichment(
     shouldUseDirectFallback ? fallbackStructures : [],
   );
-  const fallbackWarning = discoveryQuery.data?.warning ?? null;
   const fallbackErrorMessage = discoveryQuery.isError
     ? getSuiDiscoveryErrorMessage(discoveryQuery.error)
     : null;
@@ -92,15 +91,6 @@ export function useAssetDiscovery() {
       && structures.some((structure) => structure.readModelSource === "direct-chain"),
   };
 
-  const warning = isUsingOperatorInventory
-    ? operatorInventory.adapted?.warning ?? null
-    : shouldUseDirectFallback && structures.length > 0
-      ? [
-        "Shared read model unavailable. Showing direct-chain fallback inventory.",
-        fallbackWarning,
-      ].filter(Boolean).join(" ")
-      : fallbackWarning;
-
   const errorMessage = isUsingOperatorInventory
     ? null
     : shouldUseDirectFallback
@@ -122,11 +112,6 @@ export function useAssetDiscovery() {
   const errorResult = isUsingOperatorInventory
     ? null
     : discoveryQuery.error ?? operatorInventory.error ?? null;
-  const inventoryStatusLabel = isUsingOperatorInventory
-    ? formatInventoryStatusLabel(operatorInventory.adapted?.diagnostics?.fetchedAt ?? null, "Shared read model")
-    : shouldUseDirectFallback && structures.length > 0
-      ? "Direct-chain fallback"
-      : null;
 
   return {
     profile: profileResult,
@@ -137,34 +122,13 @@ export function useAssetDiscovery() {
     isConnected: isConnected ?? false,
     isError: isErrorResult,
     error: errorResult,
-    warning,
     errorMessage,
-    inventoryStatusLabel,
     readModelDebug,
     diagnostics: isUsingOperatorInventory
       ? operatorInventory.adapted?.diagnostics ?? null
       : discoveryQuery.data?.diagnostics ?? null,
     refetch: operatorInventory.refetch,
   };
-}
-
-function formatInventoryStatusLabel(
-  fetchedAt: string | null,
-  prefix: string,
-): string {
-  if (!fetchedAt) {
-    return prefix;
-  }
-
-  const parsed = Date.parse(fetchedAt);
-  if (Number.isNaN(parsed)) {
-    return prefix;
-  }
-
-  return `${prefix} • Updated ${new Intl.DateTimeFormat(undefined, {
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(parsed)}`;
 }
 
 function computeMetrics(structures: Structure[]): NetworkMetrics {

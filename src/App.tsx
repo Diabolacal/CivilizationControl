@@ -69,8 +69,6 @@ function OperatorShell() {
     isLoading,
     isConnected,
     isError,
-    inventoryStatusLabel,
-    warning,
     errorMessage,
     readModelDebug,
   } =
@@ -93,8 +91,6 @@ function OperatorShell() {
           isConnected={isConnected}
           isLoading={isLoading}
           isError={isError}
-          inventoryStatusLabel={inventoryStatusLabel}
-          discoveryWarning={warning}
           discoveryErrorMessage={errorMessage}
           onRequestHome={handleRequestHome}
         />

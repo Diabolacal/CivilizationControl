@@ -19,6 +19,7 @@ import type {
   OperatorInventoryStructure,
 } from "@/types/operatorInventory";
 import { selectCanonicalNodeDrilldownDomainKey } from "@/lib/nodeDrilldownIdentity";
+import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
 
 interface OperatorInventoryDiagnostics {
   source: string | null;
@@ -31,10 +32,33 @@ interface OperatorInventoryDiagnostics {
   warnings: string[];
 }
 
+export type OperatorInventoryQuarantinedNodeReason =
+  | "missing-canonical-identity"
+  | "missing-displayable-object-id"
+  | "invalid-node-family"
+  | "zero-structure-missing-owned-node-identity"
+  | "duplicate-canonical-node";
+
+export interface OperatorInventoryQuarantinedNodeRow {
+  index: number;
+  objectId: string | null;
+  assemblyId: string | null;
+  ownerCapId: string | null;
+  displayName: string | null;
+  status: OperatorInventoryStatus | null;
+  energySourceId: string | null;
+  canonicalIdentity: string | null;
+  structureCount: number;
+  source: string | null;
+  provenance: string | null;
+  reason: OperatorInventoryQuarantinedNodeReason;
+}
+
 export interface AdaptedOperatorInventory {
   profile: PlayerProfile | null;
   structures: Structure[];
   unlinkedStructures: Structure[];
+  quarantinedNodeRows: OperatorInventoryQuarantinedNodeRow[];
   nodeGroups: NetworkNodeGroup[];
   metrics: NetworkMetrics;
   warning: string | null;
@@ -47,6 +71,12 @@ interface MutableNetworkNodeGroupBucket {
   gates: Map<string, Structure>;
   storageUnits: Map<string, Structure>;
   turrets: Map<string, Structure>;
+}
+
+interface BuildOperatorInventoryNodeGroupsResult {
+  nodeGroups: NetworkNodeGroup[];
+  renderedNodeIdentityKeys: Set<string>;
+  quarantinedNodeRows: OperatorInventoryQuarantinedNodeRow[];
 }
 
 const COMPATIBLE_TYPE_BY_FAMILY: Partial<Record<OperatorInventoryFamily, StructureType>> = {
@@ -107,14 +137,26 @@ export function adaptOperatorInventory(response: OperatorInventoryResponse): Ada
     }
   }
 
-  const structures = [...groupedStructuresByKey.values()];
+  const {
+    nodeGroups,
+    renderedNodeIdentityKeys,
+    quarantinedNodeRows,
+  } = buildOperatorInventoryNodeGroups(response, groupedStructuresByKey);
+  const structures = [...groupedStructuresByKey.values()].filter((structure) => {
+    if (structure.type !== "network_node") {
+      return true;
+    }
+
+    const key = structureIdentityKey(structure.objectId, structure.assemblyId);
+    return key != null && renderedNodeIdentityKeys.has(key);
+  });
   const unlinkedStructures = [...unlinkedStructuresByKey.values()];
-  const nodeGroups = buildOperatorInventoryNodeGroups(response, groupedStructuresByKey);
 
   return {
     profile: toPlayerProfile(response),
     structures,
     unlinkedStructures,
+    quarantinedNodeRows,
     nodeGroups,
     metrics: computeMetrics(structures, nodeGroups.length),
     warning: buildOperatorInventoryWarning(response),
@@ -213,21 +255,46 @@ function buildNodeLookupMap(response: OperatorInventoryResponse): Map<ObjectId, 
 function buildOperatorInventoryNodeGroups(
   response: OperatorInventoryResponse,
   structuresByKey: Map<string, Structure>,
-): NetworkNodeGroup[] {
+): BuildOperatorInventoryNodeGroupsResult {
   const groups = new Map<string, MutableNetworkNodeGroupBucket>();
+  const renderedNodeIdentityKeys = new Set<string>();
+  const quarantinedNodeRows: OperatorInventoryQuarantinedNodeRow[] = [];
 
-  for (const rawGroup of response.networkNodes) {
+  for (const [index, rawGroup] of response.networkNodes.entries()) {
     const groupKey = structureIdentityKey(rawGroup.node.objectId, rawGroup.node.assemblyId);
     if (!groupKey) {
+      quarantinedNodeRows.push(describeQuarantinedNodeRow(index, rawGroup.node, rawGroup.structures.length, "missing-canonical-identity"));
+      continue;
+    }
+
+    const compatibleType = rawGroup.node.family ? COMPATIBLE_TYPE_BY_FAMILY[rawGroup.node.family] : null;
+    if (compatibleType !== "network_node") {
+      quarantinedNodeRows.push(describeQuarantinedNodeRow(index, rawGroup.node, rawGroup.structures.length, "invalid-node-family"));
+      continue;
+    }
+
+    if (!normalizeCanonicalObjectId(rawGroup.node.objectId)) {
+      quarantinedNodeRows.push(describeQuarantinedNodeRow(index, rawGroup.node, rawGroup.structures.length, "missing-displayable-object-id"));
+      continue;
+    }
+
+    const existing = groups.get(groupKey);
+    if (existing) {
+      quarantinedNodeRows.push(describeQuarantinedNodeRow(index, rawGroup.node, rawGroup.structures.length, "duplicate-canonical-node"));
+    }
+
+    const hasOwnedNodeIdentity = normalizeCanonicalObjectId(rawGroup.node.ownerCapId) != null;
+    if (!existing && rawGroup.structures.length === 0 && !hasOwnedNodeIdentity) {
+      quarantinedNodeRows.push(describeQuarantinedNodeRow(index, rawGroup.node, rawGroup.structures.length, "zero-structure-missing-owned-node-identity"));
       continue;
     }
 
     const node = resolveCompatibleStructure(rawGroup.node, rawGroup.node.objectId ?? null, structuresByKey);
     if (!node || node.type !== "network_node") {
+      quarantinedNodeRows.push(describeQuarantinedNodeRow(index, rawGroup.node, rawGroup.structures.length, "missing-displayable-object-id"));
       continue;
     }
 
-    const existing = groups.get(groupKey);
     const bucket = existing ?? {
       node,
       gates: new Map<string, Structure>(),
@@ -260,14 +327,41 @@ function buildOperatorInventoryNodeGroups(
     }
 
     groups.set(groupKey, bucket);
+    renderedNodeIdentityKeys.add(groupKey);
   }
 
-  return [...groups.values()].map((bucket) => ({
-    node: bucket.node,
-    gates: [...bucket.gates.values()],
-    storageUnits: [...bucket.storageUnits.values()],
-    turrets: [...bucket.turrets.values()],
-  }));
+  return {
+    nodeGroups: [...groups.values()].map((bucket) => ({
+      node: bucket.node,
+      gates: [...bucket.gates.values()],
+      storageUnits: [...bucket.storageUnits.values()],
+      turrets: [...bucket.turrets.values()],
+    })),
+    renderedNodeIdentityKeys,
+    quarantinedNodeRows,
+  };
+}
+
+function describeQuarantinedNodeRow(
+  index: number,
+  row: OperatorInventoryStructure,
+  structureCount: number,
+  reason: OperatorInventoryQuarantinedNodeReason,
+): OperatorInventoryQuarantinedNodeRow {
+  return {
+    index,
+    objectId: normalizeCanonicalObjectId(row.objectId),
+    assemblyId: row.assemblyId,
+    ownerCapId: normalizeCanonicalObjectId(row.ownerCapId),
+    displayName: row.displayName ?? row.name ?? row.typeName ?? row.assemblyType,
+    status: row.status,
+    energySourceId: row.energySourceId,
+    canonicalIdentity: structureIdentityKey(row.objectId, row.assemblyId),
+    structureCount,
+    source: row.source ?? null,
+    provenance: row.provenance ?? null,
+    reason,
+  };
 }
 
 function toNodeAssemblyNode(row: OperatorInventoryStructure): NodeAssemblyNode {

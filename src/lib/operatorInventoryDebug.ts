@@ -1,5 +1,8 @@
 import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
-import { normalizeNodeDrilldownAssemblyId } from "@/lib/nodeDrilldownIdentity";
+import {
+  normalizeNodeDrilldownAssemblyId,
+  selectCanonicalNodeDrilldownDomainKey,
+} from "@/lib/nodeDrilldownIdentity";
 import { buildOperatorInventoryUrl } from "@/lib/operatorInventoryClient";
 import type { NodeLocalStructure, NodeLocalSourceMode } from "@/lib/nodeDrilldownTypes";
 import type { AdaptedOperatorInventory } from "@/lib/operatorInventoryAdapter";
@@ -27,11 +30,17 @@ export interface OperatorInventoryDebugDuplicateBucket {
 }
 
 export interface OperatorInventoryDebugRawNode {
+  index: number;
   objectId: string | null;
   assemblyId: string | null;
+  ownerCapId: string | null;
+  displayName: string | null;
   type: string | null;
   status: string | null;
+  energySourceId: string | null;
+  canonicalIdentity: string | null;
   source: string | null;
+  provenance: string | null;
   structureCount: number;
 }
 
@@ -47,6 +56,8 @@ export interface OperatorInventoryDebugRenderedMacroNode {
 }
 
 export interface OperatorInventoryDebugSnapshot {
+  requestedWalletAddress: string | null;
+  rawOperatorWalletAddress: string | null;
   operatorWalletAddress: string | null;
   operatorInventoryUrl: string | null;
   operatorInventorySucceeded: boolean;
@@ -54,6 +65,10 @@ export interface OperatorInventoryDebugSnapshot {
   operatorInventoryErrorMessage: string | null;
   rawNetworkNodeCount: number;
   rawNetworkNodes: OperatorInventoryDebugRawNode[];
+  rawNetworkNodeDuplicateBucketsByObjectId: OperatorInventoryDebugDuplicateBucket[];
+  rawNetworkNodeDuplicateBucketsByAssemblyId: OperatorInventoryDebugDuplicateBucket[];
+  rawNetworkNodeDuplicateBucketsByOwnerCapId: OperatorInventoryDebugDuplicateBucket[];
+  rawNetworkNodeDuplicateBucketsByCanonicalIdentity: OperatorInventoryDebugDuplicateBucket[];
   rawGroupedRows: OperatorInventoryDebugIdentityRow[];
   rawGroupedDuplicateBucketsByObjectId: OperatorInventoryDebugDuplicateBucket[];
   rawGroupedDuplicateBucketsByOwnerCapId: OperatorInventoryDebugDuplicateBucket[];
@@ -64,8 +79,23 @@ export interface OperatorInventoryDebugSnapshot {
   adaptedUnlinkedStructureCount: number;
   adaptedUnlinkedRows: OperatorInventoryDebugIdentityRow[];
   adaptedNetworkNodeGroupCount: number;
+  quarantinedNodeRows: Array<{
+    index: number;
+    objectId: string | null;
+    assemblyId: string | null;
+    ownerCapId: string | null;
+    displayName: string | null;
+    status: string | null;
+    energySourceId: string | null;
+    canonicalIdentity: string | null;
+    structureCount: number;
+    source: string | null;
+    provenance: string | null;
+    reason: string;
+  }>;
   displayStructureRows: OperatorInventoryDebugIdentityRow[];
   renderedMacroNetworkNodeCount: number;
+  renderedNetworkNodeListCount: number;
   renderedMacroNodes: OperatorInventoryDebugRenderedMacroNode[];
   renderedNodeControlSourceMode: NodeLocalSourceMode | null;
   renderedNodeControlSelectedNodeId: string | null;
@@ -75,11 +105,14 @@ export interface OperatorInventoryDebugSnapshot {
   duplicateBucketsByOwnerCapId: OperatorInventoryDebugDuplicateBucket[];
   duplicateBucketsByCanonicalDomainKey: OperatorInventoryDebugDuplicateBucket[];
   rowsMissingObjectIdOrCanonicalIdentity: OperatorInventoryDebugIdentityRow[];
+  missingIdentityNodeRows: OperatorInventoryDebugRawNode[];
+  zeroStructureGroupedNodes: OperatorInventoryDebugRawNode[];
   directChainFallbackRan: boolean;
   nodeAssembliesFallbackEnabled: boolean;
   nodeAssembliesFallbackRan: boolean;
   mergedIntoDisplay: boolean;
   displayUsesDirectChainFallback: boolean;
+  localStorageOrDebugFixturesParticipated: boolean;
 }
 
 export interface OperatorInventoryDebugController {
@@ -89,6 +122,7 @@ export interface OperatorInventoryDebugController {
 }
 
 interface BuildOperatorInventoryDebugSnapshotInput {
+  requestedWalletAddress: string | null;
   inventory: OperatorInventoryResponse | null;
   adapted: AdaptedOperatorInventory | null;
   displayStructures: Structure[];
@@ -109,6 +143,7 @@ export function buildOperatorInventoryDebugSnapshot(
     group.structures.map((row) => describeRawStructure(row, "grouped", group.node.objectId))
   )) ?? [];
   const rawUnlinkedRows = input.inventory?.unlinkedStructures.map((row) => describeRawStructure(row, "unlinked", null)) ?? [];
+  const rawNetworkNodes = input.inventory?.networkNodes.map((group, index) => describeRawNode(group.node, group.structures.length, index)) ?? [];
   const displayStructureRows = input.displayStructures.map(describeDisplayStructure);
   const renderedNodeControlRows = input.selectedNodeRows.map(describeNodeControlRow);
   const renderedMacroNodes = input.displayNodeGroups.map((group) => describeRenderedMacroNode(group, input.readModelDebug));
@@ -120,20 +155,19 @@ export function buildOperatorInventoryDebugSnapshot(
   ].filter((row) => !row.objectId || !row.canonicalDomainKey);
 
   return {
+    requestedWalletAddress: input.requestedWalletAddress,
+    rawOperatorWalletAddress: input.inventory?.operator?.walletAddress ?? null,
     operatorWalletAddress: input.inventory?.operator?.walletAddress ?? null,
-    operatorInventoryUrl: buildDebugOperatorInventoryUrl(input.inventory?.operator?.walletAddress ?? null),
+    operatorInventoryUrl: buildDebugOperatorInventoryUrl(input.requestedWalletAddress),
     operatorInventorySucceeded: input.readModelDebug.operatorInventorySucceeded,
     operatorInventoryFailed: input.readModelDebug.operatorInventoryFailed,
     operatorInventoryErrorMessage: input.operatorInventoryErrorMessage,
     rawNetworkNodeCount: input.inventory?.networkNodes.length ?? 0,
-    rawNetworkNodes: input.inventory?.networkNodes.map((group) => ({
-      objectId: normalizeCanonicalObjectId(group.node.objectId),
-      assemblyId: normalizeNodeDrilldownAssemblyId(group.node.assemblyId),
-      type: group.node.assemblyType ?? group.node.family ?? group.node.typeName,
-      status: group.node.status,
-      source: group.node.source ?? null,
-      structureCount: group.structures.length,
-    })) ?? [],
+    rawNetworkNodes,
+    rawNetworkNodeDuplicateBucketsByObjectId: buildRawNodeDuplicateBuckets(rawNetworkNodes, (row) => row.objectId),
+    rawNetworkNodeDuplicateBucketsByAssemblyId: buildRawNodeDuplicateBuckets(rawNetworkNodes, (row) => row.assemblyId),
+    rawNetworkNodeDuplicateBucketsByOwnerCapId: buildRawNodeDuplicateBuckets(rawNetworkNodes, (row) => row.ownerCapId),
+    rawNetworkNodeDuplicateBucketsByCanonicalIdentity: buildRawNodeDuplicateBuckets(rawNetworkNodes, (row) => row.canonicalIdentity),
     rawGroupedRows,
     rawGroupedDuplicateBucketsByObjectId: buildDuplicateBuckets(rawGroupedRows, (row) => row.objectId),
     rawGroupedDuplicateBucketsByOwnerCapId: buildDuplicateBuckets(rawGroupedRows, (row) => row.ownerCapId),
@@ -144,8 +178,23 @@ export function buildOperatorInventoryDebugSnapshot(
     adaptedUnlinkedStructureCount: input.adapted?.unlinkedStructures.length ?? 0,
     adaptedUnlinkedRows: input.adapted?.unlinkedStructures.map(describeDisplayStructure) ?? [],
     adaptedNetworkNodeGroupCount: input.adapted?.nodeGroups.length ?? 0,
+    quarantinedNodeRows: input.adapted?.quarantinedNodeRows.map((row) => ({
+      index: row.index,
+      objectId: row.objectId,
+      assemblyId: row.assemblyId,
+      ownerCapId: row.ownerCapId,
+      displayName: row.displayName,
+      status: row.status,
+      energySourceId: row.energySourceId,
+      canonicalIdentity: row.canonicalIdentity,
+      structureCount: row.structureCount,
+      source: row.source,
+      provenance: row.provenance,
+      reason: row.reason,
+    })) ?? [],
     displayStructureRows,
     renderedMacroNetworkNodeCount: input.displayNodeGroups.length,
+    renderedNetworkNodeListCount: input.displayNodeGroups.length,
     renderedMacroNodes,
     renderedNodeControlSourceMode: input.selectedNodeSourceMode,
     renderedNodeControlSelectedNodeId: input.selectedNodeId,
@@ -155,11 +204,35 @@ export function buildOperatorInventoryDebugSnapshot(
     duplicateBucketsByOwnerCapId: buildDuplicateBuckets(displayStructureRows, (row) => row.ownerCapId),
     duplicateBucketsByCanonicalDomainKey: buildDuplicateBuckets(displayStructureRows, (row) => row.canonicalDomainKey),
     rowsMissingObjectIdOrCanonicalIdentity: missingIdentityRows,
+    missingIdentityNodeRows: rawNetworkNodes.filter((row) => !row.canonicalIdentity),
+    zeroStructureGroupedNodes: rawNetworkNodes.filter((row) => row.structureCount === 0),
     directChainFallbackRan: input.readModelDebug.directChainFallbackRan,
     nodeAssembliesFallbackEnabled: input.nodeAssembliesFallbackEnabled,
     nodeAssembliesFallbackRan: input.nodeAssembliesFallbackRan,
     mergedIntoDisplay: input.readModelDebug.mergedIntoDisplay,
     displayUsesDirectChainFallback: input.readModelDebug.displayUsesDirectChainFallback,
+    localStorageOrDebugFixturesParticipated: false,
+  };
+}
+
+function describeRawNode(
+  row: OperatorInventoryStructure,
+  structureCount: number,
+  index: number,
+): OperatorInventoryDebugRawNode {
+  return {
+    index,
+    objectId: normalizeCanonicalObjectId(row.objectId),
+    assemblyId: normalizeNodeDrilldownAssemblyId(row.assemblyId),
+    ownerCapId: normalizeCanonicalObjectId(row.ownerCapId),
+    displayName: row.displayName ?? row.name ?? row.typeName ?? row.assemblyType,
+    type: row.assemblyType ?? row.family ?? row.typeName,
+    status: row.status,
+    energySourceId: row.energySourceId,
+    canonicalIdentity: canonicalDomainKey(row.objectId, row.assemblyId),
+    source: row.source ?? null,
+    provenance: row.provenance ?? null,
+    structureCount,
   };
 }
 
@@ -277,18 +350,49 @@ function buildDuplicateBuckets(
     .sort((left, right) => right.count - left.count || left.key.localeCompare(right.key));
 }
 
+function buildRawNodeDuplicateBuckets(
+  rows: OperatorInventoryDebugRawNode[],
+  getKey: (row: OperatorInventoryDebugRawNode) => string | null,
+): OperatorInventoryDebugDuplicateBucket[] {
+  const buckets = new Map<string, OperatorInventoryDebugRawNode[]>();
+
+  for (const row of rows) {
+    const key = getKey(row);
+    if (!key) {
+      continue;
+    }
+
+    const bucket = buckets.get(key) ?? [];
+    bucket.push(row);
+    buckets.set(key, bucket);
+  }
+
+  return [...buckets.entries()]
+    .filter(([, rowsForKey]) => rowsForKey.length > 1)
+    .map(([key, rowsForKey]) => ({
+      key,
+      count: rowsForKey.length,
+      rows: rowsForKey.map((row) => ({
+        category: "raw-network-node",
+        objectId: row.objectId,
+        assemblyId: row.assemblyId,
+        ownerCapId: row.ownerCapId,
+        canonicalDomainKey: row.canonicalIdentity,
+        displayName: row.displayName,
+        status: row.status,
+        family: row.type,
+        sourceLabel: `raw-network-node:${row.index}`,
+        networkNodeId: row.objectId,
+      })),
+    }))
+    .sort((left, right) => right.count - left.count || left.key.localeCompare(right.key));
+}
+
 function canonicalDomainKey(objectId: string | null | undefined, assemblyId: string | null | undefined): string | null {
-  const normalizedAssemblyId = normalizeNodeDrilldownAssemblyId(assemblyId);
-  if (normalizedAssemblyId) {
-    return `assembly:${normalizedAssemblyId}`;
-  }
-
-  const normalizedObjectId = normalizeCanonicalObjectId(objectId);
-  if (normalizedObjectId) {
-    return `object:${normalizedObjectId}`;
-  }
-
-  return null;
+  return selectCanonicalNodeDrilldownDomainKey({
+    objectId,
+    assemblyId,
+  });
 }
 
 function buildDebugOperatorInventoryUrl(walletAddress: string | null): string | null {
