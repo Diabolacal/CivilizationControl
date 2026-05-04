@@ -80,10 +80,6 @@ export function StructureActionContextMenu({ menu, menuRef, onClose }: Structure
     >
       <NodeDrilldownOverlayPanel className="grid w-max max-w-[calc(100vw-24px)] overflow-hidden py-1">
         {menu.items.map((item, index) => {
-          const title = item.disabled
-            ? item.disabledReason ?? item.label
-            : item.disabledReason ?? item.label;
-
           return (
             <button
               key={item.key}
@@ -91,7 +87,6 @@ export function StructureActionContextMenu({ menu, menuRef, onClose }: Structure
               role="menuitem"
               autoFocus={index === 0}
               disabled={item.disabled}
-              title={title}
               onClick={() => {
                 if (item.disabled) {
                   return;

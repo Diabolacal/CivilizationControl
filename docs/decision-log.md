@@ -1,6 +1,15 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-04 – Remove native context-menu tooltips
+- Goal: remove native browser tooltips from the shared right-click action menus used by Node Control map icons and attached-structure rows, without changing action availability, write behavior, sponsor/shared-backend behavior, package IDs, Move code, vendor state, or production deploys.
+- Files: `src/components/structure-actions/StructureActionContextMenu.tsx`, `docs/decision-log.md`
+- Diff: narrow shared-menu polish plus tracked preview evidence
+- Risk: low — player-facing menu chrome only; no action-path, backend, sponsor-worker, package, Move, vendor, or production change
+- Gates: typecheck ✅ build ✅ preview `/dev/node-drilldown-lab` ✅ live context-menu tooltip check ✅
+- Result: the shared structure action context menu no longer assigns `title` attributes to menu buttons, so browser-native tooltips no longer appear when hovering right-click actions. The menu labels, tones, disabled state, and selection behavior stay unchanged; this applies to the shared menu surface used by both node-map icon menus and attached-structure row menus.
+- Preview: `https://06c1d5c3.civilizationcontrol.pages.dev` with alias `https://ui-node-control-action-rail.civilizationcontrol.pages.dev`
+- Proof: the unique preview loaded `/dev/node-drilldown-lab`; opening the live `Printer Gamma` context menu from the served preview returned menu items `Hide from Node View`, `Bring Online`, and `Rename Assembly`, each with `title: null`.
 ## 2026-05-04 – Clarify attached-structure action rail
 - Goal: remove the ambiguous Online/Offline segmented rail in Node Control `Attached Structures` by splitting current state from the next available action, without changing write builders, sponsor policy, EF-Map behavior, package IDs, Move code, hidden-row behavior, inspector behavior, or context menus.
 - Files: `src/components/topology/node-drilldown/NodeStructureActionRail.tsx`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
