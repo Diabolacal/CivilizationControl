@@ -31,6 +31,9 @@ import { StructureRenameDialog } from "@/components/structure-actions/StructureR
 import { StrategicMapPanel } from "@/components/topology/StrategicMapPanel";
 import { TopologyPanelFade, TopologyPanelFrame } from "@/components/topology/TopologyPanelFrame";
 import { NodeDrilldownSurface } from "@/components/topology/node-drilldown/NodeDrilldownSurface";
+import { NodePowerActionStrip } from "@/components/topology/node-drilldown/NodePowerActionStrip";
+import { NodePowerCapacityDialog } from "@/components/topology/node-drilldown/NodePowerCapacityDialog";
+import { NodePowerPresetDialog } from "@/components/topology/node-drilldown/NodePowerPresetDialog";
 import { NodeSelectionInspector } from "@/components/topology/node-drilldown/NodeSelectionInspector";
 import { NodeStructureListPanel } from "@/components/topology/node-drilldown/NodeStructureListPanel";
 import { SignalEventRow } from "@/components/SignalEventRow";
@@ -39,7 +42,9 @@ import { useSignalFeed } from "@/hooks/useSignalFeed";
 import { useNodeAssemblies } from "@/hooks/useNodeAssemblies";
 import { useCharacterId } from "@/hooks/useCharacter";
 import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState";
+import { useNodeDrilldownLayoutOverrides } from "@/hooks/useNodeDrilldownLayoutOverrides";
 import { useNodeDrilldownStructureMenu } from "@/hooks/useNodeDrilldownStructureMenu";
+import { useNodePowerPresets } from "@/hooks/useNodePowerPresets";
 import { useOperatorInventory } from "@/hooks/useOperatorInventory";
 import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { useStructurePower } from "@/hooks/useStructurePower";
@@ -51,6 +56,14 @@ import { buildFuelPresentation, formatRuntimeSeconds } from "@/lib/fuelRuntime";
 import { resolveNodeDrilldownScopeKey } from "@/lib/nodeDrilldownHiddenState";
 import { buildNodeDrilldownMenuItems } from "@/lib/nodeDrilldownMenuItems";
 import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapshot } from "@/lib/nodeDrilldownModel";
+import {
+  buildNodeChildBulkPowerPlan,
+  buildNodePowerPresetApplyPlan,
+  getNodePowerUsageReadout,
+  groupNodePowerOperationTargets,
+  toStructureWriteTarget,
+  type NodePowerOperationPlan,
+} from "@/lib/nodePowerControlModel";
 import { buildOperatorInventoryDebugCopySummary, buildOperatorInventoryDebugSnapshot } from "@/lib/operatorInventoryDebug";
 import type { NetworkMetrics, NetworkNodeGroup, SpatialPin, Structure } from "@/types/domain";
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
@@ -154,6 +167,14 @@ export function Dashboard({
   const nodeSurfaceActions = useStructureSurfaceActions();
   const [powerStructureId, setPowerStructureId] = useState<string | null>(null);
   const [powerSuccessLabel, setPowerSuccessLabel] = useState("Structure power state updated");
+  const [isPowerPresetDialogOpen, setIsPowerPresetDialogOpen] = useState(false);
+  const [pendingNodePowerPlan, setPendingNodePowerPlan] = useState<{
+    body: string;
+    plan: NodePowerOperationPlan;
+    primaryLabel: string;
+    successLabel: string;
+    title: string;
+  } | null>(null);
   const [renameSuccessLabel, setRenameSuccessLabel] = useState("Assembly renamed");
   const [renameTarget, setRenameTarget] = useState<{
     assemblyId: string | null;
@@ -181,6 +202,16 @@ export function Dashboard({
     () => resolveNodeDrilldownScopeKey(characterId, walletAddress),
     [characterId, walletAddress],
   );
+  const nodePowerPresets = useNodePowerPresets({
+    nodeId: selectedNodeViewModel?.node.id ?? null,
+    scopeKey: nodeDrilldownScopeKey,
+    structures: selectedNodeViewModel?.structures ?? [],
+  });
+  const nodeLayoutOverrides = useNodeDrilldownLayoutOverrides({
+    nodeId: selectedNodeViewModel?.node.id ?? null,
+    scopeKey: nodeDrilldownScopeKey,
+  });
+  const nodePowerUsageReadout = useMemo(() => getNodePowerUsageReadout(), []);
   const {
     hiddenCanonicalKeySet,
     hiddenCount,
@@ -196,6 +227,26 @@ export function Dashboard({
     () => (selectedNodeViewModel ? { ...selectedNodeViewModel, structures: visibleStructures } : null),
     [selectedNodeViewModel, visibleStructures],
   );
+  const bringAllOnlinePlan = useMemo(
+    () => buildNodeChildBulkPowerPlan(selectedNodeViewModel?.structures ?? [], true),
+    [selectedNodeViewModel?.structures],
+  );
+  const takeAllOfflinePlan = useMemo(
+    () => buildNodeChildBulkPowerPlan(selectedNodeViewModel?.structures ?? [], false),
+    [selectedNodeViewModel?.structures],
+  );
+  const presetApplyPlans = useMemo(
+    () => nodePowerPresets.slots.map((slot) => buildNodePowerPresetApplyPlan(slot, selectedNodeViewModel?.structures ?? [])),
+    [nodePowerPresets.slots, selectedNodeViewModel?.structures],
+  );
+  const canSavePowerPreset = useMemo(
+    () => (selectedNodeViewModel?.structures ?? []).some((structure) => structure.status === "online" || structure.status === "offline"),
+    [selectedNodeViewModel?.structures],
+  );
+  const defaultPowerPresetSlotIndex = useMemo(() => {
+    const emptyIndex = nodePowerPresets.slots.findIndex((slot) => slot == null);
+    return emptyIndex >= 0 ? emptyIndex + 1 : 1;
+  }, [nodePowerPresets.slots]);
   const selectedNodeStructureMap = useMemo(
     () => new Map((selectedNodeViewModel?.structures ?? []).map((structure) => [structure.id, structure])),
     [selectedNodeViewModel],
@@ -259,6 +310,90 @@ export function Dashboard({
     structurePower.reset();
     setPowerStructureId(null);
   }, [structurePower]);
+  const executeNodePowerPlan = useCallback(async (plan: NodePowerOperationPlan, successLabel: string) => {
+    if (plan.disabledReason || plan.targets.length === 0) return false;
+
+    handleCloseNodeControlMenus();
+    selectedStructureCanonicalKeyRef.current = null;
+    setSelectedStructureId(null);
+    setPowerStructureId(null);
+    setPowerSuccessLabel(successLabel);
+
+    const groups = groupNodePowerOperationTargets(plan.targets);
+    for (const group of groups) {
+      const succeeded = await structurePower.toggleBatch({
+        structureType: group.structureType,
+        targets: group.targets.map((target) => ({
+          structureId: target.verifiedTarget.structureId,
+          ownerCapId: target.verifiedTarget.ownerCapId,
+          networkNodeId: target.verifiedTarget.networkNodeId,
+        })),
+        online: group.desiredOnline,
+      }, {
+        selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
+        refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
+        refetchSignalFeed: true,
+        targets: group.targets.map(toStructureWriteTarget),
+      });
+
+      if (!succeeded) return false;
+    }
+
+    return true;
+  }, [handleCloseNodeControlMenus, refetchSelectedNodeAssemblies, selectedNodeGroup, selectedNodeInventoryLookup, selectedStructureCanonicalKeyRef, structurePower]);
+  const requestNodePowerPlanExecution = useCallback((params: {
+    plan: NodePowerOperationPlan;
+    primaryLabel: string;
+    successLabel: string;
+    title: string;
+  }) => {
+    if (params.plan.disabledReason || params.plan.targets.length === 0) return;
+
+    if (params.plan.capacityReason) {
+      setPendingNodePowerPlan({
+        ...params,
+        body: "Power requirements are not available for this node. The transaction will not succeed if the node cannot support the requested load.",
+      });
+      return;
+    }
+
+    void executeNodePowerPlan(params.plan, params.successLabel);
+  }, [executeNodePowerPlan]);
+  const handleBulkNodePower = useCallback((nextOnline: boolean) => {
+    requestNodePowerPlanExecution({
+      plan: nextOnline ? bringAllOnlinePlan : takeAllOfflinePlan,
+      primaryLabel: nextOnline ? "Bring all online" : "Take all offline",
+      successLabel: nextOnline
+        ? "Node child structures brought online. Awaiting read-model sync."
+        : "Node child structures taken offline. Awaiting read-model sync.",
+      title: nextOnline ? "Power requirement unavailable" : "Confirm child power action",
+    });
+  }, [bringAllOnlinePlan, requestNodePowerPlanExecution, takeAllOfflinePlan]);
+  const handleApplyPowerPreset = useCallback((slotIndex: number) => {
+    const plan = presetApplyPlans[slotIndex - 1];
+    const slot = nodePowerPresets.slots[slotIndex - 1];
+    if (!plan || !slot) return;
+
+    requestNodePowerPlanExecution({
+      plan,
+      primaryLabel: "Apply preset",
+      successLabel: `${slot.label} applied. Awaiting read-model sync.`,
+      title: plan.capacityReason ? "Power requirement unavailable" : "Apply power preset",
+    });
+  }, [nodePowerPresets.slots, presetApplyPlans, requestNodePowerPlanExecution]);
+  const handleSavePowerPreset = useCallback((slotIndex: number, label: string) => {
+    nodePowerPresets.savePreset(slotIndex, label);
+    setIsPowerPresetDialogOpen(false);
+  }, [nodePowerPresets]);
+  const handleConfirmPendingNodePowerPlan = useCallback(() => {
+    if (!pendingNodePowerPlan) return;
+
+    void executeNodePowerPlan(pendingNodePowerPlan.plan, pendingNodePowerPlan.successLabel).then((succeeded) => {
+      if (succeeded) {
+        setPendingNodePowerPlan(null);
+      }
+    });
+  }, [executeNodePowerPlan, pendingNodePowerPlan]);
   const handleToggleNodeLocalPower = useCallback(
     async (structure: NodeLocalStructure, nextOnline: boolean) => {
       const verifiedTarget = structure.actionAuthority.verifiedTarget;
@@ -382,13 +517,18 @@ export function Dashboard({
           : "Direct-chain fallback view"}`
     : "Infrastructure Posture & Topology Control";
   const topologyHeaderAction = selectedNodeViewModel ? (
-    <button
-      type="button"
-      onClick={handleExitNodeControl}
-      className="rounded border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/50 hover:text-primary"
-    >
-      Back to Strategic Network
-    </button>
+    <NodePowerActionStrip
+      slots={nodePowerPresets.slots}
+      presetPlans={presetApplyPlans}
+      bringOnlinePlan={bringAllOnlinePlan}
+      takeOfflinePlan={takeAllOfflinePlan}
+      isPending={structurePower.status === "pending"}
+      canSavePreset={canSavePowerPreset}
+      onApplyPreset={handleApplyPowerPreset}
+      onSavePreset={() => setIsPowerPresetDialogOpen(true)}
+      onBulkPower={handleBulkNodePower}
+      onBack={handleExitNodeControl}
+    />
   ) : (
     <div className="flex items-center justify-end">
       <PostureControl nodeGroups={nodeGroups} isConnected={isConnected} inline onTransitionChange={handlePostureTransitionChange} />
@@ -606,7 +746,7 @@ export function Dashboard({
           title={topologyTitle}
           subtitle={topologySubtitle}
           headerAction={topologyHeaderAction}
-          headerActionClassName={selectedNodeViewModel ? "flex w-[240px] justify-end" : "flex justify-end whitespace-nowrap"}
+          headerActionClassName={selectedNodeViewModel ? "flex min-w-0 max-w-[78vw] justify-end" : "flex justify-end whitespace-nowrap"}
           bodyClassName="select-none"
         >
           <TopologyPanelFade contentKey={topologyModeKey} durationMs={TRANSITION_DURATION_MS}>
@@ -621,7 +761,12 @@ export function Dashboard({
                 onCloseStructureMenu={handleCloseNodeControlMenus}
                 totalStructureCount={selectedNodeViewModel.structures.length}
                 hiddenStructureCount={hiddenCount}
+                layoutOverrides={nodeLayoutOverrides.positions}
+                powerUsageLabel={nodePowerUsageReadout.label}
+                hasManualLayout={nodeLayoutOverrides.hasManualLayout}
                 isStructureMenuOpen={contextMenu != null || nodeSurfaceActions.contextMenu != null}
+                onResetLayout={nodeLayoutOverrides.resetLayout}
+                onUpdateStructurePosition={nodeLayoutOverrides.setStructurePosition}
                 title=""
                 subtitle=""
               />
@@ -800,6 +945,19 @@ export function Dashboard({
         </div>
       )}
 
+      {(powerStructureId == null && (structurePower.status === "success" || structurePower.status === "error")) ? (
+        <div className="mt-4">
+          <TxFeedbackBanner
+            status={structurePower.status}
+            result={structurePower.result}
+            error={structurePower.error}
+            successLabel={powerSuccessLabel}
+            pendingLabel="Submitting node power action..."
+            onDismiss={handleDismissNodeLocalPowerFeedback}
+          />
+        </div>
+      ) : null}
+
       {(structureRename.status === "success" || structureRename.status === "error") && (
         <div className="mt-4">
           <TxFeedbackBanner
@@ -825,6 +983,28 @@ export function Dashboard({
           }}
         />
       ) : null}
+
+      <NodePowerPresetDialog
+        isOpen={isPowerPresetDialogOpen}
+        slots={nodePowerPresets.slots}
+        defaultSlotIndex={defaultPowerPresetSlotIndex}
+        onClose={() => setIsPowerPresetDialogOpen(false)}
+        onSave={handleSavePowerPreset}
+      />
+
+      <NodePowerCapacityDialog
+        isOpen={pendingNodePowerPlan != null}
+        title={pendingNodePowerPlan?.title ?? "Power requirement unavailable"}
+        body={pendingNodePowerPlan?.body ?? "Power requirements are not available for this node."}
+        primaryLabel={pendingNodePowerPlan?.primaryLabel ?? "Continue"}
+        isPending={structurePower.status === "pending"}
+        onCancel={() => {
+          if (structurePower.status !== "pending") {
+            setPendingNodePowerPlan(null);
+          }
+        }}
+        onConfirm={handleConfirmPendingNodePowerPlan}
+      />
     </div>
   );
 }

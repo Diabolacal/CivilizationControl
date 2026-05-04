@@ -133,7 +133,7 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
         )}
       </div>
 
-      {/* Authorization feedback */}
+      {/* authorization feedback */}
       {(gateStatus === "success" || gateStatus === "error") && (
         <TxFeedbackBanner
           status={gateStatus}

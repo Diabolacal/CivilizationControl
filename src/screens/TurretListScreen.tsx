@@ -125,7 +125,7 @@ export function TurretListScreen({ structures, isLoading }: TurretListScreenProp
         </div>
       )}
 
-      {/* Authorization feedback */}
+      {/* authorization feedback */}
       {(turretStatus === "success" || turretStatus === "error") && (
         <TxFeedbackBanner
           status={turretStatus}

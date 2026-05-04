@@ -5,6 +5,7 @@ import { NodeDrilldownLegend } from "./NodeDrilldownLegend";
 import { TopologyPanelFade, TopologyPanelFrame } from "@/components/topology/TopologyPanelFrame";
 
 import type { OpenNodeDrilldownStructureMenuParams } from "@/hooks/useNodeDrilldownStructureMenu";
+import type { NodeDrilldownLayoutOverrides, NodeDrilldownLayoutPosition } from "@/lib/nodeDrilldownLayoutOverrides";
 import type { NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 import type { OpenNodeDrilldownNodeMenuParams } from "./NodeDrilldownCanvas";
 import type { ReactNode } from "react";
@@ -18,7 +19,12 @@ interface NodeDrilldownSurfaceProps {
   onCloseStructureMenu?: () => void;
   totalStructureCount: number;
   hiddenStructureCount: number;
+  layoutOverrides?: NodeDrilldownLayoutOverrides;
+  powerUsageLabel?: string;
+  hasManualLayout?: boolean;
   isStructureMenuOpen?: boolean;
+  onResetLayout?: () => void;
+  onUpdateStructurePosition?: (canonicalDomainKey: string, position: NodeDrilldownLayoutPosition) => void;
   title: string;
   subtitle: string;
   headerAction?: ReactNode;
@@ -34,8 +40,29 @@ function NodeDrilldownSurfaceBody({
   onCloseStructureMenu,
   totalStructureCount,
   hiddenStructureCount,
+  layoutOverrides,
+  powerUsageLabel,
+  hasManualLayout,
   isStructureMenuOpen,
-}: Pick<NodeDrilldownSurfaceProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "onOpenNodeMenu" | "onOpenStructureMenu" | "onCloseStructureMenu" | "totalStructureCount" | "hiddenStructureCount" | "isStructureMenuOpen">) {
+  onResetLayout,
+  onUpdateStructurePosition,
+}: Pick<
+  NodeDrilldownSurfaceProps,
+  | "viewModel"
+  | "selectedStructureId"
+  | "onSelectStructure"
+  | "onOpenNodeMenu"
+  | "onOpenStructureMenu"
+  | "onCloseStructureMenu"
+  | "totalStructureCount"
+  | "hiddenStructureCount"
+  | "layoutOverrides"
+  | "powerUsageLabel"
+  | "hasManualLayout"
+  | "isStructureMenuOpen"
+  | "onResetLayout"
+  | "onUpdateStructurePosition"
+>) {
   const [isLegendVisible, setIsLegendVisible] = useState(true);
 
   return (
@@ -49,11 +76,24 @@ function NodeDrilldownSurfaceBody({
         onCloseStructureMenu={onCloseStructureMenu}
         totalStructureCount={totalStructureCount}
         hiddenStructureCount={hiddenStructureCount}
+        layoutOverrides={layoutOverrides}
+        powerUsageLabel={powerUsageLabel}
         isStructureMenuOpen={isStructureMenuOpen}
+        onUpdateStructurePosition={onUpdateStructurePosition}
       />
 
       <div className="pointer-events-none absolute inset-0 z-20">
-        <div className="pointer-events-auto absolute right-2 top-2">
+        <div className="pointer-events-auto absolute right-2 top-2 flex items-center gap-1.5">
+          {onResetLayout ? (
+            <button
+              type="button"
+              onClick={onResetLayout}
+              disabled={!hasManualLayout}
+              className="rounded bg-background/50 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground/50 transition-colors hover:text-muted-foreground/75 disabled:cursor-not-allowed disabled:opacity-35"
+            >
+              Reset layout
+            </button>
+          ) : null}
           <button
             type="button"
             onClick={() => setIsLegendVisible((current) => !current)}
@@ -83,7 +123,12 @@ export function NodeDrilldownSurface({
   onCloseStructureMenu,
   totalStructureCount,
   hiddenStructureCount,
+  layoutOverrides,
+  powerUsageLabel,
+  hasManualLayout,
   isStructureMenuOpen,
+  onResetLayout,
+  onUpdateStructurePosition,
   title,
   subtitle,
   headerAction,
@@ -99,7 +144,12 @@ export function NodeDrilldownSurface({
       onCloseStructureMenu={onCloseStructureMenu}
       totalStructureCount={totalStructureCount}
       hiddenStructureCount={hiddenStructureCount}
+      layoutOverrides={layoutOverrides}
+      powerUsageLabel={powerUsageLabel}
+      hasManualLayout={hasManualLayout}
       isStructureMenuOpen={isStructureMenuOpen}
+      onResetLayout={onResetLayout}
+      onUpdateStructurePosition={onUpdateStructurePosition}
     />
   );
 

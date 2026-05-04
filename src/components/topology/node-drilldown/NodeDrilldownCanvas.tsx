@@ -1,13 +1,18 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { NodeIconPreviewGlyph } from "@/components/topology/node-icon-catalogue/NodeIconPreviewGlyph";
-import { layoutNodeDrilldown } from "@/lib/nodeDrilldownLayout";
+import {
+  applyNodeDrilldownPositionOverrides,
+  clampNodeDrilldownPosition,
+  layoutNodeDrilldown,
+} from "@/lib/nodeDrilldownLayout";
 import { describeNodeLocalWarningMarker } from "@/lib/nodeDrilldownModel";
 import { cn } from "@/lib/utils";
 
 import { NodeDrilldownTooltip, type NodeDrilldownTooltipData } from "./NodeDrilldownTooltip";
 
 import type { OpenNodeDrilldownStructureMenuParams } from "@/hooks/useNodeDrilldownStructureMenu";
+import type { NodeDrilldownLayoutOverrides, NodeDrilldownLayoutPosition } from "@/lib/nodeDrilldownLayoutOverrides";
 import type { NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 
 export interface OpenNodeDrilldownNodeMenuParams {
@@ -24,8 +29,28 @@ interface NodeDrilldownCanvasProps {
   onCloseStructureMenu?: () => void;
   totalStructureCount: number;
   hiddenStructureCount: number;
+  layoutOverrides?: NodeDrilldownLayoutOverrides;
+  powerUsageLabel?: string;
   isStructureMenuOpen?: boolean;
+  onUpdateStructurePosition?: (canonicalDomainKey: string, position: NodeDrilldownLayoutPosition) => void;
 }
+
+interface DragState {
+  canonicalDomainKey: string;
+  iconSize: number;
+  pointerId: number;
+  startClientX: number;
+  startClientY: number;
+  didDrag: boolean;
+}
+
+interface DragPreview {
+  structureId: string;
+  xPercent: number;
+  yPercent: number;
+}
+
+const DRAG_THRESHOLD_PX = 6;
 
 function formatTitleCase(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1);
@@ -101,15 +126,52 @@ export function NodeDrilldownCanvas({
   onCloseStructureMenu,
   totalStructureCount,
   hiddenStructureCount,
+  layoutOverrides = {},
+  powerUsageLabel,
   isStructureMenuOpen = false,
+  onUpdateStructurePosition,
 }: NodeDrilldownCanvasProps) {
-  const layout = useMemo(() => layoutNodeDrilldown(viewModel), [viewModel]);
+  const canvasRef = useRef<HTMLDivElement | null>(null);
+  const dragStateRef = useRef<DragState | null>(null);
+  const suppressClickStructureIdRef = useRef<string | null>(null);
+  const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
+  const baseLayout = useMemo(() => layoutNodeDrilldown(viewModel), [viewModel]);
+  const layout = useMemo(
+    () => applyNodeDrilldownPositionOverrides(baseLayout, viewModel.structures, layoutOverrides),
+    [baseLayout, layoutOverrides, viewModel.structures],
+  );
+  const displayedLayout = useMemo(() => {
+    if (!dragPreview) return layout;
+
+    return {
+      ...layout,
+      structures: layout.structures.map((item) => (
+        item.id === dragPreview.structureId
+          ? { ...item, xPercent: dragPreview.xPercent, yPercent: dragPreview.yPercent }
+          : item
+      )),
+    };
+  }, [dragPreview, layout]);
   const [tooltip, setTooltip] = useState<NodeDrilldownTooltipData | null>(null);
   const structureMap = useMemo(
     () => new Map(viewModel.structures.map((structure) => [structure.id, structure])),
     [viewModel.structures],
   );
   const visibleStructureCount = viewModel.structures.length;
+
+  const getCanvasPosition = (clientX: number, clientY: number, iconSize: number): NodeDrilldownLayoutPosition | null => {
+    const bounds = canvasRef.current?.getBoundingClientRect();
+    if (!bounds || bounds.width <= 0 || bounds.height <= 0) return null;
+
+    return clampNodeDrilldownPosition({
+      xPercent: ((clientX - bounds.left) / bounds.width) * 100,
+      yPercent: ((clientY - bounds.top) / bounds.height) * 100,
+    }, {
+      canvasWidth: bounds.width,
+      canvasHeight: bounds.height,
+      iconSize,
+    });
+  };
 
   useEffect(() => {
     if (!isStructureMenuOpen) {
@@ -120,7 +182,7 @@ export function NodeDrilldownCanvas({
   }, [isStructureMenuOpen]);
 
   return (
-    <div className="relative h-full overflow-hidden">
+    <div ref={canvasRef} className="relative h-full overflow-hidden">
       <div
         className="pointer-events-none absolute inset-0"
         style={{
@@ -176,7 +238,7 @@ export function NodeDrilldownCanvas({
           "absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-transform hover:scale-[1.03]",
           selectedStructureId == null ? "z-20" : "z-10",
         )}
-        style={{ left: `${layout.anchor.xPercent}%`, top: `${layout.anchor.yPercent}%` }}
+            style={{ left: `${layout.anchor.xPercent}%`, top: `${layout.anchor.yPercent}%` }}
       >
         <NodeIconPreviewGlyph
           family="networkNode"
@@ -202,17 +264,81 @@ export function NodeDrilldownCanvas({
         ) : null}
       </div>
 
-      {layout.structures.map((item) => {
+      {displayedLayout.structures.map((item) => {
         const structure = structureMap.get(item.id);
         if (!structure) return null;
+        const isDragging = dragPreview?.structureId === structure.id;
 
         return (
           <button
             key={structure.id}
             type="button"
             onClick={() => {
+              if (suppressClickStructureIdRef.current === structure.id) {
+                suppressClickStructureIdRef.current = null;
+                return;
+              }
+
               onCloseStructureMenu?.();
               onSelectStructure(structure.id);
+            }}
+            onPointerDown={(event) => {
+              if (!onUpdateStructurePosition || event.button !== 0) return;
+
+              dragStateRef.current = {
+                canonicalDomainKey: structure.canonicalDomainKey,
+                iconSize: item.iconSize,
+                pointerId: event.pointerId,
+                startClientX: event.clientX,
+                startClientY: event.clientY,
+                didDrag: false,
+              };
+              event.currentTarget.setPointerCapture(event.pointerId);
+            }}
+            onPointerMove={(event) => {
+              const dragState = dragStateRef.current;
+              if (!dragState || dragState.pointerId !== event.pointerId || !onUpdateStructurePosition) return;
+
+              const distance = Math.hypot(event.clientX - dragState.startClientX, event.clientY - dragState.startClientY);
+              if (!dragState.didDrag && distance <= DRAG_THRESHOLD_PX) return;
+
+              const position = getCanvasPosition(event.clientX, event.clientY, dragState.iconSize);
+              if (!position) return;
+
+              dragState.didDrag = true;
+              setTooltip(null);
+              onCloseStructureMenu?.();
+              setDragPreview({ structureId: structure.id, ...position });
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onPointerUp={(event) => {
+              const dragState = dragStateRef.current;
+              if (!dragState || dragState.pointerId !== event.pointerId) return;
+
+              dragStateRef.current = null;
+              event.currentTarget.releasePointerCapture(event.pointerId);
+              if (!dragState.didDrag || !onUpdateStructurePosition) {
+                setDragPreview(null);
+                return;
+              }
+
+              const position = getCanvasPosition(event.clientX, event.clientY, dragState.iconSize);
+              if (position) {
+                onUpdateStructurePosition(dragState.canonicalDomainKey, position);
+              }
+
+              suppressClickStructureIdRef.current = structure.id;
+              setDragPreview(null);
+              event.preventDefault();
+              event.stopPropagation();
+            }}
+            onPointerCancel={(event) => {
+              const dragState = dragStateRef.current;
+              if (dragState?.pointerId === event.pointerId) {
+                dragStateRef.current = null;
+                setDragPreview(null);
+              }
             }}
             onContextMenu={(event) => {
               event.preventDefault();
@@ -256,6 +382,8 @@ export function NodeDrilldownCanvas({
             aria-label={buildStructureAriaLabel(structure)}
             className={cn(
               "absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-transform hover:scale-[1.03]",
+              onUpdateStructurePosition ? "cursor-grab active:cursor-grabbing" : null,
+              isDragging ? "scale-[1.04]" : null,
               selectedStructureId === structure.id ? "z-20" : "z-10",
             )}
             style={{ left: `${item.xPercent}%`, top: `${item.yPercent}%` }}
@@ -271,6 +399,12 @@ export function NodeDrilldownCanvas({
           </button>
         );
       })}
+
+      {powerUsageLabel ? (
+        <div className="pointer-events-none absolute bottom-3 right-3 z-10 rounded border border-border/45 bg-background/45 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+          {powerUsageLabel}
+        </div>
+      ) : null}
 
       {tooltip && !isStructureMenuOpen ? <NodeDrilldownTooltip tooltip={tooltip} /> : null}
     </div>

@@ -6,10 +6,12 @@ import { NodeDrilldownSurface } from "@/components/topology/node-drilldown/NodeD
 import { NodeSelectionInspector } from "@/components/topology/node-drilldown/NodeSelectionInspector";
 import { NodeStructureListPanel } from "@/components/topology/node-drilldown/NodeStructureListPanel";
 import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState";
+import { useNodeDrilldownLayoutOverrides } from "@/hooks/useNodeDrilldownLayoutOverrides";
 import { useNodeDrilldownStructureMenu } from "@/hooks/useNodeDrilldownStructureMenu";
 import { useStructureActionMenu } from "@/hooks/useStructureActionMenu";
 import { buildNodeDrilldownMenuItems } from "@/lib/nodeDrilldownMenuItems";
 import { NODE_DRILLDOWN_SCENARIOS } from "@/lib/nodeDrilldownScenarios";
+import { getNodePowerUsageReadout } from "@/lib/nodePowerControlModel";
 import { cn } from "@/lib/utils";
 
 import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
@@ -55,6 +57,11 @@ export function NodeDrilldownLabScreen() {
     scopeKey: null,
     structures: scenarioViewModel?.structures ?? [],
   });
+  const layoutOverrides = useNodeDrilldownLayoutOverrides({
+    nodeId: scenarioViewModel?.node.id ?? null,
+    scopeKey: null,
+  });
+  const nodePowerUsageReadout = useMemo(() => getNodePowerUsageReadout(), []);
   const visibleViewModel = useMemo(
     () => (scenarioViewModel ? { ...scenarioViewModel, structures: visibleStructures } : null),
     [scenarioViewModel, visibleStructures],
@@ -286,7 +293,12 @@ export function NodeDrilldownLabScreen() {
               onCloseStructureMenu={closeStructureMenu}
               totalStructureCount={scenarioViewModel?.structures.length ?? 0}
               hiddenStructureCount={hiddenCount}
+              layoutOverrides={layoutOverrides.positions}
+              powerUsageLabel={nodePowerUsageReadout.label}
+              hasManualLayout={layoutOverrides.hasManualLayout}
               isStructureMenuOpen={contextMenu != null || nodeActionMenu.contextMenu != null}
+              onResetLayout={layoutOverrides.resetLayout}
+              onUpdateStructurePosition={layoutOverrides.setStructurePosition}
               title="Node Drilldown Lab"
               subtitle={scenario.description}
               headerAction={
