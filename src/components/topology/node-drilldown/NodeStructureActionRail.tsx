@@ -114,19 +114,19 @@ function PowerActionControl({
 }: PowerActionControlProps) {
   const pill = getStatusPillDescriptor(powerStatus);
   const buttonLabel = isBusy ? "Working..." : formatActionButtonLabel(actionLabel, currentStatus);
+  const actionTone = buttonLabel === "Bring online"
+    ? "var(--topo-state-online)"
+    : buttonLabel === "Take offline"
+      ? "var(--topo-state-offline)"
+      : "var(--foreground)";
   const showActionButton = buttonLabel != null && (isInteractive || unavailableReason != null || isBusy);
-  const buttonTitle = isBusy
-    ? "Submitting structure power action…"
-    : isInteractive
-      ? buttonLabel
-      : unavailableReason;
 
   return (
     <div aria-label="Structure status and power action" className="grid w-[208px] grid-cols-[96px_104px] items-center justify-end gap-2">
       <div className="flex items-center justify-end gap-1.5">
         {showAlert ? (
           <span
-            className="inline-flex h-6 items-center justify-center rounded border border-[color:color-mix(in_srgb,var(--topo-state-warning)_42%,var(--border)_58%)] bg-[color:color-mix(in_srgb,var(--topo-state-warning)_14%,transparent)] px-1.5 text-[9px] font-mono uppercase tracking-[0.18em] text-[var(--topo-state-warning)]"
+            className="inline-flex h-7 items-center justify-center rounded border border-[color:color-mix(in_srgb,var(--topo-state-warning)_42%,var(--border)_58%)] bg-[color:color-mix(in_srgb,var(--topo-state-warning)_14%,transparent)] px-2 text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--topo-state-warning)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
             title="Alert status requires attention"
           >
             Alert
@@ -148,7 +148,6 @@ function PowerActionControl({
           disabled={!isInteractive || isBusy}
           aria-disabled={!isInteractive || isBusy}
           aria-busy={isBusy || undefined}
-          title={buttonTitle ?? undefined}
           onClick={() => {
             if (!isInteractive || isBusy) {
               return;
@@ -156,10 +155,11 @@ function PowerActionControl({
 
             onTriggerAction?.();
           }}
+          style={isInteractive && !isBusy ? ({ "--action-tone": actionTone } as React.CSSProperties) : undefined}
           className={cn(
             "inline-flex h-7 items-center justify-center rounded border px-2.5 text-[11px] font-medium transition-colors",
             isInteractive && !isBusy
-              ? "border-border/60 bg-background/35 text-foreground hover:border-primary/50 hover:bg-background/55 hover:text-primary"
+              ? "border-border/60 bg-background/35 text-foreground hover:border-[var(--action-tone)] hover:bg-background/55 hover:text-[var(--action-tone)]"
               : "cursor-default border-border/50 bg-background/20 text-muted-foreground/60",
             isBusy ? "cursor-not-allowed" : null,
           )}
