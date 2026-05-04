@@ -175,8 +175,8 @@ Current code path:
 Required product behavior going forward:
 
 - if turrets exist and no gates exist, allow turret-only posture switching rather than silently failing the operation
-- if no eligible gates exist, the UI should say the gate-policy side is skipped and turret doctrine is being applied only
-- if neither gates nor turrets exist, the UI should block execution with an explicit `No eligible gates or turrets to switch` state rather than attempting an empty PTB
+- if no eligible gates exist, the UI should stay quiet in normal ready state rather than narrating skipped gate-policy mechanics under the macro controls
+- if neither gates nor turrets exist, the UI should block execution with an explicit `No eligible gates or turrets to switch` reason in the existing disabled or error surfaces rather than attempting an empty PTB
 
 ### 6.5.1 Restoration result on `feat/restore-posture-switching`
 
@@ -186,10 +186,12 @@ Verified restoration details:
 
 - the shared posture PTB builder now rejects empty target sets before a transaction is built
 - gate-present switching batch-reads current gate policies and blocks target modes whose required presets are missing
-- turret-only or no-gate switching is explicitly allowed when turrets exist, and the UI now says the gate-policy side is skipped
+- turret-only or no-gate switching is explicitly allowed when turrets exist, and later human wallet-connected preview smoke confirmed that this path can execute once wallet and live world state settle
 - turret doctrine drift is now a warning instead of a hard blocker because the same switch PTB already rebinds turret extensions
 - gateless readback now uses a local session fallback for the last successful doctrine switch instead of collapsing back to a false `Commercial` default
 - `scripts/check-posture-switch-tx.mts` now proves gate-plus-turret PTB shape, turret-only PTB shape, and pre-build empty-target rejection deterministically
+- the macro Strategic Network strip now keeps only the `Commercial` and `Defensive` controls; routine helper narration and the placeholder `Save Preset` button were removed to keep the governance surface quiet
+- the broader stale status or read-model refresh after in-app power writes remains a separate follow-up for the later zero-package write-action parity branch; this polish pass did not expand into that seam
 
 This keeps the classification unchanged:
 
@@ -202,7 +204,7 @@ This keeps the classification unchanged:
 Gate-rule preset switching is already live. The missing pieces are:
 
 - explicit readiness checks for preset completeness before switching
-- clearer macro UI copy that distinguishes authored presets from the switch PTB write scope
+- quieter macro UI that reserves visible copy for actual errors or blocked states rather than routine implementation explanation
 - gateless or turret-only transition handling that does not depend on gate-based posture readback
 
 So this is a restoration and clarity task in the frontend layer, not evidence that the current deployed package lacks the core preset model.

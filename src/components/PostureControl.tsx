@@ -11,7 +11,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import { ShieldAlert, Store, Settings2 } from "lucide-react";
+import { ShieldAlert, Store } from "lucide-react";
 import { usePostureState, usePostureSwitch } from "@/hooks/usePosture";
 import { useGatePolicyBatch } from "@/hooks/useGatePolicyBatch";
 import { useOperatorReadiness, type ReadinessBlocker } from "@/hooks/useOperatorReadiness";
@@ -39,7 +39,7 @@ interface PostureControlProps {
 
 interface InlineMessage {
   label: string;
-  severity: "error" | "warning";
+  severity: "error";
   link?: string;
 }
 
@@ -48,7 +48,6 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
   const turretStructures = useMemo(() => nodeGroups.flatMap((group) => group.turrets), [nodeGroups]);
   const firstGateId = gateStructures[0]?.objectId;
   const hasGateAnchor = firstGateId != null;
-  const hasTurrets = turretStructures.length > 0;
 
   // Transition lifecycle: pendingTarget is set on click, cleared when
   // read-path confirms the new posture or on error/timeout.
@@ -232,11 +231,12 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
 
   const inlineMessage = useMemo<InlineMessage | null>(() => {
     if (status === "error" && error) {
-      return { label: error, severity: "error" as const };
+      return { label: error, severity: "error" };
     }
-    if (readinessErrors.length > 0) return readinessErrors[0];
-    if (noTargetsBlocker) return noTargetsBlocker;
-    if (gatePolicyLoadingBlocker) return gatePolicyLoadingBlocker;
+    if (readinessErrors.length > 0) {
+      return toInlineError(readinessErrors[0]);
+    }
+    if (noTargetsBlocker) return toInlineError(noTargetsBlocker);
     if (commercialPresetBlocker || defensePresetBlocker) {
       const missingModes = [
         commercialPresetBlocker ? "Commercial" : null,
@@ -246,32 +246,12 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
       return {
         key: "preset-summary",
         label: `Gate presets incomplete for ${missingModes.join(" and ")} switching.`,
-        severity: "error" as const,
+        severity: "error",
         link: "/gates",
       };
     }
-    if (isTransitioning) {
-      return {
-        key: "transitioning",
-        label: isPending
-          ? "Awaiting wallet approval…"
-          : hasGateAnchor
-            ? "Confirming gate posture…"
-            : "Applying turret doctrine…",
-        severity: "warning" as const,
-      };
-    }
-    if (!hasGateAnchor && hasTurrets) {
-      return {
-        key: "turret-only",
-        label: posture == null
-          ? "No gates linked. Switching updates turret doctrine only."
-          : `No gates linked. ${posture === "defense" ? "Defensive" : "Commercial"} doctrine shown from the last successful switch.`,
-        severity: "warning" as const,
-      };
-    }
-    return readinessWarnings[0] ?? null;
-  }, [commercialPresetBlocker, defensePresetBlocker, error, gatePolicyLoadingBlocker, hasGateAnchor, hasTurrets, isPending, isTransitioning, noTargetsBlocker, posture, readinessErrors, readinessWarnings, status]);
+    return null;
+  }, [commercialPresetBlocker, defensePresetBlocker, error, noTargetsBlocker, readinessErrors, status]);
 
   const actionButton = (
     <button
@@ -293,7 +273,7 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
 
   const feedbackBlock = (
     <>
-      {readiness.blockers.length > 0 && (
+      {feedbackBlockers.length > 0 && (
         <div className="space-y-1.5">
           {feedbackBlockers.map((b) => (
             <div
@@ -393,25 +373,9 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
               </span>
             </>
           )}
-          {/* Save Preset placeholder (ghost — not wired yet) */}
-          {!isTransitioning && (
-            <>
-              <div className="w-px h-4 bg-border/50 mx-2" />
-              <button
-                disabled
-                aria-label="Save Preset coming soon"
-                className="flex items-center gap-2 whitespace-nowrap rounded border border-transparent px-3 py-1.5 text-[11px] font-medium tracking-wide text-muted-foreground/60 cursor-not-allowed"
-              >
-                <Settings2 className="w-3 h-3" />
-                Save Preset
-              </button>
-            </>
-          )}
         </div>
         {inlineMessage && (
-          <div className={`flex items-center gap-2 text-[11px] ${
-            inlineMessage.severity === "error" ? "text-red-400" : "text-amber-400"
-          }`}>
+          <div className="flex items-center gap-2 text-[11px] text-red-400">
             <span>{inlineMessage.label}</span>
             {inlineMessage.link && (
               <Link to={inlineMessage.link} className="underline underline-offset-2 hover:text-zinc-100">
@@ -441,15 +405,6 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
               {stateLabel}
             </span>
           </div>
-          {!compact && (
-            <p className="mt-0.5 text-xs text-zinc-500">
-              {!hasGateAnchor
-                ? "No gates linked. Switching updates turret doctrine only."
-                : isDefense
-                ? "Gates locked to tribe. Turrets engaging outsiders."
-                : "Gates accepting traffic. Turrets standing down."}
-            </p>
-          )}
         </div>
 
         {actionButton}
@@ -471,6 +426,14 @@ function buildPresetBlocker(mode: PostureMode, gates: readonly Structure[]): Rea
     label: `${gates.length} gate${gates.length === 1 ? " is" : "s are"} missing ${modeLabel} presets: ${formatGateList(gates)}`,
     severity: "error",
     link: "/gates",
+  };
+}
+
+function toInlineError(blocker: ReadinessBlocker): InlineMessage {
+  return {
+    label: blocker.label,
+    severity: "error",
+    link: blocker.link,
   };
 }
 
