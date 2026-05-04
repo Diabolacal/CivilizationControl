@@ -2,6 +2,8 @@
 
 > Status note (2026-04-29): Phase 1 shipped via `docs/operations/shared-backend-assembly-enrichment-20260429.md`. This file remains as later-phase roadmap and historical planning context only.
 >
+> Status update (2026-05-04, latest): the docs-only write-action audit on `docs/node-control-write-action-audit` confirms that the current read-path baseline is already correct for the next implementation wave. `/activity` and Dashboard Recent Signals now use the wallet-scoped shared `signal-history` route on normal paths, Node Control already boots from operator inventory, and the next action branch should treat signal-history parity as a separate read-only backlog rather than reopening read-path architecture.
+>
 > Status update (2026-05-04, latest): the frontend signal-history adoption on `feat/signal-history-indexer-feed` is now human-smoked on `https://9ffbadd8.civilizationcontrol.pages.dev`. `Dashboard` `Recent Signals` showed real indexed rows including events from several hours earlier, `/activity` showed real wallet-scoped indexed rows back into late April / early May, and `Governance`, `Transit`, plus `Status` filters were manually checked. `/activity` and Dashboard Recent Signals now consume the wallet-scoped shared `signal-history` route rather than browser `queryEvents`, the accepted v1 history gaps stay deferred, and the next branch should remain the write-action audit before any package-change decision.
 >
 > Status update (2026-05-03, newest): the final accepted frontend-only polish on `feat/node-drilldown-render-shell` compacted the selected network-node `Fuel` row in `Selection Inspector` into a one-row quantity-plus-runtime summary where space allows, while keeping fill quantity-based, runtime indexed-only, and severity thresholded at `86400`/`3600`. No browser JSON-RPC, backend contract, package, or write-path behavior changed in this pass. The branch should now merge after preview validation, and the next implementation slice should start in EF-Map/shared-backend with the wallet-scoped signal-history endpoint rather than reopening frontend branch scope. See `docs/operations/network-node-drilldown-implementation-plan-20260501.md` under `Next work order after merge`.
@@ -142,6 +144,8 @@ The shared endpoint currently supports wallet-scoped v1 categories and kinds for
 - `extension_frozen` must remain labeled frozen rather than revoke/delete
 - marketplace listing discovery still relies on browser event queries and is separate from Signal Feed
 
+These omissions remain a separate parity backlog. They should not be treated as blockers for the first zero-package Node Control write slice.
+
 ### Can EF-Map replace this?
 
 Yes, and the first browser-safe slice is now shipped.
@@ -202,6 +206,8 @@ The shared backend now defines one browser-safe endpoint for normal Signal Feed 
 ```
 
 The frontend now maps this endpoint into the existing Signal Feed categories and dashboard summary cards, and browser `queryEvents` no longer drive `/activity` or dashboard Recent Signals. Remaining `queryEvents` call sites are now separate deferred surfaces such as marketplace listing discovery.
+
+The write-action audit should reference this section only to preserve the read-only boundary. It should not widen or revise the `signal-history.v1` contract in this planning file.
 
 ## 4. Current structure / ownership discovery model
 

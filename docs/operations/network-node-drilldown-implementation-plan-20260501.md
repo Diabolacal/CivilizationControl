@@ -10,6 +10,16 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Write-action audit before any package change - 2026-05-04
+
+This follow-up is docs-only on `docs/node-control-write-action-audit`. It does not change frontend runtime code, Move code, sponsor-worker behavior, EF-Map code, package IDs, vendor state, or production deploy state.
+
+- the new authority doc is `docs/operations/node-control-write-action-audit-20260504.md`
+- the audit confirms that current Stillness runtime calls already cover the first useful Node Control write slice: existing gate, storage, turret, and network-node online actions plus metadata rename do not currently justify a package update
+- the audit also confirms that the main near-term gating seam is sponsor policy, not missing on-chain functions; current policy does not yet cover rename, network-node offline, revoke, or freeze
+- network-node offline remains explicitly deferred because the blocker is hot-potato PTB handling for child assemblies, not a proven world-contract gap
+- signal-history parity for posture, policy, toll, turret doctrine, and market settlement remains a separate read-only backlog and should not block the first write-action implementation branch
+
 ### Compact Selection Inspector fuel row and branch close-out order - 2026-05-03
 
 This tracked follow-up is the final frontend polish accepted on `feat/node-drilldown-render-shell`. It does not change EF-Map code, shared-backend contracts, VPS state, sponsor-worker behavior, package IDs, Move code, vendor state, or production deploy state.
@@ -43,32 +53,26 @@ This follow-up is frontend-only on `feat/signal-history-indexer-feed`. It does n
 
 ### Next work order after merge
 
-The current feature branch should not absorb write-action implementation, power-state presets, marketplace work, or package changes. After this Signal Feed restoration is merged, the next slice should follow this order:
+The current feature branch should not absorb write-action implementation, power-state presets, marketplace work, or package changes. After this Signal Feed restoration is merged, the next slice should follow the audit in `docs/operations/node-control-write-action-audit-20260504.md` and stay in this order:
 
-1. Write-action audit before package changes
-  - Audit existing current package/world-contract write paths for individual online/offline, rename or edit structure name, gate-optional posture switching, and PTB or batch multi-structure power changes
-  - Determine what can already be done with existing calls and what would truly require a package update
-2. Individual structure actions
-  - Wire real right-click and list-row actions for online/offline and edit name
-  - Apply them consistently on Node Control map icons, Attached Structures rows, and relevant list/detail screens
-  - Keep availability grounded in indexed authority hints plus final wallet-signed execution authority
-3. Node Power State presets
-  - Start with local persistence for saved power-state definitions
-  - Treat a power state as a named desired online/offline set for structures attached to one network node
-  - Explore one-PTB execution only if existing calls support it safely
-  - Plan package changes only if the audit proves existing calls cannot support the desired batch behavior
-4. Package update decision
-  - Minimize package updates
-  - Only update and deploy package state after the write-action audit proves it is necessary
-  - Avoid one package update per feature
-5. Signal-history parity follow-up
-  - Extend shared history only if later operator needs prove that the current v1 gaps matter in practice
-  - Keep any future history expansion wallet-scoped, read-only, and additive only
-  - Do not reopen browser `queryEvents` for normal Signal Feed routes
+1. Zero-package action parity
+  - keep current gate, storage, turret, and network-node online actions aligned across Node Control menus, rails, and existing detail screens
+  - add rename only on the current four-family execution set first
+2. Sponsor-policy follow-up only if needed
+  - treat rename sponsorship as a separate worker-policy branch with preview proof
+  - keep sponsor rollout out of the UI branch
+3. Network-node offline proof branch
+  - treat node offline as separate PTB work because the blocker is child-offline hot-potato handling, not package state
+4. Local Node Power State presets later
+  - start with local persistence only if the individual-action slice lands cleanly
+  - do not escalate to on-chain preset design without a separate product decision
+5. Signal-history parity remains separate
+  - keep posture, policy, toll, turret-doctrine, and market-settlement history out of the first write-action branch
+  - do not reopen browser `queryEvents` for normal Signal Feed routes
 6. Marketplace integration later
-  - Treat partner storage-market integration as a separate future revenue/yield slice
-  - First identify emitted sale/payment events, settlement coin, and available seller or treasury fields
-  - Do not mix marketplace work into the Node Control stabilization branch
+  - keep listings and settlement work in a separate revenue branch
+7. Package update only by proof
+  - only reopen package discussion if a required operator action still cannot be expressed after frontend, sponsor-policy, and PTB proof work
 
 ### Indexed fuel fullness correction and immediate boot shell - 2026-05-03
 
