@@ -6,10 +6,14 @@
  */
 
 import { useCallback, useState } from "react";
+import type { Transaction } from "@mysten/sui/transactions";
+
 import {
   buildAssemblyPowerTx,
   buildBatchAssemblyPowerTx,
+  buildNodeOfflineTx,
   buildNodeOnlineTx,
+  type NodeOfflineChildTarget,
 } from "@/lib/structurePowerTx";
 import { useCharacterId } from "@/hooks/useCharacter";
 import { useSponsoredExecution } from "@/hooks/useSponsoredExecution";
@@ -41,6 +45,12 @@ interface NodeOnlineParams {
   ownerCapId: ObjectId;
 }
 
+interface NodeOfflineParams {
+  nodeId: ObjectId;
+  ownerCapId: ObjectId;
+  connectedAssemblies: NodeOfflineChildTarget[];
+}
+
 /** Map known Move abort strings to user-friendly messages. */
 function friendlyError(raw: string): string {
   if (raw.includes("ENetworkNodeMismatch")) return "Wrong network node — structure may have moved.";
@@ -63,7 +73,7 @@ export function useStructurePower() {
 
   const execute = useCallback(
     async (
-      buildTx: () => ReturnType<typeof buildAssemblyPowerTx>,
+      buildTx: () => Transaction,
       desiredStatus: "online" | "offline",
       refreshOptions?: StructureWriteRefreshOptions,
     ) => {
@@ -129,11 +139,23 @@ export function useStructurePower() {
     [execute, characterId],
   );
 
+  const bringNodeOffline = useCallback(
+    (params: NodeOfflineParams, refreshOptions?: StructureWriteRefreshOptions) => {
+      if (!characterId) throw new Error("Character not resolved yet — please wait");
+      return execute(
+        () => buildNodeOfflineTx({ ...params, characterId }),
+        "offline",
+        refreshOptions,
+      );
+    },
+    [execute, characterId],
+  );
+
   const reset = useCallback(() => {
     setStatus("idle");
     setResult(null);
     setError(null);
   }, []);
 
-  return { status, result, error, toggleSingle, toggleBatch, bringNodeOnline, reset };
+  return { status, result, error, toggleSingle, toggleBatch, bringNodeOnline, bringNodeOffline, reset };
 }

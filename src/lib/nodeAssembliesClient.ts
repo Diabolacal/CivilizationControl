@@ -1,6 +1,6 @@
 import { getSharedBackendBaseUrl } from "@/lib/assemblySummaryClient";
 
-import type { NodeAssemblyNode, NodeAssemblySummary, ObjectId } from "@/types/domain";
+import type { IndexedActionCandidate, NodeAssemblyNode, NodeAssemblySummary, ObjectId } from "@/types/domain";
 
 const NODE_ASSEMBLIES_PATH = "/api/civilization-control/node-assemblies";
 const REQUEST_TIMEOUT_MS = 5_000;
@@ -170,10 +170,13 @@ function normalizeNodeAssemblyNode(value: unknown, requestedNodeId: ObjectId): N
   return {
     objectId,
     name: normalizeNullableString(candidate.name),
+    displayName: normalizeNullableString(candidate.displayName),
     status: normalizeNullableString(candidate.status),
     assemblyId: normalizeNullableString(candidate.assemblyId),
     solarSystemId: normalizeNullableString(candidate.solarSystemId),
     energySourceId: normalizeNullableString(candidate.energySourceId),
+    fuelAmount: normalizeNullableString(candidate.fuelAmount),
+    powerSummary: normalizeIndexedPowerSummary(candidate.powerSummary),
   };
 }
 
@@ -195,13 +198,26 @@ function normalizeNodeAssemblySummary(
     assemblyType: normalizeNullableString(candidate.assemblyType),
     typeId: normalizeNumber(candidate.typeId),
     name: normalizeNullableString(candidate.name),
+    displayName: normalizeNullableString(candidate.displayName),
+    family: normalizeNullableString(candidate.family),
+    size: normalizeNullableSize(candidate.size),
     status: normalizeNullableString(candidate.status),
     fuelAmount: normalizeNullableString(candidate.fuelAmount),
+    powerSummary: normalizeIndexedPowerSummary(candidate.powerSummary),
     solarSystemId: normalizeNullableString(candidate.solarSystemId),
     energySourceId: normalizeNullableString(candidate.energySourceId),
     url: normalizeNullableString(candidate.url),
     lastUpdated: normalizeNullableTimestamp(candidate.lastUpdated),
+    lastObservedCheckpoint: normalizeNullableString(candidate.lastObservedCheckpoint),
+    lastObservedTimestamp: normalizeNullableTimestamp(candidate.lastObservedTimestamp),
     typeName: normalizeNullableString(candidate.typeName),
+    ownerCapId: normalizeCanonicalObjectId(normalizeNullableString(candidate.ownerCapId)),
+    ownerWalletAddress: normalizeCanonicalObjectId(normalizeNullableString(candidate.ownerWalletAddress)),
+    characterId: normalizeCanonicalObjectId(normalizeNullableString(candidate.characterId)),
+    extensionStatus: normalizeNullableExtensionStatus(candidate.extensionStatus),
+    partial: normalizeBoolean(candidate.partial),
+    warnings: normalizeStringArray(candidate.warnings),
+    actionCandidate: normalizeIndexedActionCandidate(candidate.actionCandidate),
     source: normalizeNullableString(candidate.source) ?? normalizeNullableString(topLevelSource) ?? "shared-frontier-backend",
     provenance: normalizeNullableString(candidate.provenance) ?? "node-local-indexer",
   };
@@ -220,13 +236,66 @@ function normalizeNumber(value: unknown): number | null {
 
   if (typeof value === "string") {
     const trimmed = value.trim();
-    if (trimmed.length === 0) return null;
+    if (trimmed.length === 0) {
+      return null;
+    }
 
     const parsed = Number(trimmed);
     return Number.isFinite(parsed) ? parsed : null;
   }
 
   return null;
+}
+
+function normalizeNullableSize(value: unknown): "mini" | "standard" | "heavy" | null {
+  const normalized = normalizeNullableString(value)?.toLowerCase();
+  if (normalized === "mini" || normalized === "standard" || normalized === "heavy") {
+    return normalized;
+  }
+
+  return null;
+}
+
+function normalizeNullableExtensionStatus(
+  value: unknown,
+): "authorized" | "stale" | "none" | null {
+  const normalized = normalizeNullableString(value)?.toLowerCase();
+  if (normalized === "authorized" || normalized === "stale" || normalized === "none") {
+    return normalized;
+  }
+
+  return null;
+}
+
+function normalizeBoolean(value: unknown): boolean {
+  return value === true;
+}
+
+function normalizeStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value.flatMap((entry) => {
+    const normalized = normalizeNullableString(entry);
+    return normalized ? [normalized] : [];
+  });
+}
+
+function normalizeIndexedPowerSummary(value: unknown) {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  return value as NodeAssemblySummary["powerSummary"];
+}
+
+function normalizeIndexedActionCandidate(value: unknown): IndexedActionCandidate | null {
+  if (!value || typeof value !== "object") {
+    return null;
+  }
+
+  return value as IndexedActionCandidate;
 }
 
 function normalizeNullableTimestamp(value: unknown): string | null {

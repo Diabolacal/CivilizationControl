@@ -31,6 +31,10 @@ export const CC_ORIGINAL_PACKAGE_ID =
 export const GATE_CONFIG_ID =
   "0xad76aec886fb85d8e0daad5e375b110cdadd48a8b3439ff76e9601ae39ebe08e";
 
+/** Shared FuelConfig — required for network-node offline/update-fuel operations. */
+export const FUEL_CONFIG_ID =
+  "0x4fcf28a9be750d242bc5d2f324429e31176faecb5b84f0af7dff3a2a6e243550";
+
 /** Shared EnergyConfig — required for gate online/offline operations. */
 export const ENERGY_CONFIG_ID =
   "0xd77693d0df5656d68b1b833e2a23cc81eb3875d8d767e7bd249adde82bdbc952";

@@ -10,6 +10,18 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Network-node offline proof branch - 2026-05-04
+
+This proof-first branch stays on `feat/network-node-offline-proof`. It does not change EF-Map contracts, VPS state, Move code, package IDs, vendor state, or production deploy state.
+
+- current Stillness runtime already exposes `world::network_node::offline`, but the call is not committable by itself: it returns `OfflineAssemblies`, and the PTB must thread that hot potato through each connected child with `assembly::offline_connected_assembly`, `gate::offline_connected_gate`, `storage_unit::offline_connected_storage_unit`, or `turret::offline_connected_turret`, then finish with `network_node::destroy_offline_assemblies` in the same transaction
+- CivilizationControl now ships that minimum safe PTB through `buildNodeOfflineTx(...)`, backed by the live Stillness `FuelConfig` object `0x4fcf28a9be750d242bc5d2f324429e31176faecb5b84f0af7dff3a2a6e243550`, and exposes `Take offline` only on dedicated network-node list/detail surfaces once operator inventory or the `node-assemblies` fallback resolves connected child identities; `Node Control` remains unchanged in this branch
+- sponsor policy now mirrors the full PTB shape under both world package IDs: `character::{borrow_owner_cap,return_owner_cap}`, `network_node::{offline,destroy_offline_assemblies}`, and the connected-child helper calls for `assembly`, `gate`, `storage_unit`, and `turret`
+- shared network-node menus now use the calm sentence-case labels `Bring online` and `Take offline`, and node rename surfaces now say `Rename Node` / `Node Name` instead of reusing assembly wording on node-only actions
+- validation passed: `node node_modules/tsx/dist/cli.mjs scripts/check-network-node-offline-proof.mts`; `node node_modules/tsx/dist/cli.mjs scripts/check-structure-action-support.mts`; `npm run sponsor:validate-policy`; `npm run sponsor:test`; `npm run sponsor:typecheck`; `node node_modules/typescript/bin/tsc --noEmit`; `node node_modules/typescript/bin/tsc`; `node node_modules/vite/bin/vite.js build`; `sui client active-env`; `sui move build --path contracts/civilization_control`; and `sui move test --path contracts/civilization_control`
+- preview proof is now `https://35907923.civilizationcontrol.pages.dev` with alias `https://feat-network-node-offline-pr.civilizationcontrol.pages.dev`; unique and alias `/`, `/nodes`, `/activity`, `/settings`, and `/dev/node-drilldown-lab` all resolved the same entry chunk `/assets/index-iYv60cix.js`; served-bundle scanning across the deployed preview JS assets found `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` and `civilizationcontrol-sponsor` in `App-B_7wHB-z.js` and `SmartObjectProvider-krPfUEd5.js`, found `https://ef-map.com` in `nodeDrilldownMenuItems-Cl_6nR5I.js` and `SmartObjectProvider-krPfUEd5.js`, and found no `flappy-frontier-sponsor`, `ASSEMBLY_API_TOKEN`, exact-case `Authorization`, or `X-API-Key`
+- integrated-browser wallet smoke remains unavailable in this environment, so this branch currently closes with deterministic PTB proof, sponsor-policy proof, route smoke, and served-bundle proof rather than a wallet-backed live transaction
+
 ### Attached-structure rail clarity polish - 2026-05-04
 
 This UI-only follow-up stays on `ui/node-control-action-rail-clarity`. It does not change write builders, sponsor policy, EF-Map behavior, package IDs, Move code, hidden-row behavior, context menus, inspector behavior, vendor state, or production deploy state.

@@ -66,7 +66,7 @@ function makeNodeLocalStructure(overrides = {}) {
 
 const offlineGate = getStructurePowerAction(makeStructure());
 assert.deepEqual(offlineGate, {
-  label: 'Bring Online',
+  label: 'Bring online',
   nextOnline: true,
   disabledReason: null,
   tone: 'online',
@@ -74,7 +74,7 @@ assert.deepEqual(offlineGate, {
 
 const onlineGate = getStructurePowerAction(makeStructure({ status: 'online' }));
 assert.deepEqual(onlineGate, {
-  label: 'Take Offline',
+  label: 'Take offline',
   nextOnline: false,
   disabledReason: null,
   tone: 'offline',
@@ -85,7 +85,7 @@ assert.equal(missingNodeContextGate?.disabledReason, 'Missing node context.');
 
 const offlineNode = getStructurePowerAction(makeStructure({ type: 'network_node', networkNodeId: undefined }));
 assert.deepEqual(offlineNode, {
-  label: 'Bring Online',
+  label: 'Bring online',
   nextOnline: true,
   disabledReason: null,
   tone: 'online',
@@ -93,6 +93,17 @@ assert.deepEqual(offlineNode, {
 
 const onlineNode = getStructurePowerAction(makeStructure({ type: 'network_node', status: 'online', networkNodeId: undefined }));
 assert.equal(onlineNode, null);
+
+const availableOnlineNode = getStructurePowerAction(
+  makeStructure({ type: 'network_node', status: 'online', networkNodeId: undefined }),
+  { networkNodeOfflineAvailable: true },
+);
+assert.deepEqual(availableOnlineNode, {
+  label: 'Take offline',
+  nextOnline: false,
+  disabledReason: null,
+  tone: 'offline',
+});
 
 assert.equal(supportsStructureRename(makeStructure({ type: 'gate' })), true);
 assert.equal(supportsStructureRename(makeStructure({ type: 'storage_unit' })), true);

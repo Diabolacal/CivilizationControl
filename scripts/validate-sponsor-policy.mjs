@@ -28,11 +28,11 @@ const SOURCE_FILES = [
 
 const EXPECTED_WORLD_TARGETS = {
   character: ['borrow_owner_cap', 'return_owner_cap'],
-  assembly: ['update_metadata_name', 'online', 'offline'],
-  gate: ['authorize_extension', 'update_metadata_url', 'update_metadata_name', 'online', 'offline'],
-  storage_unit: ['authorize_extension', 'update_metadata_url', 'update_metadata_name', 'online', 'offline'],
-  turret: ['authorize_extension', 'update_metadata_name', 'online', 'offline'],
-  network_node: ['update_metadata_name', 'online'],
+  assembly: ['update_metadata_name', 'online', 'offline', 'offline_connected_assembly'],
+  gate: ['authorize_extension', 'update_metadata_url', 'update_metadata_name', 'online', 'offline', 'offline_connected_gate'],
+  storage_unit: ['authorize_extension', 'update_metadata_url', 'update_metadata_name', 'online', 'offline', 'offline_connected_storage_unit'],
+  turret: ['authorize_extension', 'update_metadata_name', 'online', 'offline', 'offline_connected_turret'],
+  network_node: ['update_metadata_name', 'online', 'offline', 'destroy_offline_assemblies'],
 };
 
 const EXPECTED_TARGETS = {
@@ -143,7 +143,18 @@ function sourceReferencesTarget(moduleName, functionName, sourceText, structureP
     && structureMetadataText.includes(`module: "${moduleName}"`)
     && structureMetadataText.includes('::${mapping.module}::update_metadata_name');
 
-  return isDynamicPowerTarget || isDynamicRenameTarget;
+  const connectedOfflineFunctionName = {
+    assembly: 'offline_connected_assembly',
+    gate: 'offline_connected_gate',
+    storage_unit: 'offline_connected_storage_unit',
+    turret: 'offline_connected_turret',
+  }[moduleName];
+
+  const isDynamicConnectedOfflineTarget = connectedOfflineFunctionName === functionName
+    && structurePowerText.includes(`module: "${moduleName}"`)
+    && structurePowerText.includes(`functionName: "${functionName}"`);
+
+  return isDynamicPowerTarget || isDynamicRenameTarget || isDynamicConnectedOfflineTarget;
 }
 
 function main() {

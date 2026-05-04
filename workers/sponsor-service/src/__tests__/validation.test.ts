@@ -18,11 +18,11 @@ const BAD_PACKAGE = '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefd
 
 const WORLD_TARGETS = new Map([
   ['character', new Set(['borrow_owner_cap', 'return_owner_cap'])],
-  ['assembly', new Set(['update_metadata_name', 'online', 'offline'])],
-  ['gate', new Set(['authorize_extension', 'update_metadata_url', 'update_metadata_name', 'online', 'offline'])],
-  ['storage_unit', new Set(['authorize_extension', 'update_metadata_url', 'update_metadata_name', 'online', 'offline'])],
-  ['turret', new Set(['authorize_extension', 'update_metadata_name', 'online', 'offline'])],
-  ['network_node', new Set(['update_metadata_name', 'online'])],
+  ['assembly', new Set(['update_metadata_name', 'online', 'offline', 'offline_connected_assembly'])],
+  ['gate', new Set(['authorize_extension', 'update_metadata_url', 'update_metadata_name', 'online', 'offline', 'offline_connected_gate'])],
+  ['storage_unit', new Set(['authorize_extension', 'update_metadata_url', 'update_metadata_name', 'online', 'offline', 'offline_connected_storage_unit'])],
+  ['turret', new Set(['authorize_extension', 'update_metadata_name', 'online', 'offline', 'offline_connected_turret'])],
+  ['network_node', new Set(['update_metadata_name', 'online', 'offline', 'destroy_offline_assemblies'])],
 ]);
 
 const CC_POLICY: AppPolicy = {
@@ -200,6 +200,22 @@ describe('validateCommands happy path', () => {
       [makeMoveCall(WORLD_RUNTIME_PACKAGE, 'assembly', 'online')],
       [CC_POLICY],
     );
+    expect(result.valid).toBe(true);
+  });
+
+  it('accepts a sponsored network-node offline PTB shape', () => {
+    const result = validateCommands(
+      [
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'network_node', 'offline'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'gate', 'offline_connected_gate'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'assembly', 'offline_connected_assembly'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'network_node', 'destroy_offline_assemblies'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap'),
+      ],
+      [CC_POLICY],
+    );
+
     expect(result.valid).toBe(true);
   });
 

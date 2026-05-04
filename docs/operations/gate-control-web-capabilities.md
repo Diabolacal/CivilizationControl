@@ -5,7 +5,7 @@
 
 ## Summary
 
-CivilizationControl provides direct power-state control (online/offline) for all four structure types and bulk operations from list screens. This document records what is implemented, what is possible but not yet built, and what is blocked by on-chain sponsorship requirements.
+CivilizationControl provides direct power-state control for gates, turrets, storage units, and dedicated network-node surfaces, plus bulk operations where the current UI supports them. This document records what is implemented, what is possible, and what is still blocked by sponsorship or PTB-shape constraints.
 
 ---
 
@@ -46,24 +46,25 @@ CivilizationControl provides direct power-state control (online/offline) for all
 | Operation | Web PTB? | Status |
 |-----------|----------|--------|
 | **online** | ✅ Yes (OwnerCap + Clock) | **Implemented** — per-node + bulk controls |
-| **offline** | ✅ Yes (OwnerCap + FuelConfig) | **Not yet implemented** — see note below |
+| **offline** | ✅ Yes (OwnerCap + FuelConfig + connected child cleanup) | **Implemented** — per-node row/detail actions only; no bulk offline UI |
 | **deposit_fuel / withdraw_fuel** | ❌ No (`verify_sponsor`) | Not possible from web |
 | **update_metadata** | ✅ Yes (OwnerCap only) | Not yet implemented |
 
-#### Network Node Offline — Not Yet Implemented
+#### Network Node Offline — Implemented With Same-PTB Cleanup
 
-Taking a network node offline IS technically possible from the web. The contract does not require `verify_sponsor`. However, the operation uses a "hot-potato" pattern that requires additional implementation work:
+Taking a network node offline is technically possible from the web and is now implemented on the dedicated network-node list/detail surfaces. The runtime still uses a hot-potato pattern, so the action must remain a single PTB:
 
 1. Call `network_node::offline()` — this returns an `OfflineAssemblies` object
 2. For each connected structure, call the matching `offline_connected_*()` function (gate, turret, or SSU)
 3. Call `destroy_offline_assemblies()` to consume the result
 
-All calls must happen within a single transaction. The web implementation would need to:
-- Know the FuelConfig shared object ID (not yet in constants)
-- Determine the type of each connected assembly to call the correct `offline_connected_*` variant
-- Chain the hot-potato through all calls in the PTB
+All calls happen within a single transaction. The current web implementation:
+- uses the live Stillness `FuelConfig` shared object `0x4fcf28a9be750d242bc5d2f324429e31176faecb5b84f0af7dff3a2a6e243550`
+- resolves connected child IDs and families from operator inventory first, with `node-assemblies` as a fallback for dedicated node detail/list surfaces
+- only exposes `Take offline` when that child lookup resolves cleanly, so the app does not offer a fake partial node-offline action
+- keeps bulk node offline unimplemented; only per-node row/detail actions are currently wired
 
-This is buildable but requires additional work. Until then, use in-game controls to take nodes offline.
+The sponsored path now requires the full allowlist, not just `network_node::offline`: `network_node::{offline,destroy_offline_assemblies}` plus the matching `offline_connected_*` helper for each connected child family.
 
 ---
 
@@ -188,11 +189,12 @@ This makes the posture switch safe against:
 1. Navigate to TradePosts list screen.
 2. Click **"Bring All Online (N)"** or **"Take All Offline (N)"** buttons.
 
-### Network Node Online
+### Network Node Power Control
 1. Navigate to Network Nodes → click a specific node.
-2. In the **Power State** section, click "Bring Online".
+2. In the **Power State** section, click "Bring online" or "Take offline".
 3. Approve the wallet transaction.
-4. Note: "Take Offline" is not yet implemented. A notice appears in the UI.
+4. If taking the node offline, confirm the point-of-action prompt.
+5. Node status updates on the next refresh.
 
 ### Network Node Bulk Online
 1. Navigate to Network Nodes list screen.

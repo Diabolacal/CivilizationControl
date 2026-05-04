@@ -1,10 +1,8 @@
 /**
  * NetworkNodeListScreen — Overview of all network nodes under governance.
  *
- * Displays nodes with status, fuel level, and attached structure counts.
- * Provides bulk and per-node online controls. Network node offline is
- * complex (hot-potato pattern requiring all connected assemblies) and
- * is documented but not yet implemented.
+ * Displays nodes with status, fuel level, attached structure counts,
+ * and node-specific governance actions.
  */
 
 import { useCallback, useMemo } from "react";
@@ -13,8 +11,10 @@ import { StatusDot } from "@/components/StatusDot";
 import { TagChip } from "@/components/TagChip";
 import { NetworkNodeGlyph } from "@/components/topology/Glyphs";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
+import { useOperatorInventory } from "@/hooks/useOperatorInventory";
 import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { buildFuelPresentation, type FuelSeverity } from "@/lib/fuelRuntime";
+import type { NodeAssembliesLookupResult } from "@/lib/nodeAssembliesClient";
 import { shortId } from "@/lib/formatAddress";
 import type { Structure, NetworkNodeGroup } from "@/types/domain";
 
@@ -45,6 +45,7 @@ export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeList
     () => nodeGroups.map((group) => group.node),
     [nodeGroups],
   );
+  const operatorInventory = useOperatorInventory();
   const actions = useStructureSurfaceActions();
 
   const offlineNodes = useMemo(
@@ -106,7 +107,7 @@ export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeList
           status={actions.power.status}
           result={actions.power.result}
           error={actions.power.error}
-          successLabel="Network node brought online"
+          successLabel={actions.powerSuccessLabel}
           onDismiss={actions.dismissPowerFeedback}
         />
       )}
@@ -143,6 +144,7 @@ export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeList
                   key={node.objectId}
                   node={node}
                   group={groupMap.get(node.objectId)}
+                  nodeLookup={operatorInventory.adapted?.nodeLookupsByNodeId.get(node.objectId) ?? null}
                   onOpenStructureMenu={actions.openStructureContextMenu}
                 />
               ))}
@@ -150,16 +152,6 @@ export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeList
           </table>
         </div>
       )}
-
-      {/* Offline limitation notice */}
-      <div className="border border-border/50 rounded p-4">
-        <p className="text-xs text-muted-foreground">
-          <span className="font-medium text-foreground">Note:</span>{" "}
-          Taking a network node offline is technically possible from web but requires
-          disconnecting all attached structures in the same transaction. This operation
-          is not yet implemented — use in-game controls for node shutdown until a future update.
-        </p>
-      </div>
 
       {actions.renderContextMenu}
       {actions.renderRenameDialog}
@@ -170,11 +162,18 @@ export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeList
 function NodeRow({
   node,
   group,
+  nodeLookup,
   onOpenStructureMenu,
 }: {
   node: Structure;
   group?: NetworkNodeGroup;
-  onOpenStructureMenu: (structure: Structure, clientX: number, clientY: number) => void;
+  nodeLookup: NodeAssembliesLookupResult | null;
+  onOpenStructureMenu: (
+    structure: Structure,
+    clientX: number,
+    clientY: number,
+    options?: { nodeOfflineLookup?: NodeAssembliesLookupResult | null },
+  ) => void;
 }) {
   const attachedCount = group
     ? group.gates.length + group.storageUnits.length + group.turrets.length
@@ -189,7 +188,7 @@ function NodeRow({
       onContextMenu={(event) => {
         event.preventDefault();
         event.stopPropagation();
-        onOpenStructureMenu(node, event.clientX, event.clientY);
+        onOpenStructureMenu(node, event.clientX, event.clientY, { nodeOfflineLookup: nodeLookup });
       }}
       className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors"
     >
