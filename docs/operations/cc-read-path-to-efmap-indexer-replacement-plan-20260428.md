@@ -2,6 +2,8 @@
 
 > Status note (2026-04-29): Phase 1 shipped via `docs/operations/shared-backend-assembly-enrichment-20260429.md`. This file remains as later-phase roadmap and historical planning context only.
 >
+> Status update (2026-05-04, latest): the frontend signal-history adoption on `feat/signal-history-indexer-feed` is now human-smoked on `https://9ffbadd8.civilizationcontrol.pages.dev`. `Dashboard` `Recent Signals` showed real indexed rows including events from several hours earlier, `/activity` showed real wallet-scoped indexed rows back into late April / early May, and `Governance`, `Transit`, plus `Status` filters were manually checked. `/activity` and Dashboard Recent Signals now consume the wallet-scoped shared `signal-history` route rather than browser `queryEvents`, the accepted v1 history gaps stay deferred, and the next branch should remain the write-action audit before any package-change decision.
+>
 > Status update (2026-05-03, newest): the final accepted frontend-only polish on `feat/node-drilldown-render-shell` compacted the selected network-node `Fuel` row in `Selection Inspector` into a one-row quantity-plus-runtime summary where space allows, while keeping fill quantity-based, runtime indexed-only, and severity thresholded at `86400`/`3600`. No browser JSON-RPC, backend contract, package, or write-path behavior changed in this pass. The branch should now merge after preview validation, and the next implementation slice should start in EF-Map/shared-backend with the wallet-scoped signal-history endpoint rather than reopening frontend branch scope. See `docs/operations/network-node-drilldown-implementation-plan-20260501.md` under `Next work order after merge`.
 >
 > Status update (2026-05-03, newest): the latest frontend-only follow-up on `feat/node-drilldown-render-shell` corrected two app-owned operator-shell seams without changing shared-backend or chain contracts. First, `src/lib/fuelRuntime.ts` now derives network-node fill from honest quantity fullness, normalizing indexed `powerSummary.fuelMaxCapacity` when it is not in the same usable-unit scale as indexed `fuelAmount`; runtime labels still come only from indexed estimated time, severity still uses `86400`/`3600`, and partial states stay units-only with no fabricated time. Second, `src/main.tsx` now paints an immediate static boot shell before async app and provider imports resolve and records `window.__CC_BOOT_TIMING__`. Local timing on `http://127.0.0.1:4185/` showed shell paint at `49.8ms` and app paint at `244.6ms`; deployed preview `https://3cb28fb6.civilizationcontrol.pages.dev` showed shell paint at `269ms` and app paint at `770.7ms`, while disconnected `/`, `/nodes`, `/settings`, and `/dev/node-drilldown-lab` still made no browser Sui RPC, `operator-inventory`, or `node-assemblies` requests. Validation passed: `npm run typecheck`; `npm run build`; `git diff --check` with only the pre-existing LF/CRLF warning on `contracts/civilization_control/Move.lock`; `npx tsx scripts/check-operator-inventory-mapping.mts`; and `npx tsx scripts/check-node-drilldown-reconciliation.mts`. Served preview HTML on both unique and alias URLs resolved `assets/index-BPekTQv0.js`; served-bundle scanning across 12 deployed JS assets found `civilizationcontrol-sponsor` in `App-Brh6xqfh.js` and `SmartObjectProvider-tq4WYpYI.js`, `https://ef-map.com` in `SmartObjectProvider-tq4WYpYI.js` and `useNodeDrilldownStructureMenu-B4vRh3iM.js`, `https://fullnode.testnet.sui.io:443` in `SmartObjectProvider-tq4WYpYI.js` and `suiRpcClient-BibKDPwo.js`, and no `flappy-frontier-sponsor`, exact-case `Authorization`, `ASSEMBLY_API_TOKEN`, `X-API-Key`, `SPONSOR_PRIVATE_KEY`, `CF_API_TOKEN`, or `CLOUDFLARE_ACCOUNT_ID`. Live wallet-connected browser proof of the corrected fuel bar remains pending in this environment.
@@ -24,7 +26,7 @@
 
 ## 1. Executive summary
 
-CivilizationControl currently fetches most of its live data itself in the browser. The active app uses direct Sui JSON-RPC for ownership discovery, structure hydration, gate policy and posture reads, listing discovery, SSU inventory reads, and Recent Signals event polling. It also does one browser-side World API tribe refresh and ships bundled static catalogs for item types, tribe names, and solar systems. There is no first-party GraphQL usage in `src/` today.
+CivilizationControl currently fetches most of its live data itself in the browser. The active app still uses direct Sui JSON-RPC for ownership discovery, structure hydration, gate policy and posture reads, listing discovery, and SSU inventory reads, while normal Signal Feed routes now consume the wallet-scoped EF-Map `signal-history` endpoint. It also does one browser-side World API tribe refresh and ships bundled static catalogs for item types, tribe names, and solar systems. There is no first-party GraphQL usage in `src/` today.
 
 The biggest read-path pain points are:
 
@@ -129,9 +131,9 @@ The shared endpoint currently supports wallet-scoped v1 categories and kinds for
 3. map the v1 envelope into the existing `SignalEvent` shape
 4. surface `partial`, `warnings`, and `nextCursor` calmly in the operator UI
 
-### Current limitations
+### Current limitations and evidence
 
-- connected-wallet preview proof for live wallet-scoped signal rows was not available in this environment
+- human wallet-connected preview smoke on `https://9ffbadd8.civilizationcontrol.pages.dev` confirmed that `Dashboard` `Recent Signals` shows real indexed rows, `/activity` shows real wallet-scoped indexed rows extending back into late April / early May, and `Governance`, `Transit`, plus `Status` filters scope results as expected for the current v1 route
 - no global firehose is exposed to the browser
 - no direct `energy_events`
 - no stable separate gate-access or gate-configuration history surface yet
@@ -259,7 +261,7 @@ The tables and services below are currently implemented through the EF-Map repo/
 | Structure summaries | `ef_sui.assemblies`, assembly API, structure snapshot tooling | Exists in DB; partially exposed internally; new CC-safe endpoint needed | `GET /api/civilization-control/assemblies?ids=` style route | Best first slice; filter by known assembly IDs |
 | Network-node relationships | `ef_sui.assemblies.energy_source_id`, package-address index tables, assembly API | Exists in DB; not exposed as a CC-safe contract | likely new node-summary or structure-summary fields | Server-side filtering required; avoid exposing unrelated colocated infrastructure |
 | Energy / power relationships | `energy_source_id`, status/fuel fields, normalized activity history | Exists in DB; not yet a CC-safe browser contract | structure-summary fields first, node summary later | Good enrichment, but not a replacement for direct on-chain power mutation safety |
-| Recent events / signals | `ef_sui.activity_log`, `ef_sui.raw_events`, event emitter, universe-events Worker | Live internally; no stable CC-safe filtered history endpoint yet | filtered Recent Signals endpoint by assembly IDs | High value, medium privacy sensitivity, better than raw browser polling |
+| Recent events / signals | `ef_sui.activity_log`, `ef_sui.raw_events`, event emitter, universe-events Worker | Live and now exposed to CivilizationControl through the wallet-scoped `signal-history` route | current `GET /api/civilization-control/signal-history?walletAddress=0x...` contract, with later parity expansion only if operator demand justifies it | High value, medium privacy sensitivity; keep wallet-scoped and read-only |
 | Ownership / character / tribe enrichment | `ef_sui.assembly_owners`, `ef_sui.characters`, `world_api_dlt.tribe`, internal APIs | Exists, partially used internally | only filtered enrichment after CC ownership discovery | High privacy sensitivity |
 | Inventory / SSU / trade data | `ef_sui.inventory_items`, SSU API, assembly API | Exists; public aggregate surfaces only; details remain protected | filtered SSU-summary or inventory-summary endpoint | Sensitive; do not expose broad market intelligence without scope controls |
 | Location / system data | public/static DB assets, `worlds.json`, `versionInfo.json`, `ef_sui.assemblies.solar_system_id` and coordinates | Static surfaces public; live structure location incomplete | static snapshot reuse first, optional enriched structure-summary fields later | Low to medium sensitivity; live coverage is incomplete |
@@ -281,7 +283,7 @@ Repo-grounded caveats from the awareness pass still matter:
 | gate policy reads | direct `GateConfig` dynamic fields | none | direct chain | High | Low | Keep direct chain |
 | posture reads | direct `GateConfig` dynamic fields | none | direct chain | High | Low | Keep direct chain |
 | linked-gate lookup | direct structure read | none | direct chain | Medium | Low | Keep direct chain |
-| Recent Signals / activity feed | nine browser `queryEvents` module polls | `ef_sui.activity_log` via filtered shared-backend Recent Signals endpoint | Worker/API | High | Medium | Replace after structure-summary endpoint exists |
+| Recent Signals / activity feed | wallet-scoped shared `signal-history` endpoint on normal routes; legacy browser `queryEvents` helpers remain only on deferred surfaces | `ef_sui.activity_log` via the shipped wallet-scoped shared history endpoint | Worker/API | High | Medium | Shipped for normal routes; keep v1 gaps deferred and do not reopen browser polling |
 | listing discovery | event-scan plus `multiGetObjects` | normalized listing or SSU summary endpoint if EF-Map adds one | Worker/API | Medium | Medium | Defer; enrich later |
 | SSU inventory browser | direct SSU read plus per-key dynamic-field reads | `ef_sui.inventory_items` via filtered SSU-summary endpoint | Worker/API | Medium | High | Enrich later |
 | seller / player display enrichment | direct `fetchPlayerProfile` for names and tribes | filtered character / tribe enrichment or derived display fields | Worker/API | Medium | High | Enrich carefully |
@@ -294,7 +296,7 @@ Repo-grounded caveats from the awareness pass still matter:
 
 Decision labels behind the matrix:
 
-- Replace: Recent Signals once a CC-safe filtered endpoint exists
+- Replace: Recent Signals is already replaced on normal routes through the wallet-scoped shared endpoint; keep browser event scans only on separate deferred surfaces
 - Enrich: structure summaries, network-node relationships, taxonomy, tribe/system metadata, inventory rollups
 - Keep direct chain: ownership, policy, posture, linked-gate, EVE coin discovery, tx proof
 - Defer: listings, inventory, broader owner/tribe enrichment until the safer first slice proves the boundary
