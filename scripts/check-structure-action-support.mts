@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 
-import { getNodeLocalPowerToggleIntent, supportsNodeLocalRename } from '../src/lib/nodeDrilldownActionAuthority.ts';
+import { getNodeLocalPowerControlState, getNodeLocalPowerToggleIntent, supportsNodeLocalRename } from '../src/lib/nodeDrilldownActionAuthority.ts';
 import { getStructurePowerAction, supportsStructureRename } from '../src/lib/structureActionSupport.ts';
 
 function makeStructure(overrides = {}) {
@@ -95,6 +96,14 @@ assert.deepEqual(nodeLocalPower, {
   currentStatus: 'offline',
   nextOnline: true,
 });
+assert.deepEqual(getNodeLocalPowerControlState(makeNodeLocalStructure()), {
+  actionLabel: 'Bring Online',
+  currentStatus: 'offline',
+  nextOnline: true,
+  selectedSegment: 'offline',
+  isInteractive: true,
+  isStatusOnly: false,
+});
 
 const hiddenVerifiedNodeLocal = makeNodeLocalStructure({
   actionAuthority: {
@@ -116,6 +125,14 @@ assert.deepEqual(getNodeLocalPowerToggleIntent(hiddenVerifiedNodeLocal), {
   currentStatus: 'online',
   nextOnline: false,
 });
+assert.deepEqual(getNodeLocalPowerControlState(hiddenVerifiedNodeLocal), {
+  actionLabel: 'Take Offline',
+  currentStatus: 'online',
+  nextOnline: false,
+  selectedSegment: 'online',
+  isInteractive: true,
+  isStatusOnly: false,
+});
 
 const backendOnlyNodeLocal = makeNodeLocalStructure({
   hasDirectChainAuthority: false,
@@ -128,5 +145,38 @@ const backendOnlyNodeLocal = makeNodeLocalStructure({
 });
 assert.equal(supportsNodeLocalRename(backendOnlyNodeLocal), false);
 assert.equal(getNodeLocalPowerToggleIntent(backendOnlyNodeLocal), null);
+assert.deepEqual(getNodeLocalPowerControlState(backendOnlyNodeLocal), {
+  actionLabel: null,
+  currentStatus: 'offline',
+  nextOnline: null,
+  selectedSegment: 'offline',
+  isInteractive: false,
+  isStatusOnly: true,
+});
+
+const futureSupportedNodeLocal = makeNodeLocalStructure({
+  hasDirectChainAuthority: false,
+  status: 'online',
+  actionAuthority: {
+    state: 'future-supported',
+    verifiedTarget: null,
+    candidateTargets: [],
+    unavailableReason: 'Frontend action not implemented.',
+  },
+});
+assert.equal(supportsNodeLocalRename(futureSupportedNodeLocal), false);
+assert.equal(getNodeLocalPowerToggleIntent(futureSupportedNodeLocal), null);
+assert.deepEqual(getNodeLocalPowerControlState(futureSupportedNodeLocal), {
+  actionLabel: null,
+  currentStatus: 'online',
+  nextOnline: null,
+  selectedSegment: 'online',
+  isInteractive: false,
+  isStatusOnly: true,
+});
+
+const contextMenuSource = readFileSync(new URL('../src/components/structure-actions/StructureActionContextMenu.tsx', import.meta.url), 'utf8');
+assert.equal(contextMenuSource.includes('min-w-[172px]'), false, 'expected the shared action menu to stop forcing a wide minimum width');
+assert.equal(contextMenuSource.includes('w-max'), true, 'expected the shared action menu to shrink-wrap to content width');
 
 console.log('structure action support check: ok');

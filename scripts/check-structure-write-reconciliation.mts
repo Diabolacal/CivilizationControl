@@ -186,6 +186,24 @@ const renameConfirmed = resolveStructureWriteConfirmation(confirmedRenameInvento
 assert.equal(renameConfirmed.nameConfirmed, true, "expected refreshed backend rename data to confirm the pending new name");
 assert.equal(renameConfirmed.operatorInventoryConfirmed, true, "expected refreshed backend rename data to count as operator-inventory confirmation");
 
+const confirmedRenameLookup: NodeAssembliesLookupResult = {
+  ...renamedLookup!,
+  assemblies: renamedLookup!.assemblies.map((assembly) => assembly.objectId === STORAGE_TARGET.objectId
+    ? { ...assembly, displayName: "Storage Prime", name: "Storage Prime" }
+    : assembly),
+};
+const renameLookupOnlyConfirmed = resolveStructureWriteConfirmation(staleOperatorInventory, confirmedRenameLookup, renameOverlay);
+assert.equal(
+  renameLookupOnlyConfirmed.nameConfirmed,
+  false,
+  "expected selected-node rename confirmation not to clear the overlay while operator-inventory still returns the old name",
+);
+assert.equal(
+  renameLookupOnlyConfirmed.nodeAssembliesConfirmed,
+  true,
+  "expected selected-node rename confirmation to remain observable for debug without clearing the app-wide overlay",
+);
+
 const powerOfflineOverlay = createPendingStructureWriteOverlay({
   action: "power",
   digest: "power-offline-digest",
@@ -239,7 +257,40 @@ const confirmedPowerLookup: NodeAssembliesLookupResult = {
     : assembly),
 };
 const powerLookupConfirmed = resolveStructureWriteConfirmation(staleOfflineInventory, confirmedPowerLookup, powerOnlineOverlay);
-assert.equal(powerLookupConfirmed.statusConfirmed, true, "expected refreshed node-membership data to confirm the pending online state");
-assert.equal(powerLookupConfirmed.nodeAssembliesConfirmed, true, "expected refreshed node-membership data to count as selected-node confirmation");
+assert.equal(
+  powerLookupConfirmed.statusConfirmed,
+  false,
+  "expected selected-node power confirmation not to clear the overlay while operator-inventory still returns the stale offline state",
+);
+assert.equal(
+  powerLookupConfirmed.nodeAssembliesConfirmed,
+  true,
+  "expected selected-node power confirmation to remain visible for debug without clearing the app-wide overlay",
+);
+
+const confirmedOnlinePowerInventory: OperatorInventoryResponse = {
+  ...staleOfflineInventory,
+  networkNodes: staleOfflineInventory.networkNodes.map((nodeGroup) => ({
+    ...nodeGroup,
+    structures: nodeGroup.structures.map((row) => row.objectId === STORAGE_TARGET.objectId
+      ? { ...row, status: "online" }
+      : row),
+  })),
+};
+const powerOperatorInventoryConfirmed = resolveStructureWriteConfirmation(
+  confirmedOnlinePowerInventory,
+  confirmedPowerLookup,
+  powerOnlineOverlay,
+);
+assert.equal(
+  powerOperatorInventoryConfirmed.statusConfirmed,
+  true,
+  "expected operator-inventory confirmation to clear the pending online overlay once the app-wide model catches up",
+);
+assert.equal(
+  powerOperatorInventoryConfirmed.operatorInventoryConfirmed,
+  true,
+  "expected operator-inventory confirmation to be recorded once the refreshed backend response reports the new online state",
+);
 
 console.log("structure write reconciliation check: ok");

@@ -843,13 +843,18 @@ function finalizeNodeLocalStructures(
   };
 }
 
-function createLiveStructureIndex(liveStructures: Structure[]): LiveStructureIndex {
-  const directChainLiveStructures = liveStructures.filter((structure) => structure.readModelSource !== "operator-inventory");
-  const buckets = bucketByNodeDrilldownDomainIdentity(directChainLiveStructures, (structure) => ({
+function createLiveStructureIndex(
+  liveStructures: Structure[],
+  includeOperatorInventory = false,
+): LiveStructureIndex {
+  const indexedLiveStructures = includeOperatorInventory
+    ? liveStructures
+    : liveStructures.filter((structure) => structure.readModelSource !== "operator-inventory");
+  const buckets = bucketByNodeDrilldownDomainIdentity(indexedLiveStructures, (structure) => ({
     objectId: structure.objectId,
     assemblyId: normalizeNodeDrilldownAssemblyId(structure.assemblyId),
     renderId: structure.objectId,
-    source: "live",
+    source: structure.readModelSource === "operator-inventory" ? "backendMembership" : "live",
   }));
   const aliasToCanonicalKey = new Map<string, string>();
 
@@ -973,7 +978,8 @@ function buildLiveFallbackStructures(liveStructures: Structure[]): NodeLocalStru
 function buildBackendMembershipStructures(
   observedEntries: ObservedAssembly[],
   observedLookup: NodeAssembliesLookupResult,
-  liveIndex: LiveStructureIndex,
+  directChainIndex: LiveStructureIndex,
+  authorityIndex: LiveStructureIndex,
 ): { structures: NodeLocalStructure[]; omittedBackendCount: number } {
   const observedIndex = createObservedAssemblyIndex(observedEntries);
   const structures: NodeLocalStructure[] = [];
@@ -987,13 +993,18 @@ function buildBackendMembershipStructures(
       continue;
     }
 
-    const liveMatches = findMatchingLiveStructures(liveIndex, {
+    const directChainMatches = findMatchingLiveStructures(directChainIndex, {
       objectId: observed.objectId,
       assemblyId: observed.assemblyId,
     }, observedBucket.aliasSet);
-    const primaryLiveMatch = liveMatches[0];
+    const authorityMatches = findMatchingLiveStructures(authorityIndex, {
+      objectId: observed.objectId,
+      assemblyId: observed.assemblyId,
+    }, observedBucket.aliasSet);
+    const primaryAuthorityMatch = authorityMatches[0];
+    const primaryDirectChainMatch = directChainMatches[0];
     const normalizedAssemblyId = normalizeNodeDrilldownAssemblyId(observed.assemblyId)
-      ?? normalizeNodeDrilldownAssemblyId(primaryLiveMatch?.assemblyId)
+      ?? normalizeNodeDrilldownAssemblyId(primaryAuthorityMatch?.assemblyId)
       ?? undefined;
     const resolvedType = resolveTypeLabel(
       family,
@@ -1003,49 +1014,49 @@ function buildBackendMembershipStructures(
     );
     const status = normalizeObservedStatus(observed.status);
     const sizeVariant = normalizeObservedSize(observed.size) ?? deriveSizeVariant(resolvedType.typeLabel) ?? "standard";
-    const needsExtensionWarning = primaryLiveMatch != null
-      && (primaryLiveMatch.type === "gate" || primaryLiveMatch.type === "turret")
-      && (observed.extensionStatus ?? primaryLiveMatch.extensionStatus) !== "authorized";
+    const needsExtensionWarning = primaryAuthorityMatch != null
+      && (primaryAuthorityMatch.type === "gate" || primaryAuthorityMatch.type === "turret")
+      && (observed.extensionStatus ?? primaryAuthorityMatch.extensionStatus) !== "authorized";
     const actionAuthority = createNodeLocalActionAuthority(
       family,
       status,
-      liveMatches,
+      authorityMatches,
       "backendMembership",
       observed.actionCandidate,
     );
     const renderId = normalizeCanonicalObjectId(observed.objectId)
-      ?? (normalizedAssemblyId ? `assembly:${normalizedAssemblyId}` : primaryLiveMatch?.objectId ?? observedIndex.byCanonicalKey.size.toString());
+      ?? (normalizedAssemblyId ? `assembly:${normalizedAssemblyId}` : primaryAuthorityMatch?.objectId ?? observedIndex.byCanonicalKey.size.toString());
 
     structures.push(createNodeLocalStructure({
       id: renderId,
       canonicalDomainKey: selectCanonicalNodeDrilldownDomainKey({
-        objectId: observed.objectId ?? primaryLiveMatch?.objectId,
+        objectId: observed.objectId ?? primaryAuthorityMatch?.objectId,
         assemblyId: normalizedAssemblyId,
         renderId,
         source: "backendMembership",
       }) ?? `unresolved:${renderId}`,
-      objectId: observed.objectId ?? primaryLiveMatch?.objectId ?? undefined,
+      objectId: observed.objectId ?? primaryAuthorityMatch?.objectId ?? undefined,
       assemblyId: normalizedAssemblyId,
-      directChainObjectId: primaryLiveMatch?.objectId ?? null,
-      directChainAssemblyId: normalizeNodeDrilldownAssemblyId(primaryLiveMatch?.assemblyId) ?? null,
-      hasDirectChainAuthority: liveMatches.length > 0,
-      directChainMatchCount: liveMatches.length,
+      directChainObjectId: primaryDirectChainMatch?.objectId ?? null,
+      directChainAssemblyId: normalizeNodeDrilldownAssemblyId(primaryDirectChainMatch?.assemblyId) ?? null,
+      hasDirectChainAuthority: directChainMatches.length > 0,
+      directChainMatchCount: directChainMatches.length,
       futureActionEligible: actionAuthority.state === "verified-supported"
         || actionAuthority.state === "future-supported"
-        || liveMatches.length === 1,
-      linkedGateId: observed.linkedGateId ?? primaryLiveMatch?.linkedGateId ?? undefined,
+        || authorityMatches.length === 1,
+      linkedGateId: observed.linkedGateId ?? primaryAuthorityMatch?.linkedGateId ?? undefined,
       displayName: normalizeNodeLocalDisplayName(
         observed.displayName ?? observed.name,
         family,
         resolvedType.typeLabel,
-        observed.objectId ?? primaryLiveMatch?.objectId,
+        observed.objectId ?? primaryAuthorityMatch?.objectId,
         normalizedAssemblyId,
       ),
       family,
       sizeVariant,
       status,
       source: "backendMembership",
-      extensionStatus: observed.extensionStatus ?? primaryLiveMatch?.extensionStatus,
+      extensionStatus: observed.extensionStatus ?? primaryAuthorityMatch?.extensionStatus,
       actionAuthority,
       typeLabel: resolvedType.typeLabel,
       typeId: resolvedType.typeId,
@@ -1081,8 +1092,14 @@ function buildSelectedNodeStructures(
   );
 
   if (sourceMode === "backend-membership" && observedLookup?.status === "success") {
-    const liveIndex = createLiveStructureIndex(liveStructures);
-    const backendMembership = buildBackendMembershipStructures(observedEntries, observedLookup, liveIndex);
+    const directChainIndex = createLiveStructureIndex(liveStructures);
+    const authorityIndex = createLiveStructureIndex(liveStructures, true);
+    const backendMembership = buildBackendMembershipStructures(
+      observedEntries,
+      observedLookup,
+      directChainIndex,
+      authorityIndex,
+    );
 
     return {
       liveStructures,

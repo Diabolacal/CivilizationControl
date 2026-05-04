@@ -548,6 +548,227 @@ assert.equal(
   "expected the action resolver to preserve the owner-cap target while upgrading the row to verified-supported",
 );
 
+const operatorInventoryAuthorityGroup: NetworkNodeGroup = {
+  node: {
+    objectId: "0x00000000000000000000000000000000000000000000000000000000000000dd",
+    ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000000ddd",
+    assemblyId: "9030",
+    readModelSource: "operator-inventory",
+    type: "network_node",
+    name: "Operator Inventory Node",
+    status: "online",
+    extensionStatus: "authorized",
+  },
+  gates: [],
+  storageUnits: [
+    {
+      objectId: "0x0000000000000000000000000000000000000000000000000000000000000301",
+      ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000d301",
+      assemblyId: "4301",
+      readModelSource: "operator-inventory",
+      type: "storage_unit",
+      name: "Storage Authority",
+      status: "offline",
+      networkNodeId: "0x00000000000000000000000000000000000000000000000000000000000000dd",
+      extensionStatus: "authorized",
+    },
+  ],
+  turrets: [
+    {
+      objectId: "0x0000000000000000000000000000000000000000000000000000000000000302",
+      ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000d302",
+      assemblyId: "4302",
+      readModelSource: "operator-inventory",
+      type: "turret",
+      name: "Turret Authority",
+      status: "online",
+      networkNodeId: "0x00000000000000000000000000000000000000000000000000000000000000dd",
+      extensionStatus: "authorized",
+    },
+  ],
+};
+
+const operatorInventoryAuthorityLookup: NodeAssembliesLookupResult = {
+  status: "success",
+  networkNodeId: operatorInventoryAuthorityGroup.node.objectId,
+  node: {
+    objectId: operatorInventoryAuthorityGroup.node.objectId,
+    name: "Operator Inventory Node",
+    status: "ONLINE",
+    assemblyId: "9030",
+    solarSystemId: null,
+    energySourceId: null,
+  },
+  assemblies: [
+    {
+      objectId: null,
+      assemblyId: "4301",
+      linkedGateId: null,
+      assemblyType: "storage_unit",
+      typeId: 88083,
+      typeName: "Storage",
+      name: "Storage Authority",
+      displayName: "Storage Authority",
+      status: "OFFLINE",
+      fuelAmount: null,
+      solarSystemId: null,
+      energySourceId: null,
+      url: null,
+      lastUpdated: "2026-05-04T12:30:00.000Z",
+      source: "operator-inventory",
+      provenance: "node-local-indexer",
+      actionCandidate: {
+        actions: {
+          power: {
+            candidate: false,
+            currentlyImplementedInCivilizationControl: true,
+            familySupported: true,
+            indexedOwnerCapPresent: true,
+            requiredIds: {
+              structureId: operatorInventoryAuthorityGroup.storageUnits[0]?.objectId ?? null,
+              structureType: "storage_unit",
+              ownerCapId: operatorInventoryAuthorityGroup.storageUnits[0]?.ownerCapId ?? null,
+              networkNodeId: null,
+            },
+            unavailableReason: "Indexed candidate missing node context.",
+          },
+          rename: {
+            candidate: true,
+            currentlyImplementedInCivilizationControl: true,
+            familySupported: true,
+            indexedOwnerCapPresent: true,
+            requiredIds: {
+              structureId: operatorInventoryAuthorityGroup.storageUnits[0]?.objectId ?? null,
+              structureType: "storage_unit",
+              ownerCapId: operatorInventoryAuthorityGroup.storageUnits[0]?.ownerCapId ?? null,
+              networkNodeId: null,
+            },
+            unavailableReason: null,
+          },
+        },
+        supported: true,
+        familySupported: true,
+        unavailableReason: null,
+      },
+    },
+    {
+      objectId: null,
+      assemblyId: "4302",
+      linkedGateId: null,
+      assemblyType: "turret",
+      typeId: 88090,
+      typeName: "Turret",
+      name: "Turret Authority",
+      displayName: "Turret Authority",
+      status: "ONLINE",
+      fuelAmount: null,
+      solarSystemId: null,
+      energySourceId: null,
+      url: null,
+      lastUpdated: "2026-05-04T12:30:00.000Z",
+      source: "operator-inventory",
+      provenance: "node-local-indexer",
+      actionCandidate: {
+        actions: {
+          power: {
+            candidate: false,
+            currentlyImplementedInCivilizationControl: true,
+            familySupported: true,
+            indexedOwnerCapPresent: false,
+            requiredIds: {
+              structureId: operatorInventoryAuthorityGroup.turrets[0]?.objectId ?? null,
+              structureType: "turret",
+              ownerCapId: null,
+              networkNodeId: operatorInventoryAuthorityGroup.turrets[0]?.networkNodeId ?? null,
+            },
+            unavailableReason: "Indexed candidate missing owner-cap context.",
+          },
+          rename: {
+            candidate: true,
+            currentlyImplementedInCivilizationControl: true,
+            familySupported: true,
+            indexedOwnerCapPresent: false,
+            requiredIds: {
+              structureId: operatorInventoryAuthorityGroup.turrets[0]?.objectId ?? null,
+              structureType: "turret",
+              ownerCapId: null,
+              networkNodeId: operatorInventoryAuthorityGroup.turrets[0]?.networkNodeId ?? null,
+            },
+            unavailableReason: null,
+          },
+        },
+        supported: true,
+        familySupported: true,
+        unavailableReason: null,
+      },
+    },
+  ],
+  fetchedAt: "2026-05-04T12:30:00.000Z",
+  source: "operator-inventory",
+  error: null,
+  isPartial: false,
+  droppedCount: 0,
+};
+
+const operatorInventoryAuthorityViewModel = buildLiveNodeLocalViewModelWithObserved(
+  operatorInventoryAuthorityGroup,
+  operatorInventoryAuthorityLookup,
+);
+const operatorInventoryAuthorityStorageRow = operatorInventoryAuthorityViewModel.structures.find(
+  (structure) => structure.assemblyId === "4301",
+);
+const operatorInventoryAuthorityTurretRow = operatorInventoryAuthorityViewModel.structures.find(
+  (structure) => structure.assemblyId === "4302",
+);
+
+assert.equal(
+  operatorInventoryAuthorityViewModel.sourceMode,
+  "backend-membership",
+  "expected operator-inventory authority rows to stay in backend-membership mode",
+);
+assert.ok(operatorInventoryAuthorityStorageRow, "expected operator-inventory-backed storage row to render");
+assert.ok(operatorInventoryAuthorityTurretRow, "expected operator-inventory-backed turret row to render");
+assert.equal(
+  operatorInventoryAuthorityStorageRow?.actionAuthority.state,
+  "verified-supported",
+  "expected operator-inventory-backed storage rows to remain actionable when lookup node context is incomplete",
+);
+assert.equal(
+  operatorInventoryAuthorityTurretRow?.actionAuthority.state,
+  "verified-supported",
+  "expected operator-inventory-backed turret rows to remain actionable when lookup owner-cap context is incomplete",
+);
+assert.equal(
+  operatorInventoryAuthorityStorageRow?.hasDirectChainAuthority,
+  false,
+  "expected operator-inventory-backed storage authority recovery not to masquerade as direct-chain authority",
+);
+assert.equal(
+  operatorInventoryAuthorityTurretRow?.hasDirectChainAuthority,
+  false,
+  "expected operator-inventory-backed turret authority recovery not to masquerade as direct-chain authority",
+);
+assert.equal(
+  operatorInventoryAuthorityStorageRow?.directChainMatchCount,
+  0,
+  "expected operator-inventory-backed storage authority recovery to keep zero direct-chain matches",
+);
+assert.equal(
+  operatorInventoryAuthorityTurretRow?.directChainMatchCount,
+  0,
+  "expected operator-inventory-backed turret authority recovery to keep zero direct-chain matches",
+);
+assert.equal(
+  operatorInventoryAuthorityStorageRow?.actionAuthority.verifiedTarget?.networkNodeId,
+  operatorInventoryAuthorityGroup.storageUnits[0]?.networkNodeId,
+  "expected storage authority recovery to borrow node context from the operator-inventory structure row",
+);
+assert.equal(
+  operatorInventoryAuthorityTurretRow?.actionAuthority.verifiedTarget?.ownerCapId,
+  operatorInventoryAuthorityGroup.turrets[0]?.ownerCapId,
+  "expected turret authority recovery to borrow owner-cap context from the operator-inventory structure row",
+);
+
 console.log(JSON.stringify({
   sourceMode: viewModel.sourceMode,
   totalRows: structures.length,

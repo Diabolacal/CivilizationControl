@@ -48,6 +48,7 @@ import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDispla
 import { formatLux, formatEve } from "@/lib/currency";
 import { buildFuelPresentation, formatRuntimeSeconds } from "@/lib/fuelRuntime";
 import { resolveNodeDrilldownScopeKey } from "@/lib/nodeDrilldownHiddenState";
+import { buildNodeDrilldownMenuItems } from "@/lib/nodeDrilldownMenuItems";
 import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapshot } from "@/lib/nodeDrilldownModel";
 import { buildOperatorInventoryDebugCopySummary, buildOperatorInventoryDebugSnapshot } from "@/lib/operatorInventoryDebug";
 import type { NetworkMetrics, NetworkNodeGroup, SpatialPin, Structure } from "@/types/domain";
@@ -197,6 +198,7 @@ export function Dashboard({
     () => new Map((selectedNodeViewModel?.structures ?? []).map((structure) => [structure.id, structure])),
     [selectedNodeViewModel],
   );
+  const contextMenuStructure = contextMenu ? selectedNodeStructureMap.get(contextMenu.structureId) ?? null : null;
   const handleSelectNodeLocalStructure = useCallback(
     (structureId: string | null) => {
       if (structureId == null) {
@@ -727,50 +729,16 @@ export function Dashboard({
             structureName: contextMenu.structureName,
             left: contextMenu.left,
             top: contextMenu.top,
-            items: [
-              {
-                key: contextMenu.visibilityAction,
-                label: contextMenu.visibilityActionLabel,
-                onSelect: () => {
-                  if (contextMenu.visibilityAction === "unhide") {
-                    unhideStructure(contextMenu.canonicalDomainKey);
-                  } else {
-                    hideStructure(contextMenu.canonicalDomainKey);
-                  }
-                },
-              },
-              ...(contextMenu.nextOnline != null ? [{
-                key: contextMenu.nextOnline ? "bring-online" : "take-offline",
-                label: contextMenu.powerActionLabel ?? (contextMenu.nextOnline ? "Bring Online" : "Take Offline"),
-                disabled: structurePower.status === "pending",
-                disabledReason: structurePower.status === "pending"
-                  ? "Submitting structure power action…"
-                  : null,
-                tone: contextMenu.nextOnline ? "online" as const : "offline" as const,
-                onSelect: () => {
-                  const structure = selectedNodeStructureMap.get(contextMenu.structureId);
-                  if (!structure) {
-                    return;
-                  }
-
-                  handleToggleNodeLocalPower(structure, contextMenu.nextOnline as boolean);
-                },
-              }] : []),
-              ...(() => {
-                const structure = selectedNodeStructureMap.get(contextMenu.structureId);
-                if (!structure?.actionAuthority.verifiedTarget) {
-                  return [];
-                }
-
-                return [{
-                  key: "rename-assembly",
-                  label: "Rename Assembly",
-                  disabled: structureRename.status === "pending",
-                  disabledReason: structureRename.status === "pending" ? "Submitting rename…" : null,
-                  onSelect: () => handleOpenNodeLocalRename(structure),
-                }];
-              })(),
-            ],
+            items: buildNodeDrilldownMenuItems({
+              contextMenu,
+              structure: contextMenuStructure,
+              isPowerPending: structurePower.status === "pending",
+              isRenamePending: structureRename.status === "pending",
+              onHideStructure: hideStructure,
+              onUnhideStructure: unhideStructure,
+              onTogglePower: handleToggleNodeLocalPower,
+              onRenameStructure: handleOpenNodeLocalRename,
+            }),
           }}
           menuRef={menuRef}
           onClose={closeStructureMenu}

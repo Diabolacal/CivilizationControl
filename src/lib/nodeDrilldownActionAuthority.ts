@@ -2,10 +2,33 @@ import type { StructureStatus } from "@/types/domain";
 
 import type { NodeLocalStructure } from "./nodeDrilldownTypes";
 
+export type NodeLocalPowerSegment = "offline" | "online";
+
 export interface NodeLocalPowerToggleIntent {
   actionLabel: "Bring Online" | "Take Offline";
   currentStatus: StructureStatus;
   nextOnline: boolean;
+}
+
+export interface NodeLocalPowerControlState {
+  actionLabel: "Bring Online" | "Take Offline" | null;
+  currentStatus: StructureStatus;
+  nextOnline: boolean | null;
+  selectedSegment: NodeLocalPowerSegment | null;
+  isInteractive: boolean;
+  isStatusOnly: boolean;
+}
+
+function selectNodeLocalPowerSegment(status: StructureStatus): NodeLocalPowerSegment | null {
+  if (status === "online") {
+    return "online";
+  }
+
+  if (status === "offline") {
+    return "offline";
+  }
+
+  return null;
 }
 
 export function getNodeLocalActionStatus(structure: NodeLocalStructure): StructureStatus {
@@ -35,6 +58,22 @@ export function getNodeLocalPowerToggleIntent(
   }
 
   return null;
+}
+
+export function getNodeLocalPowerControlState(
+  structure: NodeLocalStructure,
+): NodeLocalPowerControlState {
+  const toggleIntent = getNodeLocalPowerToggleIntent(structure);
+  const currentStatus = getNodeLocalActionStatus(structure);
+
+  return {
+    actionLabel: toggleIntent?.actionLabel ?? null,
+    currentStatus,
+    nextOnline: toggleIntent?.nextOnline ?? null,
+    selectedSegment: selectNodeLocalPowerSegment(currentStatus),
+    isInteractive: toggleIntent != null,
+    isStatusOnly: toggleIntent == null,
+  };
 }
 
 export function supportsNodeLocalRename(structure: NodeLocalStructure): boolean {

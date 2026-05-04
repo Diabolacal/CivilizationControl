@@ -47,7 +47,7 @@ export function StructureActionContextMenu({ menu, menuRef, onClose }: Structure
         event.stopPropagation();
         onClose();
       }}
-      className="pointer-events-auto fixed z-40 min-w-[172px]"
+      className="pointer-events-auto fixed z-40 w-max max-w-[calc(100vw-24px)]"
       style={{ left: menu.left, top: menu.top }}
     >
       <NodeDrilldownOverlayPanel className="overflow-hidden py-1">
@@ -72,7 +72,7 @@ export function StructureActionContextMenu({ menu, menuRef, onClose }: Structure
                 onClose();
                 item.onSelect();
               }}
-              className={`w-full whitespace-nowrap px-3 py-2 text-left text-sm transition-colors hover:bg-muted/20 focus:bg-muted/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${itemToneClass(item)}`}
+              className={`w-full whitespace-nowrap px-2.5 py-2 text-left text-sm transition-colors hover:bg-muted/20 focus:bg-muted/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50 ${itemToneClass(item)}`}
             >
               <span>{item.label}</span>
             </button>

@@ -7,6 +7,7 @@ import { NodeSelectionInspector } from "@/components/topology/node-drilldown/Nod
 import { NodeStructureListPanel } from "@/components/topology/node-drilldown/NodeStructureListPanel";
 import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState";
 import { useNodeDrilldownStructureMenu } from "@/hooks/useNodeDrilldownStructureMenu";
+import { buildNodeDrilldownMenuItems } from "@/lib/nodeDrilldownMenuItems";
 import { NODE_DRILLDOWN_SCENARIOS } from "@/lib/nodeDrilldownScenarios";
 import { cn } from "@/lib/utils";
 
@@ -258,44 +259,14 @@ export function NodeDrilldownLabScreen() {
               structureName: contextMenu.structureName,
               left: contextMenu.left,
               top: contextMenu.top,
-              items: [
-                {
-                  key: contextMenu.visibilityAction,
-                  label: contextMenu.visibilityActionLabel,
-                  onSelect: () => {
-                    if (contextMenu.visibilityAction === "unhide") {
-                      unhideStructure(contextMenu.canonicalDomainKey);
-                    } else {
-                      hideStructure(contextMenu.canonicalDomainKey);
-                    }
-                  },
-                },
-                ...(contextMenu.nextOnline != null ? [{
-                  key: contextMenu.nextOnline ? "bring-online" : "take-offline",
-                  label: contextMenu.powerActionLabel ?? (contextMenu.nextOnline ? "Bring Online" : "Take Offline"),
-                  tone: contextMenu.nextOnline ? "online" as const : "offline" as const,
-                  onSelect: () => {
-                    const structure = scenarioStructureMap.get(contextMenu.structureId);
-                    if (!structure) {
-                      return;
-                    }
-
-                    handlePreviewTogglePower(structure, contextMenu.nextOnline as boolean);
-                  },
-                }] : []),
-                ...(() => {
-                  const structure = scenarioStructureMap.get(contextMenu.structureId);
-                  if (!structure?.actionAuthority.verifiedTarget) {
-                    return [];
-                  }
-
-                  return [{
-                    key: "rename-assembly",
-                    label: "Rename Assembly",
-                    onSelect: () => setRenameTargetId(structure.id),
-                  }];
-                })(),
-              ],
+              items: buildNodeDrilldownMenuItems({
+                contextMenu,
+                structure: scenarioStructureMap.get(contextMenu.structureId) ?? null,
+                onHideStructure: hideStructure,
+                onUnhideStructure: unhideStructure,
+                onTogglePower: handlePreviewTogglePower,
+                onRenameStructure: (structure) => setRenameTargetId(structure.id),
+              }),
             }}
             menuRef={menuRef}
             onClose={closeStructureMenu}

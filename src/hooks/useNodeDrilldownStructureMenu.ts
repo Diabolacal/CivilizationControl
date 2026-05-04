@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { getNodeLocalPowerToggleIntent } from "@/lib/nodeDrilldownActionAuthority";
+import { getNodeLocalPowerControlState, supportsNodeLocalRename } from "@/lib/nodeDrilldownActionAuthority";
 
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
 
@@ -61,9 +61,9 @@ export function useNodeDrilldownStructureMenu() {
   const closeStructureMenu = useCallback(() => setContextMenu(null), []);
 
   const openStructureMenu = useCallback(({ structure, clientX, clientY, isHidden }: OpenNodeDrilldownStructureMenuParams) => {
-    const toggleIntent = getNodeLocalPowerToggleIntent(structure);
-    const canRename = structure.actionAuthority.verifiedTarget != null;
-    const itemCount = 1 + (toggleIntent ? 1 : 0) + (canRename ? 1 : 0);
+    const powerControl = getNodeLocalPowerControlState(structure);
+    const canRename = supportsNodeLocalRename(structure);
+    const itemCount = 1 + (powerControl.actionLabel ? 1 : 0) + (canRename ? 1 : 0);
     const menuHeight = CONTEXT_MENU_CHROME_HEIGHT_PX + itemCount * CONTEXT_MENU_ITEM_HEIGHT_PX;
 
     const left = clampPosition(
@@ -85,8 +85,8 @@ export function useNodeDrilldownStructureMenu() {
       top,
       visibilityAction: isHidden ? "unhide" : "hide",
       visibilityActionLabel: isHidden ? "Unhide" : "Hide from Node View",
-      powerActionLabel: toggleIntent?.actionLabel ?? null,
-      nextOnline: toggleIntent?.nextOnline ?? null,
+      powerActionLabel: powerControl.actionLabel,
+      nextOnline: powerControl.nextOnline,
     });
   }, []);
 

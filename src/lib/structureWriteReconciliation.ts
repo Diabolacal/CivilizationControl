@@ -324,14 +324,20 @@ export function resolveStructureWriteConfirmation(
   operatorInventoryConfirmed: boolean;
   nodeAssembliesConfirmed: boolean;
 } {
+  const operatorInventoryRow = response ? findOperatorInventoryRow(response, overlay) : null;
   const operatorInventoryResult = response
-    ? resolveOperatorInventoryConfirmation(findOperatorInventoryRow(response, overlay), overlay)
+    ? resolveOperatorInventoryConfirmation(operatorInventoryRow, overlay)
     : { nameConfirmed: false, statusConfirmed: false };
   const nodeAssembliesResult = resolveNodeAssembliesConfirmation(lookup, overlay);
+  const requireOperatorInventoryConfirmation = response != null;
 
   return {
-    nameConfirmed: operatorInventoryResult.nameConfirmed || nodeAssembliesResult.nameConfirmed,
-    statusConfirmed: operatorInventoryResult.statusConfirmed || nodeAssembliesResult.statusConfirmed,
+    nameConfirmed: requireOperatorInventoryConfirmation
+      ? operatorInventoryResult.nameConfirmed
+      : nodeAssembliesResult.nameConfirmed,
+    statusConfirmed: requireOperatorInventoryConfirmation
+      ? operatorInventoryResult.statusConfirmed
+      : nodeAssembliesResult.statusConfirmed,
     operatorInventoryConfirmed: operatorInventoryResult.nameConfirmed || operatorInventoryResult.statusConfirmed,
     nodeAssembliesConfirmed: nodeAssembliesResult.nameConfirmed || nodeAssembliesResult.statusConfirmed,
   };
