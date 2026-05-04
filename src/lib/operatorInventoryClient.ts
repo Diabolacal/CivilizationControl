@@ -5,7 +5,7 @@ import type {
   IndexedActionRequiredIds,
   IndexedStructureAction,
   IndexedPowerSummary,
-  StructureType,
+  StructureActionTargetType,
 } from "@/types/domain";
 import type {
   OperatorInventoryFamily,
@@ -415,13 +415,13 @@ function normalizeIndexedActionRequiredIds(value: unknown): IndexedActionRequire
   const candidate = value as Record<string, unknown>;
   return {
     structureId: normalizeCanonicalObjectId(normalizeNullableString(candidate.structureId)),
-    structureType: normalizeStructureType(candidate.structureType),
+    structureType: normalizeStructureActionTargetType(candidate.structureType),
     ownerCapId: normalizeCanonicalObjectId(normalizeNullableString(candidate.ownerCapId)),
     networkNodeId: normalizeCanonicalObjectId(normalizeNullableString(candidate.networkNodeId)),
   };
 }
 
-function normalizeStructureType(value: unknown): StructureType | null {
+function normalizeStructureActionTargetType(value: unknown): StructureActionTargetType | null {
   const normalized = normalizeNullableString(value)?.trim().toLowerCase();
   if (!normalized) return null;
 
@@ -438,6 +438,19 @@ function normalizeStructureType(value: unknown): StructureType | null {
     case "networknode":
     case "network_node":
       return "network_node";
+    case "assembly":
+    case "generic_assembly":
+    case "printer":
+    case "refinery":
+    case "refiner":
+    case "assembler":
+    case "berth":
+    case "relay":
+    case "nursery":
+    case "nest":
+    case "shelter":
+    case "hangar":
+      return "assembly";
     default:
       return null;
   }

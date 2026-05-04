@@ -11,7 +11,7 @@ import { ArrowLeft } from "lucide-react";
 import { StructureDetailHeader } from "@/components/StructureDetailHeader";
 import { StatusDot } from "@/components/StatusDot";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
-import { useStructurePower } from "@/hooks/useStructurePower";
+import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { buildFuelPresentation, type FuelSeverity } from "@/lib/fuelRuntime";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, NetworkNodeGroup } from "@/types/domain";
@@ -53,6 +53,7 @@ interface NetworkNodeDetailScreenProps {
 
 export function NetworkNodeDetailScreen({ structures, nodeGroups, isLoading }: NetworkNodeDetailScreenProps) {
   const { id } = useParams<{ id: string }>();
+  const actions = useStructureSurfaceActions();
   const group = nodeGroups.find((g) => g.node.objectId === id);
   const node = group?.node ?? structures.find((s) => s.objectId === id && s.type === "network_node");
 
@@ -81,8 +82,21 @@ export function NetworkNodeDetailScreen({ structures, nodeGroups, isLoading }: N
     <div className="space-y-6">
       <BackLink />
       <StructureDetailHeader structure={node} solarSystemName={pin?.solarSystemName} />
-      <PowerControlSection node={node} />
-      {group && <AttachedStructuresSection group={group} />}
+      <PowerControlSection node={node} actions={actions} />
+      {group && <AttachedStructuresSection group={group} onOpenStructureMenu={actions.openStructureContextMenu} />}
+
+      {(actions.rename.status === "success" || actions.rename.status === "error") && (
+        <TxFeedbackBanner
+          status={actions.rename.status}
+          result={actions.rename.result}
+          error={actions.rename.error}
+          successLabel={actions.renameSuccessLabel}
+          onDismiss={actions.dismissRenameFeedback}
+        />
+      )}
+
+      {actions.renderContextMenu}
+      {actions.renderRenameDialog}
     </div>
   );
 }
@@ -99,8 +113,13 @@ function BackLink() {
   );
 }
 
-function PowerControlSection({ node }: { node: Structure }) {
-  const power = useStructurePower();
+function PowerControlSection({
+  node,
+  actions,
+}: {
+  node: Structure;
+  actions: ReturnType<typeof useStructureSurfaceActions>;
+}) {
   const isOnline = node.status === "online";
   const fuelPresentation = buildFuelPresentation(node);
   const primaryFuelLabel = fuelPresentation.runtimeLabel
@@ -109,10 +128,7 @@ function PowerControlSection({ node }: { node: Structure }) {
   const severityLabel = fuelSeverityLabel(fuelPresentation.severity);
 
   const handleOnline = () => {
-    power.bringNodeOnline({
-      nodeId: node.objectId,
-      ownerCapId: node.ownerCapId,
-    });
+    void actions.executePowerAction(node, true);
   };
 
   return (
@@ -120,17 +136,35 @@ function PowerControlSection({ node }: { node: Structure }) {
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground">Power State</h2>
         {!isOnline ? (
-          <button
-            onClick={handleOnline}
-            disabled={power.status === "pending"}
-            className="rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-medium text-teal-400 transition-colors hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {power.status === "pending" ? "Executing…" : "Bring Online"}
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleOnline}
+              disabled={actions.power.status === "pending"}
+              className="rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-medium text-teal-400 transition-colors hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {actions.power.status === "pending" ? "Executing…" : "Bring Online"}
+            </button>
+            <button
+              type="button"
+              onClick={(event) => actions.openStructureContextMenuFromElement(node, event.currentTarget)}
+              className="rounded border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            >
+              Actions
+            </button>
+          </div>
         ) : (
-          <span className="text-xs text-muted-foreground">
-            Node offline not yet implemented — use in-game controls
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">
+              Node offline not yet implemented — use in-game controls
+            </span>
+            <button
+              type="button"
+              onClick={(event) => actions.openStructureContextMenuFromElement(node, event.currentTarget)}
+              className="rounded border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+            >
+              Actions
+            </button>
+          </div>
         )}
       </div>
       {fuelPresentation.source !== "none" ? (
@@ -162,20 +196,26 @@ function PowerControlSection({ node }: { node: Structure }) {
       ) : (
         <p className="text-[11px] text-muted-foreground">Fuel data unavailable.</p>
       )}
-      {(power.status === "success" || power.status === "error") && (
+      {(actions.power.status === "success" || actions.power.status === "error") && (
         <TxFeedbackBanner
-          status={power.status}
-          result={power.result}
-          error={power.error}
-          successLabel="Network node brought online"
-          onDismiss={power.reset}
+          status={actions.power.status}
+          result={actions.power.result}
+          error={actions.power.error}
+          successLabel={actions.powerSuccessLabel}
+          onDismiss={actions.dismissPowerFeedback}
         />
       )}
     </section>
   );
 }
 
-function AttachedStructuresSection({ group }: { group: NetworkNodeGroup }) {
+function AttachedStructuresSection({
+  group,
+  onOpenStructureMenu,
+}: {
+  group: NetworkNodeGroup;
+  onOpenStructureMenu: (structure: Structure, clientX: number, clientY: number) => void;
+}) {
   const allChildren = useMemo(
     () => [...group.gates, ...group.turrets, ...group.storageUnits],
     [group],
@@ -197,18 +237,22 @@ function AttachedStructuresSection({ group }: { group: NetworkNodeGroup }) {
       </h2>
       <div className="space-y-1.5">
         {allChildren.map((s) => (
-          <Link
+          <div
             key={s.objectId}
-            to={structurePath(s)}
+            onContextMenu={(event) => {
+              event.preventDefault();
+              event.stopPropagation();
+              onOpenStructureMenu(s, event.clientX, event.clientY);
+            }}
             className="flex items-center justify-between px-3 py-2 rounded hover:bg-muted/10 transition-colors"
           >
-            <div className="flex items-center gap-2">
+            <Link to={structurePath(s)} className="flex min-w-0 flex-1 items-center gap-2">
               <StatusDot status={s.status} size="sm" />
-              <span className="text-sm text-foreground">{s.name}</span>
+              <span className="truncate text-sm text-foreground">{s.name}</span>
               <span className="text-[11px] text-muted-foreground capitalize">{s.type.replace("_", " ")}</span>
-            </div>
+            </Link>
             <span className="text-[11px] text-muted-foreground capitalize">{s.status}</span>
-          </Link>
+          </div>
         ))}
       </div>
     </section>

@@ -30,6 +30,7 @@ import { NodeLocationPanel } from "@/components/NodeLocationPanel";
 import { LogoBadge } from "@/components/LogoBadge";
 import { useAssetDiscovery } from "@/hooks/useAssetDiscovery";
 import { useSpatialPins } from "@/hooks/useSpatialPins";
+import { StructureWriteReconciliationProvider } from "@/hooks/useStructureWriteReconciliation";
 import { useTribesRefresh } from "@/hooks/useTribesRefresh";
 import { CharacterContext } from "@/hooks/useCharacter";
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
@@ -45,7 +46,14 @@ export default function App() {
         <Route path="/ssu" element={<SsuMarketplacePage />} />
         <Route path="/dev/node-icon-catalogue" element={<NodeIconCatalogueScreen />} />
         {/* Operator dashboard */}
-        <Route path="/*" element={<OperatorShell />} />
+        <Route
+          path="/*"
+          element={(
+            <StructureWriteReconciliationProvider>
+              <OperatorShell />
+            </StructureWriteReconciliationProvider>
+          )}
+        />
       </Routes>
     </BrowserRouter>
   );
@@ -84,7 +92,7 @@ function OperatorShell() {
 
   return (
     <CharacterContext.Provider value={{ characterId }}>
-    <div className="dark min-h-screen bg-background text-foreground" style={shellLayoutVars}>
+      <div className="dark min-h-screen bg-background text-foreground" style={shellLayoutVars}>
         <Header characterName={profile?.characterName} onRequestHome={handleRequestHome} />
         <Sidebar
           structures={structures}
@@ -116,7 +124,7 @@ function OperatorShell() {
             </ShellRouteTransition>
           </div>
         </main>
-    </div>
+      </div>
     </CharacterContext.Provider>
   );
 }

@@ -1,4 +1,10 @@
-import type { ObjectId, Structure, StructureStatus, StructureType } from "@/types/domain";
+import type {
+  IndexedActionCandidate,
+  ObjectId,
+  Structure,
+  StructureActionTargetType,
+  StructureStatus,
+} from "@/types/domain";
 
 export type NodeLocalSource = "live" | "backendMembership" | "backendObserved" | "synthetic";
 
@@ -40,7 +46,7 @@ export type NodeLocalBadge = "M" | "H" | null;
 
 export type NodeLocalSizeVariant = "mini" | "standard" | "heavy" | null;
 
-export type NodeLocalSupportedPowerType = Extract<StructureType, "gate" | "storage_unit" | "turret">;
+export type NodeLocalSupportedPowerType = Exclude<StructureActionTargetType, "network_node">;
 
 export type NodeLocalActionAuthorityState =
   | "verified-supported"
@@ -48,13 +54,14 @@ export type NodeLocalActionAuthorityState =
   | "backend-only"
   | "ambiguous-match"
   | "unsupported-family"
+  | "missing-object-id"
   | "missing-owner-cap"
   | "missing-node-context"
   | "synthetic";
 
 export interface NodeLocalActionCandidateTarget {
   structureId: ObjectId;
-  structureType: StructureType;
+  structureType: StructureActionTargetType;
   ownerCapId?: ObjectId;
   networkNodeId?: ObjectId;
   status: StructureStatus;
@@ -125,6 +132,7 @@ export interface NodeLocalStructure extends NodeLocalObservationMeta {
   warningPip: boolean;
   source: NodeLocalSource;
   extensionStatus?: Structure["extensionStatus"];
+  actionCandidate?: IndexedActionCandidate | null;
   actionAuthority: NodeLocalActionAuthority;
   sortLabel: string;
 }
@@ -154,6 +162,23 @@ export interface SyntheticNodeLocalStructureInput {
   status?: StructureStatus;
   warningPip?: boolean;
   linkedGateId?: string;
+  source?: NodeLocalSource;
+  objectId?: ObjectId;
+  assemblyId?: string;
+  directChainObjectId?: ObjectId | null;
+  directChainAssemblyId?: string | null;
+  hasDirectChainAuthority?: boolean;
+  actionCandidate?: IndexedActionCandidate | null;
+  authorityCandidates?: NodeLocalActionCandidateTarget[];
+  extensionStatus?: Structure["extensionStatus"];
+  backendSource?: string | null;
+  fetchedAt?: string | null;
+  lastUpdated?: string | null;
+  provenance?: string | null;
+  url?: string | null;
+  solarSystemId?: string | null;
+  energySourceId?: string | null;
+  fuelAmount?: string | null;
 }
 
 export interface SyntheticNodeLocalViewModelInput {

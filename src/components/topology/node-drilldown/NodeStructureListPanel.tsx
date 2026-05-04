@@ -110,7 +110,7 @@ function NodeStructureListContent({
   );
 
   return (
-    <div className="max-h-[420px] overflow-y-auto p-2">
+    <div className="max-h-[420px] overflow-y-auto p-2 lg:max-h-[min(76vh,720px)]">
       <div className="space-y-1.5">
         {structures.map((structure) => {
           const isHidden = hiddenCanonicalKeySet.has(structure.canonicalDomainKey);

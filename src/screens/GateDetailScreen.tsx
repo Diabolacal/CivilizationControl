@@ -16,12 +16,12 @@ import { TreasuryEditor } from "@/components/TreasuryEditor";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { useGatePolicy } from "@/hooks/useGatePolicy";
 import { useGatePolicyMutation, useBatchPresetMutation } from "@/hooks/useGatePolicyMutation";
-import { useStructurePower } from "@/hooks/useStructurePower";
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
+import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { useConnection } from "@evefrontier/dapp-kit";
 import { getSpatialPin } from "@/lib/spatialPins";
 import { Copy, Check } from "lucide-react";
-import { useState, useCallback, useMemo, useRef } from "react";
+import { useState, useCallback, useMemo } from "react";
 import type { Structure, GatePolicyTarget } from "@/types/domain";
 
 interface GateDetailScreenProps {
@@ -31,8 +31,7 @@ interface GateDetailScreenProps {
 
 export function GateDetailScreen({ structures, isLoading }: GateDetailScreenProps) {
   const { id } = useParams<{ id: string }>();
-  const power = useStructurePower();
-  const lastPowerLabel = useRef("Gate power state updated");
+  const actions = useStructureSurfaceActions();
   const gate = structures.find((s) => s.objectId === id && s.type === "gate");
 
   if (isLoading) {
@@ -69,14 +68,7 @@ export function GateDetailScreen({ structures, isLoading }: GateDetailScreenProp
   const hasNetworkNode = !!gate.networkNodeId;
 
   const handlePowerToggle = () => {
-    lastPowerLabel.current = isOnline ? "Gate taken offline" : "Gate brought online";
-    power.toggleSingle({
-      structureType: "gate",
-      structureId: gate.objectId,
-      ownerCapId: gate.ownerCapId,
-      networkNodeId: gate.networkNodeId!,
-      online: !isOnline,
-    });
+    void actions.executePowerAction(gate, !isOnline);
   };
 
   const powerControl = hasNetworkNode ? (
@@ -86,14 +78,21 @@ export function GateDetailScreen({ structures, isLoading }: GateDetailScreenProp
       </span>
       <button
         onClick={handlePowerToggle}
-        disabled={power.status === "pending"}
+        disabled={actions.power.status === "pending"}
         className={`rounded px-2.5 py-1 text-[10px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
           isOnline
             ? "border border-red-500/20 text-red-400/70 hover:bg-red-500/10"
             : "border border-teal-500/20 text-teal-400/70 hover:bg-teal-500/10"
         }`}
       >
-        {power.status === "pending" ? "\u2026" : isOnline ? "Power Off" : "Power On"}
+        {actions.power.status === "pending" ? "\u2026" : isOnline ? "Power Off" : "Power On"}
+      </button>
+      <button
+        type="button"
+        onClick={(event) => actions.openStructureContextMenuFromElement(gate, event.currentTarget)}
+        className="rounded border border-border/70 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+      >
+        Actions
       </button>
     </div>
   ) : null;
@@ -103,13 +102,23 @@ export function GateDetailScreen({ structures, isLoading }: GateDetailScreenProp
       <BackLink />
       <StructureDetailHeader structure={gate} solarSystemName={solarSystemName} headerRight={powerControl} />
 
-      {(power.status === "success" || power.status === "error") && (
+      {(actions.power.status === "success" || actions.power.status === "error") && (
         <TxFeedbackBanner
-          status={power.status}
-          result={power.result}
-          error={power.error}
-          successLabel={lastPowerLabel.current}
-          onDismiss={power.reset}
+          status={actions.power.status}
+          result={actions.power.result}
+          error={actions.power.error}
+          successLabel={actions.powerSuccessLabel}
+          onDismiss={actions.dismissPowerFeedback}
+        />
+      )}
+
+      {(actions.rename.status === "success" || actions.rename.status === "error") && (
+        <TxFeedbackBanner
+          status={actions.rename.status}
+          result={actions.rename.result}
+          error={actions.rename.error}
+          successLabel={actions.renameSuccessLabel}
+          onDismiss={actions.dismissRenameFeedback}
         />
       )}
 
@@ -123,6 +132,9 @@ export function GateDetailScreen({ structures, isLoading }: GateDetailScreenProp
         <InGameDAppUrlSection gate={gate} />
         <ExtensionSection gate={gate} />
       </div>
+
+      {actions.renderContextMenu}
+      {actions.renderRenameDialog}
     </div>
   );
 }

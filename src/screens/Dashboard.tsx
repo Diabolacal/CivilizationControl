@@ -26,13 +26,15 @@ import { useConnection } from "@evefrontier/dapp-kit";
 import { DashboardPanelFrame } from "@/components/dashboard/DashboardPanelFrame";
 import { MetricCard } from "@/components/MetricCard";
 import { PostureControl } from "@/components/PostureControl";
+import { StructureActionContextMenu } from "@/components/structure-actions/StructureActionContextMenu";
+import { StructureRenameDialog } from "@/components/structure-actions/StructureRenameDialog";
 import { StrategicMapPanel } from "@/components/topology/StrategicMapPanel";
-import { NodeDrilldownContextMenu } from "@/components/topology/node-drilldown/NodeDrilldownContextMenu";
 import { TopologyPanelFade, TopologyPanelFrame } from "@/components/topology/TopologyPanelFrame";
 import { NodeDrilldownSurface } from "@/components/topology/node-drilldown/NodeDrilldownSurface";
 import { NodeSelectionInspector } from "@/components/topology/node-drilldown/NodeSelectionInspector";
 import { NodeStructureListPanel } from "@/components/topology/node-drilldown/NodeStructureListPanel";
 import { SignalEventRow } from "@/components/SignalEventRow";
+import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { useSignalFeed } from "@/hooks/useSignalFeed";
 import { useNodeAssemblies } from "@/hooks/useNodeAssemblies";
 import { useCharacterId } from "@/hooks/useCharacter";
@@ -40,14 +42,19 @@ import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState
 import { useNodeDrilldownStructureMenu } from "@/hooks/useNodeDrilldownStructureMenu";
 import { useOperatorInventory } from "@/hooks/useOperatorInventory";
 import { useStructurePower } from "@/hooks/useStructurePower";
+import { useStructureRename } from "@/hooks/useStructureRename";
+import { useStructureWriteReconciliation } from "@/hooks/useStructureWriteReconciliation";
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
 import { formatLux, formatEve } from "@/lib/currency";
 import { buildFuelPresentation, formatRuntimeSeconds } from "@/lib/fuelRuntime";
 import { resolveNodeDrilldownScopeKey } from "@/lib/nodeDrilldownHiddenState";
+import { buildNodeDrilldownMenuItems } from "@/lib/nodeDrilldownMenuItems";
 import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapshot } from "@/lib/nodeDrilldownModel";
 import { buildOperatorInventoryDebugCopySummary, buildOperatorInventoryDebugSnapshot } from "@/lib/operatorInventoryDebug";
 import type { NetworkMetrics, NetworkNodeGroup, SpatialPin, Structure } from "@/types/domain";
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
+
+type VerifiedNodeLocalTarget = NonNullable<NodeLocalStructure["actionAuthority"]["verifiedTarget"]>;
 
 interface DashboardProps {
   nodeGroups: NetworkNodeGroup[];
@@ -127,7 +134,11 @@ export function Dashboard({
   } = useNodeAssemblies(selectedNodeGroup?.node.objectId ?? null, {
     enabled: shouldUseNodeAssembliesFallback,
   });
-  const selectedNodeObservedLookup = selectedNodeInventoryLookup ?? selectedNodeAssembliesLookup;
+  const { applyNodeAssembliesLookup } = useStructureWriteReconciliation();
+  const selectedNodeObservedLookup = useMemo(
+    () => applyNodeAssembliesLookup(selectedNodeInventoryLookup ?? selectedNodeAssembliesLookup),
+    [applyNodeAssembliesLookup, selectedNodeAssembliesLookup, selectedNodeInventoryLookup],
+  );
   const selectedNodeBuildOptions = useMemo(
     () => ({
       isLoading: selectedNodeInventoryLookup == null
@@ -138,8 +149,20 @@ export function Dashboard({
     [isNodeAssembliesLoading, operatorInventory.isLoading, selectedNodeInventoryLookup, shouldUseNodeAssembliesFallback],
   );
   const structurePower = useStructurePower();
+  const structureRename = useStructureRename();
   const [powerStructureId, setPowerStructureId] = useState<string | null>(null);
   const [powerSuccessLabel, setPowerSuccessLabel] = useState("Structure power state updated");
+  const [renameSuccessLabel, setRenameSuccessLabel] = useState("Assembly renamed");
+  const [renameTarget, setRenameTarget] = useState<{
+    assemblyId: string | null;
+    canonicalDomainKey: string;
+    displayName: string;
+    networkNodeId: string | null;
+    ownerCapId: string;
+    selectedNodeId: string | null;
+    structureId: string;
+    structureType: VerifiedNodeLocalTarget["structureType"];
+  } | null>(null);
   const {
     contextMenu,
     menuRef,
@@ -175,6 +198,7 @@ export function Dashboard({
     () => new Map((selectedNodeViewModel?.structures ?? []).map((structure) => [structure.id, structure])),
     [selectedNodeViewModel],
   );
+  const contextMenuStructure = contextMenu ? selectedNodeStructureMap.get(contextMenu.structureId) ?? null : null;
   const handleSelectNodeLocalStructure = useCallback(
     (structureId: string | null) => {
       if (structureId == null) {
@@ -219,26 +243,96 @@ export function Dashboard({
       selectedStructureCanonicalKeyRef.current = structure.canonicalDomainKey;
       setSelectedStructureId(structure.id);
       setPowerStructureId(structure.id);
-      setPowerSuccessLabel(`${structure.familyLabel} ${nextOnline ? "brought online" : "taken offline"}`);
+      setPowerSuccessLabel(`${structure.familyLabel} ${nextOnline ? "brought online" : "taken offline"}. Awaiting read-model sync.`);
 
-      const succeeded = await structurePower.toggleSingle({
+      await structurePower.toggleSingle({
         structureType: verifiedTarget.structureType,
         structureId: verifiedTarget.structureId,
         ownerCapId: verifiedTarget.ownerCapId,
         networkNodeId: verifiedTarget.networkNodeId,
         online: nextOnline,
+      }, {
+        selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
+        refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
+        refetchSignalFeed: true,
+        target: {
+          objectId: verifiedTarget.structureId,
+          structureType: verifiedTarget.structureType,
+          ownerCapId: verifiedTarget.ownerCapId,
+          networkNodeId: verifiedTarget.networkNodeId,
+          assemblyId: structure.assemblyId ?? null,
+          canonicalDomainKey: structure.canonicalDomainKey,
+          displayName: structure.displayName,
+        },
       });
-
-      if (succeeded) {
-        if (selectedNodeInventoryLookup) {
-          await operatorInventory.refetch();
-        } else {
-          await refetchSelectedNodeAssemblies();
-        }
-      }
     },
-    [closeStructureMenu, operatorInventory, refetchSelectedNodeAssemblies, selectedNodeInventoryLookup, selectedStructureCanonicalKeyRef, structurePower],
+    [
+      closeStructureMenu,
+      refetchSelectedNodeAssemblies,
+      selectedNodeGroup,
+      selectedNodeInventoryLookup,
+      selectedStructureCanonicalKeyRef,
+      structurePower,
+    ],
   );
+  const handleOpenNodeLocalRename = useCallback((structure: NodeLocalStructure) => {
+    const verifiedTarget = structure.actionAuthority.verifiedTarget;
+    if (!verifiedTarget) {
+      return;
+    }
+
+    structureRename.reset();
+    setRenameSuccessLabel("Assembly renamed. Awaiting read-model sync.");
+    setRenameTarget({
+      assemblyId: structure.assemblyId ?? null,
+      canonicalDomainKey: structure.canonicalDomainKey,
+      displayName: structure.displayName,
+      networkNodeId: verifiedTarget.networkNodeId,
+      ownerCapId: verifiedTarget.ownerCapId,
+      selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
+      structureId: verifiedTarget.structureId,
+      structureType: verifiedTarget.structureType,
+    });
+  }, [selectedNodeGroup, structureRename]);
+  const handleCloseNodeLocalRename = useCallback(() => {
+    if (structureRename.status !== "pending") {
+      setRenameTarget(null);
+    }
+  }, [structureRename.status]);
+  const handleSubmitNodeLocalRename = useCallback(async (nextName: string) => {
+    if (!renameTarget) {
+      return false;
+    }
+
+    const succeeded = await structureRename.rename({
+      structureType: renameTarget.structureType,
+      structureId: renameTarget.structureId,
+      ownerCapId: renameTarget.ownerCapId,
+      name: nextName,
+    }, {
+      selectedNodeId: renameTarget.selectedNodeId,
+      refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
+      refetchSignalFeed: false,
+      target: {
+        objectId: renameTarget.structureId,
+        structureType: renameTarget.structureType,
+        ownerCapId: renameTarget.ownerCapId,
+        networkNodeId: renameTarget.networkNodeId,
+        assemblyId: renameTarget.assemblyId,
+        canonicalDomainKey: renameTarget.canonicalDomainKey,
+        displayName: renameTarget.displayName,
+      },
+    });
+
+    if (succeeded) {
+      setRenameTarget(null);
+    }
+
+    return succeeded;
+  }, [refetchSelectedNodeAssemblies, renameTarget, selectedNodeInventoryLookup, structureRename]);
+  const handleDismissNodeLocalRenameFeedback = useCallback(() => {
+    structureRename.reset();
+  }, [structureRename]);
   const topologyModeKey = selectedNodeViewModel ? `node-${selectedNodeViewModel.node.id}` : "macro";
   const isNodeDrilldownDebugEnabled = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -630,34 +724,50 @@ export function Dashboard({
       )}
 
       {contextMenu ? (
-        <NodeDrilldownContextMenu
-          menuRef={menuRef}
-          structureName={contextMenu.structureName}
-          left={contextMenu.left}
-          top={contextMenu.top}
-          visibilityActionLabel={contextMenu.visibilityActionLabel}
-          powerActionLabel={contextMenu.powerActionLabel ?? undefined}
-          powerActionDisabled={structurePower.status === "pending"}
-          onVisibilityAction={() => {
-            if (contextMenu.visibilityAction === "unhide") {
-              unhideStructure(contextMenu.canonicalDomainKey);
-            } else {
-              hideStructure(contextMenu.canonicalDomainKey);
-            }
-            closeStructureMenu();
+        <StructureActionContextMenu
+          menu={{
+            structureName: contextMenu.structureName,
+            left: contextMenu.left,
+            top: contextMenu.top,
+            items: buildNodeDrilldownMenuItems({
+              contextMenu,
+              structure: contextMenuStructure,
+              isPowerPending: structurePower.status === "pending",
+              isRenamePending: structureRename.status === "pending",
+              onHideStructure: hideStructure,
+              onUnhideStructure: unhideStructure,
+              onTogglePower: handleToggleNodeLocalPower,
+              onRenameStructure: handleOpenNodeLocalRename,
+            }),
           }}
-          onPowerAction={contextMenu.nextOnline != null
-            ? () => {
-              const structure = selectedNodeStructureMap.get(contextMenu.structureId);
-              if (!structure) {
-                closeStructureMenu();
-                return;
-              }
-
-              handleToggleNodeLocalPower(structure, contextMenu.nextOnline as boolean);
-            }
-            : undefined}
+          menuRef={menuRef}
           onClose={closeStructureMenu}
+        />
+      ) : null}
+
+      {(structureRename.status === "success" || structureRename.status === "error") && (
+        <div className="mt-4">
+          <TxFeedbackBanner
+            status={structureRename.status}
+            result={structureRename.result}
+            error={structureRename.error}
+            successLabel={renameSuccessLabel}
+            onDismiss={handleDismissNodeLocalRenameFeedback}
+          />
+        </div>
+      )}
+
+      {renameTarget ? (
+        <StructureRenameDialog
+          isOpen
+          structureName={renameTarget.displayName}
+          initialValue={renameTarget.displayName}
+          isPending={structureRename.status === "pending"}
+          error={structureRename.error}
+          onClose={handleCloseNodeLocalRename}
+          onSubmit={(nextName) => {
+            void handleSubmitNodeLocalRename(nextName);
+          }}
         />
       ) : null}
     </div>

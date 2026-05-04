@@ -8,7 +8,7 @@
 
 import { useParams, Link } from "react-router";
 import { ArrowLeft, Check, Copy } from "lucide-react";
-import { useCallback, useState, useRef } from "react";
+import { useCallback, useState } from "react";
 import { useConnection } from "@evefrontier/dapp-kit";
 import { useQueryClient } from "@tanstack/react-query";
 import { StructureDetailHeader } from "@/components/StructureDetailHeader";
@@ -22,7 +22,7 @@ import { useBuyListing } from "@/hooks/useBuyListing";
 import { useCreateListing } from "@/hooks/useCreateListing";
 import { useCancelListing } from "@/hooks/useCancelListing";
 import { useSsuInventory } from "@/hooks/useSsuInventory";
-import { useStructurePower } from "@/hooks/useStructurePower";
+import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure } from "@/types/domain";
 
@@ -33,8 +33,7 @@ interface TradePostDetailScreenProps {
 
 export function TradePostDetailScreen({ structures, isLoading }: TradePostDetailScreenProps) {
   const { id } = useParams<{ id: string }>();
-  const power = useStructurePower();
-  const lastPowerLabel = useRef("Storage power state updated");
+  const actions = useStructureSurfaceActions();
   const post = structures.find((s) => s.objectId === id && s.type === "storage_unit");
 
   if (isLoading) {
@@ -71,14 +70,7 @@ export function TradePostDetailScreen({ structures, isLoading }: TradePostDetail
   const hasNetworkNode = !!post.networkNodeId;
 
   const handlePowerToggle = () => {
-    lastPowerLabel.current = isOnline ? "Storage taken offline" : "Storage brought online";
-    power.toggleSingle({
-      structureType: "storage_unit",
-      structureId: post.objectId,
-      ownerCapId: post.ownerCapId,
-      networkNodeId: post.networkNodeId!,
-      online: !isOnline,
-    });
+    void actions.executePowerAction(post, !isOnline);
   };
 
   const powerControl = hasNetworkNode ? (
@@ -88,14 +80,21 @@ export function TradePostDetailScreen({ structures, isLoading }: TradePostDetail
       </span>
       <button
         onClick={handlePowerToggle}
-        disabled={power.status === "pending"}
+        disabled={actions.power.status === "pending"}
         className={`rounded px-2.5 py-1 text-[10px] font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
           isOnline
             ? "border border-red-500/20 text-red-400/70 hover:bg-red-500/10"
             : "border border-teal-500/20 text-teal-400/70 hover:bg-teal-500/10"
         }`}
       >
-        {power.status === "pending" ? "\u2026" : isOnline ? "Power Off" : "Power On"}
+        {actions.power.status === "pending" ? "\u2026" : isOnline ? "Power Off" : "Power On"}
+      </button>
+      <button
+        type="button"
+        onClick={(event) => actions.openStructureContextMenuFromElement(post, event.currentTarget)}
+        className="rounded border border-border/70 px-2.5 py-1 text-[10px] font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+      >
+        Actions
       </button>
     </div>
   ) : null;
@@ -105,13 +104,23 @@ export function TradePostDetailScreen({ structures, isLoading }: TradePostDetail
       <BackLink />
       <StructureDetailHeader structure={post} solarSystemName={solarSystemName} headerRight={powerControl} />
 
-      {(power.status === "success" || power.status === "error") && (
+      {(actions.power.status === "success" || actions.power.status === "error") && (
         <TxFeedbackBanner
-          status={power.status}
-          result={power.result}
-          error={power.error}
-          successLabel={lastPowerLabel.current}
-          onDismiss={power.reset}
+          status={actions.power.status}
+          result={actions.power.result}
+          error={actions.power.error}
+          successLabel={actions.powerSuccessLabel}
+          onDismiss={actions.dismissPowerFeedback}
+        />
+      )}
+
+      {(actions.rename.status === "success" || actions.rename.status === "error") && (
+        <TxFeedbackBanner
+          status={actions.rename.status}
+          result={actions.rename.result}
+          error={actions.rename.error}
+          successLabel={actions.renameSuccessLabel}
+          onDismiss={actions.dismissRenameFeedback}
         />
       )}
 
@@ -124,6 +133,9 @@ export function TradePostDetailScreen({ structures, isLoading }: TradePostDetail
         <InGameDAppUrlSection post={post} />
         <ExtensionSection post={post} />
       </div>
+
+      {actions.renderContextMenu}
+      {actions.renderRenameDialog}
     </div>
   );
 }
