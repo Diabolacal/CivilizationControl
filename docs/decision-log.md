@@ -1,6 +1,14 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-04 – Clarify attached-structure action rail
+- Goal: remove the ambiguous Online/Offline segmented rail in Node Control `Attached Structures` by splitting current state from the next available action, without changing write builders, sponsor policy, EF-Map behavior, package IDs, Move code, hidden-row behavior, inspector behavior, or context menus.
+- Files: `src/components/topology/node-drilldown/NodeStructureActionRail.tsx`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
+- Diff: narrow UI-only control polish plus tracked docs refresh
+- Risk: low — player-facing rail copy and layout only; no write-path, backend, sponsor-worker, package, Move, vendor, or production change
+- Gates: pending in-branch validation and preview proof
+- Result: the right-aligned action area now separates state from intent. Rows show a compact status pill for the current state (`ONLINE` or `OFFLINE`) plus one compact action button for the opposite operation (`Take offline` or `Bring online`). The button still routes through the existing node-local power toggle handler and unavailable rows stay explicit through status-only or disabled-action presentation rather than an ambiguous two-segment rail.
+- Follow-ups: capture preview smoke on mixed online/offline lab rows and confirm the served branch keeps the existing action execution path unchanged.
 ## 2026-05-04 – Polish zero-package action closeout
 - Goal: finish the current zero-package action branch with compact menu geometry, taller Node Control Attached Structures height, Signal Feed parity documentation, validation, and a feature preview, without network-node offline, presets, marketplace work, EF-Map/VPS changes, Move changes, package-ID changes, or production deploy.
 - Files: `src/components/structure-actions/StructureActionContextMenu.tsx`, `src/components/topology/node-drilldown/NodeDrilldownContextMenu.tsx`, `src/components/topology/node-drilldown/NodeStructureListPanel.tsx`, `src/lib/contextMenuPositioning.ts`, `scripts/check-structure-action-support.mts`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/operations/node-control-write-action-audit-20260504.md`, `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`, `docs/decision-log.md`
