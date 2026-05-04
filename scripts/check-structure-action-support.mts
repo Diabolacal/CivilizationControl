@@ -10,6 +10,7 @@ import {
   getNodeLocalPowerToggleIntent,
   supportsNodeLocalRename,
 } from '../src/lib/nodeDrilldownActionAuthority.ts';
+import { estimateContextMenuWidthPx } from '../src/lib/contextMenuPositioning.ts';
 import { getStructurePowerAction, supportsStructureRename } from '../src/lib/structureActionSupport.ts';
 
 function makeStructure(overrides = {}) {
@@ -358,5 +359,22 @@ assert.equal(contextMenuSource.includes('min-w-[172px]'), false, 'expected the s
 assert.equal(contextMenuSource.includes('w-max'), true, 'expected the shared action menu to shrink-wrap to content width');
 assert.equal(nodeDrilldownMenuHookSource.includes('CONTEXT_MENU_WIDTH_PX = 196'), false, 'expected Node Control menu placement to stop assuming a fixed 196px width');
 assert.equal(structureMenuHookSource.includes('CONTEXT_MENU_WIDTH_PX = 196'), false, 'expected structure action menu placement to stop assuming a fixed 196px width');
+assert.equal(estimateContextMenuWidthPx(['Unhide']), 64, 'expected single short action menus to stay compact');
+assert.equal(estimateContextMenuWidthPx(['Hide from Node View']), 155, 'expected hide-only menus to size from content');
+assert.equal(
+  estimateContextMenuWidthPx(['Hide from Node View', 'Take Offline', 'Rename Assembly']),
+  155,
+  'expected the longest current Node Control menu label to drive a compact width',
+);
+assert.equal(
+  estimateContextMenuWidthPx(['Unhide', 'Take Offline', 'Rename Assembly']),
+  127,
+  'expected hidden-row menus to avoid the old wide clamp',
+);
+assert.equal(
+  estimateContextMenuWidthPx(['Bring Online', 'Rename Assembly']),
+  127,
+  'expected global row action menus to stay balanced while fitting current labels',
+);
 
 console.log('structure action support check: ok');

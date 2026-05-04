@@ -40,16 +40,16 @@ export function NodeDrilldownContextMenu({
         event.stopPropagation();
         onClose();
       }}
-      className="pointer-events-auto fixed z-40 min-w-[172px]"
+      className="pointer-events-auto fixed z-40"
       style={{ left, top }}
     >
-      <NodeDrilldownOverlayPanel className="overflow-hidden py-1">
+      <NodeDrilldownOverlayPanel className="grid w-max max-w-[calc(100vw-24px)] overflow-hidden py-1">
         <button
           type="button"
           role="menuitem"
           autoFocus
           onClick={onVisibilityAction}
-          className="w-full whitespace-nowrap px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/20 focus:bg-muted/20 focus:outline-none"
+          className="whitespace-nowrap px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/20 focus:bg-muted/20 focus:outline-none"
         >
           <span>{visibilityActionLabel}</span>
         </button>
@@ -60,7 +60,7 @@ export function NodeDrilldownContextMenu({
             role="menuitem"
             disabled={powerActionDisabled}
             onClick={onPowerAction}
-            className="w-full whitespace-nowrap px-3 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/20 focus:bg-muted/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
+            className="whitespace-nowrap px-2.5 py-2 text-left text-sm text-foreground transition-colors hover:bg-muted/20 focus:bg-muted/20 focus:outline-none disabled:cursor-not-allowed disabled:opacity-50"
           >
             <span>{powerActionLabel}</span>
           </button>
