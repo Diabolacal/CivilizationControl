@@ -11,9 +11,11 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router";
-import { ShieldAlert, Store, Settings2 } from "lucide-react";
+import { ShieldAlert, Store } from "lucide-react";
 import { usePostureState, usePostureSwitch } from "@/hooks/usePosture";
-import { useOperatorReadiness } from "@/hooks/useOperatorReadiness";
+import { useGatePolicyBatch } from "@/hooks/useGatePolicyBatch";
+import { useOperatorReadiness, type ReadinessBlocker } from "@/hooks/useOperatorReadiness";
+import { useTurretDoctrineFallback } from "@/hooks/useTurretDoctrineFallback";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 
 import type {
@@ -21,6 +23,7 @@ import type {
   PostureMode,
   TurretSwitchTarget,
   GatePostureTarget,
+  Structure,
 } from "@/types/domain";
 
 interface PostureControlProps {
@@ -34,13 +37,15 @@ interface PostureControlProps {
   onTransitionChange?: (isTransitioning: boolean) => void;
 }
 
+interface InlineMessage {
+  label: string;
+}
+
 export function PostureControl({ nodeGroups, isConnected, compact, inline, onTransitionChange }: PostureControlProps) {
-  const firstGateId = useMemo(() => {
-    for (const group of nodeGroups) {
-      if (group.gates.length > 0) return group.gates[0].objectId;
-    }
-    return undefined;
-  }, [nodeGroups]);
+  const gateStructures = useMemo(() => nodeGroups.flatMap((group) => group.gates), [nodeGroups]);
+  const turretStructures = useMemo(() => nodeGroups.flatMap((group) => group.turrets), [nodeGroups]);
+  const firstGateId = gateStructures[0]?.objectId;
+  const hasGateAnchor = firstGateId != null;
 
   // Transition lifecycle: pendingTarget is set on click, cleared when
   // read-path confirms the new posture or on error/timeout.
@@ -52,20 +57,81 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
     onTransitionChange?.(isTransitioning);
   }, [isTransitioning, onTransitionChange]);
 
-  const { data: currentPosture, isLoading: postureLoading, isFetching: postureRefetching } = usePostureState(firstGateId, isTransitioning);
+  const { mode: turretDoctrineFallback, setMode: setTurretDoctrineFallback } = useTurretDoctrineFallback();
+  const { data: currentPosture, isLoading: postureLoading, isFetching: postureRefetching } = usePostureState(firstGateId, hasGateAnchor && isTransitioning);
   const { status, result, error, switchPosture, reset } = usePostureSwitch();
   const readiness = useOperatorReadiness(nodeGroups, isConnected);
+  const gatePolicyQuery = useGatePolicyBatch(gateStructures.map((gate) => gate.objectId));
 
-  const posture: PostureMode = currentPosture ?? "commercial";
+  const posture = hasGateAnchor ? currentPosture ?? null : turretDoctrineFallback;
   const isDefense = posture === "defense";
-  const isConfirming = status === "success" && postureRefetching;
+  const isConfirming = hasGateAnchor && status === "success" && postureRefetching;
+
+  const gatePolicyById = useMemo(
+    () => new Map((gatePolicyQuery.data ?? []).map((policy) => [policy.gateId, policy])),
+    [gatePolicyQuery.data],
+  );
+
+  const missingCommercialGates = useMemo(
+    () => gateStructures.filter((gate) => gatePolicyById.get(gate.objectId)?.commercialPreset == null),
+    [gateStructures, gatePolicyById],
+  );
+  const missingDefenseGates = useMemo(
+    () => gateStructures.filter((gate) => gatePolicyById.get(gate.objectId)?.defensePreset == null),
+    [gateStructures, gatePolicyById],
+  );
+
+  const readinessErrors = useMemo(
+    () => readiness.blockers.filter((blocker) => blocker.severity === "error"),
+    [readiness.blockers],
+  );
+  const readinessWarnings = useMemo(
+    () => readiness.blockers.filter((blocker) => blocker.severity === "warning"),
+    [readiness.blockers],
+  );
+
+  const noTargetsBlocker = useMemo<ReadinessBlocker | null>(() => {
+    if (gateStructures.length + turretStructures.length > 0) return null;
+    return {
+      key: "no-targets",
+      label: "No eligible gates or turrets to switch.",
+      severity: "error",
+    };
+  }, [gateStructures.length, turretStructures.length]);
+
+  const gatePolicyLoadingBlocker = useMemo<ReadinessBlocker | null>(() => {
+    if (!hasGateAnchor || !gatePolicyQuery.isLoading) return null;
+    return {
+      key: "gate-policy-loading",
+      label: "Resolving gate presets…",
+      severity: "error",
+    };
+  }, [hasGateAnchor, gatePolicyQuery.isLoading]);
+
+  const commercialPresetBlocker = useMemo(
+    () => buildPresetBlocker("commercial", missingCommercialGates),
+    [missingCommercialGates],
+  );
+  const defensePresetBlocker = useMemo(
+    () => buildPresetBlocker("defense", missingDefenseGates),
+    [missingDefenseGates],
+  );
 
   // Clear pendingTarget when read-path confirms the transition completed
   useEffect(() => {
+    if (!hasGateAnchor) return;
     if (pendingTarget && currentPosture === pendingTarget) {
       setPendingTarget(null);
     }
-  }, [pendingTarget, currentPosture]);
+  }, [pendingTarget, currentPosture, hasGateAnchor]);
+
+  // Turret-only control has no gate-backed read path, so keep a local
+  // fallback of the last successful doctrine switch for this session.
+  useEffect(() => {
+    if (hasGateAnchor || pendingTarget == null || status !== "success") return;
+    setTurretDoctrineFallback(pendingTarget);
+    setPendingTarget(null);
+  }, [hasGateAnchor, pendingTarget, setTurretDoctrineFallback, status]);
 
   // Clear pendingTarget on error so controls re-enable
   useEffect(() => {
@@ -93,19 +159,24 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
 
   const gateTargets = useMemo(() => {
     const targets: GatePostureTarget[] = [];
-    for (const group of nodeGroups) {
-      for (const gate of group.gates) {
+    for (const gate of gateStructures) {
         targets.push({
           gateId: gate.objectId,
           ownerCapId: gate.ownerCapId,
         });
-      }
     }
     return targets;
-  }, [nodeGroups]);
+  }, [gateStructures]);
 
-  const handleSwitch = useCallback(() => {
-    const targetMode: PostureMode = isDefense ? "commercial" : "defense";
+  const getModeError = useCallback((targetMode: PostureMode): ReadinessBlocker | null => {
+    if (readinessErrors.length > 0) return readinessErrors[0];
+    if (noTargetsBlocker) return noTargetsBlocker;
+    if (gatePolicyLoadingBlocker) return gatePolicyLoadingBlocker;
+    return targetMode === "commercial" ? commercialPresetBlocker : defensePresetBlocker;
+  }, [commercialPresetBlocker, defensePresetBlocker, gatePolicyLoadingBlocker, noTargetsBlocker, readinessErrors]);
+
+  const handleApplyMode = useCallback((targetMode: PostureMode) => {
+    if (isTransitioning || status === "pending" || getModeError(targetMode)) return;
     lastTargetRef.current = targetMode;
     setPendingTarget(targetMode);
     switchPosture({
@@ -113,21 +184,55 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
       gates: gateTargets,
       turrets,
     });
-  }, [isDefense, gateTargets, turrets, switchPosture]);
+  }, [gateTargets, getModeError, isTransitioning, status, switchPosture, turrets]);
+
+  const handleSwitch = useCallback(() => {
+    const targetMode: PostureMode = posture === "defense" ? "commercial" : "defense";
+    handleApplyMode(targetMode);
+  }, [handleApplyMode, posture]);
 
   const isPending = status === "pending";
+  const toggleTargetMode: PostureMode = posture === "defense" ? "commercial" : "defense";
+  const toggleBlocker = getModeError(toggleTargetMode);
   // Prevent clicks while transitioning (PTB executing, awaiting confirmation, or read-path catching up)
-  const isDisabled = isPending || isTransitioning || postureLoading || !readiness.isReady;
+  const isDisabled = isPending || isTransitioning || (hasGateAnchor && postureLoading) || toggleBlocker !== null || !readiness.isReady;
 
-  const stateLabel = postureLoading
-    ? "Resolving\u2026"
+  const stateLabel = hasGateAnchor
+    ? postureLoading
+      ? "Resolving\u2026"
+      : isTransitioning
+        ? isPending
+          ? "Executing\u2026"
+          : "Transitioning\u2026"
+        : isConfirming
+          ? "Confirming\u2026"
+          : isDefense ? "Defense Mode" : "Open for Business"
     : isTransitioning
       ? isPending
         ? "Executing\u2026"
         : "Transitioning\u2026"
-      : isConfirming
-        ? "Confirming\u2026"
-        : isDefense ? "Defense Mode" : "Open for Business";
+      : posture === "defense"
+        ? "Defensive Doctrine"
+        : posture === "commercial"
+          ? "Commercial Doctrine"
+          : "Turret Doctrine Only";
+
+  const feedbackBlockers = useMemo(() => {
+    const blockers: ReadinessBlocker[] = [...readinessErrors];
+    if (noTargetsBlocker) blockers.push(noTargetsBlocker);
+    if (gatePolicyLoadingBlocker) blockers.push(gatePolicyLoadingBlocker);
+    if (commercialPresetBlocker) blockers.push(commercialPresetBlocker);
+    if (defensePresetBlocker) blockers.push(defensePresetBlocker);
+    blockers.push(...readinessWarnings);
+    return blockers;
+  }, [commercialPresetBlocker, defensePresetBlocker, gatePolicyLoadingBlocker, noTargetsBlocker, readinessErrors, readinessWarnings]);
+
+  const inlineMessage = useMemo<InlineMessage | null>(() => {
+    if (status === "error" && error) {
+      return { label: error };
+    }
+    return null;
+  }, [error, status]);
 
   const actionButton = (
     <button
@@ -149,9 +254,9 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
 
   const feedbackBlock = (
     <>
-      {readiness.blockers.length > 0 && (
+      {feedbackBlockers.length > 0 && (
         <div className="space-y-1.5">
-          {readiness.blockers.map((b) => (
+          {feedbackBlockers.map((b) => (
             <div
               key={b.key}
               className={`flex items-start gap-2 rounded px-3 py-2 text-xs ${
@@ -190,8 +295,8 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
 
   // Inline mode-selector variant: Commercial / Defensive chip tabs + transition indicator.
   if (inline) {
-    const commercialActive = !isDefense && !postureLoading && !isTransitioning;
-    const defensiveActive = isDefense && !postureLoading && !isTransitioning;
+    const commercialActive = posture === "commercial" && !postureLoading && !isTransitioning;
+    const defensiveActive = posture === "defense" && !postureLoading && !isTransitioning;
     // During transition, show the pending target as the "active-becoming" chip
     const pendingCommercial = isTransitioning && pendingTarget === "commercial";
     const pendingDefensive = isTransitioning && pendingTarget === "defense";
@@ -219,50 +324,43 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
         : inactive;
 
     return (
-      <>
-        {/* Mode selector pill strip */}
-        <div className="flex items-center bg-[#09090b] border border-border/50 rounded p-1 gap-2">
-          <button
-            onClick={isDefense ? handleSwitch : undefined}
-            disabled={isDisabled || commercialActive}
-            className={`${chipBase} ${commercialChipClass}`}
-          >
-            <Store className="w-3.5 h-3.5" />
-            {pendingCommercial ? "Applying\u2026" : "Commercial"}
-          </button>
-          <button
-            onClick={!isDefense ? handleSwitch : undefined}
-            disabled={isDisabled || defensiveActive}
-            className={`${chipBase} ${defensiveChipClass}`}
-          >
-            <ShieldAlert className="w-3.5 h-3.5" />
-            {pendingDefensive ? "Applying\u2026" : "Defensive"}
-          </button>
-        </div>
-        {/* Transition status indicator */}
-        {isTransitioning && (
-          <>
-            <div className="w-px h-4 bg-border/50 mx-1" />
-            <span className="text-[10px] tracking-wide text-muted-foreground animate-pulse">
-              {isPending ? "Awaiting wallet\u2026" : "Confirming on-chain\u2026"}
-            </span>
-          </>
-        )}
-        {/* Save Preset placeholder (ghost — not wired yet) */}
-        {!isTransitioning && (
-          <>
-            <div className="w-px h-4 bg-border/50 mx-2" />
+      <div className="flex flex-col items-end gap-1.5">
+        <div className="flex items-center">
+          {/* Mode selector pill strip */}
+          <div className="flex items-center bg-[#09090b] border border-border/50 rounded p-1 gap-2">
             <button
-              disabled
-              aria-label="Save Preset coming soon"
-              className="flex items-center gap-2 whitespace-nowrap rounded border border-transparent px-3 py-1.5 text-[11px] font-medium tracking-wide text-muted-foreground/60 cursor-not-allowed"
+              onClick={() => handleApplyMode("commercial")}
+              disabled={isPending || isTransitioning || (hasGateAnchor && postureLoading) || getModeError("commercial") !== null || commercialActive}
+              className={`${chipBase} ${commercialChipClass}`}
             >
-              <Settings2 className="w-3 h-3" />
-              Save Preset
+              <Store className="w-3.5 h-3.5" />
+              {pendingCommercial ? "Applying\u2026" : "Commercial"}
             </button>
-          </>
+            <button
+              onClick={() => handleApplyMode("defense")}
+              disabled={isPending || isTransitioning || (hasGateAnchor && postureLoading) || getModeError("defense") !== null || defensiveActive}
+              className={`${chipBase} ${defensiveChipClass}`}
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              {pendingDefensive ? "Applying\u2026" : "Defensive"}
+            </button>
+          </div>
+          {/* Transition status indicator */}
+          {isTransitioning && (
+            <>
+              <div className="w-px h-4 bg-border/50 mx-1" />
+              <span className="text-[10px] tracking-wide text-muted-foreground animate-pulse">
+                {isPending ? "Awaiting wallet\u2026" : hasGateAnchor ? "Confirming on-chain\u2026" : "Applying doctrine\u2026"}
+              </span>
+            </>
+          )}
+        </div>
+        {inlineMessage && (
+          <div className="flex items-center gap-2 text-[11px] text-red-400">
+            <span>{inlineMessage.label}</span>
+          </div>
         )}
-      </>
+      </div>
     );
   }
 
@@ -283,13 +381,6 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
               {stateLabel}
             </span>
           </div>
-          {!compact && (
-            <p className="mt-0.5 text-xs text-zinc-500">
-              {isDefense
-                ? "Gates locked to tribe. Turrets engaging outsiders."
-                : "Gates accepting traffic. Turrets standing down."}
-            </p>
-          )}
         </div>
 
         {actionButton}
@@ -300,4 +391,28 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
       </div>
     </div>
   );
+}
+
+function buildPresetBlocker(mode: PostureMode, gates: readonly Structure[]): ReadinessBlocker | null {
+  if (gates.length === 0) return null;
+
+  const modeLabel = mode === "defense" ? "Defense" : "Commercial";
+  return {
+    key: `${mode}-preset`,
+    label: `${gates.length} gate${gates.length === 1 ? " is" : "s are"} missing ${modeLabel} presets: ${formatGateList(gates)}`,
+    severity: "error",
+    link: "/gates",
+  };
+}
+
+
+function formatGateList(gates: readonly Structure[]): string {
+  const names = gates.slice(0, 2).map((gate) => gate.name);
+  const remainder = gates.length - names.length;
+
+  if (remainder > 0) {
+    names.push(`+${remainder} more`);
+  }
+
+  return names.join(", ");
 }

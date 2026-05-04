@@ -20,6 +20,7 @@
 import { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import type { NetworkNodeGroup, SpatialPin, Structure, SignalEvent } from "@/types/domain";
 import { usePostureState } from "@/hooks/usePosture";
+import { useTurretDoctrineFallback } from "@/hooks/useTurretDoctrineFallback";
 import { useMapViewTransform } from "@/hooks/useMapViewTransform";
 import type { WorldBounds } from "@/hooks/useMapViewTransform";
 import { getSolarSystemById, getSolarSystemCatalog } from "@/lib/solarSystemCatalog";
@@ -241,8 +242,11 @@ export function StrategicMapPanel({
     }
     return undefined;
   }, [nodeGroups]);
+  const { mode: turretDoctrineFallback } = useTurretDoctrineFallback();
   const { data: onChainPosture } = usePostureState(firstGateId);
-  const posture: Posture = onChainPosture === "defense" ? "defensive" : "commercial";
+  const posture: Posture = onChainPosture === "defense" || (firstGateId == null && turretDoctrineFallback === "defense")
+    ? "defensive"
+    : "commercial";
 
   const pinMap = useMemo(
     () => new Map(pins.map((p) => [p.networkNodeId, p])),

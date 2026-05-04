@@ -26,6 +26,8 @@ import {
 } from "@/constants";
 import type { PostureMode, TurretSwitchTarget, GatePostureTarget } from "@/types/domain";
 
+export const NO_POSTURE_TARGETS_ERROR = "No eligible gates or turrets to switch.";
+
 // On-chain posture constants (must match posture.move)
 const POSTURE_COMMERCIAL = 0;
 const POSTURE_DEFENSE = 1;
@@ -41,6 +43,12 @@ interface PostureSwitchParams {
   characterId: string;
 }
 
+export function hasPostureSwitchTargets(
+  params: Pick<PostureSwitchParams, "gates" | "turrets">,
+): boolean {
+  return params.gates.length > 0 || params.turrets.length > 0;
+}
+
 /**
  * Build a single PTB that switches the network's enforcement posture.
  *
@@ -50,6 +58,11 @@ interface PostureSwitchParams {
  */
 export function buildPostureSwitchTx(params: PostureSwitchParams): Transaction {
   const { targetMode, gates, turrets, characterId } = params;
+
+  if (!hasPostureSwitchTargets({ gates, turrets })) {
+    throw new Error(NO_POSTURE_TARGETS_ERROR);
+  }
+
   const tx = new Transaction();
 
   const modeValue = targetMode === "defense" ? POSTURE_DEFENSE : POSTURE_COMMERCIAL;
