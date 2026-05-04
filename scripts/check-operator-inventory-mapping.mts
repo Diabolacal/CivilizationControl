@@ -27,6 +27,9 @@ const GATE_ID = "0x0000000000000000000000000000000000000000000000000000000000000
 const STORAGE_ID = "0x0000000000000000000000000000000000000000000000000000000000000102";
 const TURRET_ID = "0x0000000000000000000000000000000000000000000000000000000000000103";
 const PRINTER_ID = "0x0000000000000000000000000000000000000000000000000000000000000104";
+const REFINERY_ID = "0x0000000000000000000000000000000000000000000000000000000000000106";
+const ASSEMBLER_ID = "0x0000000000000000000000000000000000000000000000000000000000000107";
+const BERTH_ID = "0x0000000000000000000000000000000000000000000000000000000000000108";
 const UNLINKED_STORAGE_ID = "0x0000000000000000000000000000000000000000000000000000000000000105";
 const GATE_B_ID = "0x0000000000000000000000000000000000000000000000000000000000000201";
 const TURRET_B_ID = "0x0000000000000000000000000000000000000000000000000000000000000202";
@@ -130,7 +133,48 @@ const response: OperatorInventoryResponse = {
             networkNodeId: NETWORK_NODE_A_ID,
           },
         }),
-        futurePowerRow(),
+        liveGenericAssemblyRow({
+          objectId: PRINTER_ID,
+          ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001104",
+          family: "printer",
+          displayName: "Mini Printer",
+          typeId: 88067,
+          typeName: "Mini Printer",
+          assemblyType: "printer",
+          status: "online",
+          size: "mini",
+        }),
+        liveGenericAssemblyRow({
+          objectId: REFINERY_ID,
+          ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001106",
+          family: "refinery",
+          displayName: "Refinery",
+          typeId: 88068,
+          typeName: "Refinery",
+          assemblyType: "refinery",
+          status: "online",
+        }),
+        liveGenericAssemblyRow({
+          objectId: ASSEMBLER_ID,
+          ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001107",
+          family: "assembler",
+          displayName: "Assembler",
+          typeId: 88069,
+          typeName: "Assembler",
+          assemblyType: "assembler",
+          status: "offline",
+        }),
+        liveGenericAssemblyRow({
+          objectId: BERTH_ID,
+          ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001108",
+          family: "berth",
+          displayName: "Mini Berth",
+          typeId: 88070,
+          typeName: "Mini Berth",
+          assemblyType: "berth",
+          status: "offline",
+          size: "mini",
+        }),
       ],
     },
     {
@@ -486,7 +530,7 @@ const lowOnlyFuelPresentation = buildFuelPresentation({
 });
 
 assert(lookup, "expected a selected-node lookup from operator inventory");
-assert.equal(lookup?.assemblies.length, 4);
+assert.equal(lookup?.assemblies.length, 7);
 assert(reserveLookup, "expected reserve node lookup from operator inventory");
 assert.equal(relayGroup.gates.length, 1);
 assert.equal(relayGroup.turrets.length, 1);
@@ -521,7 +565,7 @@ const viewModel = buildLiveNodeLocalViewModelWithObserved(group, lookup, { prefe
 const reserveViewModel = buildLiveNodeLocalViewModelWithObserved(reserveGroup, reserveLookup, { preferObservedMembership: true });
 
 assert.equal(viewModel.sourceMode, "backend-membership");
-assert.equal(viewModel.structures.length, 4);
+assert.equal(viewModel.structures.length, 7);
 assert.equal(reserveViewModel.node.fuelSummary, "D1 · 900 / 3,571 units");
 assert.equal(reserveViewModel.node.fuelAmount, "900");
 
@@ -529,6 +573,9 @@ const gate = viewModel.structures.find((structure) => structure.objectId === GAT
 const storage = viewModel.structures.find((structure) => structure.objectId === STORAGE_ID);
 const turret = viewModel.structures.find((structure) => structure.objectId === TURRET_ID);
 const printer = viewModel.structures.find((structure) => structure.objectId === PRINTER_ID);
+const refinery = viewModel.structures.find((structure) => structure.objectId === REFINERY_ID);
+const assembler = viewModel.structures.find((structure) => structure.objectId === ASSEMBLER_ID);
+const berth = viewModel.structures.find((structure) => structure.objectId === BERTH_ID);
 
 assert.equal(gate?.actionAuthority.state, "verified-supported");
 assert.equal(storage?.actionAuthority.state, "verified-supported");
@@ -536,9 +583,22 @@ assert.equal(turret?.actionAuthority.state, "verified-supported");
 assert.equal(printer?.actionAuthority.state, "verified-supported");
 assert.equal(printer?.actionAuthority.verifiedTarget?.structureType, "assembly");
 assert.equal(printer?.actionAuthority.unavailableReason, null);
+for (const genericStructure of [printer, refinery, assembler, berth]) {
+  assert(genericStructure, "expected live-shaped generic assembly row in node control");
+  assert.equal(genericStructure.assemblyId, undefined);
+  assert.equal(genericStructure.actionCandidate?.actions.power?.requiredIds ?? null, null);
+  assert.equal(genericStructure.actionCandidate?.actions.power?.currentlyImplementedInCivilizationControl ?? false, false);
+  assert.equal(genericStructure.actionAuthority.state, "verified-supported");
+  assert.equal(genericStructure.actionAuthority.verifiedTarget?.structureType, "assembly");
+  assert.equal(genericStructure.actionAuthority.verifiedTarget?.networkNodeId, NETWORK_NODE_A_ID);
+  assert.equal(genericStructure.actionAuthority.unavailableReason, null);
+}
 assert.equal(getNodeLocalPowerToggleIntent(gate!)?.actionLabel, "Take Offline");
 assert.equal(getNodeLocalPowerToggleIntent(turret!)?.actionLabel, "Bring Online");
-assert.equal(getNodeLocalPowerToggleIntent(printer!)?.actionLabel, "Bring Online");
+assert.equal(getNodeLocalPowerToggleIntent(printer!)?.actionLabel, "Take Offline");
+assert.equal(getNodeLocalPowerToggleIntent(refinery!)?.actionLabel, "Take Offline");
+assert.equal(getNodeLocalPowerToggleIntent(assembler!)?.actionLabel, "Bring Online");
+assert.equal(getNodeLocalPowerToggleIntent(berth!)?.actionLabel, "Bring Online");
 
 const unlinkedStorage = adapted.structures.find((structure) => structure.objectId === UNLINKED_STORAGE_ID);
 const suspiciousTurretA = adapted.structures.find((structure) => structure.objectId === SUSPICIOUS_TURRET_A_ID);
@@ -598,7 +658,7 @@ assert.equal(debugSnapshot.renderedMacroNetworkNodeCount, 3);
 assert.equal(debugSnapshot.renderedNetworkNodeListCount, 3);
 assert.equal(debugSnapshot.renderedNodeGroups.length, 3);
 assert.equal(debugSnapshot.renderedNetworkNodeListRows.length, 3);
-assert.equal(debugSnapshot.renderedNodeControlSelectedNodeStructuresCount, 4);
+assert.equal(debugSnapshot.renderedNodeControlSelectedNodeStructuresCount, 7);
 assert.equal(debugSnapshot.mergedIntoDisplay, false);
 assert.equal(debugSnapshot.displayUsesDirectChainFallback, false);
 assert.equal(debugSnapshot.directChainFallbackRan, true);
@@ -794,20 +854,30 @@ function createPowerSummary(overrides: Partial<IndexedPowerSummary> = {}): Index
   };
 }
 
-function futurePowerRow() {
+function liveGenericAssemblyRow(input: {
+  objectId: string;
+  ownerCapId: string | null;
+  family: "printer" | "refinery" | "assembler" | "berth" | "relay" | "nursery" | "nest" | "shelter";
+  displayName: string;
+  typeId: number;
+  typeName: string;
+  assemblyType: string;
+  status: "online" | "offline" | "unknown";
+  size?: "mini" | "standard" | "heavy";
+}) {
   return {
-    objectId: PRINTER_ID,
-    assemblyId: "9104",
-    ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001104",
-    family: "printer",
-    size: "standard",
-    displayName: "Field Printer",
-    name: "Field Printer",
-    typeId: 88067,
-    typeName: "Printer",
-    assemblyType: "printer",
-    status: "offline",
-    networkNodeId: NETWORK_NODE_A_ID,
+    objectId: input.objectId,
+    assemblyId: null,
+    ownerCapId: input.ownerCapId,
+    family: input.family,
+    size: input.size ?? "standard",
+    displayName: input.displayName,
+    name: input.displayName,
+    typeId: input.typeId,
+    typeName: input.typeName,
+    assemblyType: input.assemblyType,
+    status: input.status,
+    networkNodeId: null,
     energySourceId: null,
     linkedGateId: null,
     ownerWalletAddress: null,
@@ -828,34 +898,24 @@ function futurePowerRow() {
       actions: {
         power: {
           candidate: true,
-          currentlyImplementedInCivilizationControl: true,
+          currentlyImplementedInCivilizationControl: false,
           familySupported: true,
-          indexedOwnerCapPresent: true,
-          requiredIds: {
-            structureId: PRINTER_ID,
-            structureType: "assembly",
-            ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001104",
-            networkNodeId: NETWORK_NODE_A_ID,
-          },
-          unavailableReason: null,
+          indexedOwnerCapPresent: input.ownerCapId != null,
+          requiredIds: null,
+          unavailableReason: "frontend_action_not_implemented",
         },
         rename: {
           candidate: true,
-          currentlyImplementedInCivilizationControl: true,
+          currentlyImplementedInCivilizationControl: false,
           familySupported: true,
-          indexedOwnerCapPresent: true,
-          requiredIds: {
-            structureId: PRINTER_ID,
-            structureType: "assembly",
-            ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001104",
-            networkNodeId: NETWORK_NODE_A_ID,
-          },
-          unavailableReason: null,
+          indexedOwnerCapPresent: input.ownerCapId != null,
+          requiredIds: null,
+          unavailableReason: "frontend_action_not_implemented",
         },
       },
       supported: true,
       familySupported: true,
-      unavailableReason: null,
+      unavailableReason: "frontend_action_not_implemented",
     },
   };
 }

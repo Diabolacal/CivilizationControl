@@ -5,6 +5,7 @@ import { NodeStructureActionRail } from "@/components/topology/node-drilldown/No
 import {
   formatNodeLocalActionAuthorityDetail,
   formatNodeLocalActionAuthorityLabel,
+  formatNodeLocalActionAvailability,
   getNodeLocalActionStatus,
 } from "@/lib/nodeDrilldownActionAuthority";
 import { buildFuelPresentation, type FuelPresentation, type FuelSeverity } from "@/lib/fuelRuntime";
@@ -91,6 +92,34 @@ function renderIdentifierValue(value: string | null | undefined, fallback: strin
   }
 
   return <CompactCopyValue value={value} ariaLabel={ariaLabel} />;
+}
+
+function deriveStructureOwnerCapId(structure: NodeLocalStructure): string | null {
+  if (structure.actionAuthority.verifiedTarget?.ownerCapId) {
+    return structure.actionAuthority.verifiedTarget.ownerCapId;
+  }
+
+  const ownerCapIds = Array.from(new Set(
+    structure.actionAuthority.candidateTargets
+      .map((candidate) => candidate.ownerCapId ?? null)
+      .filter((ownerCapId): ownerCapId is string => hasValue(ownerCapId)),
+  ));
+
+  return ownerCapIds.length === 1 ? ownerCapIds[0] ?? null : null;
+}
+
+function deriveStructureNetworkNodeId(structure: NodeLocalStructure): string | null {
+  if (structure.actionAuthority.verifiedTarget?.networkNodeId) {
+    return structure.actionAuthority.verifiedTarget.networkNodeId;
+  }
+
+  const networkNodeIds = Array.from(new Set(
+    structure.actionAuthority.candidateTargets
+      .map((candidate) => candidate.networkNodeId ?? null)
+      .filter((networkNodeId): networkNodeId is string => hasValue(networkNodeId)),
+  ));
+
+  return networkNodeIds.length === 1 ? networkNodeIds[0] ?? null : null;
 }
 
 function formatSourceMode(viewModel: NodeLocalViewModel): string {
@@ -346,7 +375,14 @@ function NodeSelectionInspectorContent({
             ) : null}
             <InspectorRow label="Node View" value={isSelectedStructureHidden ? "Hidden from map (local only)" : "Visible in node view"} />
             <InspectorRow label="Object ID" value={renderIdentifierValue(selectedStructure.objectId, "Not supplied", "Copy structure object ID")} muted={!hasValue(selectedStructure.objectId)} />
-            <InspectorRow label="Assembly ID" value={renderIdentifierValue(selectedStructure.assemblyId, "Not indexed", "Copy structure assembly ID")} muted={!hasValue(selectedStructure.assemblyId)} />
+            {hasValue(selectedStructure.assemblyId) ? (
+              <InspectorRow label="Assembly ID" value={renderIdentifierValue(selectedStructure.assemblyId, "Not indexed", "Copy structure assembly ID")} />
+            ) : null}
+            <InspectorRow label="OwnerCap ID" value={renderIdentifierValue(deriveStructureOwnerCapId(selectedStructure), "Not indexed", "Copy structure owner cap ID")} muted={!hasValue(deriveStructureOwnerCapId(selectedStructure))} />
+            <InspectorRow label="Network Node ID" value={renderIdentifierValue(deriveStructureNetworkNodeId(selectedStructure), "Not indexed", "Copy linked network node ID")} muted={!hasValue(deriveStructureNetworkNodeId(selectedStructure))} />
+            <InspectorRow label="Energy Source ID" value={renderIdentifierValue(selectedStructure.energySourceId, "Not supplied", "Copy structure energy source ID")} muted={!hasValue(selectedStructure.energySourceId)} />
+            <InspectorRow label="Canonical Identity" value={renderIdentifierValue(selectedStructure.canonicalDomainKey, "Not supplied", "Copy canonical structure identity")} muted={!hasValue(selectedStructure.canonicalDomainKey)} />
+            <InspectorRow label="Control" value={formatNodeLocalActionAvailability(selectedStructure)} muted={!selectedStructure.actionAuthority.verifiedTarget} />
             {selectedStructure.directChainObjectId && selectedStructure.directChainObjectId !== selectedStructure.objectId ? (
               <InspectorRow label="Chain Object ID" value={renderIdentifierValue(selectedStructure.directChainObjectId, "Not supplied", "Copy chain object ID")} />
             ) : null}

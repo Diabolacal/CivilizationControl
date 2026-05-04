@@ -192,9 +192,9 @@ const backendOnlyNodeLocal = makeNodeLocalStructure({
   },
 });
 assert.equal(supportsNodeLocalRename(backendOnlyNodeLocal), false);
-assert.equal(formatNodeLocalActionAuthorityLabel(backendOnlyNodeLocal), 'Awaiting chain proof');
+assert.equal(formatNodeLocalActionAuthorityLabel(backendOnlyNodeLocal), 'Control proof needed');
 assert.equal(formatNodeLocalActionAuthorityDetail(backendOnlyNodeLocal), 'No verified direct-chain target.');
-assert.equal(formatNodeLocalActionBadgeText(backendOnlyNodeLocal), 'Action unavailable: Awaiting chain proof');
+assert.equal(formatNodeLocalActionBadgeText(backendOnlyNodeLocal), 'Action unavailable: Control proof needed');
 assert.equal(formatNodeLocalActionTooltip(backendOnlyNodeLocal), 'No verified direct-chain target.');
 assert.equal(getNodeLocalPowerToggleIntent(backendOnlyNodeLocal), null);
 assert.deepEqual(getNodeLocalPowerControlState(backendOnlyNodeLocal), {
@@ -217,10 +217,10 @@ const futureSupportedNodeLocal = makeNodeLocalStructure({
   },
 });
 assert.equal(supportsNodeLocalRename(futureSupportedNodeLocal), false);
-assert.equal(formatNodeLocalActionAuthorityLabel(futureSupportedNodeLocal), 'Awaiting web controls');
-assert.equal(formatNodeLocalActionAuthorityDetail(futureSupportedNodeLocal), 'Frontend action not implemented.');
-assert.equal(formatNodeLocalActionBadgeText(futureSupportedNodeLocal), 'Awaiting web controls');
-assert.equal(formatNodeLocalActionTooltip(futureSupportedNodeLocal), 'Frontend action not implemented.');
+assert.equal(formatNodeLocalActionAuthorityLabel(futureSupportedNodeLocal), 'Control pending');
+assert.equal(formatNodeLocalActionAuthorityDetail(futureSupportedNodeLocal), 'Control unavailable: this assembly type is not wired for power control yet.');
+assert.equal(formatNodeLocalActionBadgeText(futureSupportedNodeLocal), 'Control pending');
+assert.equal(formatNodeLocalActionTooltip(futureSupportedNodeLocal), 'Control unavailable: this assembly type is not wired for power control yet.');
 assert.equal(getNodeLocalPowerToggleIntent(futureSupportedNodeLocal), null);
 assert.deepEqual(getNodeLocalPowerControlState(futureSupportedNodeLocal), {
   actionLabel: null,
@@ -299,9 +299,22 @@ const missingOwnerCapNodeLocal = makeNodeLocalStructure({
   },
 });
 assert.equal(formatNodeLocalActionAuthorityLabel(missingOwnerCapNodeLocal), 'Control proof missing');
-assert.equal(formatNodeLocalActionAuthorityDetail(missingOwnerCapNodeLocal), 'Control is paused because the required control proof is missing.');
+assert.equal(formatNodeLocalActionAuthorityDetail(missingOwnerCapNodeLocal), 'Control unavailable: owner cap not indexed.');
 assert.equal(formatNodeLocalActionBadgeText(missingOwnerCapNodeLocal), 'Action unavailable: Control proof missing');
 assert.equal(formatNodeLocalActionTooltip(missingOwnerCapNodeLocal), 'Control proof missing');
+
+const missingObjectIdNodeLocal = makeNodeLocalStructure({
+  actionAuthority: {
+    state: 'missing-object-id',
+    verifiedTarget: null,
+    candidateTargets: [],
+    unavailableReason: null,
+  },
+});
+assert.equal(formatNodeLocalActionAuthorityLabel(missingObjectIdNodeLocal), 'Object ID missing');
+assert.equal(formatNodeLocalActionAuthorityDetail(missingObjectIdNodeLocal), 'Control unavailable: missing object ID.');
+assert.equal(formatNodeLocalActionBadgeText(missingObjectIdNodeLocal), 'Action unavailable: Object ID missing');
+assert.equal(formatNodeLocalActionTooltip(missingObjectIdNodeLocal), 'Object ID missing');
 
 const missingNodeContextNodeLocal = makeNodeLocalStructure({
   actionAuthority: {
@@ -319,7 +332,7 @@ const missingNodeContextNodeLocal = makeNodeLocalStructure({
   },
 });
 assert.equal(formatNodeLocalActionAuthorityLabel(missingNodeContextNodeLocal), 'Node link missing');
-assert.equal(formatNodeLocalActionAuthorityDetail(missingNodeContextNodeLocal), 'Control is paused because the linked node record is incomplete.');
+assert.equal(formatNodeLocalActionAuthorityDetail(missingNodeContextNodeLocal), 'Control unavailable: linked network node not indexed.');
 assert.equal(formatNodeLocalActionBadgeText(missingNodeContextNodeLocal), 'Action unavailable: Node link missing');
 assert.equal(formatNodeLocalActionTooltip(missingNodeContextNodeLocal), 'Node link missing');
 

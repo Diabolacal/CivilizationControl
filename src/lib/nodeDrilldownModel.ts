@@ -174,6 +174,13 @@ interface BuildNodeDrilldownOptions {
   preferObservedMembership?: boolean;
 }
 
+interface NodeLocalActionTargetFallback {
+  structureId?: NodeLocalActionCandidateTarget["structureId"] | null;
+  structureType?: NodeLocalActionCandidateTarget["structureType"] | null;
+  ownerCapId?: NodeLocalActionCandidateTarget["ownerCapId"] | null;
+  networkNodeId?: NodeLocalActionCandidateTarget["networkNodeId"] | null;
+}
+
 const SUPPORTED_POWER_TYPE_BY_FAMILY: Partial<Record<NodeLocalFamily, NodeLocalSupportedPowerType>> = {
   gate: "gate",
   tradePost: "storage_unit",
@@ -295,13 +302,26 @@ function mergeObservedAssemblyEntry(
     assemblyType: next.assemblyType ?? current.assemblyType,
     typeId: next.typeId ?? current.typeId,
     name: next.name ?? current.name,
+    displayName: next.displayName ?? current.displayName,
+    family: next.family ?? current.family,
+    size: next.size ?? current.size,
     status: next.status ?? current.status,
     fuelAmount: next.fuelAmount ?? current.fuelAmount,
+    powerSummary: next.powerSummary ?? current.powerSummary,
     solarSystemId: next.solarSystemId ?? current.solarSystemId,
     energySourceId: next.energySourceId ?? current.energySourceId,
     url: next.url ?? current.url,
     lastUpdated: next.lastUpdated ?? current.lastUpdated,
+    lastObservedCheckpoint: next.lastObservedCheckpoint ?? current.lastObservedCheckpoint,
+    lastObservedTimestamp: next.lastObservedTimestamp ?? current.lastObservedTimestamp,
     typeName: next.typeName ?? current.typeName,
+    ownerCapId: next.ownerCapId ?? current.ownerCapId,
+    ownerWalletAddress: next.ownerWalletAddress ?? current.ownerWalletAddress,
+    characterId: next.characterId ?? current.characterId,
+    extensionStatus: next.extensionStatus ?? current.extensionStatus,
+    partial: next.partial ?? current.partial,
+    warnings: next.warnings ?? current.warnings,
+    actionCandidate: next.actionCandidate ?? current.actionCandidate,
     source: next.source ?? current.source,
     provenance: next.provenance ?? current.provenance,
   };
@@ -480,11 +500,19 @@ function toNodeLocalActionCandidateFromRequiredIds(
   family: NodeLocalFamily,
   powerAction: IndexedPowerAction,
   status: StructureStatus,
+  fallbackTarget?: NodeLocalActionTargetFallback | null,
 ): NodeLocalActionCandidateTarget | null {
-  const structureId = powerAction.requiredIds?.structureId;
+  if (powerAction.candidate === false) {
+    return null;
+  }
+
+  const structureId = powerAction.requiredIds?.structureId ?? fallbackTarget?.structureId;
   const structureType = normalizeIndexedActionTargetTypeForFamily(
     family,
-    powerAction.requiredIds?.structureType ?? null,
+    powerAction.requiredIds?.structureType
+      ?? fallbackTarget?.structureType
+      ?? SUPPORTED_POWER_TYPE_BY_FAMILY[family]
+      ?? null,
   );
   if (!structureId || !structureType) {
     return null;
@@ -493,8 +521,8 @@ function toNodeLocalActionCandidateFromRequiredIds(
   return {
     structureId,
     structureType,
-    ownerCapId: powerAction.requiredIds?.ownerCapId ?? undefined,
-    networkNodeId: powerAction.requiredIds?.networkNodeId ?? undefined,
+    ownerCapId: powerAction.requiredIds?.ownerCapId ?? fallbackTarget?.ownerCapId ?? undefined,
+    networkNodeId: powerAction.requiredIds?.networkNodeId ?? fallbackTarget?.networkNodeId ?? undefined,
     status,
   };
 }
@@ -530,21 +558,22 @@ function resolveNodeLocalVerifiedTarget(
   status: StructureStatus,
   powerAction: IndexedPowerAction | null | undefined,
   liveCandidate: NodeLocalActionCandidateTarget | null,
+  fallbackTarget?: NodeLocalActionTargetFallback | null,
 ): NodeLocalActionAuthority["verifiedTarget"] {
   const supportedPowerType = SUPPORTED_POWER_TYPE_BY_FAMILY[family] ?? null;
   if (!supportedPowerType) {
     return null;
   }
 
-  const candidateTarget = powerAction ? toNodeLocalActionCandidateFromRequiredIds(family, powerAction, status) : null;
+  const candidateTarget = powerAction ? toNodeLocalActionCandidateFromRequiredIds(family, powerAction, status, fallbackTarget) : null;
   const structureType = candidateTarget?.structureType ?? liveCandidate?.structureType ?? null;
   if (structureType !== supportedPowerType) {
     return null;
   }
 
-  const structureId = powerAction?.requiredIds?.structureId ?? liveCandidate?.structureId;
-  const ownerCapId = powerAction?.requiredIds?.ownerCapId ?? liveCandidate?.ownerCapId;
-  const networkNodeId = powerAction?.requiredIds?.networkNodeId ?? liveCandidate?.networkNodeId;
+  const structureId = candidateTarget?.structureId ?? liveCandidate?.structureId;
+  const ownerCapId = candidateTarget?.ownerCapId ?? liveCandidate?.ownerCapId;
+  const networkNodeId = candidateTarget?.networkNodeId ?? liveCandidate?.networkNodeId;
   if (!structureId || !ownerCapId || !networkNodeId) {
     return null;
   }
@@ -564,6 +593,7 @@ function createNodeLocalActionAuthority(
   authorityCandidates: NodeLocalActionCandidateTarget[],
   source: NodeLocalStructure["source"],
   actionCandidate?: ObservedAssembly["actionCandidate"] | AssemblySummary["actionCandidate"] | null,
+  fallbackTarget?: NodeLocalActionTargetFallback | null,
 ): NodeLocalActionAuthority {
   if (source === "synthetic" && authorityCandidates.length === 0 && !actionCandidate) {
     return {
@@ -576,27 +606,29 @@ function createNodeLocalActionAuthority(
 
   const powerAction = actionCandidate?.actions.power;
   const supportedPowerType = SUPPORTED_POWER_TYPE_BY_FAMILY[family] ?? null;
-  const indexedCandidateTarget = powerAction ? toNodeLocalActionCandidateFromRequiredIds(family, powerAction, status) : null;
+  const indexedCandidateTarget = powerAction ? toNodeLocalActionCandidateFromRequiredIds(family, powerAction, status, fallbackTarget) : null;
   const candidateTargets = dedupeNodeLocalActionCandidates([
     ...authorityCandidates,
     ...(indexedCandidateTarget ? [indexedCandidateTarget] : []),
   ]);
-  const unavailableReason = powerAction?.unavailableReason ?? actionCandidate?.unavailableReason ?? null;
+  const rawUnavailableReason = powerAction?.unavailableReason ?? actionCandidate?.unavailableReason ?? null;
   const uniqueLiveCandidate = authorityCandidates.length === 1 ? authorityCandidates[0] : null;
-  const verifiedTarget = resolveNodeLocalVerifiedTarget(family, status, powerAction, uniqueLiveCandidate);
+  const verifiedTarget = resolveNodeLocalVerifiedTarget(family, status, powerAction, uniqueLiveCandidate, fallbackTarget);
 
   if (verifiedTarget) {
     return {
       state: "verified-supported",
       verifiedTarget,
       candidateTargets,
-      unavailableReason,
+      unavailableReason: null,
     };
   }
 
-  if (powerAction?.currentlyImplementedInCivilizationControl === false) {
+  const unavailableReason = rawUnavailableReason;
+
+  if (!supportedPowerType || powerAction?.familySupported === false || actionCandidate?.familySupported === false) {
     return {
-      state: "future-supported",
+      state: "unsupported-family",
       verifiedTarget: null,
       candidateTargets,
       unavailableReason,
@@ -612,18 +644,18 @@ function createNodeLocalActionAuthority(
     };
   }
 
-  if (candidateTargets.length === 0) {
+  if (powerAction?.candidate === true && !indexedCandidateTarget?.structureId && !uniqueLiveCandidate?.structureId) {
     return {
-      state: "backend-only",
+      state: "missing-object-id",
       verifiedTarget: null,
       candidateTargets,
       unavailableReason,
     };
   }
 
-  if (!supportedPowerType || powerAction?.familySupported === false || actionCandidate?.familySupported === false) {
+  if (candidateTargets.length === 0) {
     return {
-      state: "unsupported-family",
+      state: powerAction?.currentlyImplementedInCivilizationControl === false ? "future-supported" : "backend-only",
       verifiedTarget: null,
       candidateTargets,
       unavailableReason,
@@ -1057,12 +1089,26 @@ function buildBackendMembershipStructures(
       && (primaryAuthorityMatch.type === "gate" || primaryAuthorityMatch.type === "turret")
       && (observed.extensionStatus ?? primaryAuthorityMatch.extensionStatus) !== "authorized";
     const authorityCandidates = authorityMatches.map(toNodeLocalActionCandidate);
+    const fallbackActionTarget: NodeLocalActionTargetFallback = {
+      structureId: normalizeCanonicalObjectId(observed.objectId) ?? primaryAuthorityMatch?.objectId ?? null,
+      structureType: SUPPORTED_POWER_TYPE_BY_FAMILY[family] ?? null,
+      ownerCapId: observed.actionCandidate?.actions.power?.requiredIds?.ownerCapId
+        ?? normalizeCanonicalObjectId(observed.ownerCapId)
+        ?? primaryAuthorityMatch?.ownerCapId
+        ?? null,
+      networkNodeId: observed.actionCandidate?.actions.power?.requiredIds?.networkNodeId
+        ?? normalizeCanonicalObjectId(observed.energySourceId)
+        ?? observedLookup.networkNodeId
+        ?? primaryAuthorityMatch?.networkNodeId
+        ?? null,
+    };
     const actionAuthority = createNodeLocalActionAuthority(
       family,
       status,
       authorityCandidates,
       "backendMembership",
       observed.actionCandidate,
+      fallbackActionTarget,
     );
     const renderId = normalizeCanonicalObjectId(observed.objectId)
       ?? (normalizedAssemblyId ? `assembly:${normalizedAssemblyId}` : primaryAuthorityMatch?.objectId ?? observedIndex.byCanonicalKey.size.toString());

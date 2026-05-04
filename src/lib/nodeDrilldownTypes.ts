@@ -54,6 +54,7 @@ export type NodeLocalActionAuthorityState =
   | "backend-only"
   | "ambiguous-match"
   | "unsupported-family"
+  | "missing-object-id"
   | "missing-owner-cap"
   | "missing-node-context"
   | "synthetic";

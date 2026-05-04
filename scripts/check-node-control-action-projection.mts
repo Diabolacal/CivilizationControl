@@ -154,6 +154,71 @@ assert.deepEqual(
   "expected supported generic assembly rows to project the same write actions as the shipped families",
 );
 
+const supportedFamilyRows = [
+  { family: "gate", familyLabel: "Gate", typeLabel: "Gate", iconFamily: "gate", band: "corridor", structureType: "gate", status: "online", expectedPower: "Take Offline" },
+  { family: "tradePost", familyLabel: "Storage", typeLabel: "Storage", iconFamily: "tradePost", band: "logistics", structureType: "storage_unit", status: "offline", expectedPower: "Bring Online" },
+  { family: "turret", familyLabel: "Turret", typeLabel: "Turret", iconFamily: "turret", band: "defense", structureType: "turret", status: "online", expectedPower: "Take Offline" },
+  { family: "printer", familyLabel: "Printer", typeLabel: "Printer", iconFamily: "printer", band: "industry", structureType: "assembly", status: "offline", expectedPower: "Bring Online" },
+  { family: "refinery", familyLabel: "Refinery", typeLabel: "Refinery", iconFamily: "refinery", band: "industry", structureType: "assembly", status: "online", expectedPower: "Take Offline" },
+  { family: "assembler", familyLabel: "Assembler", typeLabel: "Assembler", iconFamily: "assembler", band: "industry", structureType: "assembly", status: "offline", expectedPower: "Bring Online" },
+  { family: "berth", familyLabel: "Berth", typeLabel: "Berth", iconFamily: "berth", band: "logistics", structureType: "assembly", status: "online", expectedPower: "Take Offline" },
+  { family: "relay", familyLabel: "Relay", typeLabel: "Relay", iconFamily: "relay", band: "support", structureType: "assembly", status: "offline", expectedPower: "Bring Online" },
+  { family: "nursery", familyLabel: "Nursery", typeLabel: "Nursery", iconFamily: "nursery", band: "support", structureType: "assembly", status: "online", expectedPower: "Take Offline" },
+  { family: "nest", familyLabel: "Nest", typeLabel: "Nest", iconFamily: "nest", band: "support", structureType: "assembly", status: "offline", expectedPower: "Bring Online" },
+  { family: "shelter", familyLabel: "Shelter", typeLabel: "Shelter", iconFamily: "hangar", band: "support", structureType: "assembly", status: "online", expectedPower: "Take Offline" },
+] as const;
+
+for (const row of supportedFamilyRows) {
+  const structure = makeNodeLocalStructure({
+    id: `node-local-${row.family}`,
+    canonicalDomainKey: `object:0x${row.family}`,
+    displayName: row.familyLabel,
+    typeLabel: row.typeLabel,
+    family: row.family,
+    familyLabel: row.familyLabel,
+    iconFamily: row.iconFamily,
+    band: row.band,
+    status: row.status,
+    tone: row.status,
+    actionAuthority: {
+      state: "verified-supported",
+      verifiedTarget: {
+        structureId: `0x${row.family}`,
+        structureType: row.structureType,
+        ownerCapId: `0x${row.family}-cap`,
+        networkNodeId: "0xnode",
+        status: row.status,
+      },
+      candidateTargets: [],
+      unavailableReason: null,
+    },
+  });
+  const powerState = getNodeLocalPowerControlState(structure);
+  assert.equal(powerState.isInteractive, true, `expected ${row.familyLabel} rail to be executable`);
+  assert.equal(powerState.actionLabel, row.expectedPower, `expected ${row.familyLabel} power label`);
+
+  const items = buildNodeDrilldownMenuItems({
+    contextMenu: {
+      ...sharedContextMenu,
+      structureId: structure.id,
+      canonicalDomainKey: structure.canonicalDomainKey,
+      structureName: structure.displayName,
+      powerActionLabel: row.expectedPower,
+      nextOnline: row.status !== "offline" ? false : true,
+    },
+    structure,
+    onHideStructure: () => undefined,
+    onUnhideStructure: () => undefined,
+    onTogglePower: () => undefined,
+    onRenameStructure: () => undefined,
+  });
+  assert.deepEqual(
+    items.map((item) => item.label),
+    ["Hide from Node View", row.expectedPower, "Rename Assembly"],
+    `expected ${row.familyLabel} to project hide, power, and rename actions`,
+  );
+}
+
 const missingOwnerCapStructure = makeNodeLocalStructure({
   family: "printer",
   familyLabel: "Printer",
@@ -196,5 +261,36 @@ assert.deepEqual(getNodeLocalPowerControlState(missingOwnerCapStructure), {
   isInteractive: false,
   isStatusOnly: true,
 }, "expected missing-owner-cap generic rows to resolve to a non-interactive status-only rail state");
+
+const unsupportedStructure = makeNodeLocalStructure({
+  id: "node-local-unknown",
+  family: "networkNode",
+  familyLabel: "Network Node",
+  typeLabel: "Network Node",
+  iconFamily: "networkNode",
+  isReadOnly: true,
+  isActionable: false,
+  actionAuthority: {
+    state: "unsupported-family",
+    verifiedTarget: null,
+    candidateTargets: [],
+    unavailableReason: null,
+  },
+});
+const unsupportedItems = buildNodeDrilldownMenuItems({
+  contextMenu: {
+    ...sharedContextMenu,
+    powerActionLabel: null,
+    nextOnline: null,
+  },
+  structure: unsupportedStructure,
+  onHideStructure: () => undefined,
+  onUnhideStructure: () => undefined,
+});
+assert.deepEqual(
+  unsupportedItems.map((item) => item.label),
+  ["Hide from Node View"],
+  "expected unsupported or fallback rows to avoid fake write actions",
+);
 
 console.log("node control action projection check: ok");
