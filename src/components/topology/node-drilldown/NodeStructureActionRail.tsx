@@ -6,6 +6,7 @@ import {
 import { cn } from "@/lib/utils";
 
 import type { TxStatus } from "@/types/domain";
+import type { StructureStatus } from "@/types/domain";
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
 
 interface NodeStructureActionRailProps {
@@ -20,111 +21,154 @@ interface NodeStructureActionRailProps {
   variant?: "rail" | "panel";
 }
 
-const POWER_SEGMENT_LABELS = {
-  offline: "Offline",
-  online: "Online",
-} as const;
-
-interface SegmentedPowerToggleProps {
-  selectedSegment: NodeLocalPowerSegment | null;
+interface PowerActionControlProps {
+  currentStatus: StructureStatus;
+  powerStatus: StructureStatus;
+  showAlert: boolean;
+  actionLabel: "Bring Online" | "Take Offline" | null;
   isInteractive: boolean;
   isBusy: boolean;
-  onSelectSegment?: (segment: NodeLocalPowerSegment) => void;
+  unavailableReason: string | null;
+  onTriggerAction?: () => void;
 }
 
-function segmentTone(segment: NodeLocalPowerSegment): string {
-  return segment === "online" ? "var(--topo-state-online)" : "var(--topo-state-offline)";
+interface StatusPillDescriptor {
+  label: string;
+  tone: string;
 }
 
-function segmentSelectedStyle(segment: NodeLocalPowerSegment, isDimmed: boolean): React.CSSProperties {
-  const tone = segmentTone(segment);
+function getStatusPillDescriptor(status: StructureStatus): StatusPillDescriptor {
+  switch (status) {
+    case "online":
+      return { label: "ONLINE", tone: "var(--topo-state-online)" };
+    case "offline":
+      return { label: "OFFLINE", tone: "var(--topo-state-offline)" };
+    default:
+      return { label: "UNCLEAR", tone: "var(--muted-foreground)" };
+  }
+}
+
+function derivePowerStatus(
+  currentStatus: StructureStatus,
+  actionLabel: "Bring Online" | "Take Offline" | null,
+): StructureStatus {
+  if (currentStatus === "online" || currentStatus === "offline") {
+    return currentStatus;
+  }
+
+  if (actionLabel === "Take Offline") {
+    return "online";
+  }
+
+  if (actionLabel === "Bring Online") {
+    return "offline";
+  }
+
+  return currentStatus;
+}
+
+function getFallbackActionLabel(status: StructureStatus): "Bring online" | "Take offline" | null {
+  if (status === "online") {
+    return "Take offline";
+  }
+
+  if (status === "offline") {
+    return "Bring online";
+  }
+
+  return null;
+}
+
+function formatActionButtonLabel(actionLabel: "Bring Online" | "Take Offline" | null, status: StructureStatus): string | null {
+  if (actionLabel === "Bring Online") {
+    return "Bring online";
+  }
+
+  if (actionLabel === "Take Offline") {
+    return "Take offline";
+  }
+
+  return getFallbackActionLabel(status);
+}
+
+function getStatusPillStyle(status: StructureStatus, isDimmed: boolean): React.CSSProperties {
+  const descriptor = getStatusPillDescriptor(status);
 
   return {
-    borderColor: `color-mix(in srgb, ${tone} ${isDimmed ? "38%" : "46%"}, var(--border) ${isDimmed ? "62%" : "54%"})`,
-    backgroundColor: `color-mix(in srgb, ${tone} ${isDimmed ? "10%" : "16%"}, transparent)`,
-    color: tone,
-    opacity: isDimmed ? 0.72 : 1,
+    borderColor: `color-mix(in srgb, ${descriptor.tone} ${isDimmed ? "34%" : "42%"}, var(--border) ${isDimmed ? "66%" : "58%"})`,
+    backgroundColor: `color-mix(in srgb, ${descriptor.tone} ${isDimmed ? "10%" : "15%"}, transparent)`,
+    color: descriptor.tone,
+    opacity: isDimmed ? 0.7 : 1,
   };
 }
 
-function segmentIdleStyle(segment: NodeLocalPowerSegment, isInteractive: boolean): React.CSSProperties | undefined {
-  if (!isInteractive) {
-    return undefined;
-  }
-
-  return {
-    color: `color-mix(in srgb, ${segmentTone(segment)} 78%, var(--foreground) 22%)`,
-  };
-}
-
-function segmentTitle(
-  segment: NodeLocalPowerSegment,
-  isSelected: boolean,
-  isInteractive: boolean,
-  isBusy: boolean,
-): string {
-  if (isBusy) {
-    return "Submitting structure power action…";
-  }
-
-  if (!isInteractive) {
-    return isSelected ? `Currently ${POWER_SEGMENT_LABELS[segment]}` : POWER_SEGMENT_LABELS[segment];
-  }
-
-  if (isSelected) {
-    return `Currently ${POWER_SEGMENT_LABELS[segment]}`;
-  }
-
-  return segment === "online" ? "Bring Online" : "Take Offline";
-}
-
-function SegmentedPowerToggle({
-  selectedSegment,
+function PowerActionControl({
+  currentStatus,
+  powerStatus,
+  showAlert,
+  actionLabel,
   isInteractive,
   isBusy,
-  onSelectSegment,
-}: SegmentedPowerToggleProps) {
+  unavailableReason,
+  onTriggerAction,
+}: PowerActionControlProps) {
+  const pill = getStatusPillDescriptor(powerStatus);
+  const buttonLabel = isBusy ? "Working..." : formatActionButtonLabel(actionLabel, currentStatus);
+  const actionTone = buttonLabel === "Bring online"
+    ? "var(--topo-state-online)"
+    : buttonLabel === "Take offline"
+      ? "var(--topo-state-offline)"
+      : "var(--foreground)";
+  const showActionButton = buttonLabel != null && (isInteractive || unavailableReason != null || isBusy);
+
   return (
-    <div aria-label="Online or Offline control" className="w-[146px]">
-      <div className="flex overflow-hidden rounded border border-border/60 bg-background/35 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-        {(["offline", "online"] as const).map((segment, index) => {
-          const isSelected = selectedSegment === segment;
-          const isUnavailable = !isInteractive && !isBusy;
-          const title = segmentTitle(segment, isSelected, isInteractive, isBusy);
+    <div aria-label="Structure status and power action" className="grid w-[208px] grid-cols-[96px_104px] items-center justify-end gap-2">
+      <div className="flex items-center justify-end gap-1.5">
+        {showAlert ? (
+          <span
+            className="inline-flex h-7 items-center justify-center rounded border border-[color:color-mix(in_srgb,var(--topo-state-warning)_42%,var(--border)_58%)] bg-[color:color-mix(in_srgb,var(--topo-state-warning)_14%,transparent)] px-2 text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--topo-state-warning)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+            title="Alert status requires attention"
+          >
+            Alert
+          </span>
+        ) : null}
 
-          return (
-            <button
-              key={segment}
-              type="button"
-              disabled={isBusy}
-              aria-pressed={isSelected}
-              aria-disabled={isBusy || isUnavailable || isSelected}
-              title={title}
-              onClick={() => {
-                if (isSelected || isBusy || !isInteractive) {
-                  return;
-                }
-
-                onSelectSegment?.(segment);
-              }}
-              className={cn(
-                "flex-1 px-2 py-1 text-[11px] font-medium transition-colors",
-                index === 1 ? "border-l border-border/60" : null,
-                isBusy
-                  ? "cursor-not-allowed text-muted-foreground/45"
-                  : isUnavailable
-                    ? "cursor-default text-muted-foreground/60"
-                  : isSelected
-                    ? "cursor-default"
-                    : "cursor-pointer hover:bg-background/50",
-              )}
-              style={isSelected ? segmentSelectedStyle(segment, isBusy || !isInteractive) : segmentIdleStyle(segment, isInteractive && !isBusy)}
-            >
-              {POWER_SEGMENT_LABELS[segment]}
-            </button>
-          );
-        })}
+        <span
+          className="inline-flex h-7 min-w-[72px] items-center justify-center rounded border bg-background/35 px-2 text-[10px] font-mono uppercase tracking-[0.2em] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+          style={getStatusPillStyle(powerStatus, isBusy || !isInteractive)}
+          title={`Current status: ${pill.label.toLowerCase()}`}
+        >
+          {pill.label}
+        </span>
       </div>
+
+      {showActionButton ? (
+        <button
+          type="button"
+          disabled={!isInteractive || isBusy}
+          aria-disabled={!isInteractive || isBusy}
+          aria-busy={isBusy || undefined}
+          onClick={() => {
+            if (!isInteractive || isBusy) {
+              return;
+            }
+
+            onTriggerAction?.();
+          }}
+          style={isInteractive && !isBusy ? ({ "--action-tone": actionTone } as React.CSSProperties) : undefined}
+          className={cn(
+            "inline-flex h-7 items-center justify-center rounded border px-2.5 text-[11px] font-medium transition-colors",
+            isInteractive && !isBusy
+              ? "border-border/60 bg-background/35 text-foreground hover:border-[var(--action-tone)] hover:bg-background/55 hover:text-[var(--action-tone)]"
+              : "cursor-default border-border/50 bg-background/20 text-muted-foreground/60",
+            isBusy ? "cursor-not-allowed" : null,
+          )}
+        >
+          {buttonLabel}
+        </button>
+      ) : (
+        <span className="h-7" aria-hidden="true" />
+      )}
     </div>
   );
 }
@@ -139,9 +183,10 @@ export function NodeStructureActionRail({
   variant = "rail",
 }: NodeStructureActionRailProps) {
   const powerControl = getNodeLocalPowerControlState(structure);
-  const selectedSegment = powerControl.selectedSegment;
+  const derivedPowerStatus = derivePowerStatus(powerControl.currentStatus, powerControl.actionLabel);
   const isBusy = powerStatus === "pending";
   const showPowerAction = powerControl.isInteractive && onTogglePower != null;
+  const unavailableReason = powerControl.isStatusOnly ? formatNodeLocalActionAuthorityDetail(structure) : null;
 
   const handleTogglePower = (segment: NodeLocalPowerSegment) => {
     if (powerControl.nextOnline == null || !onTogglePower) return;
@@ -152,6 +197,8 @@ export function NodeStructureActionRail({
     onFocusStructure?.(structure.id);
     onTogglePower(structure, nextOnline);
   };
+
+  const nextSegment = powerControl.nextOnline == null ? null : powerControl.nextOnline ? "online" : "offline";
 
   if (variant === "panel") {
     return (
@@ -164,11 +211,21 @@ export function NodeStructureActionRail({
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <SegmentedPowerToggle
-            selectedSegment={selectedSegment}
+          <PowerActionControl
+            currentStatus={powerControl.currentStatus}
+            powerStatus={derivedPowerStatus}
+            showAlert={structure.warningPip}
+            actionLabel={powerControl.actionLabel}
             isInteractive={showPowerAction && !isBusy}
             isBusy={isBusy}
-            onSelectSegment={handleTogglePower}
+            unavailableReason={unavailableReason}
+            onTriggerAction={() => {
+              if (nextSegment == null) {
+                return;
+              }
+
+              handleTogglePower(nextSegment);
+            }}
           />
 
           {isHidden ? (
@@ -186,12 +243,22 @@ export function NodeStructureActionRail({
   }
 
   return (
-    <div className="ml-1 flex w-[146px] shrink-0 flex-col items-end justify-center gap-1 text-right">
-      <SegmentedPowerToggle
-        selectedSegment={selectedSegment}
+    <div className="ml-1 flex w-[184px] shrink-0 flex-col items-end justify-center gap-1 text-right">
+      <PowerActionControl
+        currentStatus={powerControl.currentStatus}
+        powerStatus={derivedPowerStatus}
+        showAlert={structure.warningPip}
+        actionLabel={powerControl.actionLabel}
         isInteractive={showPowerAction && !isBusy}
         isBusy={isBusy}
-        onSelectSegment={handleTogglePower}
+        unavailableReason={unavailableReason}
+        onTriggerAction={() => {
+          if (nextSegment == null) {
+            return;
+          }
+
+          handleTogglePower(nextSegment);
+        }}
       />
 
       {isHidden ? (

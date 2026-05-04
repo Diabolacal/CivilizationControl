@@ -10,6 +10,16 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Attached-structure rail clarity polish - 2026-05-04
+
+This UI-only follow-up stays on `ui/node-control-action-rail-clarity`. It does not change write builders, sponsor policy, EF-Map behavior, package IDs, Move code, hidden-row behavior, context menus, inspector behavior, vendor state, or production deploy state.
+
+- the ambiguous two-segment `Online / Offline` rail in Node Control `Attached Structures` is replaced with two distinct controls: a compact status pill that reports the current state only and a single compact action button that offers the opposite operation
+- online rows now render `ONLINE` plus `Take offline`; offline rows now render `OFFLINE` plus `Bring online`; teal and red tones remain for scanability, but text labels now carry the meaning without relying on color alone
+- the action button still routes through the same node-local power toggle handler and `nextOnline` path that the old opposite segment used, so the execution path and transaction behavior are unchanged
+- unavailable rows keep the current status visible and only show a disabled action when there is a meaningful unavailable reason; rows that remain status-only stay calm rather than looking like broken dual-choice controls
+- the action area remains right-aligned and column-stable by using a fixed two-column compact rail width, preserving scanability down the list and normal desktop usability
+
 ### Final zero-package action closeout polish - 2026-05-04
 
 This final closeout stays on `feat/zero-package-action-parity`. It does not start network-node offline, Node Power State presets, marketplace work, signal-history implementation, EF-Map changes, VPS changes, Move changes, package-ID changes, or production deploy.
