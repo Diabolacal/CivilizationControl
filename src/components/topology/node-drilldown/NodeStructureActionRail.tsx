@@ -23,6 +23,8 @@ interface NodeStructureActionRailProps {
 
 interface PowerActionControlProps {
   currentStatus: StructureStatus;
+  powerStatus: StructureStatus;
+  showAlert: boolean;
   actionLabel: "Bring Online" | "Take Offline" | null;
   isInteractive: boolean;
   isBusy: boolean;
@@ -41,11 +43,28 @@ function getStatusPillDescriptor(status: StructureStatus): StatusPillDescriptor 
       return { label: "ONLINE", tone: "var(--topo-state-online)" };
     case "offline":
       return { label: "OFFLINE", tone: "var(--topo-state-offline)" };
-    case "warning":
-      return { label: "ALERT", tone: "var(--topo-state-warning)" };
     default:
       return { label: "UNCLEAR", tone: "var(--muted-foreground)" };
   }
+}
+
+function derivePowerStatus(
+  currentStatus: StructureStatus,
+  actionLabel: "Bring Online" | "Take Offline" | null,
+): StructureStatus {
+  if (currentStatus === "online" || currentStatus === "offline") {
+    return currentStatus;
+  }
+
+  if (actionLabel === "Take Offline") {
+    return "online";
+  }
+
+  if (actionLabel === "Bring Online") {
+    return "offline";
+  }
+
+  return currentStatus;
 }
 
 function getFallbackActionLabel(status: StructureStatus): "Bring online" | "Take offline" | null {
@@ -85,13 +104,15 @@ function getStatusPillStyle(status: StructureStatus, isDimmed: boolean): React.C
 
 function PowerActionControl({
   currentStatus,
+  powerStatus,
+  showAlert,
   actionLabel,
   isInteractive,
   isBusy,
   unavailableReason,
   onTriggerAction,
 }: PowerActionControlProps) {
-  const pill = getStatusPillDescriptor(currentStatus);
+  const pill = getStatusPillDescriptor(powerStatus);
   const buttonLabel = isBusy ? "Working..." : formatActionButtonLabel(actionLabel, currentStatus);
   const showActionButton = buttonLabel != null && (isInteractive || unavailableReason != null || isBusy);
   const buttonTitle = isBusy
@@ -101,14 +122,25 @@ function PowerActionControl({
       : unavailableReason;
 
   return (
-    <div aria-label="Structure status and power action" className="grid w-[184px] grid-cols-[72px_104px] items-center justify-end gap-2">
-      <span
-        className="inline-flex h-7 items-center justify-center rounded border bg-background/35 px-2 text-[10px] font-mono uppercase tracking-[0.2em] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
-        style={getStatusPillStyle(currentStatus, isBusy || !isInteractive)}
-        title={`Current status: ${pill.label.toLowerCase()}`}
-      >
-        {pill.label}
-      </span>
+    <div aria-label="Structure status and power action" className="grid w-[208px] grid-cols-[96px_104px] items-center justify-end gap-2">
+      <div className="flex items-center justify-end gap-1.5">
+        {showAlert ? (
+          <span
+            className="inline-flex h-6 items-center justify-center rounded border border-[color:color-mix(in_srgb,var(--topo-state-warning)_42%,var(--border)_58%)] bg-[color:color-mix(in_srgb,var(--topo-state-warning)_14%,transparent)] px-1.5 text-[9px] font-mono uppercase tracking-[0.18em] text-[var(--topo-state-warning)]"
+            title="Alert status requires attention"
+          >
+            Alert
+          </span>
+        ) : null}
+
+        <span
+          className="inline-flex h-7 min-w-[72px] items-center justify-center rounded border bg-background/35 px-2 text-[10px] font-mono uppercase tracking-[0.2em] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
+          style={getStatusPillStyle(powerStatus, isBusy || !isInteractive)}
+          title={`Current status: ${pill.label.toLowerCase()}`}
+        >
+          {pill.label}
+        </span>
+      </div>
 
       {showActionButton ? (
         <button
@@ -151,6 +183,7 @@ export function NodeStructureActionRail({
   variant = "rail",
 }: NodeStructureActionRailProps) {
   const powerControl = getNodeLocalPowerControlState(structure);
+  const derivedPowerStatus = derivePowerStatus(powerControl.currentStatus, powerControl.actionLabel);
   const isBusy = powerStatus === "pending";
   const showPowerAction = powerControl.isInteractive && onTogglePower != null;
   const unavailableReason = powerControl.isStatusOnly ? formatNodeLocalActionAuthorityDetail(structure) : null;
@@ -180,6 +213,8 @@ export function NodeStructureActionRail({
         <div className="flex flex-wrap items-center gap-2">
           <PowerActionControl
             currentStatus={powerControl.currentStatus}
+            powerStatus={derivedPowerStatus}
+            showAlert={structure.warningPip}
             actionLabel={powerControl.actionLabel}
             isInteractive={showPowerAction && !isBusy}
             isBusy={isBusy}
@@ -211,6 +246,8 @@ export function NodeStructureActionRail({
     <div className="ml-1 flex w-[184px] shrink-0 flex-col items-end justify-center gap-1 text-right">
       <PowerActionControl
         currentStatus={powerControl.currentStatus}
+        powerStatus={derivedPowerStatus}
+        showAlert={structure.warningPip}
         actionLabel={powerControl.actionLabel}
         isInteractive={showPowerAction && !isBusy}
         isBusy={isBusy}
