@@ -17,11 +17,13 @@ function formatPowerSuccessLabel(structure: Structure, nextOnline: boolean): str
         ? "Gate"
         : "Turret";
 
-  return `${familyLabel} ${nextOnline ? "brought online" : "taken offline"}`;
+  return `${familyLabel} ${nextOnline ? "brought online" : "taken offline"}. Awaiting read-model sync.`;
 }
 
 function formatRenameSuccessLabel(structure: Structure): string {
-  return structure.type === "network_node" ? "Network node renamed" : "Assembly renamed";
+  return structure.type === "network_node"
+    ? "Network node renamed. Awaiting read-model sync."
+    : "Assembly renamed. Awaiting read-model sync.";
 }
 
 export function useStructureSurfaceActions() {
@@ -47,7 +49,16 @@ export function useStructureSurfaceActions() {
             nodeId: structure.objectId,
             ownerCapId: structure.ownerCapId,
           },
-          { refetchSignalFeed: true },
+          {
+            refetchSignalFeed: true,
+            target: {
+              objectId: structure.objectId,
+              structureType: structure.type,
+              ownerCapId: structure.ownerCapId,
+              assemblyId: structure.assemblyId ?? null,
+              displayName: structure.name,
+            },
+          },
         );
       }
 
@@ -59,7 +70,17 @@ export function useStructureSurfaceActions() {
           networkNodeId: structure.networkNodeId!,
           online: nextOnline,
         },
-        { refetchSignalFeed: true },
+        {
+          refetchSignalFeed: true,
+          target: {
+            objectId: structure.objectId,
+            structureType: structure.type,
+            ownerCapId: structure.ownerCapId,
+            networkNodeId: structure.networkNodeId ?? null,
+            assemblyId: structure.assemblyId ?? null,
+            displayName: structure.name,
+          },
+        },
       );
     },
     [power],
@@ -93,7 +114,17 @@ export function useStructureSurfaceActions() {
           ownerCapId: renameTarget.ownerCapId,
           name: nextName,
         },
-        { refetchSignalFeed: false },
+        {
+          refetchSignalFeed: false,
+          target: {
+            objectId: renameTarget.objectId,
+            structureType: renameTarget.type,
+            ownerCapId: renameTarget.ownerCapId,
+            networkNodeId: renameTarget.networkNodeId ?? null,
+            assemblyId: renameTarget.assemblyId ?? null,
+            displayName: renameTarget.name,
+          },
+        },
       );
 
       if (succeeded) {

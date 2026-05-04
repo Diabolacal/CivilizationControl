@@ -426,6 +426,128 @@ assert.equal(aliasBridgeRow?.directChainMatchCount, 1, "expected alias-bridge st
 assert.equal(aliasBridgeRow?.actionAuthority.state, "verified-supported", "expected merged observed aliases to preserve one verified-supported storage match");
 assert.equal(aliasBridgeRow?.actionAuthority.verifiedTarget?.structureId, aliasBridgeGroup.storageUnits[0]?.objectId, "expected alias-bridge storage row to resolve back to the live storage object");
 
+const incompleteIndexedCandidateGroup: NetworkNodeGroup = {
+  node: {
+    objectId: "0x00000000000000000000000000000000000000000000000000000000000000cc",
+    ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000000ccc",
+    assemblyId: "9020",
+    type: "network_node",
+    name: "Indexed Candidate Node",
+    status: "online",
+    extensionStatus: "authorized",
+  },
+  gates: [],
+  storageUnits: [
+    {
+      objectId: "0x0000000000000000000000000000000000000000000000000000000000000202",
+      ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000d202",
+      assemblyId: "4202",
+      type: "storage_unit",
+      name: "Storage bridge4202",
+      status: "online",
+      networkNodeId: "0x00000000000000000000000000000000000000000000000000000000000000cc",
+      extensionStatus: "authorized",
+    },
+  ],
+  turrets: [],
+};
+
+const incompleteIndexedCandidateLookup: NodeAssembliesLookupResult = {
+  status: "success",
+  networkNodeId: incompleteIndexedCandidateGroup.node.objectId,
+  node: {
+    objectId: incompleteIndexedCandidateGroup.node.objectId,
+    name: "Indexed Candidate Node",
+    status: "ONLINE",
+    assemblyId: "9020",
+    solarSystemId: null,
+    energySourceId: null,
+  },
+  assemblies: [
+    {
+      objectId: incompleteIndexedCandidateGroup.storageUnits[0]?.objectId ?? null,
+      assemblyId: "4202",
+      linkedGateId: null,
+      assemblyType: "storage_unit",
+      typeId: 88083,
+      typeName: "Storage",
+      name: "Storage Indexed",
+      displayName: "Storage Indexed",
+      status: "ONLINE",
+      fuelAmount: null,
+      solarSystemId: null,
+      energySourceId: null,
+      url: null,
+      lastUpdated: "2026-05-04T12:00:00.000Z",
+      source: "operator-inventory",
+      provenance: "node-local-indexer",
+      actionCandidate: {
+        actions: {
+          power: {
+            candidate: false,
+            currentlyImplementedInCivilizationControl: true,
+            familySupported: true,
+            indexedOwnerCapPresent: true,
+            requiredIds: {
+              structureId: incompleteIndexedCandidateGroup.storageUnits[0]?.objectId ?? null,
+              structureType: "storage_unit",
+              ownerCapId: incompleteIndexedCandidateGroup.storageUnits[0]?.ownerCapId ?? null,
+              networkNodeId: null,
+            },
+            unavailableReason: "Indexed candidate missing node context.",
+          },
+          rename: {
+            candidate: true,
+            currentlyImplementedInCivilizationControl: true,
+            familySupported: true,
+            indexedOwnerCapPresent: true,
+            requiredIds: {
+              structureId: incompleteIndexedCandidateGroup.storageUnits[0]?.objectId ?? null,
+              structureType: "storage_unit",
+              ownerCapId: incompleteIndexedCandidateGroup.storageUnits[0]?.ownerCapId ?? null,
+              networkNodeId: null,
+            },
+            unavailableReason: null,
+          },
+        },
+        supported: true,
+        familySupported: true,
+        unavailableReason: null,
+      },
+    },
+  ],
+  fetchedAt: "2026-05-04T12:00:00.000Z",
+  source: "operator-inventory",
+  error: null,
+  isPartial: false,
+  droppedCount: 0,
+};
+
+const incompleteIndexedCandidateViewModel = buildLiveNodeLocalViewModelWithObserved(
+  incompleteIndexedCandidateGroup,
+  incompleteIndexedCandidateLookup,
+);
+const incompleteIndexedCandidateRow = incompleteIndexedCandidateViewModel.structures.find(
+  (structure) => structure.assemblyId === "4202",
+);
+
+assert.ok(incompleteIndexedCandidateRow, "expected incomplete indexed candidate row to render");
+assert.equal(
+  incompleteIndexedCandidateRow?.actionAuthority.state,
+  "verified-supported",
+  "expected a uniquely matched backend-membership row to stay actionable even when the indexed power candidate omits network node context",
+);
+assert.equal(
+  incompleteIndexedCandidateRow?.actionAuthority.verifiedTarget?.networkNodeId,
+  incompleteIndexedCandidateGroup.node.objectId,
+  "expected the action resolver to recover network node context from the matching live structure row",
+);
+assert.equal(
+  incompleteIndexedCandidateRow?.actionAuthority.verifiedTarget?.ownerCapId,
+  incompleteIndexedCandidateGroup.storageUnits[0]?.ownerCapId,
+  "expected the action resolver to preserve the owner-cap target while upgrading the row to verified-supported",
+);
+
 console.log(JSON.stringify({
   sourceMode: viewModel.sourceMode,
   totalRows: structures.length,

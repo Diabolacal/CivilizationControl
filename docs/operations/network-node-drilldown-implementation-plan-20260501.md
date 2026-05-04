@@ -10,6 +10,18 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Live Node Control corrective follow-up - 2026-05-04
+
+This tracked follow-up stays on `feat/zero-package-action-parity`. It does not change Move contracts, package IDs, EF-Map contracts, vendor state, or production deploy state.
+
+- human wallet-connected preview smoke on the earlier zero-package preview proved the first parity pass was incomplete: live Node Control backend-membership rows could still collapse to hide-only menus and locked rails even when the same structure was actionable from global lists, and successful rename or power writes could snap back to stale operator-inventory values after navigation or refresh
+- root cause 1 was local to `src/lib/nodeDrilldownModel.ts`: backend-membership rows depended on `actionAuthority.verifiedTarget`, but incomplete indexed `actionCandidate.actions.power.requiredIds.networkNodeId` data could override a unique live match and downgrade an otherwise actionable row to `missing-node-context` or `backend-only`
+- root cause 2 was app-owned read freshness, not new backend authority: `useAssetDiscovery()` is operator-inventory-first and the earlier one-shot `useStructureWriteRefresh()` invalidation let successful rename/power writes revert to stale indexed values before the shared read model caught up
+- the corrective pass now resolves verified node-local targets from either indexed required IDs or a unique live match, adds shared post-write reconciliation overlays plus bounded retry across operator inventory, asset discovery, selected-node lookup, and active signal history, and proves both seams deterministically in `scripts/check-node-drilldown-reconciliation.mts` plus `scripts/check-structure-write-reconciliation.mts`
+- validation passed: `npm run typecheck`; `npm run build`; `git diff --check` with only the preserved LF/CRLF warning on `contracts/civilization_control/Move.lock`; `npx tsx scripts/check-operator-inventory-mapping.mts`; `npx tsx scripts/check-node-drilldown-reconciliation.mts`; `npx tsx scripts/check-signal-history-mapping.mts`; `npx tsx scripts/check-structure-action-support.mts`; `npx tsx scripts/check-structure-write-reconciliation.mts`; and `npm run sponsor:validate-policy`
+- fresh preview evidence for the corrective pass is now `https://d4129717.civilizationcontrol.pages.dev` with alias `https://feat-zero-package-action-par-da22.civilizationcontrol.pages.dev`; route smoke confirmed `/`, `/nodes`, `/activity`, `/settings`, and `/dev/node-drilldown-lab`; dev-lab right-click on `Storage Alpha` attached row still exposed `Hide from Node View`, `Take Offline`, and `Rename Assembly`; and served-bundle scanning across 12 deployed JS assets found `civilizationcontrol-sponsor` in `App-CU7FB83W.js` and `SmartObjectProvider-C6Z0WB_g.js`, found `https://ef-map.com` in `SmartObjectProvider-C6Z0WB_g.js` and `useNodeDrilldownStructureMenu-D4kJsMFU.js`, and found no `flappy-frontier-sponsor`, quoted `Authorization`, `ASSEMBLY_API_TOKEN`, `X-API-Key`, `SPONSOR_PRIVATE_KEY`, `CF_API_TOKEN`, or `CLOUDFLARE_ACCOUNT_ID`
+- network-node offline, node power state presets, marketplace/revenue work, and signal-history parity expansion remain separate follow-ups; this corrective branch keeps the zero-package four-family scope only
+
 ### Write-action audit before any package change - 2026-05-04
 
 This follow-up is docs-only on `docs/node-control-write-action-audit`. It does not change frontend runtime code, Move code, sponsor-worker behavior, EF-Map code, package IDs, vendor state, or production deploy state.

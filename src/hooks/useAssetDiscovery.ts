@@ -5,10 +5,12 @@
  * Groups structures by network node for the dashboard view.
  */
 
+import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useConnection } from "@evefrontier/dapp-kit";
 import { useAssemblySummaryEnrichment } from "@/hooks/useAssemblySummaryEnrichment";
 import { useOperatorInventory } from "@/hooks/useOperatorInventory";
+import { useStructureWriteReconciliation } from "@/hooks/useStructureWriteReconciliation";
 import { buildDisplayNodeGroupsFromStructures, type AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
 import { getSuiDiscoveryErrorMessage, getConfiguredSuiRpcUrl } from "@/lib/suiRpcClient";
 import { discoverAssets, fetchCharacterMetadata } from "@/lib/suiReader";
@@ -21,6 +23,7 @@ export function useAssetDiscovery() {
   const { walletAddress, isConnected } = useConnection();
   const rpcUrl = getConfiguredSuiRpcUrl();
   const operatorInventory = useOperatorInventory();
+  const { applyNodeGroups, applyStructures } = useStructureWriteReconciliation();
   const shouldUseDirectFallback = Boolean(
     operatorInventory.isConnected && operatorInventory.walletAddress && operatorInventory.isError,
   );
@@ -64,17 +67,23 @@ export function useAssetDiscovery() {
     ? getSuiDiscoveryErrorMessage(discoveryQuery.error)
     : null;
   const operatorStructures = operatorInventory.adapted?.structures ?? null;
-  const structures = operatorStructures ?? enrichedFallbackStructures;
+  const baseStructures = operatorStructures ?? enrichedFallbackStructures;
+  const structures = useMemo(
+    () => applyStructures(baseStructures),
+    [applyStructures, baseStructures],
+  );
   const isUsingOperatorInventory = operatorInventory.adapted != null;
   const profileResult = isUsingOperatorInventory
     ? operatorInventory.adapted?.profile ?? null
     : resolvedProfile;
-  const nodeGroups = isUsingOperatorInventory
+  const baseNodeGroups = isUsingOperatorInventory
     ? operatorInventory.adapted?.nodeGroups ?? []
     : buildDisplayNodeGroupsFromStructures(structures);
-  const metrics = isUsingOperatorInventory
-    ? operatorInventory.adapted?.metrics ?? computeMetrics(structures)
-    : computeMetrics(structures);
+  const nodeGroups = useMemo(
+    () => applyNodeGroups(baseNodeGroups),
+    [applyNodeGroups, baseNodeGroups],
+  );
+  const metrics = computeMetrics(structures);
   const directChainFallbackRan = shouldUseDirectFallback && (
     discoveryQuery.fetchStatus !== "idle"
     || discoveryQuery.data != null

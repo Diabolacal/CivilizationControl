@@ -463,120 +463,71 @@ function toNodeLocalActionCandidateFromRequiredIds(
   };
 }
 
-function createIndexedNodeLocalActionAuthority(
+function dedupeNodeLocalActionCandidates(
+  candidateTargets: NodeLocalActionCandidateTarget[],
+): NodeLocalActionCandidateTarget[] {
+  const seen = new Set<string>();
+  const deduped: NodeLocalActionCandidateTarget[] = [];
+
+  for (const candidateTarget of candidateTargets) {
+    const key = [
+      candidateTarget.structureId,
+      candidateTarget.structureType,
+      candidateTarget.ownerCapId ?? "",
+      candidateTarget.networkNodeId ?? "",
+      candidateTarget.status,
+    ].join("|");
+
+    if (seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    deduped.push(candidateTarget);
+  }
+
+  return deduped;
+}
+
+function resolveNodeLocalVerifiedTarget(
   family: NodeLocalFamily,
   status: StructureStatus,
-  actionCandidate: ObservedAssembly["actionCandidate"] | AssemblySummary["actionCandidate"] | null | undefined,
-): NodeLocalActionAuthority | null {
-  const powerAction = actionCandidate?.actions.power;
-  if (!powerAction) {
+  powerAction: IndexedPowerAction | null | undefined,
+  liveCandidate: NodeLocalActionCandidateTarget | null,
+): NodeLocalActionAuthority["verifiedTarget"] {
+  const supportedPowerType = SUPPORTED_POWER_TYPE_BY_FAMILY[family] ?? null;
+  if (!supportedPowerType) {
     return null;
   }
 
-  const supportedPowerType = SUPPORTED_POWER_TYPE_BY_FAMILY[family] ?? null;
-  const candidateTarget = toNodeLocalActionCandidateFromRequiredIds(powerAction, status);
-  const candidateTargets = candidateTarget ? [candidateTarget] : [];
-  const unavailableReason = powerAction.unavailableReason ?? actionCandidate?.unavailableReason ?? null;
-
-  if (!powerAction.candidate) {
-    if (powerAction.currentlyImplementedInCivilizationControl === false) {
-      return {
-        state: "future-supported",
-        verifiedTarget: null,
-        candidateTargets,
-        unavailableReason,
-      };
-    }
-
-    if (!supportedPowerType || powerAction.familySupported === false || actionCandidate?.familySupported === false) {
-      return {
-        state: "unsupported-family",
-        verifiedTarget: null,
-        candidateTargets,
-        unavailableReason,
-      };
-    }
-
-    if (powerAction.indexedOwnerCapPresent === false) {
-      return {
-        state: "missing-owner-cap",
-        verifiedTarget: null,
-        candidateTargets,
-        unavailableReason,
-      };
-    }
-
-    if (powerAction.requiredIds && !powerAction.requiredIds.networkNodeId) {
-      return {
-        state: "missing-node-context",
-        verifiedTarget: null,
-        candidateTargets,
-        unavailableReason,
-      };
-    }
-
-    return {
-      state: "backend-only",
-      verifiedTarget: null,
-      candidateTargets,
-      unavailableReason,
-    };
+  const candidateTarget = powerAction ? toNodeLocalActionCandidateFromRequiredIds(powerAction, status) : null;
+  const structureType = candidateTarget?.structureType ?? liveCandidate?.structureType ?? null;
+  if (structureType !== supportedPowerType) {
+    return null;
   }
 
-  if (powerAction.currentlyImplementedInCivilizationControl === false) {
-    return {
-      state: "future-supported",
-      verifiedTarget: null,
-      candidateTargets,
-      unavailableReason,
-    };
-  }
-
-  if (!supportedPowerType || powerAction.requiredIds?.structureType !== supportedPowerType || !candidateTarget) {
-    return {
-      state: "unsupported-family",
-      verifiedTarget: null,
-      candidateTargets,
-      unavailableReason,
-    };
-  }
-
-  if (!powerAction.requiredIds?.ownerCapId) {
-    return {
-      state: "missing-owner-cap",
-      verifiedTarget: null,
-      candidateTargets,
-      unavailableReason,
-    };
-  }
-
-  if (!powerAction.requiredIds?.networkNodeId) {
-    return {
-      state: "missing-node-context",
-      verifiedTarget: null,
-      candidateTargets,
-      unavailableReason,
-    };
+  const structureId = powerAction?.requiredIds?.structureId ?? liveCandidate?.structureId;
+  const ownerCapId = powerAction?.requiredIds?.ownerCapId ?? liveCandidate?.ownerCapId;
+  const networkNodeId = powerAction?.requiredIds?.networkNodeId ?? liveCandidate?.networkNodeId;
+  if (!structureId || !ownerCapId || !networkNodeId) {
+    return null;
   }
 
   return {
-    state: "verified-supported",
-    verifiedTarget: {
-      structureId: candidateTarget.structureId,
-      structureType: supportedPowerType,
-      ownerCapId: powerAction.requiredIds.ownerCapId,
-      networkNodeId: powerAction.requiredIds.networkNodeId,
-      status: candidateTarget.status,
-    },
-    candidateTargets,
-    unavailableReason,
+    structureId,
+    structureType: supportedPowerType,
+    ownerCapId,
+    networkNodeId,
+    status,
   };
 }
 
 function createNodeLocalActionAuthority(
   family: NodeLocalFamily,
+  status: StructureStatus,
   liveMatches: Structure[],
   source: NodeLocalStructure["source"],
+  actionCandidate?: ObservedAssembly["actionCandidate"] | AssemblySummary["actionCandidate"] | null,
 ): NodeLocalActionAuthority {
   if (source === "synthetic") {
     return {
@@ -587,13 +538,33 @@ function createNodeLocalActionAuthority(
     };
   }
 
-  const candidateTargets = liveMatches.map(toNodeLocalActionCandidate);
-  if (candidateTargets.length === 0) {
+  const powerAction = actionCandidate?.actions.power;
+  const supportedPowerType = SUPPORTED_POWER_TYPE_BY_FAMILY[family] ?? null;
+  const liveCandidateTargets = liveMatches.map(toNodeLocalActionCandidate);
+  const indexedCandidateTarget = powerAction ? toNodeLocalActionCandidateFromRequiredIds(powerAction, status) : null;
+  const candidateTargets = dedupeNodeLocalActionCandidates([
+    ...liveCandidateTargets,
+    ...(indexedCandidateTarget ? [indexedCandidateTarget] : []),
+  ]);
+  const unavailableReason = powerAction?.unavailableReason ?? actionCandidate?.unavailableReason ?? null;
+  const uniqueLiveCandidate = liveCandidateTargets.length === 1 ? liveCandidateTargets[0] : null;
+  const verifiedTarget = resolveNodeLocalVerifiedTarget(family, status, powerAction, uniqueLiveCandidate);
+
+  if (verifiedTarget) {
     return {
-      state: "backend-only",
+      state: "verified-supported",
+      verifiedTarget,
+      candidateTargets,
+      unavailableReason,
+    };
+  }
+
+  if (powerAction?.currentlyImplementedInCivilizationControl === false) {
+    return {
+      state: "future-supported",
       verifiedTarget: null,
       candidateTargets,
-      unavailableReason: null,
+      unavailableReason,
     };
   }
 
@@ -602,50 +573,51 @@ function createNodeLocalActionAuthority(
       state: "ambiguous-match",
       verifiedTarget: null,
       candidateTargets,
-      unavailableReason: null,
+      unavailableReason,
     };
   }
 
-  const supportedPowerType = SUPPORTED_POWER_TYPE_BY_FAMILY[family] ?? null;
-  if (!supportedPowerType) {
+  if (candidateTargets.length === 0) {
+    return {
+      state: "backend-only",
+      verifiedTarget: null,
+      candidateTargets,
+      unavailableReason,
+    };
+  }
+
+  if (!supportedPowerType || powerAction?.familySupported === false || actionCandidate?.familySupported === false) {
     return {
       state: "unsupported-family",
       verifiedTarget: null,
       candidateTargets,
-      unavailableReason: null,
+      unavailableReason,
     };
   }
 
-  const [candidate] = candidateTargets;
-  if (!candidate.ownerCapId) {
+  if (powerAction?.indexedOwnerCapPresent === false || candidateTargets[0]?.ownerCapId == null) {
     return {
       state: "missing-owner-cap",
       verifiedTarget: null,
       candidateTargets,
-      unavailableReason: null,
+      unavailableReason,
     };
   }
 
-  if (!candidate.networkNodeId) {
+  if (powerAction?.requiredIds && !powerAction.requiredIds.networkNodeId) {
     return {
       state: "missing-node-context",
       verifiedTarget: null,
       candidateTargets,
-      unavailableReason: null,
+      unavailableReason,
     };
   }
 
   return {
-    state: "verified-supported",
-    verifiedTarget: {
-      structureId: candidate.structureId,
-      structureType: supportedPowerType,
-      ownerCapId: candidate.ownerCapId,
-      networkNodeId: candidate.networkNodeId,
-      status: candidate.status,
-    },
+    state: candidateTargets[0]?.networkNodeId == null ? "missing-node-context" : "backend-only",
+    verifiedTarget: null,
     candidateTargets,
-    unavailableReason: null,
+    unavailableReason,
   };
 }
 
@@ -949,17 +921,13 @@ function buildLiveFallbackStructures(liveStructures: Structure[]): NodeLocalStru
       (structure.type === "gate" || structure.type === "turret") &&
       (structure.summary?.extensionStatus ?? structure.extensionStatus) !== "authorized";
     const normalizedAssemblyId = normalizeNodeDrilldownAssemblyId(structure.assemblyId) ?? undefined;
-    const indexedActionAuthority = createIndexedNodeLocalActionAuthority(
+    const actionAuthority = createNodeLocalActionAuthority(
       family,
       status,
+      [structure],
+      source,
       structure.summary?.actionCandidate,
     );
-    const actionAuthority = indexedActionAuthority
-      ?? createNodeLocalActionAuthority(
-        family,
-        structure.readModelSource === "operator-inventory" ? [] : [structure],
-        source,
-      );
     const hasDirectChainAuthority = structure.readModelSource !== "operator-inventory";
 
     return createNodeLocalStructure({
@@ -1038,8 +1006,13 @@ function buildBackendMembershipStructures(
     const needsExtensionWarning = primaryLiveMatch != null
       && (primaryLiveMatch.type === "gate" || primaryLiveMatch.type === "turret")
       && (observed.extensionStatus ?? primaryLiveMatch.extensionStatus) !== "authorized";
-    const actionAuthority = createIndexedNodeLocalActionAuthority(family, status, observed.actionCandidate)
-      ?? createNodeLocalActionAuthority(family, liveMatches, "backendMembership");
+    const actionAuthority = createNodeLocalActionAuthority(
+      family,
+      status,
+      liveMatches,
+      "backendMembership",
+      observed.actionCandidate,
+    );
     const renderId = normalizeCanonicalObjectId(observed.objectId)
       ?? (normalizedAssemblyId ? `assembly:${normalizedAssemblyId}` : primaryLiveMatch?.objectId ?? observedIndex.byCanonicalKey.size.toString());
 
@@ -1355,7 +1328,7 @@ export function buildSyntheticNodeLocalViewModel(
         hasDirectChainAuthority: false,
         directChainMatchCount: 0,
         futureActionEligible: false,
-        actionAuthority: createNodeLocalActionAuthority(family, [], "synthetic"),
+        actionAuthority: createNodeLocalActionAuthority(family, structure.status ?? "neutral", [], "synthetic"),
         typeLabel: structure.typeLabel,
         warningPip: structure.warningPip,
         linkedGateId: structure.linkedGateId,

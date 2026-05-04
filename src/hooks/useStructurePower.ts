@@ -13,6 +13,7 @@ import {
 } from "@/lib/structurePowerTx";
 import { useCharacterId } from "@/hooks/useCharacter";
 import { useSponsoredExecution } from "@/hooks/useSponsoredExecution";
+import { useStructureWriteReconciliation } from "@/hooks/useStructureWriteReconciliation";
 import {
   useStructureWriteRefresh,
   type StructureWriteRefreshOptions,
@@ -51,6 +52,7 @@ function friendlyError(raw: string): string {
 export function useStructurePower() {
   const executeTx = useSponsoredExecution();
   const characterId = useCharacterId();
+  const { reconcileWrite } = useStructureWriteReconciliation();
   const refreshAfterWrite = useStructureWriteRefresh();
 
   const [status, setStatus] = useState<TxStatus>("idle");
@@ -60,6 +62,7 @@ export function useStructurePower() {
   const execute = useCallback(
     async (
       buildTx: () => ReturnType<typeof buildAssemblyPowerTx>,
+      desiredStatus: "online" | "offline",
       refreshOptions?: StructureWriteRefreshOptions,
     ) => {
       setStatus("pending");
@@ -68,7 +71,17 @@ export function useStructurePower() {
       try {
         const tx = buildTx();
         const { digest } = await executeTx(tx);
-        await refreshAfterWrite(refreshOptions);
+        if (refreshOptions?.target) {
+          reconcileWrite({
+            action: "power",
+            digest,
+            target: refreshOptions.target,
+            desiredStatus,
+            refreshOptions,
+          });
+        } else {
+          await refreshAfterWrite(refreshOptions);
+        }
         setResult({ digest });
         setStatus("success");
         return true;
@@ -79,13 +92,17 @@ export function useStructurePower() {
         return false;
       }
     },
-    [executeTx, refreshAfterWrite],
+    [executeTx, reconcileWrite, refreshAfterWrite],
   );
 
   const toggleSingle = useCallback(
     (params: SinglePowerParams, refreshOptions?: StructureWriteRefreshOptions) => {
       if (!characterId) throw new Error("Character not resolved yet — please wait");
-      return execute(() => buildAssemblyPowerTx({ ...params, characterId }), refreshOptions);
+      return execute(
+        () => buildAssemblyPowerTx({ ...params, characterId }),
+        params.online ? "online" : "offline",
+        refreshOptions,
+      );
     },
     [execute, characterId],
   );
@@ -93,7 +110,11 @@ export function useStructurePower() {
   const toggleBatch = useCallback(
     (params: BatchPowerParams, refreshOptions?: StructureWriteRefreshOptions) => {
       if (!characterId) throw new Error("Character not resolved yet — please wait");
-      return execute(() => buildBatchAssemblyPowerTx({ ...params, characterId }), refreshOptions);
+      return execute(
+        () => buildBatchAssemblyPowerTx({ ...params, characterId }),
+        params.online ? "online" : "offline",
+        refreshOptions,
+      );
     },
     [execute, characterId],
   );
@@ -101,7 +122,7 @@ export function useStructurePower() {
   const bringNodeOnline = useCallback(
     (params: NodeOnlineParams, refreshOptions?: StructureWriteRefreshOptions) => {
       if (!characterId) throw new Error("Character not resolved yet — please wait");
-      return execute(() => buildNodeOnlineTx({ ...params, characterId }), refreshOptions);
+      return execute(() => buildNodeOnlineTx({ ...params, characterId }), "online", refreshOptions);
     },
     [execute, characterId],
   );

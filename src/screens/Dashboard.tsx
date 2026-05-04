@@ -43,6 +43,7 @@ import { useNodeDrilldownStructureMenu } from "@/hooks/useNodeDrilldownStructure
 import { useOperatorInventory } from "@/hooks/useOperatorInventory";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import { useStructureRename } from "@/hooks/useStructureRename";
+import { useStructureWriteReconciliation } from "@/hooks/useStructureWriteReconciliation";
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
 import { formatLux, formatEve } from "@/lib/currency";
 import { buildFuelPresentation, formatRuntimeSeconds } from "@/lib/fuelRuntime";
@@ -132,7 +133,11 @@ export function Dashboard({
   } = useNodeAssemblies(selectedNodeGroup?.node.objectId ?? null, {
     enabled: shouldUseNodeAssembliesFallback,
   });
-  const selectedNodeObservedLookup = selectedNodeInventoryLookup ?? selectedNodeAssembliesLookup;
+  const { applyNodeAssembliesLookup } = useStructureWriteReconciliation();
+  const selectedNodeObservedLookup = useMemo(
+    () => applyNodeAssembliesLookup(selectedNodeInventoryLookup ?? selectedNodeAssembliesLookup),
+    [applyNodeAssembliesLookup, selectedNodeAssembliesLookup, selectedNodeInventoryLookup],
+  );
   const selectedNodeBuildOptions = useMemo(
     () => ({
       isLoading: selectedNodeInventoryLookup == null
@@ -148,7 +153,10 @@ export function Dashboard({
   const [powerSuccessLabel, setPowerSuccessLabel] = useState("Structure power state updated");
   const [renameSuccessLabel, setRenameSuccessLabel] = useState("Assembly renamed");
   const [renameTarget, setRenameTarget] = useState<{
+    assemblyId: string | null;
+    canonicalDomainKey: string;
     displayName: string;
+    networkNodeId: string | null;
     ownerCapId: string;
     selectedNodeId: string | null;
     structureId: string;
@@ -233,7 +241,7 @@ export function Dashboard({
       selectedStructureCanonicalKeyRef.current = structure.canonicalDomainKey;
       setSelectedStructureId(structure.id);
       setPowerStructureId(structure.id);
-      setPowerSuccessLabel(`${structure.familyLabel} ${nextOnline ? "brought online" : "taken offline"}`);
+      setPowerSuccessLabel(`${structure.familyLabel} ${nextOnline ? "brought online" : "taken offline"}. Awaiting read-model sync.`);
 
       await structurePower.toggleSingle({
         structureType: verifiedTarget.structureType,
@@ -245,6 +253,15 @@ export function Dashboard({
         selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
         refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
         refetchSignalFeed: true,
+        target: {
+          objectId: verifiedTarget.structureId,
+          structureType: verifiedTarget.structureType,
+          ownerCapId: verifiedTarget.ownerCapId,
+          networkNodeId: verifiedTarget.networkNodeId,
+          assemblyId: structure.assemblyId ?? null,
+          canonicalDomainKey: structure.canonicalDomainKey,
+          displayName: structure.displayName,
+        },
       });
     },
     [
@@ -263,9 +280,12 @@ export function Dashboard({
     }
 
     structureRename.reset();
-    setRenameSuccessLabel("Assembly renamed");
+    setRenameSuccessLabel("Assembly renamed. Awaiting read-model sync.");
     setRenameTarget({
+      assemblyId: structure.assemblyId ?? null,
+      canonicalDomainKey: structure.canonicalDomainKey,
       displayName: structure.displayName,
+      networkNodeId: verifiedTarget.networkNodeId,
       ownerCapId: verifiedTarget.ownerCapId,
       selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
       structureId: verifiedTarget.structureId,
@@ -291,6 +311,15 @@ export function Dashboard({
       selectedNodeId: renameTarget.selectedNodeId,
       refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
       refetchSignalFeed: false,
+      target: {
+        objectId: renameTarget.structureId,
+        structureType: renameTarget.structureType,
+        ownerCapId: renameTarget.ownerCapId,
+        networkNodeId: renameTarget.networkNodeId,
+        assemblyId: renameTarget.assemblyId,
+        canonicalDomainKey: renameTarget.canonicalDomainKey,
+        displayName: renameTarget.displayName,
+      },
     });
 
     if (succeeded) {

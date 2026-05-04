@@ -6,12 +6,14 @@ import { SIGNAL_FEED_QUERY_KEY } from "@/hooks/useSignalHistory";
 import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
 import { normalizeOperatorInventoryWalletAddress } from "@/lib/operatorInventoryClient";
 import { getConfiguredSuiRpcUrl } from "@/lib/suiRpcClient";
+import type { StructureWriteTarget } from "@/lib/structureWriteReconciliation";
 
 export interface StructureWriteRefreshOptions {
   selectedNodeId?: string | null;
   refetchNodeAssemblies?: (() => Promise<unknown>) | null;
   refetchSignalFeed?: boolean;
   refetchAssetDiscovery?: boolean;
+  target?: StructureWriteTarget;
 }
 
 export function useStructureWriteRefresh() {

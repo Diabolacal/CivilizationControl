@@ -43,7 +43,7 @@ export async function requestSponsorship(
     "Content-Type": "application/json",
   };
   if (SPONSOR_API_KEY) {
-    headers["Authorization"] = `Bearer ${SPONSOR_API_KEY}`;
+    headers.authorization = `Bearer ${SPONSOR_API_KEY}`;
   }
 
   // Worker expects POST /sponsor

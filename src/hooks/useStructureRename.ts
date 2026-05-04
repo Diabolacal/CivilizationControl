@@ -2,6 +2,7 @@ import { useCallback, useState } from "react";
 
 import { useCharacterId } from "@/hooks/useCharacter";
 import { useSponsoredExecution } from "@/hooks/useSponsoredExecution";
+import { useStructureWriteReconciliation } from "@/hooks/useStructureWriteReconciliation";
 import {
   useStructureWriteRefresh,
   type StructureWriteRefreshOptions,
@@ -24,6 +25,7 @@ function friendlyError(raw: string): string {
 
 export function useStructureRename() {
   const executeTx = useSponsoredExecution();
+  const { reconcileWrite } = useStructureWriteReconciliation();
   const refreshAfterWrite = useStructureWriteRefresh();
   const characterId = useCharacterId();
 
@@ -51,7 +53,17 @@ export function useStructureRename() {
           characterId,
         });
         const { digest } = await executeTx(tx);
-        await refreshAfterWrite(refreshOptions);
+        if (refreshOptions?.target) {
+          reconcileWrite({
+            action: "rename",
+            digest,
+            target: refreshOptions.target,
+            desiredName: trimmedName,
+            refreshOptions,
+          });
+        } else {
+          await refreshAfterWrite(refreshOptions);
+        }
         setResult({ digest });
         setStatus("success");
         return true;
@@ -62,7 +74,7 @@ export function useStructureRename() {
         return false;
       }
     },
-    [characterId, executeTx, refreshAfterWrite],
+    [characterId, executeTx, reconcileWrite, refreshAfterWrite],
   );
 
   const reset = useCallback(() => {
