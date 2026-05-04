@@ -20,6 +20,10 @@ export function getStructurePowerAction(
       return null;
     }
 
+    if (structure.status !== "online" && structure.status !== "offline") {
+      return null;
+    }
+
     return {
       label: structure.status === "online" ? "Take offline" : "Bring online",
       nextOnline: structure.status !== "online",

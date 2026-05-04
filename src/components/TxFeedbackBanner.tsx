@@ -42,13 +42,15 @@ export function TxFeedbackBanner({
         <p className="animate-pulse">{pendingLabel}</p>
       )}
 
-      {status === "success" && result && (
+      {status === "success" && (result || successLabel) && (
         <div className="flex items-center justify-between gap-3">
           <div>
-            <p className="font-medium">{successLabel}</p>
-            <p className="text-[11px] font-mono opacity-70 mt-0.5">
-              Digest: {result.digest.slice(0, 16)}…{result.digest.slice(-8)}
-            </p>
+            <p className="font-medium">{result?.message ?? successLabel}</p>
+            {result?.digest ? (
+              <p className="text-[11px] font-mono opacity-70 mt-0.5">
+                Digest: {result.digest.slice(0, 16)}…{result.digest.slice(-8)}
+              </p>
+            ) : null}
           </div>
           <button
             onClick={onDismiss}

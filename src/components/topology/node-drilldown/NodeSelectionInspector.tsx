@@ -407,7 +407,7 @@ function NodeSelectionInspectorContent({
               <>
                 {selectedStructure.lastUpdated || selectedStructure.fetchedAt ? (
                   <InspectorRow
-                    label="Freshness"
+                    label="Last Seen"
                     value={formatObservedTimestamp(selectedStructure.lastUpdated) ?? formatObservedTimestamp(selectedStructure.fetchedAt) ?? "Observed"}
                     muted={formatObservedTimestamp(selectedStructure.lastUpdated) == null && formatObservedTimestamp(selectedStructure.fetchedAt) == null}
                   />

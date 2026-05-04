@@ -284,6 +284,14 @@ function resolveNodeAssembliesConfirmation(
     return { nameConfirmed: false, statusConfirmed: false };
   }
 
+  if (lookup.node && overlayMatchesIdentifiers(overlay, lookup.node.objectId, lookup.node.assemblyId)) {
+    const resolvedName = lookup.node.displayName?.trim() || lookup.node.name?.trim() || null;
+    return {
+      nameConfirmed: overlay.pendingName != null && resolvedName === overlay.pendingName,
+      statusConfirmed: overlay.pendingStatus != null && normalizeStructureStatus(lookup.node.status) === overlay.pendingStatus,
+    };
+  }
+
   const assembly = lookup.assemblies.find((entry) => overlayMatchesIdentifiers(overlay, entry.objectId, entry.assemblyId));
   if (!assembly) {
     return { nameConfirmed: false, statusConfirmed: false };

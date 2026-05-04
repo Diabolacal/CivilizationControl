@@ -74,7 +74,11 @@ export function useSponsoredExecution() {
           const result = await client.executeTransactionBlock({
             transactionBlock: bytes,
             signature: [signature, sponsorResult.sponsorSignature],
+            options: { showEffects: true },
           });
+          if (result.effects?.status.status === "failure") {
+            throw new Error(result.effects.status.error ?? "Transaction failed on-chain");
+          }
           console.info(`${TAG} Step 4 OK: digest=${result.digest}`);
           console.info(`${TAG} ✓ Sponsored transaction complete`);
 

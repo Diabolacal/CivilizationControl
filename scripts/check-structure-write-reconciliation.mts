@@ -496,6 +496,12 @@ const nodeOfflineOverlays = NODE_OFFLINE_TARGETS.map((target) => createPendingSt
   target,
   desiredStatus: "offline",
 }));
+const alreadyOfflineOverlays = NODE_OFFLINE_TARGETS.map((target) => createPendingStructureWriteOverlay({
+  action: "power",
+  digest: null,
+  target,
+  desiredStatus: "offline",
+}));
 const projectedNodeOfflineGroups = applyStructureWriteOverlaysToNodeGroups(nodeOfflineBaseGroups, nodeOfflineOverlays);
 assert.equal(projectedNodeOfflineGroups[0]?.node.status, "offline", "expected node-offline overlay to mark the network node offline locally");
 assert.deepEqual(projectedNodeOfflineGroups[0]?.gates.map((row) => row.status), ["offline"], "expected node-offline overlay to mark connected gates offline locally");
@@ -516,6 +522,18 @@ assert.deepEqual(
   "expected adapted node lookup to keep child-offline overlays instead of snapping back to stale online rows",
 );
 
+const alreadyOfflineProjectedInventory = applyStructureWriteOverlaysToOperatorInventory(nodeOfflineBaseInventory, alreadyOfflineOverlays);
+assert.equal(
+  alreadyOfflineProjectedInventory?.networkNodes[0]?.node.status,
+  "offline",
+  "expected ENetworkNodeOffline already-offline handling to mark the network node offline without a digest",
+);
+assert.deepEqual(
+  alreadyOfflineProjectedInventory?.networkNodes[0]?.structures.map((row) => row.status),
+  ["offline", "offline", "offline", "offline"],
+  "expected ENetworkNodeOffline already-offline handling to mark resolved connected children offline without a digest",
+);
+
 const nodeOfflineLookupOnlyConfirmed: NodeAssembliesLookupResult = {
   ...nodeOfflineBaseLookup,
   node: { ...nodeOfflineBaseLookup.node!, status: "OFFLINE" },
@@ -523,8 +541,13 @@ const nodeOfflineLookupOnlyConfirmed: NodeAssembliesLookupResult = {
 };
 for (const overlay of nodeOfflineOverlays) {
   const staleConfirmation = resolveStructureWriteConfirmation(nodeOfflineBaseInventory, nodeOfflineLookupOnlyConfirmed, overlay);
-  assert.equal(staleConfirmation.statusConfirmed, false, "expected stale operator inventory to keep node-offline overlays active even when selected-node lookup catches up first");
+  assert.equal(staleConfirmation.statusConfirmed, false, "expected stale operator inventory online data not to override the node-offline overlay even when selected-node lookup catches up first");
   assert.equal(staleConfirmation.operatorInventoryConfirmed, false, "expected stale operator inventory not to clear node-offline overlays");
+}
+for (const overlay of alreadyOfflineOverlays) {
+  const staleConfirmation = resolveStructureWriteConfirmation(nodeOfflineBaseInventory, nodeOfflineLookupOnlyConfirmed, overlay);
+  assert.equal(staleConfirmation.statusConfirmed, false, "expected stale operator inventory online data not to clear ENetworkNodeOffline correction overlays");
+  assert.equal(staleConfirmation.operatorInventoryConfirmed, false, "expected stale operator inventory not to confirm already-offline overlays");
 }
 
 const confirmedNodeOfflineInventory: OperatorInventoryResponse = {

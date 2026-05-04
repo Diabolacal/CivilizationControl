@@ -391,7 +391,8 @@ export type TxStatus = "idle" | "pending" | "success" | "error";
 
 /** Result of a signed transaction. */
 export interface TxResult {
-  digest: string;
+  digest: string | null;
+  message?: string;
 }
 
 // ─── SSU Inventory Types ─────────────────────────────────

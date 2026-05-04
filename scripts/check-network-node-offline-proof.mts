@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 
 import { adaptOperatorInventory } from "../src/lib/operatorInventoryAdapter.ts";
 import { buildNetworkNodeOfflinePlan, canTakeNetworkNodeOffline } from "../src/lib/networkNodeOfflineAction.ts";
+import { buildLiveNodeLocalViewModelWithObserved } from "../src/lib/nodeDrilldownModel.ts";
 import {
   buildNodeOfflineTx,
   buildNodeOnlineTx,
@@ -10,7 +11,13 @@ import {
   NETWORK_NODE_ID_REQUIRED_ERROR,
   NETWORK_NODE_OWNER_CAP_REQUIRED_ERROR,
 } from "../src/lib/structurePowerTx.ts";
+import { classifyStructurePowerError, formatStructurePowerError } from "../src/lib/structurePowerErrors.ts";
+import {
+  applyStructureWriteOverlaysToOperatorInventory,
+  createPendingStructureWriteOverlay,
+} from "../src/lib/structureWriteReconciliation.ts";
 import { WORLD_RUNTIME_PACKAGE_ID } from "../src/constants.ts";
+import type { StructureStatus } from "../src/types/domain.ts";
 import type { OperatorInventoryResponse } from "../src/types/operatorInventory.ts";
 
 type Command = {
@@ -145,7 +152,23 @@ assert.throws(
   "missing connected child object ID must fail clearly",
 );
 
-const operatorInventory = adaptOperatorInventory({
+assert.equal(
+  classifyStructurePowerError("Transaction resolution failed: MoveAbort in 2nd command, ENetworkNodeOffline: Network Node is offline network_node::offline line 141"),
+  "network_node_already_offline",
+  "expected ENetworkNodeOffline aborts to classify as already-offline state evidence",
+);
+assert.equal(
+  classifyStructurePowerError("MoveAbort from world::network_node with abort code 7"),
+  "network_node_already_offline",
+  "expected network_node abort code 7 to classify as already-offline state evidence",
+);
+assert.equal(
+  formatStructurePowerError("ENetworkNodeOffline: Network Node is offline"),
+  "Node is already offline. View updated.",
+  "expected already-offline errors to use calm state-correction copy",
+);
+
+const rawOperatorInventory = {
   schemaVersion: "operator-inventory.v1",
   operator: {
     walletAddress: objectId(100),
@@ -320,12 +343,33 @@ const operatorInventory = adaptOperatorInventory({
   partial: false,
   source: "shared-frontier-backend",
   fetchedAt: "2026-05-04T18:00:00.000Z",
-} satisfies OperatorInventoryResponse);
+} satisfies OperatorInventoryResponse;
+
+const operatorInventory = adaptOperatorInventory(rawOperatorInventory);
 
 assert.equal(operatorInventory.nodeGroups.length, 1, "expected one network node group to render");
 assert.equal(operatorInventory.nodeGroups[0]?.node.objectId, nodeId, "expected network node object ID to stay authoritative");
 assert.equal(operatorInventory.nodeGroups[0]?.node.assemblyId, undefined, "network node action path must not require assemblyId");
 assert.equal(operatorInventory.nodeGroups[0]?.node.ownerCapId, ownerCapId, "expected network node row to keep owner-cap identity");
+
+const rawOfflineOperatorInventory = {
+  ...rawOperatorInventory,
+  networkNodes: rawOperatorInventory.networkNodes.map((nodeGroup, index) => index === 0
+    ? { ...nodeGroup, node: { ...nodeGroup.node, status: "offline" as const } }
+    : nodeGroup),
+} satisfies OperatorInventoryResponse;
+const offlineOperatorInventory = adaptOperatorInventory(rawOfflineOperatorInventory);
+const offlineNodeGroup = offlineOperatorInventory.nodeGroups[0];
+assert.equal(offlineNodeGroup?.node.status, "offline", "expected raw operator-inventory offline node status to adapt as offline");
+assert.equal(
+  buildLiveNodeLocalViewModelWithObserved(
+    offlineNodeGroup!,
+    offlineOperatorInventory.nodeLookupsByNodeId.get(nodeId),
+    { preferObservedMembership: true },
+  ).node.status,
+  "offline",
+  "expected Node Control to classify the same raw offline node as Offline",
+);
 
 const nodeLookup = operatorInventory.nodeLookupsByNodeId.get(nodeId);
 assert.ok(nodeLookup, "expected a full node lookup for offline planning");
@@ -373,4 +417,107 @@ assert.deepEqual(
   "expected offline plan to provide node-plus-child reconciliation targets for local overlays",
 );
 
+interface LiveTruthArgs {
+  walletAddress: string;
+  nodeObjectId: string;
+  baseUrl: string;
+  origin: string;
+  pendingOverlayStatus: StructureStatus | null;
+}
+
+function readArgValue(args: string[], name: string): string | null {
+  const index = args.indexOf(name);
+  if (index < 0) {
+    return null;
+  }
+
+  return args[index + 1] ?? null;
+}
+
+function parseLiveTruthArgs(args: string[]): LiveTruthArgs | null {
+  const walletAddress = readArgValue(args, "--wallet") ?? readArgValue(args, "--walletAddress");
+  const nodeObjectId = readArgValue(args, "--node") ?? readArgValue(args, "--nodeObjectId");
+  if (!walletAddress && !nodeObjectId) {
+    return null;
+  }
+
+  if (!walletAddress || !nodeObjectId) {
+    throw new Error("Live truth check requires both --wallet and --node.");
+  }
+
+  const pendingOverlayStatus = readArgValue(args, "--pending-overlay") ?? readArgValue(args, "--pendingOverlay");
+  if (pendingOverlayStatus != null && !["online", "offline", "warning", "neutral"].includes(pendingOverlayStatus)) {
+    throw new Error("--pending-overlay must be online, offline, warning, or neutral.");
+  }
+
+  return {
+    walletAddress,
+    nodeObjectId,
+    baseUrl: readArgValue(args, "--base") ?? "https://ef-map.com",
+    origin: readArgValue(args, "--origin") ?? "https://civilizationcontrol.com",
+    pendingOverlayStatus: pendingOverlayStatus as StructureStatus | null,
+  };
+}
+
+async function printLiveOperatorInventoryTruth(args: LiveTruthArgs): Promise<void> {
+  const url = new URL("/api/civilization-control/operator-inventory", args.baseUrl);
+  url.searchParams.set("walletAddress", args.walletAddress);
+
+  const response = await fetch(url, { headers: { Origin: args.origin } });
+  if (!response.ok) {
+    throw new Error(`operator-inventory fetch failed: ${response.status} ${response.statusText}`);
+  }
+
+  const rawInventory = await response.json() as OperatorInventoryResponse;
+  const nodeIdLower = args.nodeObjectId.toLowerCase();
+  const rawNodeGroup = rawInventory.networkNodes.find((entry) => entry.node.objectId?.toLowerCase() === nodeIdLower) ?? null;
+  let inventoryForAdaptation = rawInventory;
+
+  if (args.pendingOverlayStatus && rawNodeGroup?.node.objectId && rawNodeGroup.node.ownerCapId) {
+    inventoryForAdaptation = applyStructureWriteOverlaysToOperatorInventory(rawInventory, [createPendingStructureWriteOverlay({
+      action: "power",
+      digest: null,
+      target: {
+        objectId: rawNodeGroup.node.objectId,
+        structureType: "network_node",
+        ownerCapId: rawNodeGroup.node.ownerCapId,
+        assemblyId: rawNodeGroup.node.assemblyId,
+        displayName: rawNodeGroup.node.displayName ?? rawNodeGroup.node.name,
+      },
+      desiredStatus: args.pendingOverlayStatus,
+    })]) ?? rawInventory;
+  }
+
+  const adaptedInventory = adaptOperatorInventory(inventoryForAdaptation);
+  const adaptedGroup = adaptedInventory.nodeGroups.find((entry) => entry.node.objectId.toLowerCase() === nodeIdLower) ?? null;
+  const adaptedLookup = adaptedGroup ? adaptedInventory.nodeLookupsByNodeId.get(adaptedGroup.node.objectId) ?? null : null;
+  const nodeControlViewModel = adaptedGroup
+    ? buildLiveNodeLocalViewModelWithObserved(adaptedGroup, adaptedLookup, { preferObservedMembership: true })
+    : null;
+
+  console.log(JSON.stringify({
+    requestedWallet: args.walletAddress,
+    requestedNodeObjectId: args.nodeObjectId,
+    sourcePath: "operator-inventory networkNodes[].node.status -> adaptOperatorInventory nodeGroups[].node.status -> /nodes and Node Control",
+    fallbackPath: "none in this script; direct-chain fallback only runs in app when operator inventory fails",
+    rawNode: rawNodeGroup ? {
+      status: rawNodeGroup.node.status,
+      lastUpdated: rawNodeGroup.node.lastUpdated,
+      lastObservedTimestamp: rawNodeGroup.node.lastObservedTimestamp,
+      lastObservedCheckpoint: rawNodeGroup.node.lastObservedCheckpoint,
+      fetchedAt: rawInventory.fetchedAt,
+    } : null,
+    pendingOverlayStatus: args.pendingOverlayStatus,
+    adaptedNodeStatus: adaptedGroup?.node.status ?? null,
+    renderedNodeListStatus: adaptedGroup?.node.status ?? null,
+    renderedNodeControlStatus: nodeControlViewModel?.node.status ?? null,
+    adaptedLookupNodeStatus: adaptedLookup?.node?.status ?? null,
+  }, null, 2));
+}
+
 console.log("check-network-node-offline-proof: ok");
+
+const liveTruthArgs = parseLiveTruthArgs(process.argv.slice(2));
+if (liveTruthArgs) {
+  await printLiveOperatorInventoryTruth(liveTruthArgs);
+}

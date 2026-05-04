@@ -22,6 +22,7 @@ import {
   useStructureWriteRefresh,
   type StructureWriteRefreshOptions,
 } from "@/hooks/useStructureWriteRefresh";
+import { classifyStructurePowerError, formatStructurePowerError } from "@/lib/structurePowerErrors";
 import type { ObjectId, StructureActionTargetType, TxStatus, TxResult } from "@/types/domain";
 
 type AssemblyPowerStructureType = Exclude<StructureActionTargetType, "network_node">;
@@ -49,16 +50,6 @@ interface NodeOfflineParams {
   nodeId: ObjectId;
   ownerCapId: ObjectId;
   connectedAssemblies: NodeOfflineChildTarget[];
-}
-
-/** Map known Move abort strings to user-friendly messages. */
-function friendlyError(raw: string): string {
-  if (raw.includes("ENetworkNodeMismatch")) return "Wrong network node — structure may have moved.";
-  if (raw.includes("EAssemblyInvalidStatus")) return "Structure is already in the target state.";
-  if (raw.includes("ENotOnline")) return "Structure is not online.";
-  if (raw.includes("ENoFuelToBurn")) return "No fuel deposited — node cannot come online.";
-  if (raw.includes("NotAuthorized")) return "OwnerCap does not match this structure.";
-  return raw;
 }
 
 export function useStructurePower() {
@@ -100,7 +91,30 @@ export function useStructurePower() {
         return true;
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
-        setError(friendlyError(message));
+        if (
+          desiredStatus === "offline"
+          && classifyStructurePowerError(message) === "network_node_already_offline"
+          && refreshOptions?.target?.structureType === "network_node"
+        ) {
+          if (refreshOptions.target || refreshOptions.targets?.length) {
+            reconcileWrite({
+              action: "power",
+              digest: null,
+              target: refreshOptions.target,
+              targets: refreshOptions.targets,
+              desiredStatus,
+              refreshOptions,
+            });
+          } else {
+            await refreshAfterWrite(refreshOptions);
+          }
+
+          setResult({ digest: null, message: formatStructurePowerError(message) });
+          setStatus("success");
+          return true;
+        }
+
+        setError(formatStructurePowerError(message));
         setStatus("error");
         return false;
       }
