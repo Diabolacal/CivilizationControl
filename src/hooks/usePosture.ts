@@ -56,16 +56,27 @@ export function usePostureSwitch() {
   const switchPosture = useCallback(
     async (params: SwitchPostureParams) => {
       if (!characterId) throw new Error("Character not resolved yet — please wait");
-      setStatus("pending");
       setError(null);
       setResult(null);
+
+      let tx;
       try {
-        const tx = buildPostureSwitchTx({
+        tx = buildPostureSwitchTx({
           targetMode: params.targetMode,
           gates: params.gates,
           turrets: params.turrets,
           characterId,
         });
+      } catch (err: unknown) {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(parseMoveAbort(message));
+        setStatus("error");
+        return;
+      }
+
+      setStatus("pending");
+
+      try {
         const { digest } = await executeTx(tx);
         setResult({ digest });
         setStatus("success");

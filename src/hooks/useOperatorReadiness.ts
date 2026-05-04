@@ -58,7 +58,7 @@ export function useOperatorReadiness(
     if (unauthorized > 0) {
       blockers.push({
         key: "turret-ext",
-        label: `${unauthorized} turret${unauthorized > 1 ? "s" : ""} not bound to CC doctrine — rebind before switching`,
+        label: `${unauthorized} turret${unauthorized > 1 ? "s" : ""} will be rebound to the selected doctrine during switch`,
         severity: "warning",
         link: "/turrets",
       });
@@ -77,7 +77,7 @@ export function useOperatorReadiness(
     }
 
     return {
-      isReady: blockers.every((b) => b.severity !== "error") && unauthorized === 0,
+      isReady: blockers.every((b) => b.severity !== "error"),
       blockers,
       turrets: { total: allTurrets.length, authorized, unauthorized },
     };
