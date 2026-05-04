@@ -5,10 +5,11 @@ import {
   NETWORK_NODE_OWNER_CAP_REQUIRED_ERROR,
   type NodeOfflineChildTarget,
 } from "@/lib/structurePowerTx";
-import type { Structure } from "@/types/domain";
+import type { Structure, StructureActionTargetType } from "@/types/domain";
 
-export const NETWORK_NODE_OFFLINE_CONFIRMATION_MESSAGE =
-  "Taking this node offline may drop power to attached structures.";
+export const NETWORK_NODE_OFFLINE_CONFIRMATION_TITLE = "Take network node offline?";
+export const NETWORK_NODE_OFFLINE_CONFIRMATION_BODY =
+  "Taking this node offline will also take connected structures offline.";
 export const NETWORK_NODE_OFFLINE_LOOKUP_REQUIRED_ERROR =
   "Connected-structure proof missing.";
 export const NETWORK_NODE_OFFLINE_CHILD_TYPE_REQUIRED_ERROR =
@@ -28,8 +29,19 @@ const GENERIC_ASSEMBLY_FAMILIES = new Set([
 
 export interface NetworkNodeOfflinePlan {
   connectedAssemblies: NodeOfflineChildTarget[];
+  affectedTargets: NetworkNodeOfflineAffectedTarget[];
   affectedStructureCount: number;
   unavailableReason: string | null;
+}
+
+export interface NetworkNodeOfflineAffectedTarget {
+  objectId: string;
+  structureType: StructureActionTargetType;
+  ownerCapId: string;
+  networkNodeId?: string | null;
+  assemblyId?: string | null;
+  canonicalDomainKey?: string | null;
+  displayName?: string | null;
 }
 
 function resolveLookupStructureType(
@@ -83,6 +95,7 @@ export function buildNetworkNodeOfflinePlan(
   if (node.objectId.trim().length === 0) {
     return {
       connectedAssemblies: [],
+      affectedTargets: [],
       affectedStructureCount: 0,
       unavailableReason: NETWORK_NODE_ID_REQUIRED_ERROR,
     };
@@ -91,6 +104,7 @@ export function buildNetworkNodeOfflinePlan(
   if (node.ownerCapId.trim().length === 0) {
     return {
       connectedAssemblies: [],
+      affectedTargets: [],
       affectedStructureCount: 0,
       unavailableReason: NETWORK_NODE_OWNER_CAP_REQUIRED_ERROR,
     };
@@ -99,17 +113,27 @@ export function buildNetworkNodeOfflinePlan(
   if (!lookup || lookup.status !== "success") {
     return {
       connectedAssemblies: [],
+      affectedTargets: [],
       affectedStructureCount: 0,
       unavailableReason: NETWORK_NODE_OFFLINE_LOOKUP_REQUIRED_ERROR,
     };
   }
 
   const connectedAssemblies: NodeOfflineChildTarget[] = [];
+  const affectedTargets: NetworkNodeOfflineAffectedTarget[] = [{
+    objectId: node.objectId,
+    structureType: "network_node",
+    ownerCapId: node.ownerCapId,
+    networkNodeId: null,
+    assemblyId: node.assemblyId ?? null,
+    displayName: node.name,
+  }];
 
   for (const assembly of lookup.assemblies) {
     if (!assembly.objectId) {
       return {
         connectedAssemblies: [],
+        affectedTargets: [],
         affectedStructureCount: 0,
         unavailableReason: NETWORK_NODE_CONNECTED_CHILD_ID_REQUIRED_ERROR,
       };
@@ -119,6 +143,7 @@ export function buildNetworkNodeOfflinePlan(
     if (!structureType) {
       return {
         connectedAssemblies: [],
+        affectedTargets: [],
         affectedStructureCount: 0,
         unavailableReason: NETWORK_NODE_OFFLINE_CHILD_TYPE_REQUIRED_ERROR,
       };
@@ -128,10 +153,19 @@ export function buildNetworkNodeOfflinePlan(
       objectId: assembly.objectId,
       structureType,
     });
+    affectedTargets.push({
+      objectId: assembly.objectId,
+      structureType,
+      ownerCapId: assembly.ownerCapId ?? "",
+      networkNodeId: node.objectId,
+      assemblyId: assembly.assemblyId ?? null,
+      displayName: assembly.displayName ?? assembly.name ?? null,
+    });
   }
 
   return {
     connectedAssemblies,
+    affectedTargets,
     affectedStructureCount: connectedAssemblies.length,
     unavailableReason: null,
   };

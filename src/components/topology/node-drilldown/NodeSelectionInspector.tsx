@@ -20,12 +20,15 @@ import {
 
 import type { Structure, TxResult, TxStatus } from "@/types/domain";
 import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
+import type { OpenNodeDrilldownNodeMenuParams } from "./NodeDrilldownCanvas";
+import type { MouseEvent } from "react";
 
 interface NodeSelectionInspectorProps {
   viewModel: NodeLocalViewModel;
   selectedNode?: Structure | null;
   selectedStructureId: string | null;
   hiddenCanonicalKeySet: ReadonlySet<string>;
+  onOpenNodeMenu?: (params: OpenNodeDrilldownNodeMenuParams) => void;
   onUnhideStructure: (canonicalDomainKey: string) => void;
   onTogglePower?: (structure: NodeLocalStructure, nextOnline: boolean) => void;
   powerStatus?: TxStatus;
@@ -307,6 +310,7 @@ function NodeSelectionInspectorContent({
   selectedNode,
   selectedStructureId,
   hiddenCanonicalKeySet,
+  onOpenNodeMenu,
   onUnhideStructure,
   onTogglePower,
   powerStatus,
@@ -323,6 +327,7 @@ function NodeSelectionInspectorContent({
   | "selectedNode"
   | "selectedStructureId"
   | "hiddenCanonicalKeySet"
+  | "onOpenNodeMenu"
   | "onUnhideStructure"
   | "onTogglePower"
   | "powerStatus"
@@ -359,10 +364,19 @@ function NodeSelectionInspectorContent({
       && powerStatus !== "idle"
       && onDismissPowerFeedback,
   );
+  const handleNodeContextMenu = (event: MouseEvent<HTMLDivElement>) => {
+    if (selectedStructure || !onOpenNodeMenu) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    onOpenNodeMenu({ clientX: event.clientX, clientY: event.clientY });
+  };
 
   return (
     <>
-      <div className="space-y-1 px-4 py-3">
+      <div className="space-y-1 px-4 py-3" onContextMenu={handleNodeContextMenu}>
         {selectedStructure ? (
           <>
             <InspectorRow label="Name" value={selectedStructure.displayName} />
@@ -488,6 +502,7 @@ export function NodeSelectionInspector({
   selectedNode,
   selectedStructureId,
   hiddenCanonicalKeySet,
+  onOpenNodeMenu,
   onUnhideStructure,
   onTogglePower,
   powerStatus,
@@ -506,6 +521,7 @@ export function NodeSelectionInspector({
       selectedNode={selectedNode}
       selectedStructureId={selectedStructureId}
       hiddenCanonicalKeySet={hiddenCanonicalKeySet}
+      onOpenNodeMenu={onOpenNodeMenu}
       onUnhideStructure={onUnhideStructure}
       onTogglePower={onTogglePower}
       powerStatus={powerStatus}

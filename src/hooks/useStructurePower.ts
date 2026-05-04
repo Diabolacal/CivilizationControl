@@ -83,11 +83,12 @@ export function useStructurePower() {
       try {
         const tx = buildTx();
         const { digest } = await executeTx(tx);
-        if (refreshOptions?.target) {
+        if (refreshOptions?.target || refreshOptions?.targets?.length) {
           reconcileWrite({
             action: "power",
             digest,
             target: refreshOptions.target,
+            targets: refreshOptions.targets,
             desiredStatus,
             refreshOptions,
           });

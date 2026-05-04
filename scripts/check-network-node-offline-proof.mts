@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
 
 import { adaptOperatorInventory } from "../src/lib/operatorInventoryAdapter.ts";
+import { buildNetworkNodeOfflinePlan, canTakeNetworkNodeOffline } from "../src/lib/networkNodeOfflineAction.ts";
 import {
   buildNodeOfflineTx,
+  buildNodeOnlineTx,
   NETWORK_NODE_CHARACTER_REQUIRED_ERROR,
   NETWORK_NODE_CONNECTED_CHILD_ID_REQUIRED_ERROR,
   NETWORK_NODE_ID_REQUIRED_ERROR,
@@ -82,6 +84,22 @@ assert.deepEqual(emptyNodeOfflineTargets, [
   `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
   `${WORLD_RUNTIME_PACKAGE_ID}::network_node::destroy_offline_assemblies`,
 ], "empty-child node offline must still destroy the OfflineAssemblies hot potato");
+
+const nodeOnlineTargets = getMoveTargets(buildNodeOnlineTx({
+  nodeId,
+  ownerCapId,
+  characterId,
+}).getData().commands as Command[]);
+assert.deepEqual(nodeOnlineTargets, [
+  `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
+  `${WORLD_RUNTIME_PACKAGE_ID}::network_node::online`,
+  `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
+], "network-node online must stay node-only and avoid child-offline helper calls");
+assert.equal(
+  nodeOnlineTargets.some((target) => target.includes("offline_connected_") || target.includes("destroy_offline_assemblies")),
+  false,
+  "network-node online must not project connected children online or offline",
+);
 
 assert.throws(
   () => buildNodeOfflineTx({
@@ -320,6 +338,39 @@ assert.deepEqual(
     { objectId: printerId, family: "printer" },
   ],
   "expected operator inventory node lookups to retain mixed child-family identity",
+);
+
+const offlinePlan = buildNetworkNodeOfflinePlan(operatorInventory.nodeGroups[0]!.node, nodeLookup);
+assert.equal(offlinePlan.unavailableReason, null, "expected operator-inventory lookup to produce a node-offline plan");
+assert.equal(canTakeNetworkNodeOffline(operatorInventory.nodeGroups[0]!.node, nodeLookup), true, "expected node-offline availability to follow the resolved plan");
+assert.equal(offlinePlan.affectedStructureCount, 4, "expected offline plan to count connected children only");
+assert.deepEqual(
+  offlinePlan.connectedAssemblies,
+  [
+    { objectId: gateId, structureType: "gate" },
+    { objectId: storageId, structureType: "storage_unit" },
+    { objectId: turretId, structureType: "turret" },
+    { objectId: printerId, structureType: "assembly" },
+  ],
+  "expected offline plan to preserve helper target order and mixed child-family type identity",
+);
+assert.deepEqual(
+  offlinePlan.affectedTargets.map((target) => ({
+    objectId: target.objectId,
+    structureType: target.structureType,
+    ownerCapId: target.ownerCapId,
+    networkNodeId: target.networkNodeId ?? null,
+    assemblyId: target.assemblyId ?? null,
+    displayName: target.displayName ?? null,
+  })),
+  [
+    { objectId: nodeId, structureType: "network_node", ownerCapId, networkNodeId: null, assemblyId: null, displayName: "Node A" },
+    { objectId: gateId, structureType: "gate", ownerCapId: objectId(20), networkNodeId: nodeId, assemblyId: "4001", displayName: "Gate Alpha" },
+    { objectId: storageId, structureType: "storage_unit", ownerCapId: objectId(21), networkNodeId: nodeId, assemblyId: "4002", displayName: "Storage Beta" },
+    { objectId: turretId, structureType: "turret", ownerCapId: objectId(22), networkNodeId: nodeId, assemblyId: "4003", displayName: "Turret Gamma" },
+    { objectId: printerId, structureType: "assembly", ownerCapId: objectId(23), networkNodeId: nodeId, assemblyId: "4004", displayName: "Printer Delta" },
+  ],
+  "expected offline plan to provide node-plus-child reconciliation targets for local overlays",
 );
 
 console.log("check-network-node-offline-proof: ok");

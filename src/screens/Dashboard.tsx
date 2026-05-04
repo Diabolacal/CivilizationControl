@@ -41,6 +41,7 @@ import { useCharacterId } from "@/hooks/useCharacter";
 import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState";
 import { useNodeDrilldownStructureMenu } from "@/hooks/useNodeDrilldownStructureMenu";
 import { useOperatorInventory } from "@/hooks/useOperatorInventory";
+import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import { useStructureRename } from "@/hooks/useStructureRename";
 import { useStructureWriteReconciliation } from "@/hooks/useStructureWriteReconciliation";
@@ -150,6 +151,7 @@ export function Dashboard({
   );
   const structurePower = useStructurePower();
   const structureRename = useStructureRename();
+  const nodeSurfaceActions = useStructureSurfaceActions();
   const [powerStructureId, setPowerStructureId] = useState<string | null>(null);
   const [powerSuccessLabel, setPowerSuccessLabel] = useState("Structure power state updated");
   const [renameSuccessLabel, setRenameSuccessLabel] = useState("Assembly renamed");
@@ -218,18 +220,41 @@ export function Dashboard({
   );
   const handleOpenNodeLocalStructureMenu = useCallback(
     (params: Parameters<typeof openStructureMenu>[0]) => {
+      nodeSurfaceActions.closeStructureContextMenu();
       selectedStructureCanonicalKeyRef.current = params.structure.canonicalDomainKey;
       setSelectedStructureId(params.structure.id);
       openStructureMenu(params);
     },
-    [openStructureMenu, selectedStructureCanonicalKeyRef],
+    [nodeSurfaceActions.closeStructureContextMenu, openStructureMenu, selectedStructureCanonicalKeyRef],
+  );
+  const handleCloseNodeControlMenus = useCallback(() => {
+    closeStructureMenu();
+    nodeSurfaceActions.closeStructureContextMenu();
+  }, [closeStructureMenu, nodeSurfaceActions.closeStructureContextMenu]);
+  const handleOpenSelectedNodeMenu = useCallback(
+    ({ clientX, clientY }: { clientX: number; clientY: number }) => {
+      if (!selectedNodeGroup) {
+        return;
+      }
+
+      closeStructureMenu();
+      selectedStructureCanonicalKeyRef.current = null;
+      setSelectedStructureId(null);
+      nodeSurfaceActions.openStructureContextMenu(
+        selectedNodeGroup.node,
+        clientX,
+        clientY,
+        { nodeOfflineLookup: selectedNodeObservedLookup },
+      );
+    },
+    [closeStructureMenu, nodeSurfaceActions.openStructureContextMenu, selectedNodeGroup, selectedNodeObservedLookup, selectedStructureCanonicalKeyRef],
   );
   const handleExitNodeControl = useCallback(() => {
-    closeStructureMenu();
+    handleCloseNodeControlMenus();
     selectedStructureCanonicalKeyRef.current = null;
     setSelectedStructureId(null);
     setSelectedNodeId(null);
-  }, [closeStructureMenu, selectedStructureCanonicalKeyRef]);
+  }, [handleCloseNodeControlMenus, selectedStructureCanonicalKeyRef]);
   const handleDismissNodeLocalPowerFeedback = useCallback(() => {
     structurePower.reset();
     setPowerStructureId(null);
@@ -372,9 +397,9 @@ export function Dashboard({
 
   useEffect(() => {
     setSelectedStructureId(null);
-    closeStructureMenu();
+    handleCloseNodeControlMenus();
     selectedStructureCanonicalKeyRef.current = null;
-  }, [closeStructureMenu, selectedNodeId, selectedStructureCanonicalKeyRef]);
+  }, [handleCloseNodeControlMenus, selectedNodeId, selectedStructureCanonicalKeyRef]);
 
   useEffect(() => {
     if (homeRequestToken === 0) return;
@@ -383,12 +408,12 @@ export function Dashboard({
 
   useEffect(() => {
     if (selectedNodeId != null && selectedNodeGroup == null) {
-      closeStructureMenu();
+      handleCloseNodeControlMenus();
       selectedStructureCanonicalKeyRef.current = null;
       setSelectedStructureId(null);
       setSelectedNodeId(null);
     }
-  }, [closeStructureMenu, selectedNodeGroup, selectedNodeId, selectedStructureCanonicalKeyRef]);
+  }, [handleCloseNodeControlMenus, selectedNodeGroup, selectedNodeId, selectedStructureCanonicalKeyRef]);
 
   useEffect(() => {
     if (!selectedNodeViewModel || selectedStructureId == null) {
@@ -591,11 +616,12 @@ export function Dashboard({
                 viewModel={visibleNodeViewModel}
                 selectedStructureId={selectedStructureId}
                 onSelectStructure={handleSelectNodeLocalStructure}
+                onOpenNodeMenu={handleOpenSelectedNodeMenu}
                 onOpenStructureMenu={handleOpenNodeLocalStructureMenu}
-                onCloseStructureMenu={closeStructureMenu}
+                onCloseStructureMenu={handleCloseNodeControlMenus}
                 totalStructureCount={selectedNodeViewModel.structures.length}
                 hiddenStructureCount={hiddenCount}
-                isStructureMenuOpen={contextMenu != null}
+                isStructureMenuOpen={contextMenu != null || nodeSurfaceActions.contextMenu != null}
                 title=""
                 subtitle=""
               />
@@ -641,7 +667,7 @@ export function Dashboard({
                   hiddenCanonicalKeySet={hiddenCanonicalKeySet}
                   onUnhideStructure={unhideStructure}
                   onOpenStructureMenu={handleOpenNodeLocalStructureMenu}
-                  onCloseStructureMenu={closeStructureMenu}
+                  onCloseStructureMenu={handleCloseNodeControlMenus}
                   onTogglePower={handleToggleNodeLocalPower}
                   powerStatus={structurePower.status}
                   powerStructureId={powerStructureId}
@@ -694,6 +720,7 @@ export function Dashboard({
                   selectedNode={selectedNodeGroup?.node ?? null}
                   selectedStructureId={selectedStructureId}
                   hiddenCanonicalKeySet={hiddenCanonicalKeySet}
+                  onOpenNodeMenu={handleOpenSelectedNodeMenu}
                   onUnhideStructure={unhideStructure}
                   onTogglePower={handleToggleNodeLocalPower}
                   powerStatus={structurePower.status}
@@ -744,6 +771,34 @@ export function Dashboard({
           onClose={closeStructureMenu}
         />
       ) : null}
+
+      {nodeSurfaceActions.renderContextMenu}
+      {nodeSurfaceActions.renderRenameDialog}
+      {nodeSurfaceActions.renderPowerConfirmDialog}
+
+      {(nodeSurfaceActions.power.status === "success" || nodeSurfaceActions.power.status === "error") && (
+        <div className="mt-4">
+          <TxFeedbackBanner
+            status={nodeSurfaceActions.power.status}
+            result={nodeSurfaceActions.power.result}
+            error={nodeSurfaceActions.power.error}
+            successLabel={nodeSurfaceActions.powerSuccessLabel}
+            onDismiss={nodeSurfaceActions.dismissPowerFeedback}
+          />
+        </div>
+      )}
+
+      {(nodeSurfaceActions.rename.status === "success" || nodeSurfaceActions.rename.status === "error") && (
+        <div className="mt-4">
+          <TxFeedbackBanner
+            status={nodeSurfaceActions.rename.status}
+            result={nodeSurfaceActions.rename.result}
+            error={nodeSurfaceActions.rename.error}
+            successLabel={nodeSurfaceActions.renameSuccessLabel}
+            onDismiss={nodeSurfaceActions.dismissRenameFeedback}
+          />
+        </div>
+      )}
 
       {(structureRename.status === "success" || structureRename.status === "error") && (
         <div className="mt-4">

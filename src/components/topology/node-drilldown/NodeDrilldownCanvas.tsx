@@ -10,10 +10,16 @@ import { NodeDrilldownTooltip, type NodeDrilldownTooltipData } from "./NodeDrill
 import type { OpenNodeDrilldownStructureMenuParams } from "@/hooks/useNodeDrilldownStructureMenu";
 import type { NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 
+export interface OpenNodeDrilldownNodeMenuParams {
+  clientX: number;
+  clientY: number;
+}
+
 interface NodeDrilldownCanvasProps {
   viewModel: NodeLocalViewModel;
   selectedStructureId: string | null;
   onSelectStructure: (structureId: string | null) => void;
+  onOpenNodeMenu?: (params: OpenNodeDrilldownNodeMenuParams) => void;
   onOpenStructureMenu?: (params: OpenNodeDrilldownStructureMenuParams) => void;
   onCloseStructureMenu?: () => void;
   totalStructureCount: number;
@@ -90,6 +96,7 @@ export function NodeDrilldownCanvas({
   viewModel,
   selectedStructureId,
   onSelectStructure,
+  onOpenNodeMenu,
   onOpenStructureMenu,
   onCloseStructureMenu,
   totalStructureCount,
@@ -128,6 +135,31 @@ export function NodeDrilldownCanvas({
         onClick={() => {
           onCloseStructureMenu?.();
           onSelectStructure(null);
+        }}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          setTooltip(null);
+          onSelectStructure(null);
+          onOpenNodeMenu?.({
+            clientX: event.clientX,
+            clientY: event.clientY,
+          });
+        }}
+        onKeyDown={(event) => {
+          if (event.key !== "ContextMenu" && !(event.shiftKey && event.key === "F10")) {
+            return;
+          }
+
+          event.preventDefault();
+          event.stopPropagation();
+          setTooltip(null);
+          const bounds = event.currentTarget.getBoundingClientRect();
+          onSelectStructure(null);
+          onOpenNodeMenu?.({
+            clientX: bounds.left + bounds.width / 2,
+            clientY: bounds.top + bounds.height / 2,
+          });
         }}
         onMouseEnter={() => {
           if (isStructureMenuOpen) return;

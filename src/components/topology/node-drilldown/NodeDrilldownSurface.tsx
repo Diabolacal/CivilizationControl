@@ -6,12 +6,14 @@ import { TopologyPanelFade, TopologyPanelFrame } from "@/components/topology/Top
 
 import type { OpenNodeDrilldownStructureMenuParams } from "@/hooks/useNodeDrilldownStructureMenu";
 import type { NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
+import type { OpenNodeDrilldownNodeMenuParams } from "./NodeDrilldownCanvas";
 import type { ReactNode } from "react";
 
 interface NodeDrilldownSurfaceProps {
   viewModel: NodeLocalViewModel;
   selectedStructureId: string | null;
   onSelectStructure: (structureId: string | null) => void;
+  onOpenNodeMenu?: (params: OpenNodeDrilldownNodeMenuParams) => void;
   onOpenStructureMenu?: (params: OpenNodeDrilldownStructureMenuParams) => void;
   onCloseStructureMenu?: () => void;
   totalStructureCount: number;
@@ -27,12 +29,13 @@ function NodeDrilldownSurfaceBody({
   viewModel,
   selectedStructureId,
   onSelectStructure,
+  onOpenNodeMenu,
   onOpenStructureMenu,
   onCloseStructureMenu,
   totalStructureCount,
   hiddenStructureCount,
   isStructureMenuOpen,
-}: Pick<NodeDrilldownSurfaceProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "onOpenStructureMenu" | "onCloseStructureMenu" | "totalStructureCount" | "hiddenStructureCount" | "isStructureMenuOpen">) {
+}: Pick<NodeDrilldownSurfaceProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "onOpenNodeMenu" | "onOpenStructureMenu" | "onCloseStructureMenu" | "totalStructureCount" | "hiddenStructureCount" | "isStructureMenuOpen">) {
   const [isLegendVisible, setIsLegendVisible] = useState(true);
 
   return (
@@ -41,6 +44,7 @@ function NodeDrilldownSurfaceBody({
         viewModel={viewModel}
         selectedStructureId={selectedStructureId}
         onSelectStructure={onSelectStructure}
+        onOpenNodeMenu={onOpenNodeMenu}
         onOpenStructureMenu={onOpenStructureMenu}
         onCloseStructureMenu={onCloseStructureMenu}
         totalStructureCount={totalStructureCount}
@@ -74,6 +78,7 @@ export function NodeDrilldownSurface({
   viewModel,
   selectedStructureId,
   onSelectStructure,
+  onOpenNodeMenu,
   onOpenStructureMenu,
   onCloseStructureMenu,
   totalStructureCount,
@@ -89,6 +94,7 @@ export function NodeDrilldownSurface({
       viewModel={viewModel}
       selectedStructureId={selectedStructureId}
       onSelectStructure={onSelectStructure}
+      onOpenNodeMenu={onOpenNodeMenu}
       onOpenStructureMenu={onOpenStructureMenu}
       onCloseStructureMenu={onCloseStructureMenu}
       totalStructureCount={totalStructureCount}

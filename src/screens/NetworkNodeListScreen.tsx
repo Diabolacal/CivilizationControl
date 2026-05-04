@@ -155,6 +155,7 @@ export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeList
 
       {actions.renderContextMenu}
       {actions.renderRenameDialog}
+      {actions.renderPowerConfirmDialog}
     </div>
   );
 }

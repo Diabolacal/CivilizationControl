@@ -122,6 +122,7 @@ export function NetworkNodeDetailScreen({ structures, nodeGroups, isLoading }: N
 
       {actions.renderContextMenu}
       {actions.renderRenameDialog}
+      {actions.renderPowerConfirmDialog}
     </div>
   );
 }

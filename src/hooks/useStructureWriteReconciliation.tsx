@@ -15,6 +15,7 @@ import { normalizeCanonicalObjectId, type NodeAssembliesLookupResult } from "@/l
 import {
   applyStructureWriteOverlaysToNodeAssembliesLookup,
   applyStructureWriteOverlaysToNodeGroups,
+  applyStructureWriteOverlaysToOperatorInventory,
   applyStructureWriteOverlaysToStructures,
   buildStructureWriteOverlayKey,
   createPendingStructureWriteOverlay,
@@ -31,7 +32,8 @@ import type { OperatorInventoryResponse } from "@/types/operatorInventory";
 interface ReconcileStructureWriteInput {
   action: "rename" | "power";
   digest?: string | null;
-  target: StructureWriteTarget;
+  target?: StructureWriteTarget;
+  targets?: readonly StructureWriteTarget[];
   desiredName?: string | null;
   desiredStatus?: StructureStatus | null;
   refreshOptions?: StructureWriteRefreshOptions;
@@ -41,6 +43,7 @@ interface StructureWriteReconciliationContextValue {
   applyStructures: (structures: Structure[]) => Structure[];
   applyNodeGroups: (nodeGroups: NetworkNodeGroup[]) => NetworkNodeGroup[];
   applyNodeAssembliesLookup: (lookup: NodeAssembliesLookupResult | null | undefined) => NodeAssembliesLookupResult | null;
+  applyOperatorInventory: (response: OperatorInventoryResponse | null | undefined) => OperatorInventoryResponse | null;
   reconcileWrite: (input: ReconcileStructureWriteInput) => void;
 }
 
@@ -119,14 +122,31 @@ export function StructureWriteReconciliationProvider({ children }: PropsWithChil
     [overlays],
   );
 
+  const applyOperatorInventory = useCallback(
+    (response: OperatorInventoryResponse | null | undefined) => applyStructureWriteOverlaysToOperatorInventory(response, overlays),
+    [overlays],
+  );
+
   const reconcileWrite = useCallback(
     (input: ReconcileStructureWriteInput) => {
-      const overlayKey = buildStructureWriteOverlayKey(input.target);
+      const targets = input.targets?.length ? input.targets : input.target ? [input.target] : [];
+      if (targets.length === 0) {
+        void refreshAfterWrite(input.refreshOptions);
+        return;
+      }
+      const overlayKeys = targets.map((target) => buildStructureWriteOverlayKey(target));
 
-      setOverlaysByKey((current) => ({
-        ...current,
-        [overlayKey]: createPendingStructureWriteOverlay(input, current[overlayKey] ?? null),
-      }));
+      setOverlaysByKey((current) => {
+        const next = { ...current };
+        targets.forEach((target, index) => {
+          const overlayKey = overlayKeys[index]!;
+          next[overlayKey] = createPendingStructureWriteOverlay(
+            { ...input, target },
+            current[overlayKey] ?? null,
+          );
+        });
+        return next;
+      });
 
       void (async () => {
         for (let attemptIndex = 0; attemptIndex < STRUCTURE_WRITE_RETRY_DELAYS_MS.length; attemptIndex += 1) {
@@ -138,58 +158,64 @@ export function StructureWriteReconciliationProvider({ children }: PropsWithChil
           await refreshAfterWrite(input.refreshOptions);
 
           setOverlaysByKey((current) => {
-            const existing = current[overlayKey];
-            if (!existing) {
-              return current;
+            let next: Record<string, PendingStructureWriteOverlay> | null = null;
+
+            for (const overlayKey of overlayKeys) {
+              const existing = current[overlayKey];
+              if (!existing) {
+                continue;
+              }
+
+              const normalizedNodeId = normalizeCanonicalObjectId(
+                input.refreshOptions?.selectedNodeId ?? existing.networkNodeId ?? null,
+              );
+              const operatorInventory = normalizedWalletAddress
+                ? queryClient.getQueryData<OperatorInventoryResponse>(["operatorInventory", normalizedWalletAddress])
+                : null;
+              const nodeLookup = normalizedNodeId
+                ? queryClient.getQueryData<NodeAssembliesLookupResult>(["nodeAssemblies", normalizedNodeId])
+                : null;
+              const confirmation = resolveStructureWriteConfirmation(operatorInventory, nodeLookup, existing);
+              const nextOverlay: PendingStructureWriteOverlay = {
+                ...existing,
+                pendingName: confirmation.nameConfirmed ? null : existing.pendingName,
+                pendingStatus: confirmation.statusConfirmed ? null : existing.pendingStatus,
+                refreshAttempts: attemptIndex + 1,
+                operatorInventoryConfirmed: confirmation.operatorInventoryConfirmed,
+                nodeAssembliesConfirmed: confirmation.nodeAssembliesConfirmed,
+                timedOut: attemptIndex === STRUCTURE_WRITE_RETRY_DELAYS_MS.length - 1,
+              };
+
+              next ??= { ...current };
+              if (nextOverlay.pendingName == null && nextOverlay.pendingStatus == null) {
+                delete next[overlayKey];
+                continue;
+              }
+
+              next[overlayKey] = nextOverlay;
             }
 
-            const normalizedNodeId = normalizeCanonicalObjectId(
-              input.refreshOptions?.selectedNodeId ?? existing.networkNodeId ?? null,
-            );
-            const operatorInventory = normalizedWalletAddress
-              ? queryClient.getQueryData<OperatorInventoryResponse>(["operatorInventory", normalizedWalletAddress])
-              : null;
-            const nodeLookup = normalizedNodeId
-              ? queryClient.getQueryData<NodeAssembliesLookupResult>(["nodeAssemblies", normalizedNodeId])
-              : null;
-            const confirmation = resolveStructureWriteConfirmation(operatorInventory, nodeLookup, existing);
-            const nextOverlay: PendingStructureWriteOverlay = {
-              ...existing,
-              pendingName: confirmation.nameConfirmed ? null : existing.pendingName,
-              pendingStatus: confirmation.statusConfirmed ? null : existing.pendingStatus,
-              refreshAttempts: attemptIndex + 1,
-              operatorInventoryConfirmed: confirmation.operatorInventoryConfirmed,
-              nodeAssembliesConfirmed: confirmation.nodeAssembliesConfirmed,
-              timedOut: attemptIndex === STRUCTURE_WRITE_RETRY_DELAYS_MS.length - 1,
-            };
-
-            if (nextOverlay.pendingName == null && nextOverlay.pendingStatus == null) {
-              const next = { ...current };
-              delete next[overlayKey];
-              return next;
-            }
-
-            return {
-              ...current,
-              [overlayKey]: nextOverlay,
-            };
+            return next ?? current;
           });
         }
       })().catch(() => {
         setOverlaysByKey((current) => {
-          const existing = current[overlayKey];
-          if (!existing) {
-            return current;
-          }
+          let next: Record<string, PendingStructureWriteOverlay> | null = null;
+          for (const overlayKey of overlayKeys) {
+            const existing = current[overlayKey];
+            if (!existing) {
+              continue;
+            }
 
-          return {
-            ...current,
-            [overlayKey]: {
+            next ??= { ...current };
+            next[overlayKey] = {
               ...existing,
               refreshAttempts: STRUCTURE_WRITE_RETRY_DELAYS_MS.length,
               timedOut: true,
-            },
-          };
+            };
+          }
+
+          return next ?? current;
         });
       });
     },
@@ -197,11 +223,12 @@ export function StructureWriteReconciliationProvider({ children }: PropsWithChil
   );
 
   const value = useMemo<StructureWriteReconciliationContextValue>(() => ({
+    applyOperatorInventory,
     applyStructures,
     applyNodeGroups,
     applyNodeAssembliesLookup,
     reconcileWrite,
-  }), [applyNodeAssembliesLookup, applyNodeGroups, applyStructures, reconcileWrite]);
+  }), [applyNodeAssembliesLookup, applyNodeGroups, applyOperatorInventory, applyStructures, reconcileWrite]);
 
   return (
     <StructureWriteReconciliationContext.Provider value={value}>
