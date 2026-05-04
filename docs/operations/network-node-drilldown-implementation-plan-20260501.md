@@ -25,36 +25,47 @@ This tracked follow-up is the final frontend polish accepted on `feat/node-drill
 - served-bundle scanning across 12 deployed JS assets found `civilizationcontrol-sponsor` in `App-BusxZDEY.js` and `SmartObjectProvider-Bsk4q3Rp.js`; found `https://ef-map.com` in `SmartObjectProvider-Bsk4q3Rp.js` and `useNodeDrilldownStructureMenu-BVkynuen.js`; found `https://fullnode.testnet.sui.io:443` in `SmartObjectProvider-Bsk4q3Rp.js` and `suiRpcClient-BibKDPwo.js`; found no `flappy-frontier-sponsor`, `ASSEMBLY_API_TOKEN`, `X-API-Key`, `SPONSOR_PRIVATE_KEY`, `CF_API_TOKEN`, or `CLOUDFLARE_ACCOUNT_ID`; and found no exact-case `Authorization`
 - limitation: the integrated browser still had no wallet-owned node inventory, and the synthetic lab still does not provide node-level fuel fixtures. That means the compact one-line fuel row itself is code- and probe-validated here rather than wallet-smoked on a live indexed node in browser
 
+### Signal Feed restoration from shared signal history - 2026-05-04
+
+This follow-up is frontend-only on `feat/signal-history-indexer-feed`. It does not change Move contracts, package IDs, sponsor-worker behavior, EF-Map code, VPS state, vendor state, or production deploy state.
+
+- CivilizationControl now consumes `GET https://ef-map.com/api/civilization-control/signal-history?walletAddress=0x...` through `src/lib/signalHistoryClient.ts`, `src/hooks/useSignalHistory.ts`, and the compatibility `useSignalFeed` wrapper
+- `/activity` now renders wallet-scoped signal history with `All Signals`, `Governance`, `Trade`, `Transit`, and `Status` filters, restrained cursor-based `Load more`, calm disconnected copy, and a subdued indexing hint only when the endpoint reports `partial` or `warnings`
+- `Dashboard` `Recent Signals` now uses the same shared endpoint with a small non-polling preview slice, so `/activity` and the main shell no longer use browser Sui `queryEvents` for Signal Feed
+- signal history remains additive and read-only. It is not proof of ownership, not proof of write authority, and no online/offline, posture, gate policy, rename, sponsor, or package behavior changed in this pass
+- v1 gaps remain deferred: no global firehose, no direct `energy_events`, no stable dedicated gate-access/config history, no custom legacy CivilizationControl posture/policy/toll/trade-settlement/turret-doctrine families beyond the current v1 indexed kinds, `assemblyId` may be `null`, and `extension_frozen` remains labeled frozen rather than revoke/delete
+- validation passed: `npm run typecheck`; `npm run build`; `git diff --check`; `npx tsx scripts/check-operator-inventory-mapping.mts`; `npx tsx scripts/check-node-drilldown-reconciliation.mts`; and `npx tsx scripts/check-signal-history-mapping.mts`
+- preview evidence for this follow-up was captured on `https://9ffbadd8.civilizationcontrol.pages.dev` with alias `https://feat-signal-history-indexer.civilizationcontrol.pages.dev`
+- browser-origin `fetch()` from the preview to `https://ef-map.com/api/civilization-control/signal-history?walletAddress=0x0000000000000000000000000000000000000000000000000000000000000abc&limit=5` returned `200` with `schemaVersion: "signal-history.v1"`, `partial: false`, one warning, zero signals, and no auth headers
+- disconnected preview route smoke confirmed `/`, `/activity`, `/settings`, `/nodes`, and `/dev/node-drilldown-lab`; `/` and `/activity` both showed calm disconnected Signal Feed copy; none of those routes made browser `signal-history`, sponsor, or Sui RPC requests before wallet connect; and the dev lab remained isolated
+- served-bundle scanning across 12 deployed JS assets found `signal-history` in `App-cxZrr4pe.js`; found `civilizationcontrol-sponsor` in `App-cxZrr4pe.js` and `SmartObjectProvider-BAt7V6Xn.js`; found `https://ef-map.com` in `SmartObjectProvider-BAt7V6Xn.js` and `useNodeDrilldownStructureMenu-C58ossPa.js`; found no `flappy-frontier-sponsor`, exact-case `Authorization`, `ASSEMBLY_API_TOKEN`, `X-API-Key`, `SPONSOR_PRIVATE_KEY`, `CF_API_TOKEN`, or `CLOUDFLARE_ACCOUNT_ID`; and still found `queryEvents` strings in `App-cxZrr4pe.js` plus `suiRpcClient-7KACx86e.js` because marketplace listing discovery and the retained legacy helper still exist outside the restored Signal Feed routes
+- human wallet-connected preview smoke later passed on `https://9ffbadd8.civilizationcontrol.pages.dev`: `Dashboard` `Recent Signals` showed real indexed rows including signals from several hours earlier, `/activity` showed real wallet-scoped indexed rows reaching back into late April / early May, and `Governance`, `Transit`, plus `Status` filters were manually checked with scoped results. That closes the earlier connected-wallet validation gap for Signal Feed surfaces without changing the accepted read-only and v1-gap boundaries
+
 ### Next work order after merge
 
-The current feature branch should not absorb Signal Feed implementation, write-action implementation, power-state presets, or marketplace work. After this compact fuel polish is merged, the next slice should start in EF-Map/shared-backend and follow this order:
+The current feature branch should not absorb write-action implementation, power-state presets, marketplace work, or package changes. After this Signal Feed restoration is merged, the next slice should follow this order:
 
-1. EF-Map/shared-backend signal-history endpoint
-  - Build a browser-safe wallet-scoped endpoint: `GET /api/civilization-control/signal-history?walletAddress=0x...`
-  - Scope it server-side to the wallet's indexed governed infrastructure
-  - Replace browser `queryEvents` for `/activity` and dashboard Recent Signals
-  - Do not expose a global firehose
-2. CivilizationControl Signal Feed restoration
-  - Consume the new signal-history endpoint
-  - Restore `/activity` and dashboard Recent Signals from indexed/backend history
-  - Do not return to browser Sui event polling
-3. Write-action audit before package changes
+1. Write-action audit before package changes
   - Audit existing current package/world-contract write paths for individual online/offline, rename or edit structure name, gate-optional posture switching, and PTB or batch multi-structure power changes
   - Determine what can already be done with existing calls and what would truly require a package update
-4. Individual structure actions
+2. Individual structure actions
   - Wire real right-click and list-row actions for online/offline and edit name
   - Apply them consistently on Node Control map icons, Attached Structures rows, and relevant list/detail screens
   - Keep availability grounded in indexed authority hints plus final wallet-signed execution authority
-5. Node Power State presets
+3. Node Power State presets
   - Start with local persistence for saved power-state definitions
   - Treat a power state as a named desired online/offline set for structures attached to one network node
   - Explore one-PTB execution only if existing calls support it safely
   - Plan package changes only if the audit proves existing calls cannot support the desired batch behavior
-6. Package update decision
+4. Package update decision
   - Minimize package updates
   - Only update and deploy package state after the write-action audit proves it is necessary
   - Avoid one package update per feature
-7. Marketplace integration later
+5. Signal-history parity follow-up
+  - Extend shared history only if later operator needs prove that the current v1 gaps matter in practice
+  - Keep any future history expansion wallet-scoped, read-only, and additive only
+  - Do not reopen browser `queryEvents` for normal Signal Feed routes
+6. Marketplace integration later
   - Treat partner storage-market integration as a separate future revenue/yield slice
   - First identify emitted sale/payment events, settlement coin, and available seller or treasury fields
   - Do not mix marketplace work into the Node Control stabilization branch
