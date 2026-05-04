@@ -158,6 +158,7 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 | [operations/sponsor-worker-runbook.md](operations/sponsor-worker-runbook.md) | **Sponsor worker runbook** — in-repo worker layout, secrets, validation, and policy update procedure |
 | [operations/network-node-posture-icon-and-drilldown-plan-20260429.md](operations/network-node-posture-icon-and-drilldown-plan-20260429.md) | **Network-node posture icon and drilldown plan** — structure catalogue, icon taxonomy, node-local UX concept, and phased implementation sequence for the next operator-control surface |
 | [operations/network-node-drilldown-implementation-plan-20260501.md](operations/network-node-drilldown-implementation-plan-20260501.md) | **Network-node drilldown implementation plan** — implementation-ready same-dashboard drilldown model, node-local layout, persistence, preset staging, and safe write sequencing |
+| [operations/node-control-write-action-audit-20260504.md](operations/node-control-write-action-audit-20260504.md) | **Node Control write-action audit** — current-state capability matrix for write actions, sponsor gaps, zero-package candidates, and deferred high-risk actions |
 
 ## Working Memory
 
