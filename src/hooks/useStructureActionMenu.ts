@@ -1,5 +1,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  clampContextMenuPosition,
+  estimateContextMenuHeightPx,
+  estimateContextMenuWidthPx,
+  getContextMenuMarginPx,
+} from "@/lib/contextMenuPositioning";
+
 export interface StructureActionMenuItem {
   key: string;
   label: string;
@@ -28,19 +35,6 @@ export interface StructureActionMenuState {
   items: StructureActionMenuEntry[];
 }
 
-const CONTEXT_MENU_MARGIN_PX = 12;
-const CONTEXT_MENU_WIDTH_PX = 196;
-const CONTEXT_MENU_ITEM_HEIGHT_PX = 36;
-const CONTEXT_MENU_CHROME_HEIGHT_PX = 12;
-
-function clampPosition(value: number, min: number, max: number): number {
-  if (max < min) {
-    return min;
-  }
-
-  return Math.min(max, Math.max(min, value));
-}
-
 export function useStructureActionMenu() {
   const [contextMenu, setContextMenu] = useState<StructureActionMenuState | null>(null);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -66,17 +60,22 @@ export function useStructureActionMenu() {
   const closeStructureActionMenu = useCallback(() => setContextMenu(null), []);
 
   const openStructureActionMenu = useCallback((params: OpenStructureActionMenuParams) => {
-    const menuHeight = CONTEXT_MENU_CHROME_HEIGHT_PX + params.items.length * CONTEXT_MENU_ITEM_HEIGHT_PX;
-
-    const left = clampPosition(
-      params.clientX,
-      CONTEXT_MENU_MARGIN_PX,
-      window.innerWidth - CONTEXT_MENU_WIDTH_PX - CONTEXT_MENU_MARGIN_PX,
+    const margin = getContextMenuMarginPx();
+    const menuHeight = estimateContextMenuHeightPx(params.items.length);
+    const menuWidth = Math.min(
+      estimateContextMenuWidthPx(params.items.map((item) => item.label)),
+      window.innerWidth - margin * 2,
     );
-    const top = clampPosition(
+
+    const left = clampContextMenuPosition(
+      params.clientX,
+      margin,
+      window.innerWidth - menuWidth - margin,
+    );
+    const top = clampContextMenuPosition(
       params.clientY,
-      CONTEXT_MENU_MARGIN_PX,
-      window.innerHeight - menuHeight - CONTEXT_MENU_MARGIN_PX,
+      margin,
+      window.innerHeight - menuHeight - margin,
     );
 
     setContextMenu({

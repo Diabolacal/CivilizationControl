@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import {
+  clampContextMenuPosition,
+  estimateContextMenuHeightPx,
+  estimateContextMenuWidthPx,
+  getContextMenuMarginPx,
+} from "@/lib/contextMenuPositioning";
 import { getNodeLocalPowerControlState, supportsNodeLocalRename } from "@/lib/nodeDrilldownActionAuthority";
 
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
-
-const CONTEXT_MENU_MARGIN_PX = 12;
-const CONTEXT_MENU_WIDTH_PX = 196;
-const CONTEXT_MENU_ITEM_HEIGHT_PX = 36;
-const CONTEXT_MENU_CHROME_HEIGHT_PX = 12;
 
 export interface OpenNodeDrilldownStructureMenuParams {
   structure: NodeLocalStructure;
@@ -26,14 +27,6 @@ export interface NodeDrilldownStructureMenuState {
   visibilityActionLabel: "Hide from Node View" | "Unhide";
   powerActionLabel: "Bring Online" | "Take Offline" | null;
   nextOnline: boolean | null;
-}
-
-function clampPosition(value: number, min: number, max: number): number {
-  if (max < min) {
-    return min;
-  }
-
-  return Math.min(max, Math.max(min, value));
 }
 
 export function useNodeDrilldownStructureMenu() {
@@ -61,20 +54,29 @@ export function useNodeDrilldownStructureMenu() {
   const closeStructureMenu = useCallback(() => setContextMenu(null), []);
 
   const openStructureMenu = useCallback(({ structure, clientX, clientY, isHidden }: OpenNodeDrilldownStructureMenuParams) => {
+    const margin = getContextMenuMarginPx();
     const powerControl = getNodeLocalPowerControlState(structure);
     const canRename = supportsNodeLocalRename(structure);
-    const itemCount = 1 + (powerControl.actionLabel ? 1 : 0) + (canRename ? 1 : 0);
-    const menuHeight = CONTEXT_MENU_CHROME_HEIGHT_PX + itemCount * CONTEXT_MENU_ITEM_HEIGHT_PX;
-
-    const left = clampPosition(
-      clientX,
-      CONTEXT_MENU_MARGIN_PX,
-      window.innerWidth - CONTEXT_MENU_WIDTH_PX - CONTEXT_MENU_MARGIN_PX,
+    const menuLabels = [
+      isHidden ? "Unhide" : "Hide from Node View",
+      ...(powerControl.actionLabel ? [powerControl.actionLabel] : []),
+      ...(canRename ? ["Rename Assembly"] : []),
+    ];
+    const menuHeight = estimateContextMenuHeightPx(menuLabels.length);
+    const menuWidth = Math.min(
+      estimateContextMenuWidthPx(menuLabels),
+      window.innerWidth - margin * 2,
     );
-    const top = clampPosition(
+
+    const left = clampContextMenuPosition(
+      clientX,
+      margin,
+      window.innerWidth - menuWidth - margin,
+    );
+    const top = clampContextMenuPosition(
       clientY,
-      CONTEXT_MENU_MARGIN_PX,
-      window.innerHeight - menuHeight - CONTEXT_MENU_MARGIN_PX,
+      margin,
+      window.innerHeight - menuHeight - margin,
     );
 
     setContextMenu({

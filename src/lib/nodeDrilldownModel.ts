@@ -561,11 +561,11 @@ function resolveNodeLocalVerifiedTarget(
 function createNodeLocalActionAuthority(
   family: NodeLocalFamily,
   status: StructureStatus,
-  liveMatches: Structure[],
+  authorityCandidates: NodeLocalActionCandidateTarget[],
   source: NodeLocalStructure["source"],
   actionCandidate?: ObservedAssembly["actionCandidate"] | AssemblySummary["actionCandidate"] | null,
 ): NodeLocalActionAuthority {
-  if (source === "synthetic") {
+  if (source === "synthetic" && authorityCandidates.length === 0 && !actionCandidate) {
     return {
       state: "synthetic",
       verifiedTarget: null,
@@ -576,14 +576,13 @@ function createNodeLocalActionAuthority(
 
   const powerAction = actionCandidate?.actions.power;
   const supportedPowerType = SUPPORTED_POWER_TYPE_BY_FAMILY[family] ?? null;
-  const liveCandidateTargets = liveMatches.map(toNodeLocalActionCandidate);
   const indexedCandidateTarget = powerAction ? toNodeLocalActionCandidateFromRequiredIds(family, powerAction, status) : null;
   const candidateTargets = dedupeNodeLocalActionCandidates([
-    ...liveCandidateTargets,
+    ...authorityCandidates,
     ...(indexedCandidateTarget ? [indexedCandidateTarget] : []),
   ]);
   const unavailableReason = powerAction?.unavailableReason ?? actionCandidate?.unavailableReason ?? null;
-  const uniqueLiveCandidate = liveCandidateTargets.length === 1 ? liveCandidateTargets[0] : null;
+  const uniqueLiveCandidate = authorityCandidates.length === 1 ? authorityCandidates[0] : null;
   const verifiedTarget = resolveNodeLocalVerifiedTarget(family, status, powerAction, uniqueLiveCandidate);
 
   if (verifiedTarget) {
@@ -676,6 +675,7 @@ function createNodeLocalStructure(
     | "status"
     | "source"
     | "extensionStatus"
+    | "actionCandidate"
     | "actionAuthority"
     | "isReadOnly"
     | "isActionable"
@@ -721,6 +721,7 @@ function createNodeLocalStructure(
     warningPip: structure.warningPip ?? structure.status === "warning",
     source: structure.source,
     extensionStatus: structure.extensionStatus,
+    actionCandidate: structure.actionCandidate,
     actionAuthority: structure.actionAuthority,
     backendSource: structure.backendSource,
     fetchedAt: structure.fetchedAt,
@@ -962,10 +963,11 @@ function buildLiveFallbackStructures(liveStructures: Structure[]): NodeLocalStru
       (structure.type === "gate" || structure.type === "turret") &&
       (structure.summary?.extensionStatus ?? structure.extensionStatus) !== "authorized";
     const normalizedAssemblyId = normalizeNodeDrilldownAssemblyId(structure.assemblyId) ?? undefined;
+    const authorityCandidates = [toNodeLocalActionCandidate(structure)];
     const actionAuthority = createNodeLocalActionAuthority(
       family,
       status,
-      [structure],
+      authorityCandidates,
       source,
       structure.summary?.actionCandidate,
     );
@@ -993,6 +995,7 @@ function buildLiveFallbackStructures(liveStructures: Structure[]): NodeLocalStru
       status,
       source,
       extensionStatus: structure.summary?.extensionStatus ?? structure.extensionStatus,
+      actionCandidate: structure.summary?.actionCandidate ?? null,
       actionAuthority,
       typeLabel: resolvedType.typeLabel,
       typeId: resolvedType.typeId,
@@ -1053,10 +1056,11 @@ function buildBackendMembershipStructures(
     const needsExtensionWarning = primaryAuthorityMatch != null
       && (primaryAuthorityMatch.type === "gate" || primaryAuthorityMatch.type === "turret")
       && (observed.extensionStatus ?? primaryAuthorityMatch.extensionStatus) !== "authorized";
+    const authorityCandidates = authorityMatches.map(toNodeLocalActionCandidate);
     const actionAuthority = createNodeLocalActionAuthority(
       family,
       status,
-      authorityMatches,
+      authorityCandidates,
       "backendMembership",
       observed.actionCandidate,
     );
@@ -1093,6 +1097,7 @@ function buildBackendMembershipStructures(
       status,
       source: "backendMembership",
       extensionStatus: observed.extensionStatus ?? primaryAuthorityMatch?.extensionStatus,
+      actionCandidate: observed.actionCandidate ?? null,
       actionAuthority,
       typeLabel: resolvedType.typeLabel,
       typeId: resolvedType.typeId,
@@ -1363,38 +1368,66 @@ export function buildSyntheticNodeLocalViewModel(
   const structures = sortNodeLocalStructures(
     input.structures.map((structure, index) => {
       const family = structure.family;
+      const status = structure.status ?? "online";
       const sizeVariant = structure.sizeVariant ?? deriveSizeVariant(structure.typeLabel ?? undefined) ?? "standard";
+      const authorityCandidates = structure.authorityCandidates ?? [];
+      const source = structure.source ?? (
+        structure.actionCandidate || authorityCandidates.length > 0 || structure.objectId || structure.assemblyId
+          ? "backendMembership"
+          : "synthetic"
+      );
+      const renderId = normalizeCanonicalObjectId(structure.objectId)
+        ?? (normalizeNodeDrilldownAssemblyId(structure.assemblyId)
+          ? `assembly:${normalizeNodeDrilldownAssemblyId(structure.assemblyId)}`
+          : `${input.nodeId}:${family}:${index + 1}`);
+      const normalizedAssemblyId = normalizeNodeDrilldownAssemblyId(structure.assemblyId) ?? undefined;
+      const hasDirectChainAuthority = structure.hasDirectChainAuthority ?? source === "live";
+      const actionAuthority = createNodeLocalActionAuthority(
+        family,
+        status,
+        authorityCandidates,
+        source,
+        structure.actionCandidate,
+      );
 
       return createNodeLocalStructure({
-        id: `${input.nodeId}:${family}:${index + 1}`,
+        id: renderId,
         canonicalDomainKey: selectCanonicalNodeDrilldownDomainKey({
-          renderId: `${input.nodeId}:${family}:${index + 1}`,
-          source: "synthetic",
-        }) ?? `synthetic:${input.nodeId}:${family}:${index + 1}`,
+          objectId: structure.objectId,
+          assemblyId: normalizedAssemblyId,
+          renderId,
+          source,
+        }) ?? `synthetic:${renderId}`,
+        objectId: structure.objectId,
+        assemblyId: normalizedAssemblyId,
         displayName: structure.displayName,
         family,
         sizeVariant,
-        status: structure.status ?? "online",
-        source: "synthetic",
-        directChainObjectId: null,
-        directChainAssemblyId: null,
-        hasDirectChainAuthority: false,
-        directChainMatchCount: 0,
-        futureActionEligible: false,
-        actionAuthority: createNodeLocalActionAuthority(family, structure.status ?? "neutral", [], "synthetic"),
+        status,
+        source,
+        directChainObjectId: structure.directChainObjectId ?? (hasDirectChainAuthority ? structure.objectId ?? null : null),
+        directChainAssemblyId: structure.directChainAssemblyId ?? (hasDirectChainAuthority ? normalizedAssemblyId ?? null : null),
+        hasDirectChainAuthority,
+        directChainMatchCount: authorityCandidates.length,
+        futureActionEligible: actionAuthority.state === "verified-supported"
+          || actionAuthority.state === "future-supported"
+          || authorityCandidates.length === 1,
+        actionCandidate: structure.actionCandidate ?? null,
+        actionAuthority,
         typeLabel: structure.typeLabel,
         warningPip: structure.warningPip,
         linkedGateId: structure.linkedGateId,
-        backendSource: null,
-        fetchedAt: null,
-        lastUpdated: null,
-        provenance: null,
-        url: null,
-        solarSystemId: null,
-        energySourceId: null,
-        fuelAmount: null,
-        isReadOnly: true,
-        isActionable: false,
+        extensionStatus: structure.extensionStatus,
+        backendSource: structure.backendSource ?? null,
+        fetchedAt: structure.fetchedAt ?? null,
+        lastUpdated: structure.lastUpdated ?? null,
+        provenance: structure.provenance ?? null,
+        url: structure.url ?? null,
+        solarSystemId: structure.solarSystemId ?? null,
+        energySourceId: structure.energySourceId ?? null,
+        fuelAmount: structure.fuelAmount ?? null,
+        isReadOnly: actionAuthority.state !== "verified-supported",
+        isActionable: actionAuthority.state === "verified-supported",
       });
     }),
   );

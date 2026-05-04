@@ -1,33 +1,30 @@
 import { buildSyntheticNodeLocalViewModel } from "@/lib/nodeDrilldownModel";
+import type {
+  IndexedActionCandidate,
+  IndexedActionRequiredIds,
+  IndexedStructureAction,
+  StructureActionTargetType,
+} from "@/types/domain";
 
-import type { NodeLocalActionAuthority, NodeLocalActionCandidateTarget, NodeLocalScenario, NodeLocalStructure, SyntheticNodeLocalStructureInput } from "./nodeDrilldownTypes";
+import type {
+  NodeLocalActionCandidateTarget,
+  NodeLocalScenario,
+  SyntheticNodeLocalStructureInput,
+} from "./nodeDrilldownTypes";
 
-function toneForStatus(status: NodeLocalStructure["status"]): NodeLocalStructure["tone"] {
-  switch (status) {
-    case "online":
-      return "online";
-    case "offline":
-      return "offline";
-    case "warning":
-      return "warning";
-    default:
-      return "neutral";
-  }
-}
-
-function applyStructureOverride(
-  structure: NodeLocalStructure,
-  override: Partial<NodeLocalStructure> & { actionAuthority?: NodeLocalActionAuthority },
-): NodeLocalStructure {
-  const status = override.status ?? structure.status;
-  return {
-    ...structure,
-    ...override,
-    status,
-    tone: override.tone ?? toneForStatus(status),
-    actionAuthority: override.actionAuthority ?? structure.actionAuthority,
-  };
-}
+const CONTROLLABLE_TARGET_BY_FAMILY: Record<SyntheticNodeLocalStructureInput["family"], StructureActionTargetType> = {
+  gate: "gate",
+  tradePost: "storage_unit",
+  turret: "turret",
+  printer: "assembly",
+  refinery: "assembly",
+  assembler: "assembly",
+  berth: "assembly",
+  relay: "assembly",
+  nursery: "assembly",
+  nest: "assembly",
+  shelter: "assembly",
+};
 
 function candidate(
   structureId: string,
@@ -41,6 +38,213 @@ function candidate(
     status,
     ownerCapId: options.ownerCapId,
     networkNodeId: options.networkNodeId,
+  };
+}
+
+function fixtureSeed(scenarioId: string, index: number): bigint {
+  let seed = 0;
+
+  for (const character of scenarioId) {
+    seed = (seed * 33 + character.charCodeAt(0)) % 1_000_000;
+  }
+
+  return BigInt(seed * 100 + index + 1);
+}
+
+function fixtureHex(seed: bigint, offset = 0n): string {
+  return `0x${(seed + offset).toString(16).padStart(64, "0")}`;
+}
+
+function fixtureAssemblyId(seed: bigint): string {
+  return (500_000n + seed).toString();
+}
+
+function buildIndexedAction(
+  requiredIds: IndexedActionRequiredIds,
+  overrides: Partial<IndexedStructureAction> = {},
+): IndexedStructureAction {
+  return {
+    candidate: true,
+    currentlyImplementedInCivilizationControl: true,
+    familySupported: true,
+    indexedOwnerCapPresent: requiredIds.ownerCapId != null,
+    requiredIds,
+    unavailableReason: null,
+    ...overrides,
+  };
+}
+
+function buildControllableActionCandidate(
+  structureId: string,
+  structureType: StructureActionTargetType,
+  ownerCapId: string,
+  networkNodeId: string,
+): IndexedActionCandidate {
+  const requiredIds: IndexedActionRequiredIds = {
+    structureId,
+    structureType,
+    ownerCapId,
+    networkNodeId,
+  };
+
+  return {
+    actions: {
+      power: buildIndexedAction(requiredIds),
+      rename: buildIndexedAction(requiredIds),
+    },
+    supported: true,
+    familySupported: true,
+    unavailableReason: null,
+  };
+}
+
+function buildMissingOwnerCapActionCandidate(
+  structureId: string,
+  structureType: StructureActionTargetType,
+  networkNodeId: string,
+): IndexedActionCandidate {
+  const requiredIds: IndexedActionRequiredIds = {
+    structureId,
+    structureType,
+    ownerCapId: null,
+    networkNodeId,
+  };
+
+  return {
+    actions: {
+      power: buildIndexedAction(requiredIds, {
+        indexedOwnerCapPresent: false,
+        unavailableReason: "Authority proof is unavailable for this structure.",
+      }),
+      rename: buildIndexedAction(requiredIds, {
+        indexedOwnerCapPresent: false,
+        unavailableReason: "Authority proof is unavailable for this structure.",
+      }),
+    },
+    supported: true,
+    familySupported: true,
+    unavailableReason: "Authority proof is unavailable for this structure.",
+  };
+}
+
+function buildMissingNodeContextActionCandidate(
+  structureId: string,
+  structureType: StructureActionTargetType,
+  ownerCapId: string,
+): IndexedActionCandidate {
+  const requiredIds: IndexedActionRequiredIds = {
+    structureId,
+    structureType,
+    ownerCapId,
+    networkNodeId: null,
+  };
+
+  return {
+    actions: {
+      power: buildIndexedAction(requiredIds, {
+        unavailableReason: "Linked node context is unavailable for this structure.",
+      }),
+      rename: buildIndexedAction(requiredIds, {
+        unavailableReason: "Linked node context is unavailable for this structure.",
+      }),
+    },
+    supported: true,
+    familySupported: true,
+    unavailableReason: "Linked node context is unavailable for this structure.",
+  };
+}
+
+function createControllableFixture(
+  nodeId: string,
+  scenarioId: string,
+  index: number,
+  structure: SyntheticNodeLocalStructureInput,
+): SyntheticNodeLocalStructureInput {
+  const targetType = CONTROLLABLE_TARGET_BY_FAMILY[structure.family];
+  const seed = fixtureSeed(scenarioId, index);
+  const objectId = structure.objectId ?? fixtureHex(seed);
+  const assemblyId = structure.assemblyId ?? fixtureAssemblyId(seed);
+  const ownerCapId = fixtureHex(seed, 1_000_000n);
+
+  return {
+    ...structure,
+    source: structure.source ?? "backendMembership",
+    objectId,
+    assemblyId,
+    actionCandidate: structure.actionCandidate ?? buildControllableActionCandidate(
+      objectId,
+      targetType,
+      ownerCapId,
+      nodeId,
+    ),
+  };
+}
+
+function createMissingOwnerCapFixture(
+  nodeId: string,
+  scenarioId: string,
+  index: number,
+  structure: SyntheticNodeLocalStructureInput,
+): SyntheticNodeLocalStructureInput {
+  const targetType = CONTROLLABLE_TARGET_BY_FAMILY[structure.family];
+  const seed = fixtureSeed(scenarioId, index);
+  const objectId = structure.objectId ?? fixtureHex(seed);
+  const assemblyId = structure.assemblyId ?? fixtureAssemblyId(seed);
+
+  return {
+    ...structure,
+    source: "backendMembership",
+    objectId,
+    assemblyId,
+    actionCandidate: buildMissingOwnerCapActionCandidate(objectId, targetType, nodeId),
+  };
+}
+
+function createMissingNodeContextFixture(
+  scenarioId: string,
+  index: number,
+  structure: SyntheticNodeLocalStructureInput,
+): SyntheticNodeLocalStructureInput {
+  const targetType = CONTROLLABLE_TARGET_BY_FAMILY[structure.family];
+  const seed = fixtureSeed(scenarioId, index);
+  const objectId = structure.objectId ?? fixtureHex(seed);
+  const assemblyId = structure.assemblyId ?? fixtureAssemblyId(seed);
+  const ownerCapId = fixtureHex(seed, 1_000_000n);
+
+  return {
+    ...structure,
+    source: "backendMembership",
+    objectId,
+    assemblyId,
+    actionCandidate: buildMissingNodeContextActionCandidate(objectId, targetType, ownerCapId),
+  };
+}
+
+function createAmbiguousFixture(
+  nodeId: string,
+  scenarioId: string,
+  index: number,
+  structure: SyntheticNodeLocalStructureInput,
+): SyntheticNodeLocalStructureInput {
+  const targetType = CONTROLLABLE_TARGET_BY_FAMILY[structure.family];
+  const seed = fixtureSeed(scenarioId, index);
+  const objectId = structure.objectId ?? fixtureHex(seed);
+  const assemblyId = structure.assemblyId ?? fixtureAssemblyId(seed);
+  const firstStructureId = fixtureHex(seed, 10_000n);
+  const secondStructureId = fixtureHex(seed, 20_000n);
+  const firstOwnerCapId = fixtureHex(seed, 30_000n);
+  const secondOwnerCapId = fixtureHex(seed, 40_000n);
+  const status = structure.status ?? "offline";
+
+  return {
+    ...structure,
+    source: "backendMembership",
+    objectId,
+    assemblyId,
+    authorityCandidates: [
+      candidate(firstStructureId, targetType, status, { ownerCapId: firstOwnerCapId, networkNodeId: nodeId }),
+      candidate(secondStructureId, targetType, status, { ownerCapId: secondOwnerCapId, networkNodeId: nodeId }),
+    ],
   };
 }
 
@@ -68,14 +272,41 @@ function repeatStructures(
   }));
 }
 
-function createScenario(config: {
-  id: string;
-  label: string;
-  description: string;
-  nodeLabel: string;
-  structures: SyntheticNodeLocalStructureInput[];
-  initialHiddenCanonicalKeys?: string[];
-}): NodeLocalScenario {
+function decorateControllableStructures(
+  scenarioId: string,
+  nodeId: string,
+  structures: SyntheticNodeLocalStructureInput[],
+): SyntheticNodeLocalStructureInput[] {
+  return structures.map((structure, index) => {
+    if (
+      structure.actionCandidate
+      || (structure.authorityCandidates?.length ?? 0) > 0
+      || structure.objectId
+      || structure.assemblyId
+      || (structure.source != null && structure.source !== "synthetic")
+    ) {
+      return structure;
+    }
+
+    return createControllableFixture(nodeId, scenarioId, index, structure);
+  });
+}
+
+function createScenario(
+  config: {
+    id: string;
+    label: string;
+    description: string;
+    nodeLabel: string;
+    structures: SyntheticNodeLocalStructureInput[];
+    initialHiddenCanonicalKeys?: string[];
+  },
+  options: { decorateControllable?: boolean } = {},
+): NodeLocalScenario {
+  const structures = options.decorateControllable
+    ? decorateControllableStructures(config.id, config.id, config.structures)
+    : config.structures;
+
   return {
     id: config.id,
     label: config.label,
@@ -83,7 +314,7 @@ function createScenario(config: {
     viewModel: buildSyntheticNodeLocalViewModel({
       nodeId: config.id,
       nodeLabel: config.nodeLabel,
-      structures: config.structures,
+      structures,
     }),
     initialHiddenCanonicalKeys: config.initialHiddenCanonicalKeys,
   };
@@ -93,173 +324,62 @@ function createAuthorityMatrixScenario(): NodeLocalScenario {
   const baseScenario = createScenario({
     id: "authority-matrix",
     label: "Authority Matrix",
-    description: "Verified, hidden, backend-only, ambiguous, unsupported, and missing-context rows for Phase E action review.",
+    description: "Controllable rows plus deliberate authority failures for node-drilldown action review.",
     nodeLabel: "Authority Review Node",
     structures: [
-      { family: "tradePost", displayName: "Storage Alpha", typeLabel: "Storage", status: "online" },
-      { family: "turret", displayName: "Turret Beta", typeLabel: "Turret", status: "offline" },
-      { family: "printer", displayName: "Printer Gamma", typeLabel: "Printer", status: "online" },
-      { family: "assembler", displayName: "Assembler Delta", typeLabel: "Assembler", status: "online" },
-      { family: "gate", displayName: "Gate Epsilon", typeLabel: "Mini Gate", sizeVariant: "mini", status: "online" },
-      { family: "gate", displayName: "Gate Zeta", typeLabel: "Mini Gate", sizeVariant: "mini", status: "warning", warningPip: true },
-      { family: "gate", displayName: "Gate Eta", typeLabel: "Mini Gate", sizeVariant: "mini", status: "neutral" },
+      createControllableFixture("authority-matrix", "authority-matrix", 0, {
+        family: "tradePost",
+        displayName: "Storage Alpha",
+        typeLabel: "Storage",
+        status: "online",
+      }),
+      createControllableFixture("authority-matrix", "authority-matrix", 1, {
+        family: "turret",
+        displayName: "Turret Beta",
+        typeLabel: "Turret",
+        status: "offline",
+      }),
+      createControllableFixture("authority-matrix", "authority-matrix", 2, {
+        family: "printer",
+        displayName: "Printer Gamma",
+        typeLabel: "Printer",
+        status: "offline",
+      }),
+      createMissingOwnerCapFixture("authority-matrix", "authority-matrix", 3, {
+        family: "assembler",
+        displayName: "Assembler Delta",
+        typeLabel: "Assembler",
+        status: "offline",
+      }),
+      createControllableFixture("authority-matrix", "authority-matrix", 4, {
+        family: "gate",
+        displayName: "Gate Epsilon",
+        typeLabel: "Mini Gate",
+        sizeVariant: "mini",
+        status: "online",
+      }),
+      createAmbiguousFixture("authority-matrix", "authority-matrix", 5, {
+        family: "gate",
+        displayName: "Gate Zeta",
+        typeLabel: "Mini Gate",
+        sizeVariant: "mini",
+        status: "warning",
+        warningPip: true,
+      }),
+      createMissingNodeContextFixture("authority-matrix", 6, {
+        family: "gate",
+        displayName: "Gate Eta",
+        typeLabel: "Mini Gate",
+        sizeVariant: "mini",
+        status: "neutral",
+      }),
     ],
   });
 
-  const nodeId = baseScenario.viewModel.node.id;
-  const structures = baseScenario.viewModel.structures.map((structure) => {
-    switch (structure.displayName) {
-      case "Storage Alpha":
-        return applyStructureOverride(structure, {
-          source: "live",
-          objectId: "0xstoragealpha",
-          assemblyId: "41001",
-          directChainObjectId: "0xstoragealpha",
-          directChainAssemblyId: "41001",
-          hasDirectChainAuthority: true,
-          directChainMatchCount: 1,
-          futureActionEligible: true,
-          isReadOnly: false,
-          isActionable: true,
-          actionAuthority: {
-            state: "verified-supported",
-            verifiedTarget: {
-              structureId: "0xstoragealpha",
-              structureType: "storage_unit",
-              ownerCapId: "0xstoragecapalpha",
-              networkNodeId: nodeId,
-              status: "online",
-            },
-            candidateTargets: [candidate("0xstoragealpha", "storage_unit", "online", { ownerCapId: "0xstoragecapalpha", networkNodeId: nodeId })],
-          },
-        });
-      case "Turret Beta":
-        return applyStructureOverride(structure, {
-          source: "live",
-          objectId: "0xturretbeta",
-          assemblyId: "41002",
-          directChainObjectId: "0xturretbeta",
-          directChainAssemblyId: "41002",
-          hasDirectChainAuthority: true,
-          directChainMatchCount: 1,
-          futureActionEligible: true,
-          isReadOnly: false,
-          isActionable: true,
-          actionAuthority: {
-            state: "verified-supported",
-            verifiedTarget: {
-              structureId: "0xturretbeta",
-              structureType: "turret",
-              ownerCapId: "0xturretcapbeta",
-              networkNodeId: nodeId,
-              status: "offline",
-            },
-            candidateTargets: [candidate("0xturretbeta", "turret", "offline", { ownerCapId: "0xturretcapbeta", networkNodeId: nodeId })],
-          },
-        });
-      case "Printer Gamma":
-        return applyStructureOverride(structure, {
-          source: "backendMembership",
-          objectId: undefined,
-          assemblyId: "51001",
-          directChainObjectId: null,
-          directChainAssemblyId: null,
-          hasDirectChainAuthority: false,
-          directChainMatchCount: 0,
-          futureActionEligible: false,
-          actionAuthority: {
-            state: "backend-only",
-            verifiedTarget: null,
-            candidateTargets: [],
-          },
-        });
-      case "Assembler Delta":
-        return applyStructureOverride(structure, {
-          source: "backendMembership",
-          objectId: "0xassemblerdelta",
-          assemblyId: "51002",
-          directChainObjectId: "0xassemblerdelta",
-          directChainAssemblyId: "51002",
-          hasDirectChainAuthority: true,
-          directChainMatchCount: 1,
-          futureActionEligible: true,
-          actionAuthority: {
-            state: "unsupported-family",
-            verifiedTarget: null,
-            candidateTargets: [candidate("0xassemblerdelta", "storage_unit", "online", { ownerCapId: "0xassemblercapdelta", networkNodeId: nodeId })],
-          },
-        });
-      case "Gate Epsilon":
-        return applyStructureOverride(structure, {
-          source: "live",
-          objectId: "0xgateepsilon",
-          assemblyId: "41003",
-          directChainObjectId: "0xgateepsilon",
-          directChainAssemblyId: "41003",
-          hasDirectChainAuthority: true,
-          directChainMatchCount: 1,
-          futureActionEligible: true,
-          isReadOnly: false,
-          isActionable: true,
-          actionAuthority: {
-            state: "verified-supported",
-            verifiedTarget: {
-              structureId: "0xgateepsilon",
-              structureType: "gate",
-              ownerCapId: "0xgatecapepsilon",
-              networkNodeId: nodeId,
-              status: "online",
-            },
-            candidateTargets: [candidate("0xgateepsilon", "gate", "online", { ownerCapId: "0xgatecapepsilon", networkNodeId: nodeId })],
-          },
-        });
-      case "Gate Zeta":
-        return applyStructureOverride(structure, {
-          source: "backendMembership",
-          objectId: "0xgatezeta",
-          assemblyId: "51003",
-          directChainObjectId: "0xgatezeta-a",
-          directChainAssemblyId: "51003",
-          hasDirectChainAuthority: true,
-          directChainMatchCount: 2,
-          futureActionEligible: false,
-          actionAuthority: {
-            state: "ambiguous-match",
-            verifiedTarget: null,
-            candidateTargets: [
-              candidate("0xgatezeta-a", "gate", "warning", { ownerCapId: "0xgatecapzetaa", networkNodeId: nodeId }),
-              candidate("0xgatezeta-b", "gate", "offline", { ownerCapId: "0xgatecapzetab", networkNodeId: nodeId }),
-            ],
-          },
-        });
-      case "Gate Eta":
-        return applyStructureOverride(structure, {
-          source: "backendMembership",
-          objectId: "0xgateeta",
-          assemblyId: "51004",
-          directChainObjectId: "0xgateeta",
-          directChainAssemblyId: "51004",
-          hasDirectChainAuthority: true,
-          directChainMatchCount: 1,
-          futureActionEligible: false,
-          actionAuthority: {
-            state: "missing-node-context",
-            verifiedTarget: null,
-            candidateTargets: [candidate("0xgateeta", "gate", "neutral", { ownerCapId: "0xgatecapeta" })],
-          },
-        });
-      default:
-        return structure;
-    }
-  });
-  const hiddenGate = structures.find((structure) => structure.displayName === "Gate Epsilon");
+  const hiddenGate = baseScenario.viewModel.structures.find((structure) => structure.displayName === "Gate Epsilon");
 
   return {
     ...baseScenario,
-    viewModel: {
-      ...baseScenario.viewModel,
-      structures,
-    },
     initialHiddenCanonicalKeys: hiddenGate ? [hiddenGate.canonicalDomainKey] : undefined,
   };
 }
@@ -268,103 +388,103 @@ export const NODE_DRILLDOWN_SCENARIOS: NodeLocalScenario[] = [
   createAuthorityMatrixScenario(),
   createScenario({
     id: "sparse-solo-node",
-    label: "Sparse Solo Node",
-    description: "Minimal live-like footprint using the currently hydrated live families only.",
+    label: "Sparse Solo Nodes",
+    description: "Minimal owned examples for gate, storage, and turret action review.",
     nodeLabel: "Khanid Relay",
     structures: [
       ...repeatStructures("gate", 2, { labelPrefix: "Gate", sizeVariant: "mini", typeLabel: "Mini Gate" }),
       ...repeatStructures("tradePost", 1, { labelPrefix: "Storage", typeLabel: "Storage" }),
-      ...repeatStructures("turret", 1, { labelPrefix: "Turret", typeLabel: "Turret" }),
+      ...repeatStructures("turret", 1, { labelPrefix: "Turret", typeLabel: "Turret", status: "offline" }),
     ],
-  }),
+  }, { decorateControllable: true }),
   createScenario({
     id: "industry-node",
-    label: "Industry Node",
-    description: "Primary industry rows plus logistics support around a stable operating node.",
+    label: "Node Gate Industry Node",
+    description: "Industry-led node with controllable gate, storage, and assembly families for action review.",
     nodeLabel: "Aritcio Foundry",
     structures: [
-      ...repeatStructures("printer", 4, { labelPrefix: "Printer", typeLabel: "Printer" }),
-      ...repeatStructures("printer", 1, { labelPrefix: "Heavy Printer", sizeVariant: "heavy", typeLabel: "Heavy Printer" }),
-      ...repeatStructures("refinery", 2, { labelPrefix: "Refinery", typeLabel: "Refinery" }),
-      ...repeatStructures("assembler", 1, { labelPrefix: "Assembler", typeLabel: "Assembler" }),
+      ...repeatStructures("printer", 4, { labelPrefix: "Printer", typeLabel: "Printer", status: "offline" }),
+      ...repeatStructures("printer", 1, { labelPrefix: "Heavy Printer", sizeVariant: "heavy", typeLabel: "Heavy Printer", status: "offline" }),
+      ...repeatStructures("refinery", 2, { labelPrefix: "Refinery", typeLabel: "Refinery", status: "offline" }),
+      ...repeatStructures("assembler", 1, { labelPrefix: "Assembler", typeLabel: "Assembler", status: "offline" }),
       ...repeatStructures("tradePost", 2, { labelPrefix: "Storage", typeLabel: "Storage" }),
-      ...repeatStructures("berth", 2, { labelPrefix: "Berth", typeLabel: "Berth" }),
+      ...repeatStructures("berth", 2, { labelPrefix: "Berth", typeLabel: "Berth", status: "offline" }),
       ...repeatStructures("gate", 2, { labelPrefix: "Gate", sizeVariant: "heavy", typeLabel: "Heavy Gate" }),
-      ...repeatStructures("relay", 1, { labelPrefix: "Relay", typeLabel: "Relay" }),
-      ...repeatStructures("nursery", 1, { labelPrefix: "Nursery", typeLabel: "Nursery" }),
+      ...repeatStructures("relay", 1, { labelPrefix: "Relay", typeLabel: "Relay", status: "offline" }),
+      ...repeatStructures("nursery", 1, { labelPrefix: "Nursery", typeLabel: "Nursery", status: "offline" }),
     ],
-  }),
+  }, { decorateControllable: true }),
   createScenario({
     id: "no-gate-industry-node",
     label: "No-Gate Industry Node",
-    description: "Industry-led node with logistics and support, but no corridor rail, for direct comparison against Industry Node.",
+    description: "Industry-led node with logistics and support, but no corridor rail, for direct comparison against Node Gate Industry Node.",
     nodeLabel: "Aritcio Reserve",
     structures: [
-      ...repeatStructures("printer", 4, { labelPrefix: "Printer", typeLabel: "Printer" }),
-      ...repeatStructures("printer", 1, { labelPrefix: "Heavy Printer", sizeVariant: "heavy", typeLabel: "Heavy Printer" }),
-      ...repeatStructures("refinery", 2, { labelPrefix: "Refinery", typeLabel: "Refinery" }),
-      ...repeatStructures("assembler", 1, { labelPrefix: "Assembler", typeLabel: "Assembler" }),
+      ...repeatStructures("printer", 4, { labelPrefix: "Printer", typeLabel: "Printer", status: "offline" }),
+      ...repeatStructures("printer", 1, { labelPrefix: "Heavy Printer", sizeVariant: "heavy", typeLabel: "Heavy Printer", status: "offline" }),
+      ...repeatStructures("refinery", 2, { labelPrefix: "Refinery", typeLabel: "Refinery", status: "offline" }),
+      ...repeatStructures("assembler", 1, { labelPrefix: "Assembler", typeLabel: "Assembler", status: "offline" }),
       ...repeatStructures("tradePost", 2, { labelPrefix: "Storage", typeLabel: "Storage" }),
-      ...repeatStructures("berth", 2, { labelPrefix: "Berth", typeLabel: "Berth" }),
-      ...repeatStructures("relay", 1, { labelPrefix: "Relay", typeLabel: "Relay" }),
-      ...repeatStructures("nursery", 1, { labelPrefix: "Nursery", typeLabel: "Nursery" }),
+      ...repeatStructures("berth", 2, { labelPrefix: "Berth", typeLabel: "Berth", status: "offline" }),
+      ...repeatStructures("relay", 1, { labelPrefix: "Relay", typeLabel: "Relay", status: "offline" }),
+      ...repeatStructures("nursery", 1, { labelPrefix: "Nursery", typeLabel: "Nursery", status: "offline" }),
     ],
-  }),
+  }, { decorateControllable: true }),
   createScenario({
     id: "no-gate-dense-manufacturing",
     label: "No-Gate Dense Manufacturing",
-    description: "Dense manufacturing stack with no gate rail and no defense block, for corridor-free compacting and centering validation.",
+    description: "Dense manufacturing stack with no gate rail and controllable attached assemblies for compact layout validation.",
     nodeLabel: "Kador Fabrication Ring",
     structures: [
-      ...repeatStructures("printer", 4, { labelPrefix: "Printer", typeLabel: "Printer" }),
-      ...repeatStructures("printer", 1, { labelPrefix: "Heavy Printer", sizeVariant: "heavy", typeLabel: "Heavy Printer" }),
-      ...repeatStructures("refinery", 2, { labelPrefix: "Refinery", typeLabel: "Refinery" }),
-      ...repeatStructures("refinery", 1, { labelPrefix: "Heavy Refinery", sizeVariant: "heavy", typeLabel: "Heavy Refinery" }),
-      ...repeatStructures("assembler", 2, { labelPrefix: "Assembler", typeLabel: "Assembler" }),
+      ...repeatStructures("printer", 4, { labelPrefix: "Printer", typeLabel: "Printer", status: "offline" }),
+      ...repeatStructures("printer", 1, { labelPrefix: "Heavy Printer", sizeVariant: "heavy", typeLabel: "Heavy Printer", status: "offline" }),
+      ...repeatStructures("refinery", 2, { labelPrefix: "Refinery", typeLabel: "Refinery", status: "offline" }),
+      ...repeatStructures("refinery", 1, { labelPrefix: "Heavy Refinery", sizeVariant: "heavy", typeLabel: "Heavy Refinery", status: "offline" }),
+      ...repeatStructures("assembler", 2, { labelPrefix: "Assembler", typeLabel: "Assembler", status: "offline" }),
       ...repeatStructures("tradePost", 3, { labelPrefix: "Storage", typeLabel: "Storage" }),
-      ...repeatStructures("berth", 3, { labelPrefix: "Berth", typeLabel: "Berth" }),
-      ...repeatStructures("relay", 1, { labelPrefix: "Relay", typeLabel: "Relay" }),
-      ...repeatStructures("nursery", 1, { labelPrefix: "Nursery", typeLabel: "Nursery" }),
-      ...repeatStructures("shelter", 1, { labelPrefix: "Shelter", typeLabel: "Shelter" }),
+      ...repeatStructures("berth", 3, { labelPrefix: "Berth", typeLabel: "Berth", status: "offline" }),
+      ...repeatStructures("relay", 1, { labelPrefix: "Relay", typeLabel: "Relay", status: "offline" }),
+      ...repeatStructures("nursery", 1, { labelPrefix: "Nursery", typeLabel: "Nursery", status: "offline" }),
+      ...repeatStructures("shelter", 1, { labelPrefix: "Shelter", typeLabel: "Shelter", status: "offline" }),
     ],
-  }),
+  }, { decorateControllable: true }),
   createScenario({
     id: "mixed-operating-base",
     label: "Mixed Operating Base",
-    description: "Balanced industry, logistics, support, and defense around one active node. Use this fixture for hide/unhide review across map, list, and inspector.",
+    description: "Balanced industry, logistics, support, and defense with controllable owned examples across the attached assembly families.",
     nodeLabel: "Caldari Exchange",
     structures: [
       ...repeatStructures("gate", 2, { labelPrefix: "Gate", sizeVariant: "mini", typeLabel: "Mini Gate" }),
-      ...repeatStructures("printer", 3, { labelPrefix: "Printer", typeLabel: "Printer" }),
-      ...repeatStructures("refinery", 1, { labelPrefix: "Heavy Refinery", sizeVariant: "heavy", typeLabel: "Heavy Refinery" }),
-      ...repeatStructures("assembler", 1, { labelPrefix: "Assembler", typeLabel: "Assembler" }),
+      ...repeatStructures("printer", 3, { labelPrefix: "Printer", typeLabel: "Printer", status: "offline" }),
+      ...repeatStructures("refinery", 1, { labelPrefix: "Heavy Refinery", sizeVariant: "heavy", typeLabel: "Heavy Refinery", status: "offline" }),
+      ...repeatStructures("assembler", 1, { labelPrefix: "Assembler", typeLabel: "Assembler", status: "offline" }),
       ...repeatStructures("tradePost", 2, { labelPrefix: "Storage", typeLabel: "Storage" }),
-      ...repeatStructures("berth", 2, { labelPrefix: "Berth", typeLabel: "Berth" }),
-      ...repeatStructures("relay", 1, { labelPrefix: "Relay", typeLabel: "Relay" }),
-      ...repeatStructures("nursery", 1, { labelPrefix: "Nursery", typeLabel: "Nursery" }),
-      ...repeatStructures("shelter", 1, { labelPrefix: "Shelter", typeLabel: "Shelter" }),
-      ...repeatStructures("turret", 8, { labelPrefix: "Turret", typeLabel: "Turret" }),
+      ...repeatStructures("berth", 2, { labelPrefix: "Berth", typeLabel: "Berth", status: "offline" }),
+      ...repeatStructures("relay", 1, { labelPrefix: "Relay", typeLabel: "Relay", status: "offline" }),
+      ...repeatStructures("nursery", 1, { labelPrefix: "Nursery", typeLabel: "Nursery", status: "offline" }),
+      ...repeatStructures("shelter", 1, { labelPrefix: "Shelter", typeLabel: "Shelter", status: "offline" }),
+      ...repeatStructures("turret", 8, { labelPrefix: "Turret", typeLabel: "Turret", status: "offline" }),
     ],
-  }),
+  }, { decorateControllable: true }),
   createScenario({
     id: "support-clutter-test",
     label: "Support Clutter Test",
-    description: "Compact support-band validation with mixed relay, nursery, nest, and shelter counts.",
+    description: "Compact support-band validation with controllable relay, nursery, nest, and shelter rows.",
     nodeLabel: "Support Terrace",
     structures: [
       ...repeatStructures("gate", 1, { labelPrefix: "Gate", sizeVariant: "mini", typeLabel: "Mini Gate" }),
       ...repeatStructures("tradePost", 2, { labelPrefix: "Storage", typeLabel: "Storage" }),
-      ...repeatStructures("relay", 4, { labelPrefix: "Relay", typeLabel: "Relay" }),
-      ...repeatStructures("nursery", 3, { labelPrefix: "Nursery", typeLabel: "Nursery" }),
-      ...repeatStructures("nest", 2, { labelPrefix: "Nest", typeLabel: "Nest" }),
-      ...repeatStructures("shelter", 4, { labelPrefix: "Shelter", typeLabel: "Shelter" }),
-      ...repeatStructures("turret", 6, { labelPrefix: "Turret", typeLabel: "Turret" }),
+      ...repeatStructures("relay", 4, { labelPrefix: "Relay", typeLabel: "Relay", status: "offline" }),
+      ...repeatStructures("nursery", 3, { labelPrefix: "Nursery", typeLabel: "Nursery", status: "offline" }),
+      ...repeatStructures("nest", 2, { labelPrefix: "Nest", typeLabel: "Nest", status: "offline" }),
+      ...repeatStructures("shelter", 4, { labelPrefix: "Shelter", typeLabel: "Shelter", status: "offline" }),
+      ...repeatStructures("turret", 6, { labelPrefix: "Turret", typeLabel: "Turret", status: "offline" }),
     ],
-  }),
+  }, { decorateControllable: true }),
   createScenario({
     id: "defense-heavy-node",
     label: "Defense Heavy Node",
-    description: "A heavy perimeter posture with dense defensive placement and corridor coverage.",
+    description: "A heavy perimeter posture with controllable gates and warning-marker turret rows for explanation coverage.",
     nodeLabel: "Outer Bastion",
     structures: [
       ...repeatStructures("gate", 2, { labelPrefix: "Heavy Gate", sizeVariant: "heavy", typeLabel: "Heavy Gate" }),
@@ -372,17 +492,17 @@ export const NODE_DRILLDOWN_SCENARIOS: NodeLocalScenario[] = [
       ...repeatStructures("turret", 12, { labelPrefix: "Turret", typeLabel: "Turret", status: "warning", warningPip: true }),
       ...repeatStructures("turret", 4, { labelPrefix: "Heavy Turret", sizeVariant: "heavy", typeLabel: "Heavy Turret", status: "warning", warningPip: true, startIndex: 13 }),
     ],
-  }),
+  }, { decorateControllable: true }),
   createScenario({
     id: "turret-stress-test",
     label: "Turret Stress Test",
-    description: "High-density defensive block for first-slice dense layout validation.",
+    description: "High-density defensive block with owned controllable turret rows for layout and action validation.",
     nodeLabel: "Perimeter Lock",
     structures: [
       ...repeatStructures("gate", 2, { labelPrefix: "Heavy Gate", sizeVariant: "heavy", typeLabel: "Heavy Gate" }),
-      ...repeatStructures("turret", 34, { labelPrefix: "Turret", typeLabel: "Turret" }),
-      ...repeatStructures("turret", 8, { labelPrefix: "Mini Turret", sizeVariant: "mini", typeLabel: "Mini Turret", startIndex: 35 }),
-      ...repeatStructures("turret", 8, { labelPrefix: "Heavy Turret", sizeVariant: "heavy", typeLabel: "Heavy Turret", startIndex: 43 }),
+      ...repeatStructures("turret", 34, { labelPrefix: "Turret", typeLabel: "Turret", status: "offline" }),
+      ...repeatStructures("turret", 8, { labelPrefix: "Mini Turret", sizeVariant: "mini", typeLabel: "Mini Turret", status: "offline", startIndex: 35 }),
+      ...repeatStructures("turret", 8, { labelPrefix: "Heavy Turret", sizeVariant: "heavy", typeLabel: "Heavy Turret", status: "offline", startIndex: 43 }),
     ],
-  }),
+  }, { decorateControllable: true }),
 ];

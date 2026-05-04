@@ -1,7 +1,15 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
-import { getNodeLocalPowerControlState, getNodeLocalPowerToggleIntent, supportsNodeLocalRename } from '../src/lib/nodeDrilldownActionAuthority.ts';
+import {
+  formatNodeLocalActionAuthorityDetail,
+  formatNodeLocalActionAuthorityLabel,
+  formatNodeLocalActionBadgeText,
+  formatNodeLocalActionTooltip,
+  getNodeLocalPowerControlState,
+  getNodeLocalPowerToggleIntent,
+  supportsNodeLocalRename,
+} from '../src/lib/nodeDrilldownActionAuthority.ts';
 import { getStructurePowerAction, supportsStructureRename } from '../src/lib/structureActionSupport.ts';
 
 function makeStructure(overrides = {}) {
@@ -156,6 +164,10 @@ const verifiedPrinterNodeLocal = makeNodeLocalStructure({
   },
 });
 assert.equal(supportsNodeLocalRename(verifiedPrinterNodeLocal), true);
+assert.equal(formatNodeLocalActionAuthorityLabel(verifiedPrinterNodeLocal), 'Action ready');
+assert.equal(formatNodeLocalActionAuthorityDetail(verifiedPrinterNodeLocal), 'This printer can be controlled from this row.');
+assert.equal(formatNodeLocalActionBadgeText(verifiedPrinterNodeLocal), 'Action ready');
+assert.equal(formatNodeLocalActionTooltip(verifiedPrinterNodeLocal), 'Action ready');
 assert.deepEqual(getNodeLocalPowerToggleIntent(verifiedPrinterNodeLocal), {
   actionLabel: 'Bring Online',
   currentStatus: 'offline',
@@ -180,6 +192,10 @@ const backendOnlyNodeLocal = makeNodeLocalStructure({
   },
 });
 assert.equal(supportsNodeLocalRename(backendOnlyNodeLocal), false);
+assert.equal(formatNodeLocalActionAuthorityLabel(backendOnlyNodeLocal), 'Awaiting chain proof');
+assert.equal(formatNodeLocalActionAuthorityDetail(backendOnlyNodeLocal), 'No verified direct-chain target.');
+assert.equal(formatNodeLocalActionBadgeText(backendOnlyNodeLocal), 'Action unavailable: Awaiting chain proof');
+assert.equal(formatNodeLocalActionTooltip(backendOnlyNodeLocal), 'No verified direct-chain target.');
 assert.equal(getNodeLocalPowerToggleIntent(backendOnlyNodeLocal), null);
 assert.deepEqual(getNodeLocalPowerControlState(backendOnlyNodeLocal), {
   actionLabel: null,
@@ -201,6 +217,10 @@ const futureSupportedNodeLocal = makeNodeLocalStructure({
   },
 });
 assert.equal(supportsNodeLocalRename(futureSupportedNodeLocal), false);
+assert.equal(formatNodeLocalActionAuthorityLabel(futureSupportedNodeLocal), 'Awaiting web controls');
+assert.equal(formatNodeLocalActionAuthorityDetail(futureSupportedNodeLocal), 'Frontend action not implemented.');
+assert.equal(formatNodeLocalActionBadgeText(futureSupportedNodeLocal), 'Awaiting web controls');
+assert.equal(formatNodeLocalActionTooltip(futureSupportedNodeLocal), 'Frontend action not implemented.');
 assert.equal(getNodeLocalPowerToggleIntent(futureSupportedNodeLocal), null);
 assert.deepEqual(getNodeLocalPowerControlState(futureSupportedNodeLocal), {
   actionLabel: null,
@@ -211,8 +231,119 @@ assert.deepEqual(getNodeLocalPowerControlState(futureSupportedNodeLocal), {
   isStatusOnly: true,
 });
 
+const ambiguousNodeLocal = makeNodeLocalStructure({
+  actionAuthority: {
+    state: 'ambiguous-match',
+    verifiedTarget: null,
+    candidateTargets: [
+      {
+        structureId: '0xone',
+        structureType: 'assembly',
+        ownerCapId: '0xcap-one',
+        networkNodeId: '0xnode',
+        status: 'offline',
+      },
+      {
+        structureId: '0xtwo',
+        structureType: 'assembly',
+        ownerCapId: '0xcap-two',
+        networkNodeId: '0xnode',
+        status: 'offline',
+      },
+    ],
+    unavailableReason: null,
+  },
+});
+assert.equal(formatNodeLocalActionAuthorityLabel(ambiguousNodeLocal), 'Match review needed (2)');
+assert.equal(formatNodeLocalActionAuthorityDetail(ambiguousNodeLocal), 'Control is paused because 2 matching structures were found.');
+assert.equal(formatNodeLocalActionBadgeText(ambiguousNodeLocal), 'Action unavailable: Match review needed (2)');
+assert.equal(formatNodeLocalActionTooltip(ambiguousNodeLocal), 'Match review needed (2)');
+
+const unsupportedNodeLocal = makeNodeLocalStructure({
+  family: 'relay',
+  familyLabel: 'Relay',
+  typeLabel: 'Relay',
+  actionAuthority: {
+    state: 'unsupported-family',
+    verifiedTarget: null,
+    candidateTargets: [
+      {
+        structureId: '0xrelay',
+        structureType: 'assembly',
+        ownerCapId: '0xrelay-cap',
+        networkNodeId: '0xnode',
+        status: 'online',
+      },
+    ],
+    unavailableReason: null,
+  },
+});
+assert.equal(formatNodeLocalActionAuthorityLabel(unsupportedNodeLocal), 'Action not approved');
+assert.equal(formatNodeLocalActionAuthorityDetail(unsupportedNodeLocal), 'This structure family is not approved for web power control in this release.');
+assert.equal(formatNodeLocalActionBadgeText(unsupportedNodeLocal), 'Action unavailable: Action not approved');
+assert.equal(formatNodeLocalActionTooltip(unsupportedNodeLocal), 'Action not approved');
+
+const missingOwnerCapNodeLocal = makeNodeLocalStructure({
+  actionAuthority: {
+    state: 'missing-owner-cap',
+    verifiedTarget: null,
+    candidateTargets: [
+      {
+        structureId: '0xprinter',
+        structureType: 'assembly',
+        networkNodeId: '0xnode',
+        status: 'offline',
+      },
+    ],
+    unavailableReason: null,
+  },
+});
+assert.equal(formatNodeLocalActionAuthorityLabel(missingOwnerCapNodeLocal), 'Control proof missing');
+assert.equal(formatNodeLocalActionAuthorityDetail(missingOwnerCapNodeLocal), 'Control is paused because the required control proof is missing.');
+assert.equal(formatNodeLocalActionBadgeText(missingOwnerCapNodeLocal), 'Action unavailable: Control proof missing');
+assert.equal(formatNodeLocalActionTooltip(missingOwnerCapNodeLocal), 'Control proof missing');
+
+const missingNodeContextNodeLocal = makeNodeLocalStructure({
+  actionAuthority: {
+    state: 'missing-node-context',
+    verifiedTarget: null,
+    candidateTargets: [
+      {
+        structureId: '0xstorage',
+        structureType: 'storage_unit',
+        ownerCapId: '0xstorage-cap',
+        status: 'offline',
+      },
+    ],
+    unavailableReason: null,
+  },
+});
+assert.equal(formatNodeLocalActionAuthorityLabel(missingNodeContextNodeLocal), 'Node link missing');
+assert.equal(formatNodeLocalActionAuthorityDetail(missingNodeContextNodeLocal), 'Control is paused because the linked node record is incomplete.');
+assert.equal(formatNodeLocalActionBadgeText(missingNodeContextNodeLocal), 'Action unavailable: Node link missing');
+assert.equal(formatNodeLocalActionTooltip(missingNodeContextNodeLocal), 'Node link missing');
+
+const syntheticNodeLocal = makeNodeLocalStructure({
+  source: 'synthetic',
+  hasDirectChainAuthority: false,
+  actionAuthority: {
+    state: 'synthetic',
+    verifiedTarget: null,
+    candidateTargets: [],
+    unavailableReason: null,
+  },
+});
+assert.equal(formatNodeLocalActionAuthorityLabel(syntheticNodeLocal), 'Lab preview');
+assert.equal(formatNodeLocalActionAuthorityDetail(syntheticNodeLocal), 'Lab rows preview control state but never submit transactions.');
+assert.equal(formatNodeLocalActionBadgeText(syntheticNodeLocal), 'Lab preview');
+assert.equal(formatNodeLocalActionTooltip(syntheticNodeLocal), 'Lab preview');
+
 const contextMenuSource = readFileSync(new URL('../src/components/structure-actions/StructureActionContextMenu.tsx', import.meta.url), 'utf8');
+const nodeDrilldownMenuHookSource = readFileSync(new URL('../src/hooks/useNodeDrilldownStructureMenu.ts', import.meta.url), 'utf8');
+const structureMenuHookSource = readFileSync(new URL('../src/hooks/useStructureActionMenu.ts', import.meta.url), 'utf8');
 assert.equal(contextMenuSource.includes('min-w-[172px]'), false, 'expected the shared action menu to stop forcing a wide minimum width');
 assert.equal(contextMenuSource.includes('w-max'), true, 'expected the shared action menu to shrink-wrap to content width');
+assert.equal(nodeDrilldownMenuHookSource.includes('CONTEXT_MENU_WIDTH_PX = 196'), false, 'expected Node Control menu placement to stop assuming a fixed 196px width');
+assert.equal(structureMenuHookSource.includes('CONTEXT_MENU_WIDTH_PX = 196'), false, 'expected structure action menu placement to stop assuming a fixed 196px width');
 
 console.log('structure action support check: ok');

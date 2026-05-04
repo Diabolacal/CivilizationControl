@@ -83,21 +83,21 @@ export function supportsNodeLocalRename(structure: NodeLocalStructure): boolean 
 export function formatNodeLocalActionAuthorityLabel(structure: NodeLocalStructure): string {
   switch (structure.actionAuthority.state) {
     case "verified-supported":
-      return "Verified supported";
+      return "Action ready";
     case "future-supported":
-      return "Future support";
+      return "Awaiting web controls";
     case "backend-only":
-      return "Backend-only";
+      return "Awaiting chain proof";
     case "ambiguous-match":
-      return `Ambiguous match (${structure.actionAuthority.candidateTargets.length})`;
+      return `Match review needed (${structure.actionAuthority.candidateTargets.length})`;
     case "unsupported-family":
-      return "Unsupported family";
+      return "Action not approved";
     case "missing-owner-cap":
-      return "Missing OwnerCap";
+      return "Control proof missing";
     case "missing-node-context":
-      return "Missing node context";
+      return "Node link missing";
     case "synthetic":
-      return "Synthetic preview row";
+      return "Lab preview";
   }
 }
 
@@ -105,21 +105,21 @@ export function formatNodeLocalActionAuthorityDetail(structure: NodeLocalStructu
   const unavailableReason = structure.actionAuthority.unavailableReason;
   switch (structure.actionAuthority.state) {
     case "verified-supported":
-      return `Existing ${structure.familyLabel.toLowerCase()} power control can run safely from this row.`;
+      return `This ${structure.familyLabel.toLowerCase()} can be controlled from this row.`;
     case "future-supported":
-      return unavailableReason ?? "Indexed as a candidate, but this web control is not implemented yet.";
+      return unavailableReason ?? "This structure is recognized, but web controls are not available yet.";
     case "backend-only":
-      return unavailableReason ?? "Action unavailable until this row resolves to one indexed candidate with the required IDs.";
+      return unavailableReason ?? "Control unlocks when this row resolves to one verified structure with complete proof.";
     case "ambiguous-match":
-      return unavailableReason ?? `Action unavailable because ${structure.actionAuthority.candidateTargets.length} direct-chain matches were found.`;
+      return unavailableReason ?? `Control is paused because ${structure.actionAuthority.candidateTargets.length} matching structures were found.`;
     case "unsupported-family":
-      return unavailableReason ?? "Action unavailable because this family has no approved web power path in Phase E.";
+      return unavailableReason ?? "This structure family is not approved for web power control in this release.";
     case "missing-owner-cap":
-      return unavailableReason ?? "Action unavailable because the required OwnerCap proof is missing.";
+      return unavailableReason ?? "Control is paused because the required control proof is missing.";
     case "missing-node-context":
-      return unavailableReason ?? "Action unavailable because the linked network node context is missing.";
+      return unavailableReason ?? "Control is paused because the linked node record is incomplete.";
     case "synthetic":
-      return "Action controls in the lab are browser-only previews and never submit transactions.";
+      return "Lab rows preview control state but never submit transactions.";
   }
 }
 
@@ -140,15 +140,15 @@ export function formatNodeLocalActionTooltip(structure: NodeLocalStructure): str
 
 export function formatNodeLocalActionBadgeText(structure: NodeLocalStructure): string {
   if (structure.actionAuthority.state === "verified-supported") {
-    return "Action verified";
+    return "Action ready";
   }
 
   if (structure.actionAuthority.state === "future-supported") {
-    return "Future support";
+    return "Awaiting web controls";
   }
 
   if (structure.actionAuthority.state === "synthetic") {
-    return "Lab-only preview";
+    return "Lab preview";
   }
 
   return `Action unavailable: ${formatNodeLocalActionAuthorityLabel(structure)}`;
