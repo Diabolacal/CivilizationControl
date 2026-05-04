@@ -64,7 +64,7 @@ Out of scope for this pass:
 | CC package | `config/chain/stillness.ts` | Explicit `CC_PACKAGE_ID` / `CC_ORIGINAL_PACKAGE_ID` | Current posture, gate policy, and trade-post surfaces | No |
 | Gate config object | `config/chain/stillness.ts` | Explicit `GATE_CONFIG_ID` | Current per-gate posture state and gate policy reads or writes | No |
 | Energy config object | `config/chain/stillness.ts` | Explicit `ENERGY_CONFIG_ID` | Required by current power builders | No |
-| Sponsor policy | `config/sponsorship/civilizationControlPolicy.ts` | Covers shipped authorize, URL, and power calls only | Main gap for new sponsored actions | Not in this docs branch |
+| Sponsor policy | `config/sponsorship/civilizationControlPolicy.ts` | Covers shipped authorize, URL, power, gate-policy preset, treasury, and `posture.set_posture` calls, but not rename, network-node offline, revoke, or freeze | Distinguishes existing sponsored posture or policy flows from the still-missing write actions | Not in this docs branch |
 | Signal Feed source | `src/lib/signalHistoryClient.ts` | `signal-history.v1` for normal routes | Read-only parity backlog must stay separate | No |
 
 ## 5. Area A - capability matrix across structure families and actions
@@ -83,7 +83,7 @@ Out of scope for this pass:
 | Authorize extension | Gate, Storage, Turret | Not a node-local row action; already modeled elsewhere | Already shipped on detail surfaces where relevant | Yes | `authorize_extension` | No | Leave separate from first Node Control slice |
 | Revoke extension | Gate, Storage, Turret | No node-local candidate today | Not wired | No | Revoke functions exist upstream | No | Document only; do not implement yet |
 | Freeze extension config | Gate, Storage, Turret | No node-local candidate today | Not wired | No | Freeze functions and frozen event exist upstream | No | Document only; do not implement yet |
-| Set posture | Gate-backed posture plus turret doctrine swap | Separate macro control; not modeled as node-local power or rename | Already shipped in dashboard posture control | Yes for current posture swap path | `cc::posture::set_posture` plus turret `authorize_extension` | No | Keep separate from Node Control actions |
+| Set posture | Gate-backed posture, posture-selected gate preset enforcement, plus turret doctrine swap | Separate macro control; not modeled as node-local power or rename | Already shipped in dashboard posture control | Yes for current posture and gate-policy writes | `cc::posture::set_posture`, `cc::gate_control::{set_policy_preset,request_jump_permit*}`, plus turret `authorize_extension` | No | Keep separate from Node Control actions, but do not misclassify it as only a label swap |
 
 ### 5.2 Operator-inventory family coverage boundary
 
@@ -104,28 +104,144 @@ Out of scope for this pass:
 
 Current repo truth for Node Control is therefore narrower than the taxonomy it displays: only gate, storage, and turret families are mapped into node-local power support today, network-node power is handled outside the node-local row builder, and the remaining operator-inventory families exceed the current four-family execution type union even though generic assembly write surfaces already exist upstream.
 
-## 6. Area B - old commercial or defensive posture behavior vs current runtime truth
+## 6. Area B - Commercial/Defensive posture clarification
 
-Historical product intent described commercial or defensive posture as a unified operator mode that changed gate rules and turret doctrine together. Current runtime truth is narrower:
+### 6.1 Original product expectation
 
-- the current PTB builder records per-gate posture through `cc::posture::set_posture`
-- the same PTB swaps turret authorization between `CommercialAuth` and `DefenseAuth`
-- the same PTB explicitly does **not** modify gate toll configuration
-- gate policy and treasury remain separate operator surfaces managed through the gate policy composer
+The original intended CivilizationControl posture model was broader than a cosmetic label:
 
-That means the old phrase "commercial vs defensive posture" now maps to three different seams:
+- `Commercial` meant an operator-authored gate ruleset for normal traffic and toll-taking
+- `Defensive` meant a stricter operator-authored gate ruleset for denial or allowlist enforcement
+- the same posture switch was expected to change turret doctrine at the same time
+- the product expectation was one operator action that changed which gate preset was enforced and which turret extension was active
 
-| Seam | Current truth | Zero-package? | Package pressure |
-|---|---|---|---|
-| Persisted per-gate posture mode | Real CC state today | Yes | None for current behavior |
-| Turret doctrine swap | Real world authorization behavior today | Yes | None for current behavior |
-| Gate toll or access preset swap | Historical intent, not current runtime behavior | No | Separate CC policy-design discussion only if product wants posture-aware gate enforcement |
+That expectation was not only UI fiction. The current package and gate-detail product surface still preserve the underlying model:
 
-Implications for next work:
+- gate detail already authors separate `Commercial` and `Defense` presets through the gate policy composer
+- gate permit issuance already reads the active posture and selects the matching per-gate preset at runtime
 
-- do not treat posture switching as a substitute for node power presets
-- do not assume posture changes gross yield, toll rules, or gate access today
-- treat any gate-optional or turret-only posture convenience as frontend scoping work first, not as package justification
+### 6.2 What is actually shipped today
+
+Current runtime truth is two-layered, and the previous audit compressed those layers too far:
+
+| Layer | Shipped truth | What it does not do |
+|---|---|---|
+| Posture PTB write scope | The current PTB calls `cc::posture::set_posture` for each provided gate and world `turret::authorize_extension` for each provided turret | It does not rewrite gate presets, toll values, or treasury state during the switch |
+| Gate policy enforcement effect | `request_jump_permit` reads `posture::current_posture(config, gate_id)` and selects `PolicyPresetKey { gate_id, mode }` for permit enforcement | It does not mean posture writes a second copy of policy data at switch time |
+
+So the correct reading is:
+
+- the switch transaction is narrower than the full runtime effect
+- current posture switching does **not** batch-mutate gate policy or toll config
+- current posture switching **does** change which already-authored gate preset is enforced, because the permit path reads the new mode dynamically
+- turret doctrine switching still happens in the same PTB via extension authorization
+
+### 6.3 Primary question answered
+
+The original two-ruleset gate behavior is implemented in the current CC package and current gate-detail UI. What regressed is the documentation and the macro-control ergonomics, not the underlying permit path.
+
+More precisely:
+
+- separate `Commercial` and `Defense` gate presets are stored on-chain per gate
+- posture state is also stored on-chain per gate
+- permit issuance selects the active preset by reading current posture at call time
+- the switch PTB only flips posture state and turret doctrine, which is why looking only at `postureSwitchTx.ts` can make the runtime effect appear narrower than it is
+
+This means the broader gate-rule switching behavior is **implemented**, not merely historical intent.
+
+### 6.4 Gate-present behavior
+
+If a user has gates and has authored both presets, posture switch still applies the intended gate posture behavior today.
+
+Explicitly:
+
+- the switch does not rewrite policy entries or toll values in the PTB
+- it does flip the per-gate posture state that `request_jump_permit` uses to choose the active preset
+- gate access and toll behavior therefore change indirectly through preset selection, not through in-switch preset mutation
+
+The real disconnected seam is not missing contract support. It is that some current frontend copy still describes the PTB as if it directly changes gate rules, while the actual implementation splits authored presets, posture state, and turret doctrine across separate surfaces.
+
+### 6.5 No-gate / turret-only behavior requirement
+
+The original hackathon testing happened in a gate-present environment. Stillness operators may have turrets without gates, so the next implementation prompt should treat gateless posture as a real product case.
+
+Current code path:
+
+- the transaction builder does **not** require at least one gate; it can build a turret-only PTB because gate and turret loops are independent
+- posture readback **does** currently depend on a first gate, because the UI reads posture from `usePostureState(firstGateId)` and falls back to `commercial` when no gate exists
+- current readiness blocks on disconnected wallet or unauthorized turrets, but not on missing gates, missing preset completeness, or an empty target set
+- a successful turret-only switch can therefore be hidden by the current UI state: the write can succeed, but the control can remain stuck in a gate-led transition/readback path
+
+Required product behavior going forward:
+
+- if turrets exist and no gates exist, allow turret-only posture switching rather than silently failing the operation
+- if no eligible gates exist, the UI should say the gate-policy side is skipped and turret doctrine is being applied only
+- if neither gates nor turrets exist, the UI should block execution with an explicit `No eligible gates or turrets to switch` state rather than attempting an empty PTB
+
+### 6.6 Gate-rule preset switching status
+
+Gate-rule preset switching is already live. The missing pieces are:
+
+- explicit readiness checks for preset completeness before switching
+- clearer macro UI copy that distinguishes authored presets from the switch PTB write scope
+- gateless or turret-only transition handling that does not depend on gate-based posture readback
+
+So this is a restoration and clarity task in the frontend layer, not evidence that the current deployed package lacks the core preset model.
+
+### 6.7 Package update implication
+
+No package update is needed to restore gate-optional posture switching in the sense the user clarified.
+
+Execution classification:
+
+> **A. Frontend/transaction-builder restoration only**
+
+Reason:
+
+- current packages already support separate `Commercial` and `Defense` gate presets
+- current packages already support posture-selected permit enforcement
+- current packages already support turret doctrine switching
+- current sponsor policy already allowlists `posture.set_posture` and gate-policy preset writes
+
+The only posture cases that would justify package discussion later are different from the current restoration task:
+
+- a true global posture object that persists even when the operator has no gates
+- a requirement that gateless posture state be readable from chain as a first-class network posture rather than inferred from gates
+- a new dedicated turret-doctrine event or explicit combined posture event model beyond current per-gate posture + extension authorization surfaces
+
+### 6.8 Signal-history implication
+
+Current execution and current history are separate questions.
+
+Existing event surfaces already available on chain:
+
+- `PostureChangedEvent` for per-gate posture changes
+- `PolicyPresetSetEvent` and `PolicyPresetRemovedEvent` for gate preset mutation
+- `TreasurySetEvent` and `TollCollectedEvent` for treasury and toll activity
+- world `ExtensionAuthorizedEvent` when the turret doctrine extension is rebound
+
+Current shared history boundary:
+
+- `signal-history.v1` does not yet expose posture changes, gate policy changes, toll changes, or turret doctrine changes as first-class history rows
+
+History classification:
+
+> **D. EF-Map signal-history extension only**
+
+That is a later parity requirement, not an execution blocker.
+
+### 6.9 Next implementation recommendation
+
+1. Treat current posture behavior as a shipped macro system with authored gate presets plus turret doctrine, not as a retired or purely historical feature.
+2. Fix the frontend wording so `PostureControl` describes the switch PTB accurately: it flips posture state and turret doctrine, while gate permit enforcement changes because the active preset changes.
+3. Add preset-completeness readiness before allowing the switch in gate-present environments.
+4. Allow turret-only execution when turrets exist but gates do not, and present that state explicitly instead of relying on gate-based readback.
+5. Add an explicit empty-target blocker when no gates and no turrets exist.
+6. Keep history parity work separate and later through EF-Map signal-history expansion.
+
+Final classification for posture restoration:
+
+> **A. Frontend/transaction-builder restoration only**
 
 ## 7. Area C - each current Node Control action
 
@@ -225,7 +341,7 @@ Decision: keep marketplace listing and settlement work in a later revenue branch
 4. Treat network-node offline as its own PTB proof branch because the blocker is transaction composition, not a missing world call.
 5. Treat local power presets as frontend-only until operators prove they need shared, on-chain named presets.
 6. Revisit package change only if one of these conditions becomes true:
-   - operators need posture-aware gate enforcement, not just current posture state plus turret doctrine
+   - operators need a true global or gateless posture object rather than the current per-gate posture + turret-only PTB composition model
    - operators need on-chain shared preset objects rather than local saved presets
    - current runtime calls cannot express a required action even after PTB and sponsor-policy work is proven out
 
@@ -238,8 +354,8 @@ Decision: keep marketplace listing and settlement work in a later revenue branch
 | Network-node offline | No | Yes if sponsored | No | High | No proven package need | Separate proof branch |
 | Rename for gate / storage / turret / network node | Yes | Yes if sponsored | No | Low | No | Zero-package candidate |
 | Rename for printer / refinery / assembler / berth / relay / nursery / nest / shelter | Yes, but requires wider execution typing | Possibly later | Possibly later for better indexed hints, but not required to prove contract feasibility | Low to medium | No proven package need | Defer until type-model widening |
-| Turret-only posture convenience when no gate is present | Yes | Likely no new policy required | No | Low | No | Treat as frontend scoping question |
-| Posture-aware gate policy preset switching | No | No | No | Medium | Likely yes in CC policy design | Keep out of this wave |
+| Turret-only posture switching when no gate is present | Yes | No new policy required | No | Low | No | Restore in frontend and transition handling |
+| Posture-aware gate policy preset switching | Minimal docs/UI clarification only | No new policy required | No | None for shipped execution | No | Already shipped; treat as docs/readiness clarification, not package work |
 | Local Node Power State presets | Yes | No | No | Low to medium | No | Later frontend slice |
 | Shared on-chain named presets | No | No | No | Medium | Likely yes | Do not start |
 | Signal-history parity for posture / policy / toll / market settlement | No | No | Yes | None | No | Separate read-only backlog |

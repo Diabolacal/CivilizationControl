@@ -1,6 +1,14 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-04 – Clarify shipped Commercial/Defensive posture model in docs
+- Goal: correct the write-action audit so it does not understate the shipped posture model or normalize gateless posture failures as if the original gate-rule behavior never existed.
+- Files: `docs/operations/node-control-write-action-audit-20260504.md`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
+- Diff: docs-only clarification pass for posture semantics, gateless/turret-only requirements, package classification, and signal-history boundary
+- Risk: low — documentation only; no frontend runtime change, no sponsor-worker change, no EF-Map change, no Move change, no vendor edit, and no deploy
+- Gates: diff-check ✅ with only the preserved LF/CRLF warning on `contracts/civilization_control/Move.lock` typecheck ✅ build ✅
+- Result: recorded that the current CC package already ships separate `Commercial` and `Defense` gate presets and already enforces them dynamically through `request_jump_permit` by reading each gate's current posture. The previous write-action audit had narrowed posture too far by treating gate-rule switching as historical intent only. The real current gap is narrower: the posture PTB itself only writes per-gate posture state plus turret doctrine, and the current frontend still has a gate-led readback/readiness problem in the no-gate or turret-only case. Posture restoration is therefore classified as **A. Frontend/transaction-builder restoration only**, while history parity remains a later **D. EF-Map signal-history extension only** task.
+- Follow-ups: validate docs-only changes; keep gateless/turret-only posture handling, preset-completeness readiness, and `PostureControl` copy correction in the next implementation branch; do not open a package branch for this restoration task.
 ## 2026-05-04 – Audit Node Control write surface before package changes
 - Goal: document which next Node Control write actions already fit the current Stillness runtime and CC package surfaces, which ones are blocked by sponsor policy or PTB complexity instead, and whether any package branch is justified before the next implementation wave.
 - Files: `docs/operations/node-control-write-action-audit-20260504.md`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`, `docs/README.md`, `docs/decision-log.md`

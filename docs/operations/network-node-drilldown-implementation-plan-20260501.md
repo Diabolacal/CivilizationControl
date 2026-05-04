@@ -758,6 +758,7 @@ This is a planning requirement for the first implementation branch because real 
 ### Existing write surfaces
 
 - `src/components/PostureControl.tsx` and the posture hooks are fleet-scoped and gate-led today. They are not the right model for node-local presets.
+- That macro posture system is still a live shipped feature, not a historical label only: gate detail already authors separate `Commercial` and `Defense` presets, and gate permit issuance already selects between them by reading each gate's current posture. The current gap is that `PostureControl` only writes posture state plus turret doctrine and still has gateless readback/readiness limitations.
 - `src/hooks/useStructurePower.ts` and `src/lib/structurePowerTx.ts` already provide structure-level power actions for supported current families.
 - `src/screens/NetworkNodeDetailScreen.tsx` already exposes node online, while node offline remains explicitly unsupported.
 - world modules expose metadata-name updates for gates, storage units, turrets, and network nodes, but the shipped frontend does not currently expose or validate a rename execution flow; treat rename as a separate later capability, not part of the next slice.
@@ -1181,6 +1182,7 @@ Node presets are not the same thing as the current global posture model.
 - they are node-scoped, not fleet-scoped
 - they are user-named, not limited to `Commercial` and `Defensive`
 - they are future action bundles, not a mandatory part of the first drilldown branch
+- the current macro posture model should still be described accurately: it already combines authored gate presets with turret doctrine switching, but its current UI is gate-led and needs explicit gateless/turret-only handling rather than being repackaged as node-local presets
 
 ### 8.2 Zero-preset state
 
