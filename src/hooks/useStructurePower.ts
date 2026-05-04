@@ -6,7 +6,6 @@
  */
 
 import { useCallback, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   buildAssemblyPowerTx,
   buildBatchAssemblyPowerTx,
@@ -14,6 +13,10 @@ import {
 } from "@/lib/structurePowerTx";
 import { useCharacterId } from "@/hooks/useCharacter";
 import { useSponsoredExecution } from "@/hooks/useSponsoredExecution";
+import {
+  useStructureWriteRefresh,
+  type StructureWriteRefreshOptions,
+} from "@/hooks/useStructureWriteRefresh";
 import type { ObjectId, StructureType, TxStatus, TxResult } from "@/types/domain";
 
 interface SinglePowerParams {
@@ -47,25 +50,27 @@ function friendlyError(raw: string): string {
 
 export function useStructurePower() {
   const executeTx = useSponsoredExecution();
-  const queryClient = useQueryClient();
   const characterId = useCharacterId();
+  const refreshAfterWrite = useStructureWriteRefresh();
 
   const [status, setStatus] = useState<TxStatus>("idle");
   const [result, setResult] = useState<TxResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const execute = useCallback(
-    async (buildTx: () => ReturnType<typeof buildAssemblyPowerTx>) => {
+    async (
+      buildTx: () => ReturnType<typeof buildAssemblyPowerTx>,
+      refreshOptions?: StructureWriteRefreshOptions,
+    ) => {
       setStatus("pending");
       setError(null);
       setResult(null);
       try {
         const tx = buildTx();
         const { digest } = await executeTx(tx);
+        await refreshAfterWrite(refreshOptions);
         setResult({ digest });
         setStatus("success");
-        queryClient.invalidateQueries({ queryKey: ["assetDiscovery"] });
-        queryClient.invalidateQueries({ queryKey: ["operatorInventory"] });
         return true;
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
@@ -74,29 +79,29 @@ export function useStructurePower() {
         return false;
       }
     },
-    [executeTx, queryClient],
+    [executeTx, refreshAfterWrite],
   );
 
   const toggleSingle = useCallback(
-    (params: SinglePowerParams) => {
+    (params: SinglePowerParams, refreshOptions?: StructureWriteRefreshOptions) => {
       if (!characterId) throw new Error("Character not resolved yet — please wait");
-      return execute(() => buildAssemblyPowerTx({ ...params, characterId }));
+      return execute(() => buildAssemblyPowerTx({ ...params, characterId }), refreshOptions);
     },
     [execute, characterId],
   );
 
   const toggleBatch = useCallback(
-    (params: BatchPowerParams) => {
+    (params: BatchPowerParams, refreshOptions?: StructureWriteRefreshOptions) => {
       if (!characterId) throw new Error("Character not resolved yet — please wait");
-      return execute(() => buildBatchAssemblyPowerTx({ ...params, characterId }));
+      return execute(() => buildBatchAssemblyPowerTx({ ...params, characterId }), refreshOptions);
     },
     [execute, characterId],
   );
 
   const bringNodeOnline = useCallback(
-    (params: NodeOnlineParams) => {
+    (params: NodeOnlineParams, refreshOptions?: StructureWriteRefreshOptions) => {
       if (!characterId) throw new Error("Character not resolved yet — please wait");
-      return execute(() => buildNodeOnlineTx({ ...params, characterId }));
+      return execute(() => buildNodeOnlineTx({ ...params, characterId }), refreshOptions);
     },
     [execute, characterId],
   );

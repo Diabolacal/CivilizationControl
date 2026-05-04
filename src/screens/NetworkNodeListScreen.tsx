@@ -13,7 +13,7 @@ import { StatusDot } from "@/components/StatusDot";
 import { TagChip } from "@/components/TagChip";
 import { NetworkNodeGlyph } from "@/components/topology/Glyphs";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
-import { useStructurePower } from "@/hooks/useStructurePower";
+import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { buildFuelPresentation, type FuelSeverity } from "@/lib/fuelRuntime";
 import { shortId } from "@/lib/formatAddress";
 import type { Structure, NetworkNodeGroup } from "@/types/domain";
@@ -45,7 +45,7 @@ export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeList
     () => nodeGroups.map((group) => group.node),
     [nodeGroups],
   );
-  const power = useStructurePower();
+  const actions = useStructureSurfaceActions();
 
   const offlineNodes = useMemo(
     () => nodes.filter((n) => n.status === "offline"),
@@ -59,11 +59,11 @@ export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeList
     // Using single-node call for now as each has different OwnerCap.
     if (offlineNodes.length === 0) return;
     const first = offlineNodes[0];
-    power.bringNodeOnline({
+    actions.power.bringNodeOnline({
       nodeId: first.objectId,
       ownerCapId: first.ownerCapId,
-    });
-  }, [power, offlineNodes]);
+    }, { refetchSignalFeed: true });
+  }, [actions.power, offlineNodes]);
 
   // Build lookup from nodeId → group for child count display
   const groupMap = useMemo(() => {
@@ -89,10 +89,10 @@ export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeList
           {offlineNodes.length > 0 && (
             <button
               onClick={handleBulkOnline}
-              disabled={power.status === "pending"}
+              disabled={actions.power.status === "pending"}
               className="rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-medium text-teal-400 transition-colors hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {power.status === "pending"
+              {actions.power.status === "pending"
                 ? "Executing…"
                 : `Bring Online (${offlineNodes.length} offline)`}
             </button>
@@ -101,13 +101,23 @@ export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeList
       </div>
 
       {/* Power control feedback */}
-      {(power.status === "success" || power.status === "error") && (
+      {(actions.power.status === "success" || actions.power.status === "error") && (
         <TxFeedbackBanner
-          status={power.status}
-          result={power.result}
-          error={power.error}
+          status={actions.power.status}
+          result={actions.power.result}
+          error={actions.power.error}
           successLabel="Network node brought online"
-          onDismiss={power.reset}
+          onDismiss={actions.dismissPowerFeedback}
+        />
+      )}
+
+      {(actions.rename.status === "success" || actions.rename.status === "error") && (
+        <TxFeedbackBanner
+          status={actions.rename.status}
+          result={actions.rename.result}
+          error={actions.rename.error}
+          successLabel={actions.renameSuccessLabel}
+          onDismiss={actions.dismissRenameFeedback}
         />
       )}
 
@@ -129,7 +139,12 @@ export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeList
             </thead>
             <tbody>
               {nodes.map((node) => (
-                <NodeRow key={node.objectId} node={node} group={groupMap.get(node.objectId)} />
+                <NodeRow
+                  key={node.objectId}
+                  node={node}
+                  group={groupMap.get(node.objectId)}
+                  onOpenStructureMenu={actions.openStructureContextMenu}
+                />
               ))}
             </tbody>
           </table>
@@ -145,11 +160,22 @@ export function NetworkNodeListScreen({ nodeGroups, isLoading }: NetworkNodeList
           is not yet implemented — use in-game controls for node shutdown until a future update.
         </p>
       </div>
+
+      {actions.renderContextMenu}
+      {actions.renderRenameDialog}
     </div>
   );
 }
 
-function NodeRow({ node, group }: { node: Structure; group?: NetworkNodeGroup }) {
+function NodeRow({
+  node,
+  group,
+  onOpenStructureMenu,
+}: {
+  node: Structure;
+  group?: NetworkNodeGroup;
+  onOpenStructureMenu: (structure: Structure, clientX: number, clientY: number) => void;
+}) {
   const attachedCount = group
     ? group.gates.length + group.storageUnits.length + group.turrets.length
     : 0;
@@ -159,7 +185,14 @@ function NodeRow({ node, group }: { node: Structure; group?: NetworkNodeGroup })
     : fuelPresentation.amountLabel;
 
   return (
-    <tr className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors">
+    <tr
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onOpenStructureMenu(node, event.clientX, event.clientY);
+      }}
+      className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors"
+    >
       <td className="py-3 px-4">
         <Link
           to={`/nodes/${node.objectId}`}

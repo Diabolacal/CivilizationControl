@@ -18,10 +18,10 @@ const BAD_PACKAGE = '0xdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefdeadbeefd
 
 const WORLD_TARGETS = new Map([
   ['character', new Set(['borrow_owner_cap', 'return_owner_cap'])],
-  ['gate', new Set(['authorize_extension', 'update_metadata_url', 'online', 'offline'])],
-  ['storage_unit', new Set(['authorize_extension', 'update_metadata_url', 'online', 'offline'])],
-  ['turret', new Set(['authorize_extension', 'online', 'offline'])],
-  ['network_node', new Set(['online'])],
+  ['gate', new Set(['authorize_extension', 'update_metadata_url', 'update_metadata_name', 'online', 'offline'])],
+  ['storage_unit', new Set(['authorize_extension', 'update_metadata_url', 'update_metadata_name', 'online', 'offline'])],
+  ['turret', new Set(['authorize_extension', 'update_metadata_name', 'online', 'offline'])],
+  ['network_node', new Set(['update_metadata_name', 'online'])],
 ]);
 
 const CC_POLICY: AppPolicy = {

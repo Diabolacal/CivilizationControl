@@ -4,12 +4,14 @@
 
 This is a docs-only audit of Node Control write actions, sponsor-policy gaps, signal-parity boundaries, and package-update pressure on `docs/node-control-write-action-audit`. It does not implement runtime code, Move changes, package updates, sponsor-worker deploys, EF-Map changes, or production deploys.
 
+> Status update (2026-05-04, zero-package action parity): the first zero-package action slice is now implemented on `feat/zero-package-action-parity`. CivilizationControl now exposes the current four-family action set through the shared `StructureActionContextMenu` plus `StructureRenameDialog`: `Bring Online` / `Take Offline` for gate, storage, and turret; `Bring Online` for network nodes only; and on-chain rename for gate, storage, turret, and network node. The same shared menu now appears in live `Node Control`, `/dev/node-drilldown-lab`, global structure lists via row right-click, and the current detail screens via explicit `Actions` buttons. Successful writes now route through shared post-write refresh that refetches operator inventory, asset discovery, selected-node `node-assemblies` fallback, and active signal-history queries when needed. Network-node `offline`, presets, and signal-history parity expansion remain deferred.
+
 Current runtime truth is narrower and clearer than some older planning text:
 
 - individual `online` / `offline` control is already real for gates, storage units, and turrets in the web app
 - individual `online` is already real for network nodes in the web app, but network-node `offline` is still unwired
-- metadata rename is already supported upstream for gates, storage units, turrets, generic assemblies, and network nodes, but CivilizationControl does not expose it yet
-- the current sponsor allowlist is the main near-term gating seam for new sponsored actions; it already covers the shipped power and authorization flows, but not rename, network-node offline, revoke, or freeze
+- metadata rename is already supported upstream for gates, storage units, turrets, generic assemblies, and network nodes, and the current zero-package action slice now exposes it for the current four-family execution set
+- the current sponsor allowlist remains the main near-term gating seam for new sponsored actions; the tracked repo policy now covers rename in addition to the shipped power and authorization flows, while network-node offline, revoke, and freeze remain outside the allowlist
 - signal-history v1 intentionally does not restore every legacy governance and revenue family; that parity backlog is separate from the first Node Control write slice
 
 Package-update decision:
@@ -27,6 +29,7 @@ This audit assumes the following repo-grounded facts and keeps them fixed:
 - normal Signal Feed routes already use the wallet-scoped shared `signal-history` endpoint; browser `queryEvents` must not return as the normal route contract
 - Node Control is already operator-inventory-first for grouped node display and authority hints
 - current frontend power rails already exist for gate, storage, turret, and network-node online flows
+- successful structure writes now use a shared refresh seam that refetches operator inventory, asset discovery, selected-node `node-assemblies` fallback, and active signal history as needed instead of waiting for a manual browser reload
 - current CC posture switching is gate-keyed and turret-doctrine-aware, but it is not a general-purpose node preset system
 - shared-backend data remains additive and read-only; wallet and chain remain authoritative for writes
 - package IDs and runtime or original split for this audit come from `config/chain/stillness.ts`
@@ -47,7 +50,9 @@ Out of scope for this pass:
 | Stillness runtime IDs | `config/chain/stillness.ts` | Current package targets outrank older planning text |
 | Sponsor allowlist | `config/sponsorship/civilizationControlPolicy.ts` | Determines what a new sponsored write can do without worker changes |
 | Shipped structure power builder | `src/lib/structurePowerTx.ts` | Proves what online or offline actions are already wired |
-| Shipped structure power hook | `src/hooks/useStructurePower.ts` | Proves current execution and invalidation behavior |
+| Shipped structure power hook | `src/hooks/useStructurePower.ts` | Proves current execution and shared post-write refresh behavior |
+| Shipped structure rename builder | `src/lib/structureMetadataTx.ts` | Proves the four-family zero-package rename PTB path |
+| Shipped structure rename hook | `src/hooks/useStructureRename.ts` | Proves current rename execution and post-write refresh behavior |
 | Node-local action authority | `src/lib/nodeDrilldownActionAuthority.ts` | Proves Node Control only treats verified power actions as shipped today |
 | Node-local model | `src/lib/nodeDrilldownModel.ts` | Proves only gate, storage, and turret families are mapped into node-local power support |
 | Rename action hints | `src/types/domain.ts` | Proves operator inventory already models both `power` and `rename` action candidates |
@@ -64,7 +69,7 @@ Out of scope for this pass:
 | CC package | `config/chain/stillness.ts` | Explicit `CC_PACKAGE_ID` / `CC_ORIGINAL_PACKAGE_ID` | Current posture, gate policy, and trade-post surfaces | No |
 | Gate config object | `config/chain/stillness.ts` | Explicit `GATE_CONFIG_ID` | Current per-gate posture state and gate policy reads or writes | No |
 | Energy config object | `config/chain/stillness.ts` | Explicit `ENERGY_CONFIG_ID` | Required by current power builders | No |
-| Sponsor policy | `config/sponsorship/civilizationControlPolicy.ts` | Covers shipped authorize, URL, power, gate-policy preset, treasury, and `posture.set_posture` calls, but not rename, network-node offline, revoke, or freeze | Distinguishes existing sponsored posture or policy flows from the still-missing write actions | Not in this docs branch |
+| Sponsor policy | `config/sponsorship/civilizationControlPolicy.ts` | Covers shipped authorize, URL, power, rename, gate-policy preset, treasury, and `posture.set_posture` calls, but not network-node offline, revoke, or freeze | Distinguishes existing sponsored posture or policy flows from the still-missing write actions | Rename allowlist now updated in this branch |
 | Signal Feed source | `src/lib/signalHistoryClient.ts` | `signal-history.v1` for normal routes | Read-only parity backlog must stay separate | No |
 
 ## 5. Area A - capability matrix across structure families and actions
@@ -78,7 +83,7 @@ Out of scope for this pass:
 | Individual `online` / `offline` | Turret | `actionCandidate.actions.power` and current direct-chain structure model | Already shipped through `useStructurePower(...)`, detail screens, and Node Control row or menu actions | Yes | `world::turret::{online,offline}` | No | Keep in the zero-package slice |
 | Individual `online` | Network Node | Current detail and list surfaces use direct-chain structure model, not node-local row power mapping | Already shipped through `useStructurePower(...)` on node detail or list | Yes | `world::network_node::online` | No | Keep in the zero-package slice |
 | Individual `offline` | Network Node | No shipped node-local candidate and detail screen still marks it unimplemented | Not wired | No | `world::network_node::offline` plus `OfflineAssemblies` handling | No contract gap, but PTB gap | Separate proof branch after hot-potato PTB work |
-| Rename / edit name | Gate, Storage, Turret, Network Node | `IndexedActionCandidate.actions.rename` exists in the current type model | Not wired anywhere in current UI | No | `update_metadata_name` exists in family-specific modules and generic assembly or node metadata surfaces | No | Zero-package frontend plus sponsor-policy work |
+| Rename / edit name | Gate, Storage, Turret, Network Node | `IndexedActionCandidate.actions.rename` exists in the current type model | Now wired through the shared action menu in `Node Control`, `/dev/node-drilldown-lab`, list-row right-click, and detail-screen `Actions` buttons | Yes | `update_metadata_name` exists in family-specific modules and generic assembly or node metadata surfaces | No | Implemented in the zero-package slice |
 | Update metadata URL | Gate, Storage | Current detail-screen product already treats URL as a separate governance seam | Already shipped on current gate or storage flows | Yes | `update_metadata_url` | No | Leave separate from Node Control write audit |
 | Authorize extension | Gate, Storage, Turret | Not a node-local row action; already modeled elsewhere | Already shipped on detail surfaces where relevant | Yes | `authorize_extension` | No | Leave separate from first Node Control slice |
 | Revoke extension | Gate, Storage, Turret | No node-local candidate today | Not wired | No | Revoke functions exist upstream | No | Document only; do not implement yet |

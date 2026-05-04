@@ -37,6 +37,10 @@ export function getNodeLocalPowerToggleIntent(
   return null;
 }
 
+export function supportsNodeLocalRename(structure: NodeLocalStructure): boolean {
+  return structure.actionAuthority.verifiedTarget != null;
+}
+
 export function formatNodeLocalActionAuthorityLabel(structure: NodeLocalStructure): string {
   switch (structure.actionAuthority.state) {
     case "verified-supported":

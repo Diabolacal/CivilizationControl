@@ -26,13 +26,15 @@ import { useConnection } from "@evefrontier/dapp-kit";
 import { DashboardPanelFrame } from "@/components/dashboard/DashboardPanelFrame";
 import { MetricCard } from "@/components/MetricCard";
 import { PostureControl } from "@/components/PostureControl";
+import { StructureActionContextMenu } from "@/components/structure-actions/StructureActionContextMenu";
+import { StructureRenameDialog } from "@/components/structure-actions/StructureRenameDialog";
 import { StrategicMapPanel } from "@/components/topology/StrategicMapPanel";
-import { NodeDrilldownContextMenu } from "@/components/topology/node-drilldown/NodeDrilldownContextMenu";
 import { TopologyPanelFade, TopologyPanelFrame } from "@/components/topology/TopologyPanelFrame";
 import { NodeDrilldownSurface } from "@/components/topology/node-drilldown/NodeDrilldownSurface";
 import { NodeSelectionInspector } from "@/components/topology/node-drilldown/NodeSelectionInspector";
 import { NodeStructureListPanel } from "@/components/topology/node-drilldown/NodeStructureListPanel";
 import { SignalEventRow } from "@/components/SignalEventRow";
+import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { useSignalFeed } from "@/hooks/useSignalFeed";
 import { useNodeAssemblies } from "@/hooks/useNodeAssemblies";
 import { useCharacterId } from "@/hooks/useCharacter";
@@ -40,6 +42,7 @@ import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState
 import { useNodeDrilldownStructureMenu } from "@/hooks/useNodeDrilldownStructureMenu";
 import { useOperatorInventory } from "@/hooks/useOperatorInventory";
 import { useStructurePower } from "@/hooks/useStructurePower";
+import { useStructureRename } from "@/hooks/useStructureRename";
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
 import { formatLux, formatEve } from "@/lib/currency";
 import { buildFuelPresentation, formatRuntimeSeconds } from "@/lib/fuelRuntime";
@@ -48,6 +51,8 @@ import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapsho
 import { buildOperatorInventoryDebugCopySummary, buildOperatorInventoryDebugSnapshot } from "@/lib/operatorInventoryDebug";
 import type { NetworkMetrics, NetworkNodeGroup, SpatialPin, Structure } from "@/types/domain";
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
+
+type VerifiedNodeLocalTarget = NonNullable<NodeLocalStructure["actionAuthority"]["verifiedTarget"]>;
 
 interface DashboardProps {
   nodeGroups: NetworkNodeGroup[];
@@ -138,8 +143,17 @@ export function Dashboard({
     [isNodeAssembliesLoading, operatorInventory.isLoading, selectedNodeInventoryLookup, shouldUseNodeAssembliesFallback],
   );
   const structurePower = useStructurePower();
+  const structureRename = useStructureRename();
   const [powerStructureId, setPowerStructureId] = useState<string | null>(null);
   const [powerSuccessLabel, setPowerSuccessLabel] = useState("Structure power state updated");
+  const [renameSuccessLabel, setRenameSuccessLabel] = useState("Assembly renamed");
+  const [renameTarget, setRenameTarget] = useState<{
+    displayName: string;
+    ownerCapId: string;
+    selectedNodeId: string | null;
+    structureId: string;
+    structureType: VerifiedNodeLocalTarget["structureType"];
+  } | null>(null);
   const {
     contextMenu,
     menuRef,
@@ -221,24 +235,73 @@ export function Dashboard({
       setPowerStructureId(structure.id);
       setPowerSuccessLabel(`${structure.familyLabel} ${nextOnline ? "brought online" : "taken offline"}`);
 
-      const succeeded = await structurePower.toggleSingle({
+      await structurePower.toggleSingle({
         structureType: verifiedTarget.structureType,
         structureId: verifiedTarget.structureId,
         ownerCapId: verifiedTarget.ownerCapId,
         networkNodeId: verifiedTarget.networkNodeId,
         online: nextOnline,
+      }, {
+        selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
+        refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
+        refetchSignalFeed: true,
       });
-
-      if (succeeded) {
-        if (selectedNodeInventoryLookup) {
-          await operatorInventory.refetch();
-        } else {
-          await refetchSelectedNodeAssemblies();
-        }
-      }
     },
-    [closeStructureMenu, operatorInventory, refetchSelectedNodeAssemblies, selectedNodeInventoryLookup, selectedStructureCanonicalKeyRef, structurePower],
+    [
+      closeStructureMenu,
+      refetchSelectedNodeAssemblies,
+      selectedNodeGroup,
+      selectedNodeInventoryLookup,
+      selectedStructureCanonicalKeyRef,
+      structurePower,
+    ],
   );
+  const handleOpenNodeLocalRename = useCallback((structure: NodeLocalStructure) => {
+    const verifiedTarget = structure.actionAuthority.verifiedTarget;
+    if (!verifiedTarget) {
+      return;
+    }
+
+    structureRename.reset();
+    setRenameSuccessLabel("Assembly renamed");
+    setRenameTarget({
+      displayName: structure.displayName,
+      ownerCapId: verifiedTarget.ownerCapId,
+      selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
+      structureId: verifiedTarget.structureId,
+      structureType: verifiedTarget.structureType,
+    });
+  }, [selectedNodeGroup, structureRename]);
+  const handleCloseNodeLocalRename = useCallback(() => {
+    if (structureRename.status !== "pending") {
+      setRenameTarget(null);
+    }
+  }, [structureRename.status]);
+  const handleSubmitNodeLocalRename = useCallback(async (nextName: string) => {
+    if (!renameTarget) {
+      return false;
+    }
+
+    const succeeded = await structureRename.rename({
+      structureType: renameTarget.structureType,
+      structureId: renameTarget.structureId,
+      ownerCapId: renameTarget.ownerCapId,
+      name: nextName,
+    }, {
+      selectedNodeId: renameTarget.selectedNodeId,
+      refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
+      refetchSignalFeed: false,
+    });
+
+    if (succeeded) {
+      setRenameTarget(null);
+    }
+
+    return succeeded;
+  }, [refetchSelectedNodeAssemblies, renameTarget, selectedNodeInventoryLookup, structureRename]);
+  const handleDismissNodeLocalRenameFeedback = useCallback(() => {
+    structureRename.reset();
+  }, [structureRename]);
   const topologyModeKey = selectedNodeViewModel ? `node-${selectedNodeViewModel.node.id}` : "macro";
   const isNodeDrilldownDebugEnabled = useMemo(() => {
     if (typeof window === "undefined") return false;
@@ -630,34 +693,84 @@ export function Dashboard({
       )}
 
       {contextMenu ? (
-        <NodeDrilldownContextMenu
-          menuRef={menuRef}
-          structureName={contextMenu.structureName}
-          left={contextMenu.left}
-          top={contextMenu.top}
-          visibilityActionLabel={contextMenu.visibilityActionLabel}
-          powerActionLabel={contextMenu.powerActionLabel ?? undefined}
-          powerActionDisabled={structurePower.status === "pending"}
-          onVisibilityAction={() => {
-            if (contextMenu.visibilityAction === "unhide") {
-              unhideStructure(contextMenu.canonicalDomainKey);
-            } else {
-              hideStructure(contextMenu.canonicalDomainKey);
-            }
-            closeStructureMenu();
-          }}
-          onPowerAction={contextMenu.nextOnline != null
-            ? () => {
-              const structure = selectedNodeStructureMap.get(contextMenu.structureId);
-              if (!structure) {
-                closeStructureMenu();
-                return;
-              }
+        <StructureActionContextMenu
+          menu={{
+            structureName: contextMenu.structureName,
+            left: contextMenu.left,
+            top: contextMenu.top,
+            items: [
+              {
+                key: contextMenu.visibilityAction,
+                label: contextMenu.visibilityActionLabel,
+                onSelect: () => {
+                  if (contextMenu.visibilityAction === "unhide") {
+                    unhideStructure(contextMenu.canonicalDomainKey);
+                  } else {
+                    hideStructure(contextMenu.canonicalDomainKey);
+                  }
+                },
+              },
+              ...(contextMenu.nextOnline != null ? [{
+                key: contextMenu.nextOnline ? "bring-online" : "take-offline",
+                label: contextMenu.powerActionLabel ?? (contextMenu.nextOnline ? "Bring Online" : "Take Offline"),
+                disabled: structurePower.status === "pending",
+                disabledReason: structurePower.status === "pending"
+                  ? "Submitting structure power action…"
+                  : null,
+                tone: contextMenu.nextOnline ? "online" as const : "offline" as const,
+                onSelect: () => {
+                  const structure = selectedNodeStructureMap.get(contextMenu.structureId);
+                  if (!structure) {
+                    return;
+                  }
 
-              handleToggleNodeLocalPower(structure, contextMenu.nextOnline as boolean);
-            }
-            : undefined}
+                  handleToggleNodeLocalPower(structure, contextMenu.nextOnline as boolean);
+                },
+              }] : []),
+              ...(() => {
+                const structure = selectedNodeStructureMap.get(contextMenu.structureId);
+                if (!structure?.actionAuthority.verifiedTarget) {
+                  return [];
+                }
+
+                return [{
+                  key: "rename-assembly",
+                  label: "Rename Assembly",
+                  disabled: structureRename.status === "pending",
+                  disabledReason: structureRename.status === "pending" ? "Submitting rename…" : null,
+                  onSelect: () => handleOpenNodeLocalRename(structure),
+                }];
+              })(),
+            ],
+          }}
+          menuRef={menuRef}
           onClose={closeStructureMenu}
+        />
+      ) : null}
+
+      {(structureRename.status === "success" || structureRename.status === "error") && (
+        <div className="mt-4">
+          <TxFeedbackBanner
+            status={structureRename.status}
+            result={structureRename.result}
+            error={structureRename.error}
+            successLabel={renameSuccessLabel}
+            onDismiss={handleDismissNodeLocalRenameFeedback}
+          />
+        </div>
+      )}
+
+      {renameTarget ? (
+        <StructureRenameDialog
+          isOpen
+          structureName={renameTarget.displayName}
+          initialValue={renameTarget.displayName}
+          isPending={structureRename.status === "pending"}
+          error={structureRename.error}
+          onClose={handleCloseNodeLocalRename}
+          onSubmit={(nextName) => {
+            void handleSubmitNodeLocalRename(nextName);
+          }}
         />
       ) : null}
     </div>

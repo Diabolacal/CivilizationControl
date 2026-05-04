@@ -7,11 +7,10 @@
 
 import { useParams, Link } from "react-router";
 import { ArrowLeft } from "lucide-react";
-import { useRef } from "react";
 import { StructureDetailHeader } from "@/components/StructureDetailHeader";
 import { NodeContextBanner } from "@/components/NodeContextBanner";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
-import { useStructurePower } from "@/hooks/useStructurePower";
+import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure } from "@/types/domain";
 
@@ -22,6 +21,7 @@ interface TurretDetailScreenProps {
 
 export function TurretDetailScreen({ structures, isLoading }: TurretDetailScreenProps) {
   const { id } = useParams<{ id: string }>();
+  const actions = useStructureSurfaceActions();
   const turret = structures.find((s) => s.objectId === id && s.type === "turret");
 
   if (isLoading) {
@@ -59,8 +59,21 @@ export function TurretDetailScreen({ structures, isLoading }: TurretDetailScreen
       <BackLink />
       <StructureDetailHeader structure={turret} solarSystemName={solarSystemName} />
       <NodeContextBanner structure={turret} structures={structures} />
-      <PowerControlSection turret={turret} />
+      <PowerControlSection turret={turret} actions={actions} />
       <ExtensionSection turret={turret} />
+
+      {(actions.rename.status === "success" || actions.rename.status === "error") && (
+        <TxFeedbackBanner
+          status={actions.rename.status}
+          result={actions.rename.result}
+          error={actions.rename.error}
+          successLabel={actions.renameSuccessLabel}
+          onDismiss={actions.dismissRenameFeedback}
+        />
+      )}
+
+      {actions.renderContextMenu}
+      {actions.renderRenameDialog}
     </div>
   );
 }
@@ -77,32 +90,38 @@ function BackLink() {
   );
 }
 
-function PowerControlSection({ turret }: { turret: Structure }) {
-  const power = useStructurePower();
+function PowerControlSection({
+  turret,
+  actions,
+}: {
+  turret: Structure;
+  actions: ReturnType<typeof useStructureSurfaceActions>;
+}) {
   const isOnline = turret.status === "online";
   const hasNetworkNode = !!turret.networkNodeId;
-  const lastActionLabel = useRef("Turret power state updated");
 
   if (!hasNetworkNode) {
     return (
       <section className="border border-border rounded p-5 space-y-3">
         <h2 className="text-sm font-semibold text-foreground">Power State</h2>
-        <p className="text-xs text-muted-foreground">
-          No network node linked — cannot control power state from web.
-        </p>
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">
+            No network node linked — cannot control power state from web.
+          </p>
+          <button
+            type="button"
+            onClick={(event) => actions.openStructureContextMenuFromElement(turret, event.currentTarget)}
+            className="rounded border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+          >
+            Actions
+          </button>
+        </div>
       </section>
     );
   }
 
   const handleToggle = () => {
-    lastActionLabel.current = isOnline ? "Turret taken offline" : "Turret brought online";
-    power.toggleSingle({
-      structureType: "turret",
-      structureId: turret.objectId,
-      ownerCapId: turret.ownerCapId,
-      networkNodeId: turret.networkNodeId!,
-      online: !isOnline,
-    });
+    void actions.executePowerAction(turret, !isOnline);
   };
 
   return (
@@ -111,27 +130,34 @@ function PowerControlSection({ turret }: { turret: Structure }) {
         <h2 className="text-sm font-semibold text-foreground">Power State</h2>
         <button
           onClick={handleToggle}
-          disabled={power.status === "pending"}
+          disabled={actions.power.status === "pending"}
           className={`rounded-md px-3 py-1.5 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
             isOnline
               ? "border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20"
               : "border border-teal-500/30 bg-teal-500/10 text-teal-400 hover:bg-teal-500/20"
           }`}
         >
-          {power.status === "pending"
+          {actions.power.status === "pending"
             ? "Executing…"
             : isOnline
               ? "Take Offline"
               : "Bring Online"}
         </button>
+        <button
+          type="button"
+          onClick={(event) => actions.openStructureContextMenuFromElement(turret, event.currentTarget)}
+          className="rounded border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
+        >
+          Actions
+        </button>
       </div>
-      {(power.status === "success" || power.status === "error") && (
+      {(actions.power.status === "success" || actions.power.status === "error") && (
         <TxFeedbackBanner
-          status={power.status}
-          result={power.result}
-          error={power.error}
-          successLabel={lastActionLabel.current}
-          onDismiss={power.reset}
+          status={actions.power.status}
+          result={actions.power.result}
+          error={actions.power.error}
+          successLabel={actions.powerSuccessLabel}
+          onDismiss={actions.dismissPowerFeedback}
         />
       )}
     </section>

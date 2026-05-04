@@ -19,6 +19,7 @@ const SOURCE_FILES = [
   'src/lib/gatePolicyTx.ts',
   'src/lib/gatePermitTx.ts',
   'src/lib/postureSwitchTx.ts',
+  'src/lib/structureMetadataTx.ts',
   'src/lib/structurePowerTx.ts',
   'src/lib/tradePostTx.ts',
   'src/lib/transitProofTx.ts',
@@ -27,10 +28,10 @@ const SOURCE_FILES = [
 
 const EXPECTED_WORLD_TARGETS = {
   character: ['borrow_owner_cap', 'return_owner_cap'],
-  gate: ['authorize_extension', 'update_metadata_url', 'online', 'offline'],
-  storage_unit: ['authorize_extension', 'update_metadata_url', 'online', 'offline'],
-  turret: ['authorize_extension', 'online', 'offline'],
-  network_node: ['online'],
+  gate: ['authorize_extension', 'update_metadata_url', 'update_metadata_name', 'online', 'offline'],
+  storage_unit: ['authorize_extension', 'update_metadata_url', 'update_metadata_name', 'online', 'offline'],
+  turret: ['authorize_extension', 'update_metadata_name', 'online', 'offline'],
+  network_node: ['update_metadata_name', 'online'],
 };
 
 const EXPECTED_TARGETS = {
@@ -126,7 +127,7 @@ function check(condition, message, results) {
   pushResult(results, Boolean(condition), message);
 }
 
-function sourceReferencesTarget(moduleName, functionName, sourceText, structurePowerText) {
+function sourceReferencesTarget(moduleName, functionName, sourceText, structurePowerText, structureMetadataText) {
   if (sourceText.includes(`::${moduleName}::${functionName}`)) {
     return true;
   }
@@ -136,7 +137,12 @@ function sourceReferencesTarget(moduleName, functionName, sourceText, structureP
     && structurePowerText.includes(`module: "${moduleName}"`)
     && structurePowerText.includes('::${mapping.module}::${online ? "online" : "offline"}');
 
-  return isDynamicPowerTarget;
+  const isDynamicRenameTarget = ['gate', 'storage_unit', 'turret', 'network_node'].includes(moduleName)
+    && functionName === 'update_metadata_name'
+    && structureMetadataText.includes(`module: "${moduleName}"`)
+    && structureMetadataText.includes('::${mapping.module}::update_metadata_name');
+
+  return isDynamicPowerTarget || isDynamicRenameTarget;
 }
 
 function main() {
@@ -239,11 +245,14 @@ function main() {
   const structurePowerText = sourceTexts.find((entry) =>
     entry.filePath.endsWith('src\\lib\\structurePowerTx.ts'),
   )?.text ?? '';
+  const structureMetadataText = sourceTexts.find((entry) =>
+    entry.filePath.endsWith('src\\lib\\structureMetadataTx.ts'),
+  )?.text ?? '';
   for (const [packageId, modules] of Object.entries(EXPECTED_TARGETS)) {
     for (const [moduleName, functions] of Object.entries(modules)) {
       for (const functionName of functions) {
         check(
-          sourceReferencesTarget(moduleName, functionName, sourceText, structurePowerText),
+          sourceReferencesTarget(moduleName, functionName, sourceText, structurePowerText, structureMetadataText),
           `source builders reference ${packageId}::${moduleName}::${functionName}`,
           results,
         );

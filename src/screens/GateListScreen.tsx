@@ -14,7 +14,7 @@ import { TagChip } from "@/components/TagChip";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
 import { GateGlyph } from "@/components/topology/Glyphs";
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
-import { useStructurePower } from "@/hooks/useStructurePower";
+import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { usePostureState } from "@/hooks/usePosture";
 import { useBatchTreasuryMutation } from "@/hooks/useGatePolicyMutation";
 import { getAssemblySummarySolarSystemName } from "@/lib/assemblyEnrichment";
@@ -38,7 +38,7 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
   const { authorizeGates, gateStatus, gateResult, gateError, resetGate } =
     useAuthorizeExtension();
 
-  const power = useStructurePower();
+  const actions = useStructureSurfaceActions();
 
   const unauthorizedTargets: GateAuthTarget[] = useMemo(
     () =>
@@ -65,7 +65,7 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
   );
 
   const handleBulkOnline = useCallback(() => {
-    power.toggleBatch({
+    actions.power.toggleBatch({
       structureType: "gate",
       targets: offlineGates.map((g) => ({
         structureId: g.objectId,
@@ -73,11 +73,11 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
         networkNodeId: g.networkNodeId!,
       })),
       online: true,
-    });
-  }, [power, offlineGates]);
+    }, { refetchSignalFeed: true });
+  }, [actions.power, offlineGates]);
 
   const handleBulkOffline = useCallback(() => {
-    power.toggleBatch({
+    actions.power.toggleBatch({
       structureType: "gate",
       targets: onlineGates.map((g) => ({
         structureId: g.objectId,
@@ -85,8 +85,8 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
         networkNodeId: g.networkNodeId!,
       })),
       online: false,
-    });
-  }, [power, onlineGates]);
+    }, { refetchSignalFeed: true });
+  }, [actions.power, onlineGates]);
 
   const treasuryBatch = useBatchTreasuryMutation();
 
@@ -150,10 +150,10 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
           {offlineGates.length > 0 && (
             <button
               onClick={handleBulkOnline}
-              disabled={power.status === "pending"}
+              disabled={actions.power.status === "pending"}
               className="rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-medium text-teal-400 transition-colors hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {power.status === "pending"
+              {actions.power.status === "pending"
                 ? "Executing…"
                 : `Bring All Online (${offlineGates.length})`}
             </button>
@@ -161,10 +161,10 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
           {onlineGates.length > 0 && (
             <button
               onClick={handleBulkOffline}
-              disabled={power.status === "pending"}
+              disabled={actions.power.status === "pending"}
               className="rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {power.status === "pending"
+              {actions.power.status === "pending"
                 ? "Executing…"
                 : `Take All Offline (${onlineGates.length})`}
             </button>
@@ -173,13 +173,23 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
       )}
 
       {/* Power control feedback */}
-      {(power.status === "success" || power.status === "error") && (
+      {(actions.power.status === "success" || actions.power.status === "error") && (
         <TxFeedbackBanner
-          status={power.status}
-          result={power.result}
-          error={power.error}
-          successLabel="Gate power state updated"
-          onDismiss={power.reset}
+          status={actions.power.status}
+          result={actions.power.result}
+          error={actions.power.error}
+          successLabel="Gate power states updated"
+          onDismiss={actions.dismissPowerFeedback}
+        />
+      )}
+
+      {(actions.rename.status === "success" || actions.rename.status === "error") && (
+        <TxFeedbackBanner
+          status={actions.rename.status}
+          result={actions.rename.result}
+          error={actions.rename.error}
+          successLabel={actions.renameSuccessLabel}
+          onDismiss={actions.dismissRenameFeedback}
         />
       )}
 
@@ -227,17 +237,33 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
             </thead>
             <tbody>
               {gates.map((gate) => (
-                <GateRow key={gate.objectId} gate={gate} structures={structures} />
+                <GateRow
+                  key={gate.objectId}
+                  gate={gate}
+                  structures={structures}
+                  onOpenStructureMenu={actions.openStructureContextMenu}
+                />
               ))}
             </tbody>
           </table>
         </div>
       )}
+
+      {actions.renderContextMenu}
+      {actions.renderRenameDialog}
     </div>
   );
 }
 
-function GateRow({ gate, structures }: { gate: Structure; structures: Structure[] }) {
+function GateRow({
+  gate,
+  structures,
+  onOpenStructureMenu,
+}: {
+  gate: Structure;
+  structures: Structure[];
+  onOpenStructureMenu: (structure: Structure, clientX: number, clientY: number) => void;
+}) {
   const parentNode = gate.networkNodeId
     ? structures.find((s) => s.objectId === gate.networkNodeId && s.type === "network_node")
     : undefined;
@@ -249,7 +275,14 @@ function GateRow({ gate, structures }: { gate: Structure; structures: Structure[
     : undefined;
 
   return (
-    <tr className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors">
+    <tr
+      onContextMenu={(event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        onOpenStructureMenu(gate, event.clientX, event.clientY);
+      }}
+      className="border-b border-border/50 last:border-0 hover:bg-muted/10 transition-colors"
+    >
       <td className="py-3 px-4">
         <Link
           to={`/gates/${gate.objectId}`}

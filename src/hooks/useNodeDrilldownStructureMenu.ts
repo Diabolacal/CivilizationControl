@@ -61,8 +61,10 @@ export function useNodeDrilldownStructureMenu() {
   const closeStructureMenu = useCallback(() => setContextMenu(null), []);
 
   const openStructureMenu = useCallback(({ structure, clientX, clientY, isHidden }: OpenNodeDrilldownStructureMenuParams) => {
-    const toggleIntent = isHidden ? null : getNodeLocalPowerToggleIntent(structure);
-    const menuHeight = CONTEXT_MENU_CHROME_HEIGHT_PX + (toggleIntent ? 2 : 1) * CONTEXT_MENU_ITEM_HEIGHT_PX;
+    const toggleIntent = getNodeLocalPowerToggleIntent(structure);
+    const canRename = structure.actionAuthority.verifiedTarget != null;
+    const itemCount = 1 + (toggleIntent ? 1 : 0) + (canRename ? 1 : 0);
+    const menuHeight = CONTEXT_MENU_CHROME_HEIGHT_PX + itemCount * CONTEXT_MENU_ITEM_HEIGHT_PX;
 
     const left = clampPosition(
       clientX,
