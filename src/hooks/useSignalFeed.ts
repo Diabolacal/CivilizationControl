@@ -1,91 +1,51 @@
 /**
- * useSignalFeed — TanStack Query hook for CivilizationControl event polling.
- *
- * Polls gate_control, trade_post, posture, turret, and world modules for
- * recent events, parses into SignalEvents, and scopes to owned infrastructure.
+ * useSignalFeed — compatibility hook for the wallet-scoped shared Signal Feed.
  */
 
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useCallback, useMemo } from "react";
-import { fetchRecentEvents } from "@/lib/suiReader";
-import { parseChainEvents } from "@/lib/eventParser";
-import { foldPostureSignals } from "@/lib/signalFolder";
-import type { RawSuiEvent } from "@/lib/eventParser";
+import { useQueryClient } from "@tanstack/react-query";
+import { useCallback } from "react";
+import { SIGNAL_FEED_QUERY_KEY, useSignalHistory } from "@/hooks/useSignalHistory";
 import type { SignalCategory, SignalEvent } from "@/types/domain";
 
-const SIGNAL_FEED_KEY = "signalFeed";
 const POLL_INTERVAL_MS = 30_000;
 const FAST_POLL_INTERVAL_MS = 4_000;
-/** Fixed per-module fetch limit — shared by all consumers for cache consistency. */
-const FETCH_LIMIT = 50;
+const DEFAULT_LIMIT = 50;
 
 interface UseSignalFeedOptions {
-  /** @deprecated Ignored — fetch limit is fixed internally for cache consistency. */
   limit?: number;
-  /** Filter by category. Default: all. */
   category?: SignalCategory | "all";
-  /** Enable auto-polling. Default: true. */
   polling?: boolean;
-  /** Owned structure object IDs — events are scoped to these. */
+  /** @deprecated Signal history is wallet-scoped server side. */
   ownedObjectIds?: string[];
-  /** Connected wallet address — fallback scope for sender-based events. */
   walletAddress?: string | null;
-  /** Poll at accelerated cadence (4s) during posture transitions. */
   aggressiveRefetch?: boolean;
 }
 
 export function useSignalFeed(options: UseSignalFeedOptions = {}) {
-  const { category = "all", polling = true, ownedObjectIds, walletAddress, aggressiveRefetch = false } = options;
-
-  const ownedSet = useMemo(
-    () => (ownedObjectIds ? new Set(ownedObjectIds) : null),
-    [ownedObjectIds],
-  );
-  const hasOwnedScope = Boolean(walletAddress && ownedSet && ownedSet.size > 0);
-
-  const { data, isLoading, isError, error, refetch } = useQuery<SignalEvent[]>({
-    queryKey: [SIGNAL_FEED_KEY],
-    queryFn: async () => {
-      const rawEvents = await fetchRecentEvents(FETCH_LIMIT);
-      const parsed = parseChainEvents(rawEvents as RawSuiEvent[]);
-      return foldPostureSignals(parsed);
-    },
-    enabled: hasOwnedScope,
-    staleTime: aggressiveRefetch ? 2_000 : 15_000,
-    refetchInterval: hasOwnedScope && polling
-      ? (aggressiveRefetch ? FAST_POLL_INTERVAL_MS : POLL_INTERVAL_MS)
-      : false,
-    retry: false,
+  const { category = "all", polling = true, walletAddress, aggressiveRefetch = false } = options;
+  const history = useSignalHistory({
+    walletAddress,
+    limit: options.limit ?? DEFAULT_LIMIT,
+    categories: category === "all" ? undefined : [category],
+    pollingMs: polling ? (aggressiveRefetch ? FAST_POLL_INTERVAL_MS : POLL_INTERVAL_MS) : false,
   });
 
-  const allSignals = data ?? [];
-
-  // Scope to owned infrastructure — never show unrelated global activity.
-  // When no structures are owned (or no wallet connected), return empty.
-  const scopedSignals = useMemo(() => {
-    if (!ownedSet || (ownedSet.size === 0 && !walletAddress)) return [];
-    if (ownedSet.size === 0) return [];
-    return allSignals.filter((s) => {
-      if (s.relatedObjectId && ownedSet.has(s.relatedObjectId)) return true;
-      if (s.secondaryObjectId && ownedSet.has(s.secondaryObjectId)) return true;
-      if (s.ownerAddress && walletAddress && s.ownerAddress === walletAddress) return true;
-      if (s.sender && walletAddress && s.sender === walletAddress) return true;
-      return false;
-    });
-  }, [allSignals, ownedSet, walletAddress]);
-
-  const signals = category === "all"
-    ? scopedSignals
-    : scopedSignals.filter((s) => s.category === category);
-
-  return { signals, isLoading, isError, error, refetch };
+  return {
+    signals: history.signals as SignalEvent[],
+    isLoading: history.isLoading,
+    isError: history.isError,
+    error: history.error,
+    refetch: history.refetch,
+    partial: history.partial,
+    warnings: history.warnings,
+  };
 }
 
 /** Returns a function to invalidate the signal feed cache (call after mutations). */
 export function useInvalidateSignals() {
   const client = useQueryClient();
   return useCallback(
-    () => client.invalidateQueries({ queryKey: [SIGNAL_FEED_KEY] }),
+    () => client.invalidateQueries({ queryKey: [SIGNAL_FEED_QUERY_KEY] }),
     [client],
   );
 }

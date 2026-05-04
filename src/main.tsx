@@ -25,11 +25,31 @@ const BENIGN_PATTERNS = [
   "message channel closed",
   "Registration un-successful",
 ];
+const BENIGN_CONSOLE_PATTERNS = [
+  "[DappKit] SmartObjectProvider: No object ID provided",
+];
 
 function isBenignWalletError(reason: unknown): boolean {
   const msg = reason instanceof Error ? reason.message : String(reason);
   return BENIGN_PATTERNS.some((p) => msg.includes(p));
 }
+
+function isBenignConsoleMessage(args: unknown[]): boolean {
+  const message = args
+    .map((arg) => (arg instanceof Error ? arg.message : String(arg)))
+    .join(" ");
+
+  return BENIGN_CONSOLE_PATTERNS.some((pattern) => message.includes(pattern));
+}
+
+const originalConsoleError = console.error.bind(console);
+console.error = (...args: unknown[]) => {
+  if (isBenignConsoleMessage(args)) {
+    return;
+  }
+
+  originalConsoleError(...args);
+};
 
 // Surface unhandled promise rejections visually (CEF may not have devtools)
 window.addEventListener("unhandledrejection", (e) => {

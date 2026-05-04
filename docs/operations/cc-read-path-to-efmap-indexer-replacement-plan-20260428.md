@@ -79,7 +79,7 @@ What this implies:
 | Linked-gate lookup | `src/hooks/useTransitProof.ts`, `src/lib/suiReader.ts` | Sui JSON-RPC | `getObject`; no polling | Low | destination gate ID | Control-path dependency for transit/permit workflows | Keep direct chain |
 | Marketplace listing discovery | `src/hooks/useListings.ts`, `src/lib/suiReader.ts` | Sui JSON-RPC | `queryEvents` on `ListingCreatedEvent`, then `multiGetObjects`; stale 15s | Medium to high | live shared listings filtered by SSU | Event-scan-based, rescans full event history, no index-backed summary | Enrich, later partial replace |
 | SSU inventory discovery | `src/hooks/useSsuInventory.ts`, `src/lib/suiReader.ts` | Sui JSON-RPC | `getObject` plus one `getDynamicFieldObject` per inventory key; stale 15s | High | inventory slots, capacities, item entries | Expensive for large inventories; browser enumerates inventory DFs itself | Enrich, later partial replace |
-| Recent Signals / activity feed | `src/hooks/useSignalFeed.ts`, `src/screens/ActivityFeedScreen.tsx`, `src/screens/Dashboard.tsx`, `src/lib/suiReader.ts`, `src/lib/eventParser.ts`, `src/lib/signalFolder.ts` | Browser Sui JSON-RPC only for dashboard preview; `/activity` paused pending shared endpoint | dashboard preview only: single non-polling or invalidated `queryEvents` fetch via `useSignalFeed`; `/activity` no longer runs browser polling in normal UI | Medium | dashboard gross-yield and recent-telemetry preview only; `/activity` renders migration shell | No wallet-scoped shared history endpoint yet; legacy hook still hard-codes module coverage, client parsing, and browser scoping | Replace |
+| Recent Signals / activity feed | `src/hooks/useSignalFeed.ts`, `src/hooks/useSignalHistory.ts`, `src/lib/signalHistoryClient.ts`, `src/screens/ActivityFeedScreen.tsx`, `src/screens/Dashboard.tsx`, `src/lib/suiReader.ts`, `src/lib/eventParser.ts`, `src/lib/signalFolder.ts` | EF-Map shared-backend signal-history endpoint for `/activity` and dashboard preview | wallet-scoped `useInfiniteQuery` with cursor paging, disabled until wallet connect, no recurring polling by default | Medium | dashboard gross-yield and recent signal preview, plus `/activity` filter and history view | v1 gaps remain for custom posture/policy/gate-config and other legacy families beyond indexed kinds; legacy browser event helpers still exist for separate deferred surfaces | Replaced for normal routes |
 | Seller/player profile display | `src/components/ListingCard.tsx`, `src/screens/SsuMarketplacePage.tsx`, `src/lib/suiReader.ts` | Sui JSON-RPC | `fetchPlayerProfile`; stale 60s | Medium | seller or current player character name and tribe | Repeats profile resolution for display-only enrichment | Enrich |
 | Tribe directory refresh | `src/hooks/useTribesRefresh.ts`, `src/lib/tribeCatalog.ts` | Stillness World API plus bundled JSON | browser `fetch()` once per mount; stale Infinity | Low | fresher tribe names over a bundled catalog fallback | Separate non-EF-Map source; enrich-only | Defer |
 | Bundled type catalog | `src/lib/typeCatalog.ts`, `src/hooks/useItemType.ts`, `src/data/itemTypes.json` | Bundled static data | module-load JSON use | Low | item names | Build-time snapshot only | Replace or enrich |
@@ -98,103 +98,100 @@ Key repo-grounded notes:
 
 ### Current event surfaces
 
-- `/activity` no longer uses browser event polling as a normal UI contract. `src/screens/ActivityFeedScreen.tsx` now renders a paused migration shell until a wallet-scoped shared history endpoint exists.
-- `src/hooks/useSignalFeed.ts` still exists and still calls `fetchRecentEvents()` in `src/lib/suiReader.ts`, then parses and folds those events client-side through `src/lib/eventParser.ts` and `src/lib/signalFolder.ts`.
-- the remaining live use is `Dashboard`, where the hook is now invoked with `polling: false`. That keeps the legacy revenue and telemetry preview available without leaving recurring `queryEvents` polling active on the main shell.
+- `/activity` and `Dashboard` now consume wallet-scoped shared history through `src/lib/signalHistoryClient.ts` plus `src/hooks/useSignalHistory.ts`
+- `src/hooks/useSignalFeed.ts` still exists only as a compatibility wrapper so existing dashboard and topology consumers can keep the normalized `SignalEvent` shape without returning to browser polling
+- `fetchRecentEvents()` in `src/lib/suiReader.ts` no longer drives `/activity` or dashboard Recent Signals. It remains only as legacy helper code while separate event-scan surfaces such as marketplace listing discovery are still deferred
 
-### Legacy hook coverage when it runs
+### Shared signal-history coverage now shipped
 
-When `useSignalFeed` does run, it still performs nine parallel `queryEvents` `MoveModule` calls:
+The shared endpoint currently supports wallet-scoped v1 categories and kinds for the normal Signal Feed UI:
 
-- CC `gate_control`
-- CC `trade_post`
-- CC `posture`
-- CC `turret_bouncer`
-- CC `turret_defense`
-- WORLD `turret`
-- CC `turret`
-- WORLD `gate`
-- WORLD `storage_unit`
-
-The parser then maps a fixed event-type list, including gate policy events, permit/toll events, listing events, posture changes, turret targeting events, extension auth events, and status changes.
+- categories: `governance`, `trade`, `transit`, `status`
+- status kinds: `structure_online`, `structure_offline`, `structure_unanchored`, `structure_destroyed`, `node_fuel_changed`, `node_low_fuel`, `node_critical_fuel`, `fuel_changed`
+- trade kinds: `storage_deposit`, `storage_withdraw`
+- governance kinds: `extension_authorized`, `extension_frozen`, `ownership_transferred`
+- transit kinds: `gate_transit`
 
 ### Polling intervals in live code
 
-- `/activity`: no browser polling in the shipped normal route for this pass
-- dashboard signal preview: no recurring polling (`polling: false`), but the legacy hook still contains the older timer settings if explicitly re-enabled elsewhere
-- legacy `useSignalFeed` defaults: 30 seconds, or 4 seconds during posture transitions
+- `/activity`: on-demand plus cursor-based pagination; no timer polling
+- dashboard signal preview: no recurring polling; invalidation and explicit refetch only
+- `useSignalHistory`: disabled until wallet connect, no refetch on focus/reconnect/mount, retry disabled
 - Asset discovery: 60 seconds
 - Gate policy, listings, SSU inventory, permit preloads: cache-based or on-demand, not timer-driven
 
 ### Signal history source today
 
-- `/activity` intentionally has no live history source right now; it is paused until the shared backend route exists
-- dashboard signal preview remains browser-derived for now:
+- `/activity` and dashboard signal preview are now endpoint-derived from `GET /api/civilization-control/signal-history?walletAddress=0x...`
 
-1. fetch recent on-chain events with `queryEvents`
-2. parse them into `SignalEvent`
-3. fold posture transitions
-4. scope the results to `ownedObjectIds` and wallet-related fallback fields in the browser
+1. normalize wallet and optional query params in the browser
+2. fetch the shared endpoint from `https://ef-map.com` or `VITE_SHARED_BACKEND_URL`
+3. map the v1 envelope into the existing `SignalEvent` shape
+4. surface `partial`, `warnings`, and `nextCursor` calmly in the operator UI
 
 ### Current limitations
 
-- no wallet-scoped shared history endpoint exists yet for CivilizationControl
-- dashboard preview is still browser-derived until that endpoint ships
-- hard-coded module coverage
-- hard-coded fixed fetch window of 50 events per module
-- no durable history or time-window query surface
-- no server-side filtering by wallet-scoped operator inventory
-- one global query cache key for all signal consumers
-- no first-party use of EF-Map `activity_log`, `raw_events`, or the universe-events Worker yet
+- connected-wallet preview proof for live wallet-scoped signal rows was not available in this environment
+- no global firehose is exposed to the browser
+- no direct `energy_events`
+- no stable separate gate-access or gate-configuration history surface yet
+- no custom legacy CivilizationControl posture/policy/toll/trade-settlement/turret-doctrine families unless they are represented by the current v1 indexed kinds
+- `assemblyId` may be `null`
+- `extension_frozen` must remain labeled frozen rather than revoke/delete
+- marketplace listing discovery still relies on browser event queries and is separate from Signal Feed
 
 ### Can EF-Map replace this?
 
-Yes, but not by exposing raw tables or a global firehose directly to the browser.
+Yes, and the first browser-safe slice is now shipped.
 
-Best replacement shape:
+- current normal-route shape: wallet-scoped EF-Map signal history backed primarily by `ef_sui.activity_log`
+- later: a filtered EF-Map realtime channel or Worker stream once the auth/CORS contract is stable and the operator shell actually needs it
 
-- near term: a wallet-scoped EF-Map signal-history endpoint backed primarily by `ef_sui.activity_log`
-- later: a filtered EF-Map realtime channel or Worker stream once the auth/CORS contract is stable
+`ef_sui.activity_log` remains the best event replacement source because it is already normalized. `ef_sui.raw_events` is still better treated as a server-side backing table or fallback for event families not yet normalized.
 
-`ef_sui.activity_log` is the best first event replacement source because it is already normalized. `ef_sui.raw_events` is better treated as a server-side backing table or fallback for event families not yet normalized.
+### Shipped shared signal-history contract
 
-### Required next shared signal-history contract
-
-The next backend slice should define one browser-safe endpoint for normal Signal Feed UI:
+The shared backend now defines one browser-safe endpoint for normal Signal Feed UI:
 
 - endpoint: `GET /api/civilization-control/signal-history?walletAddress=0x...`
 - required query params: `walletAddress`
-- optional query params: `limit` (default `50`, max `100`), `cursor`, `categories` (comma-separated canonical groups such as `governance,trade,posture,defense,status`), `networkNodeId`, `structureId`, and `since`
+- optional query params: `limit` (default `50`, max `100`), `cursor`, `categories` (comma-separated canonical groups `governance,trade,transit,status`), `networkNodeId`, `structureId`, and `since`
 - server-side scope rule: resolve the wallet's indexed operator inventory first, then return only signals tied to that wallet's governed infrastructure; do not expose a global unscoped firehose to the browser
 - response shape:
 
 ```json
 {
   "schemaVersion": "signal-history.v1",
-  "walletAddress": "0x...",
-  "generatedAt": "2026-05-03T18:00:00.000Z",
+  "source": "shared-frontier-backend",
+  "fetchedAt": "2026-05-04T18:00:00.000Z",
   "partial": false,
   "warnings": [],
+  "operator": {
+    "walletAddress": "0x...",
+    "characterId": "0x...",
+    "characterName": "Operator Prime",
+    "tribeId": 77,
+    "tribeName": "Stillness Vanguard"
+  },
   "signals": [
     {
       "id": "0xTXDIGEST:17",
       "timestamp": "2026-05-03T17:58:41.000Z",
       "category": "trade",
-      "kind": "listing.created",
-      "title": "Listing Posted",
-      "summary": "Storage Alpha posted 120 units",
+      "kind": "storage_deposit",
+      "title": "Storage Deposit",
+      "summary": "Inventory moved into governed storage.",
       "severity": "info",
       "networkNodeId": "0x...",
       "structureId": "0x...",
-      "assemblyId": "0x...",
+      "assemblyId": null,
       "ownerCapId": "0x...",
       "txDigest": "0xTXDIGEST",
       "checkpoint": 123456789,
       "actorCharacterId": "0x...",
-      "amount": "120",
+      "amount": "120000000",
       "metadata": {
-        "module": "trade_post",
-        "eventType": "ListingCreatedEvent"
+        "module": "trade_post"
       }
     }
   ],
@@ -202,7 +199,7 @@ The next backend slice should define one browser-safe endpoint for normal Signal
 }
 ```
 
-The frontend should map this endpoint into the existing Signal Feed categories and dashboard summary cards, then delete browser `queryEvents` from normal UI routes once parity is reached.
+The frontend now maps this endpoint into the existing Signal Feed categories and dashboard summary cards, and browser `queryEvents` no longer drive `/activity` or dashboard Recent Signals. Remaining `queryEvents` call sites are now separate deferred surfaces such as marketplace listing discovery.
 
 ## 4. Current structure / ownership discovery model
 

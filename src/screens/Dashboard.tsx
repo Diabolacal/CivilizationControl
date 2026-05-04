@@ -84,13 +84,19 @@ export function Dashboard({
   const handlePostureTransitionChange = useCallback((t: boolean) => setPostureTransitioning(t), []);
   const PREVIEW_COUNT = 6;
   const TRANSITION_DURATION_MS = 520;
-  const { signals: recentSignals } = useSignalFeed({
+  const {
+    signals: recentSignals,
+    isError: isSignalFeedError,
+    partial: isSignalFeedPartial,
+    warnings: signalFeedWarnings,
+  } = useSignalFeed({
     limit: 10,
     polling: false,
     ownedObjectIds,
     walletAddress: walletAddress ?? null,
     aggressiveRefetch: postureTransitioning,
   });
+  const showSignalFeedLagHint = isSignalFeedPartial || signalFeedWarnings.length > 0;
   const revenueSignals = recentSignals.filter((s) => s.variant === "revenue");
   const totalRevenueBaseUnits = revenueSignals.reduce((sum, s) => sum + (s.amount ?? 0), 0);
   const totalRevenueLuxStr = formatLux(totalRevenueBaseUnits);
@@ -520,8 +526,8 @@ export function Dashboard({
       <div className="mt-6 grid grid-cols-1 gap-4 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <DashboardPanelFrame
-            title={selectedNodeViewModel ? `Attached Structures (${selectedNodeViewModel.structures.length})` : "Recent Telemetry Signals"}
-            subtitle={selectedNodeViewModel ? "Compact power controls plus local hide state" : "Signal feed across governed infrastructure"}
+            title={selectedNodeViewModel ? `Attached Structures (${selectedNodeViewModel.structures.length})` : "Recent Signals"}
+            subtitle={selectedNodeViewModel ? "Compact power controls plus local hide state" : "Signal Feed across governed infrastructure"}
             headerAction={selectedNodeViewModel ? undefined : (
               <Link
                 to="/activity"
@@ -548,6 +554,11 @@ export function Dashboard({
                 />
               ) : (
                 <div className="max-h-[420px] overflow-y-auto divide-y divide-border/50">
+                  {showSignalFeedLagHint ? (
+                    <div className="px-4 py-2 text-[11px] text-muted-foreground/50">
+                      Some recent signals may still be indexing.
+                    </div>
+                  ) : null}
                   {recentSignals.length > 0 ? (
                     recentSignals.slice(0, PREVIEW_COUNT).map((signal) => (
                       <SignalEventRow key={signal.id} signal={signal} />
@@ -555,12 +566,18 @@ export function Dashboard({
                   ) : (
                     <div className="px-4 py-6 text-center">
                       <p className="text-sm text-muted-foreground/60">
-                        {isConnected ? "No telemetry for your infrastructure" : "Connect wallet to view telemetry"}
+                        {isSignalFeedError
+                          ? "Signal Feed is temporarily unavailable"
+                          : isConnected
+                            ? "No signals for your governed infrastructure"
+                            : "Connect wallet to view Signal Feed"}
                       </p>
                       <p className="mt-1 text-[11px] text-muted-foreground/40">
-                        {isConnected
-                          ? "Events from your gates, storage structures, and turrets will appear here"
-                          : "Signal Feed shows activity from your governed infrastructure"}
+                        {isSignalFeedError
+                          ? "Recent signals return automatically once the feed responds again."
+                          : isConnected
+                            ? "Recent status, governance, trade, and transit signals appear here as they index."
+                            : "Signal Feed appears here once your command wallet is connected."}
                       </p>
                     </div>
                   )}
