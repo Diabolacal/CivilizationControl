@@ -190,8 +190,14 @@ Verified restoration details:
 - turret doctrine drift is now a warning instead of a hard blocker because the same switch PTB already rebinds turret extensions
 - gateless readback now uses a local session fallback for the last successful doctrine switch instead of collapsing back to a false `Commercial` default
 - `scripts/check-posture-switch-tx.mts` now proves gate-plus-turret PTB shape, turret-only PTB shape, and pre-build empty-target rejection deterministically
-- the macro Strategic Network strip now keeps only the `Commercial` and `Defensive` controls; routine helper narration and the placeholder `Save Preset` button were removed to keep the governance surface quiet
+- the macro Strategic Network strip now keeps only the `Commercial` and `Defensive` controls; the placeholder `Save Preset` button is gone, and all persistent helper narration under the macro controls was removed so the surface stays quiet in disconnected, loading, ready, no-gate, and turret-only states
 - the broader stale status or read-model refresh after in-app power writes remains a separate follow-up for the later zero-package write-action parity branch; this polish pass did not expand into that seam
+
+Remaining follow-up boundaries after the final helper-noise pass:
+
+- posture or turret-doctrine signals are still not restored in Signal Feed because `signal-history.v1` does not yet expose posture, policy, toll, or turret-doctrine rows as first-class history entries
+- turret extension or readiness display may still imply rebind work even after posture switching succeeds, likely because the current indexed read model does not expose the exact doctrine or readiness state the older direct-chain posture path used
+- structure status after in-app power writes can still remain stale until indexer or page refresh, and that belongs in the upcoming zero-package write-action parity branch rather than this posture polish branch
 
 This keeps the classification unchanged:
 

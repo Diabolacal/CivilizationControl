@@ -39,8 +39,6 @@ interface PostureControlProps {
 
 interface InlineMessage {
   label: string;
-  severity: "error";
-  link?: string;
 }
 
 export function PostureControl({ nodeGroups, isConnected, compact, inline, onTransitionChange }: PostureControlProps) {
@@ -231,27 +229,10 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
 
   const inlineMessage = useMemo<InlineMessage | null>(() => {
     if (status === "error" && error) {
-      return { label: error, severity: "error" };
-    }
-    if (readinessErrors.length > 0) {
-      return toInlineError(readinessErrors[0]);
-    }
-    if (noTargetsBlocker) return toInlineError(noTargetsBlocker);
-    if (commercialPresetBlocker || defensePresetBlocker) {
-      const missingModes = [
-        commercialPresetBlocker ? "Commercial" : null,
-        defensePresetBlocker ? "Defense" : null,
-      ].filter((value): value is string => value != null);
-
-      return {
-        key: "preset-summary",
-        label: `Gate presets incomplete for ${missingModes.join(" and ")} switching.`,
-        severity: "error",
-        link: "/gates",
-      };
+      return { label: error };
     }
     return null;
-  }, [commercialPresetBlocker, defensePresetBlocker, error, noTargetsBlocker, readinessErrors, status]);
+  }, [error, status]);
 
   const actionButton = (
     <button
@@ -377,11 +358,6 @@ export function PostureControl({ nodeGroups, isConnected, compact, inline, onTra
         {inlineMessage && (
           <div className="flex items-center gap-2 text-[11px] text-red-400">
             <span>{inlineMessage.label}</span>
-            {inlineMessage.link && (
-              <Link to={inlineMessage.link} className="underline underline-offset-2 hover:text-zinc-100">
-                Resolve →
-              </Link>
-            )}
           </div>
         )}
       </div>
@@ -429,13 +405,6 @@ function buildPresetBlocker(mode: PostureMode, gates: readonly Structure[]): Rea
   };
 }
 
-function toInlineError(blocker: ReadinessBlocker): InlineMessage {
-  return {
-    label: blocker.label,
-    severity: "error",
-    link: blocker.link,
-  };
-}
 
 function formatGateList(gates: readonly Structure[]): string {
   const names = gates.slice(0, 2).map((gate) => gate.name);
