@@ -177,8 +177,40 @@ interface BuildNodeDrilldownOptions {
 const SUPPORTED_POWER_TYPE_BY_FAMILY: Partial<Record<NodeLocalFamily, NodeLocalSupportedPowerType>> = {
   gate: "gate",
   tradePost: "storage_unit",
+  printer: "assembly",
+  refinery: "assembly",
+  assembler: "assembly",
+  berth: "assembly",
+  relay: "assembly",
+  nursery: "assembly",
+  nest: "assembly",
+  shelter: "assembly",
   turret: "turret",
 };
+
+function normalizeIndexedActionTargetTypeForFamily(
+  family: NodeLocalFamily,
+  structureType: NodeLocalActionCandidateTarget["structureType"] | null,
+): NodeLocalActionCandidateTarget["structureType"] | null {
+  const supportedPowerType = SUPPORTED_POWER_TYPE_BY_FAMILY[family] ?? null;
+  if (!supportedPowerType) {
+    return structureType;
+  }
+
+  if (supportedPowerType === "assembly") {
+    if (structureType == null || structureType === "assembly") {
+      return "assembly";
+    }
+
+    if (structureType === "network_node" || structureType === "gate" || structureType === "turret") {
+      return null;
+    }
+
+    return "assembly";
+  }
+
+  return structureType === supportedPowerType ? supportedPowerType : null;
+}
 
 const GENERIC_DISPLAY_NAME_ALIASES: Partial<Record<NodeLocalFamily, string[]>> = {
   networkNode: ["network node"],
@@ -445,11 +477,15 @@ function toNodeLocalActionCandidate(structure: Structure): NodeLocalActionCandid
 }
 
 function toNodeLocalActionCandidateFromRequiredIds(
+  family: NodeLocalFamily,
   powerAction: IndexedPowerAction,
   status: StructureStatus,
 ): NodeLocalActionCandidateTarget | null {
   const structureId = powerAction.requiredIds?.structureId;
-  const structureType = powerAction.requiredIds?.structureType;
+  const structureType = normalizeIndexedActionTargetTypeForFamily(
+    family,
+    powerAction.requiredIds?.structureType ?? null,
+  );
   if (!structureId || !structureType) {
     return null;
   }
@@ -500,7 +536,7 @@ function resolveNodeLocalVerifiedTarget(
     return null;
   }
 
-  const candidateTarget = powerAction ? toNodeLocalActionCandidateFromRequiredIds(powerAction, status) : null;
+  const candidateTarget = powerAction ? toNodeLocalActionCandidateFromRequiredIds(family, powerAction, status) : null;
   const structureType = candidateTarget?.structureType ?? liveCandidate?.structureType ?? null;
   if (structureType !== supportedPowerType) {
     return null;
@@ -541,7 +577,7 @@ function createNodeLocalActionAuthority(
   const powerAction = actionCandidate?.actions.power;
   const supportedPowerType = SUPPORTED_POWER_TYPE_BY_FAMILY[family] ?? null;
   const liveCandidateTargets = liveMatches.map(toNodeLocalActionCandidate);
-  const indexedCandidateTarget = powerAction ? toNodeLocalActionCandidateFromRequiredIds(powerAction, status) : null;
+  const indexedCandidateTarget = powerAction ? toNodeLocalActionCandidateFromRequiredIds(family, powerAction, status) : null;
   const candidateTargets = dedupeNodeLocalActionCandidates([
     ...liveCandidateTargets,
     ...(indexedCandidateTarget ? [indexedCandidateTarget] : []),
@@ -1393,6 +1429,31 @@ export function buildSyntheticNodeLocalViewModel(
 
 export function formatNodeLocalStatus(status: StructureStatus): string {
   return status.charAt(0).toUpperCase() + status.slice(1);
+}
+
+export function describeNodeLocalWarningMarker(
+  structure: Pick<NodeLocalStructure, "warningPip" | "status" | "family" | "extensionStatus">,
+): string | null {
+  if (!structure.warningPip) {
+    return null;
+  }
+
+  const extensionNeedsAttention = (structure.family === "gate" || structure.family === "turret")
+    && structure.extensionStatus !== "authorized";
+
+  if (structure.status === "warning" && extensionNeedsAttention) {
+    return "Warning status plus extension authorization attention.";
+  }
+
+  if (structure.status === "warning") {
+    return "Warning status reported for this structure.";
+  }
+
+  if (extensionNeedsAttention) {
+    return "Extension authorization needs attention.";
+  }
+
+  return "Attention marker present.";
 }
 
 export function formatNodeLocalSize(sizeVariant: NodeLocalSizeVariant): string | null {

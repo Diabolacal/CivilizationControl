@@ -17,6 +17,9 @@ export type TxDigest = string;
 /** Structure types matching on-chain assembly categories. */
 export type StructureType = "gate" | "storage_unit" | "turret" | "network_node";
 
+/** Executable write target types used by sponsored or player-paid PTBs. */
+export type StructureActionTargetType = StructureType | "assembly";
+
 /** Operational status derived from on-chain state. */
 export type StructureStatus = "online" | "warning" | "offline" | "neutral";
 
@@ -41,7 +44,7 @@ export interface IndexedPowerSummary {
 
 export interface IndexedActionRequiredIds {
   structureId: ObjectId | null;
-  structureType: StructureType | null;
+  structureType: StructureActionTargetType | null;
   ownerCapId: ObjectId | null;
   networkNodeId: ObjectId | null;
 }

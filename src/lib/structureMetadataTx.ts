@@ -4,9 +4,10 @@ import {
   WORLD_ORIGINAL_PACKAGE_ID,
   WORLD_RUNTIME_PACKAGE_ID,
 } from "@/constants";
-import type { ObjectId, StructureType } from "@/types/domain";
+import type { ObjectId, StructureActionTargetType } from "@/types/domain";
 
-const MODULE_MAP: Record<StructureType, { module: string; typeStr: string }> = {
+const MODULE_MAP: Record<StructureActionTargetType, { module: string; typeStr: string }> = {
+  assembly: { module: "assembly", typeStr: `${WORLD_ORIGINAL_PACKAGE_ID}::assembly::Assembly` },
   gate: { module: "gate", typeStr: `${WORLD_ORIGINAL_PACKAGE_ID}::gate::Gate` },
   network_node: {
     module: "network_node",
@@ -20,7 +21,7 @@ const MODULE_MAP: Record<StructureType, { module: string; typeStr: string }> = {
 };
 
 interface StructureRenameParams {
-  structureType: StructureType;
+  structureType: StructureActionTargetType;
   structureId: ObjectId;
   ownerCapId: ObjectId;
   name: string;

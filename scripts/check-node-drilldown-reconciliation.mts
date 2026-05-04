@@ -233,20 +233,57 @@ const lookup: NodeAssembliesLookupResult = {
     },
     {
       objectId: "0x4302",
-      assemblyId: null,
+      assemblyId: "4302",
       linkedGateId: null,
       assemblyType: "printer",
       typeId: 88067,
       typeName: "Printer",
       name: "Printer",
+      displayName: "Printer 4302",
       status: "ONLINE",
       fuelAmount: null,
       solarSystemId: null,
       energySourceId: null,
       url: null,
       lastUpdated: "2026-05-02T12:00:00.000Z",
+      ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000004302",
+      ownerWalletAddress: "0xoperator-wallet",
+      characterId: "0xoperator-character",
       source: "shared-frontier-backend",
       provenance: "node-local-indexer",
+      actionCandidate: {
+        actions: {
+          power: {
+            candidate: true,
+            currentlyImplementedInCivilizationControl: true,
+            familySupported: true,
+            indexedOwnerCapPresent: true,
+            requiredIds: {
+              structureId: "0x4302",
+              structureType: "assembly",
+              ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000004302",
+              networkNodeId: group.node.objectId,
+            },
+            unavailableReason: null,
+          },
+          rename: {
+            candidate: true,
+            currentlyImplementedInCivilizationControl: true,
+            familySupported: true,
+            indexedOwnerCapPresent: true,
+            requiredIds: {
+              structureId: "0x4302",
+              structureType: "assembly",
+              ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000004302",
+              networkNodeId: group.node.objectId,
+            },
+            unavailableReason: null,
+          },
+        },
+        supported: true,
+        familySupported: true,
+        unavailableReason: null,
+      },
     },
   ],
   fetchedAt: "2026-05-02T12:00:00.000Z",
@@ -313,7 +350,11 @@ assert.equal(assemblerRows[0]?.hasDirectChainAuthority, false, "expected backend
 assert.equal(assemblerRows[0]?.actionAuthority.state, "backend-only", "expected backend-only assembler to remain unavailable in Phase E");
 
 assert.equal(printerRows[0]?.source, "backendMembership", "expected printer to remain part of backend membership");
-assert.equal(printerRows[0]?.actionAuthority.state, "backend-only", "expected backend-only printer to remain unavailable in Phase E");
+assert.equal(printerRows[0]?.isReadOnly, false, "expected generic printer with indexed required IDs to become actionable");
+assert.equal(printerRows[0]?.isActionable, true, "expected generic printer to expose live actions when owner-cap and node context are indexed");
+assert.equal(printerRows[0]?.hasDirectChainAuthority, false, "expected generic printer support to remain operator-inventory-backed when no live structure match exists");
+assert.equal(printerRows[0]?.actionAuthority.state, "verified-supported", "expected backend-membership printer to resolve to generic assembly support");
+assert.equal(printerRows[0]?.actionAuthority.verifiedTarget?.structureType, "assembly", "expected backend-membership printer to map to the generic assembly write target");
 assert.equal(refineryRows[0]?.actionAuthority.state, "backend-only", "expected backend-only refinery to remain unavailable in Phase E");
 
 assert.ok(structures.every((structure) => structure.familyLabel !== "Trade Post"), "expected no visible Trade Post terminology");

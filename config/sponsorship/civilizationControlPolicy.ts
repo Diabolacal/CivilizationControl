@@ -9,6 +9,7 @@ export const CIVILIZATION_CONTROL_POLICY_JSON = `{
   "packages": {
     "0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780": {
       "character": ["borrow_owner_cap", "return_owner_cap"],
+      "assembly": ["update_metadata_name", "online", "offline"],
       "gate": ["authorize_extension", "update_metadata_url", "update_metadata_name", "online", "offline"],
       "storage_unit": ["authorize_extension", "update_metadata_url", "update_metadata_name", "online", "offline"],
       "turret": ["authorize_extension", "update_metadata_name", "online", "offline"],
@@ -16,6 +17,7 @@ export const CIVILIZATION_CONTROL_POLICY_JSON = `{
     },
     "0x28b497559d65ab320d9da4613bf2498d5946b2c0ae3597ccfda3072ce127448c": {
       "character": ["borrow_owner_cap", "return_owner_cap"],
+      "assembly": ["update_metadata_name", "online", "offline"],
       "gate": ["authorize_extension", "update_metadata_url", "update_metadata_name", "online", "offline"],
       "storage_unit": ["authorize_extension", "update_metadata_url", "update_metadata_name", "online", "offline"],
       "turret": ["authorize_extension", "update_metadata_name", "online", "offline"],

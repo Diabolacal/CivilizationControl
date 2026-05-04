@@ -14,11 +14,14 @@ import {
   WORLD_ORIGINAL_PACKAGE_ID,
   WORLD_RUNTIME_PACKAGE_ID,
 } from "@/constants";
-import type { ObjectId, StructureType } from "@/types/domain";
+import type { ObjectId, StructureActionTargetType } from "@/types/domain";
 
 // ─── Module/type mapping per structure type ──────────────
 
-const MODULE_MAP: Record<string, { module: string; typeStr: string }> = {
+type AssemblyActionTargetType = Exclude<StructureActionTargetType, "network_node">;
+
+const MODULE_MAP: Record<AssemblyActionTargetType, { module: string; typeStr: string }> = {
+  assembly: { module: "assembly", typeStr: `${WORLD_ORIGINAL_PACKAGE_ID}::assembly::Assembly` },
   gate: { module: "gate", typeStr: `${WORLD_ORIGINAL_PACKAGE_ID}::gate::Gate` },
   turret: { module: "turret", typeStr: `${WORLD_ORIGINAL_PACKAGE_ID}::turret::Turret` },
   storage_unit: { module: "storage_unit", typeStr: `${WORLD_ORIGINAL_PACKAGE_ID}::storage_unit::StorageUnit` },
@@ -30,7 +33,7 @@ const SUI_CLOCK = "0x6";
 // ─── Single assembly online/offline ─────────────────────
 
 interface AssemblyPowerParams {
-  structureType: StructureType;
+  structureType: AssemblyActionTargetType;
   structureId: ObjectId;
   ownerCapId: ObjectId;
   networkNodeId: ObjectId;
@@ -83,7 +86,7 @@ interface BatchAssemblyTarget {
 }
 
 interface BatchAssemblyPowerParams {
-  structureType: StructureType;
+  structureType: AssemblyActionTargetType;
   targets: BatchAssemblyTarget[];
   online: boolean;
   characterId: string;

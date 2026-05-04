@@ -533,11 +533,12 @@ const printer = viewModel.structures.find((structure) => structure.objectId === 
 assert.equal(gate?.actionAuthority.state, "verified-supported");
 assert.equal(storage?.actionAuthority.state, "verified-supported");
 assert.equal(turret?.actionAuthority.state, "verified-supported");
-assert.equal(printer?.actionAuthority.state, "future-supported");
-assert.equal(printer?.actionAuthority.unavailableReason, "Indexed for future power support only.");
+assert.equal(printer?.actionAuthority.state, "verified-supported");
+assert.equal(printer?.actionAuthority.verifiedTarget?.structureType, "assembly");
+assert.equal(printer?.actionAuthority.unavailableReason, null);
 assert.equal(getNodeLocalPowerToggleIntent(gate!)?.actionLabel, "Take Offline");
 assert.equal(getNodeLocalPowerToggleIntent(turret!)?.actionLabel, "Bring Online");
-assert.equal(getNodeLocalPowerToggleIntent(printer!), null);
+assert.equal(getNodeLocalPowerToggleIntent(printer!)?.actionLabel, "Bring Online");
 
 const unlinkedStorage = adapted.structures.find((structure) => structure.objectId === UNLINKED_STORAGE_ID);
 const suspiciousTurretA = adapted.structures.find((structure) => structure.objectId === SUSPICIOUS_TURRET_A_ID);
@@ -797,7 +798,7 @@ function futurePowerRow() {
   return {
     objectId: PRINTER_ID,
     assemblyId: "9104",
-    ownerCapId: null,
+    ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001104",
     family: "printer",
     size: "standard",
     displayName: "Field Printer",
@@ -827,29 +828,34 @@ function futurePowerRow() {
       actions: {
         power: {
           candidate: true,
-          currentlyImplementedInCivilizationControl: false,
+          currentlyImplementedInCivilizationControl: true,
           familySupported: true,
           indexedOwnerCapPresent: true,
           requiredIds: {
             structureId: PRINTER_ID,
-            structureType: "storage_unit",
-            ownerCapId: null,
+            structureType: "assembly",
+            ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001104",
             networkNodeId: NETWORK_NODE_A_ID,
           },
-          unavailableReason: "Indexed for future power support only.",
+          unavailableReason: null,
         },
         rename: {
           candidate: true,
-          currentlyImplementedInCivilizationControl: false,
+          currentlyImplementedInCivilizationControl: true,
           familySupported: true,
-          indexedOwnerCapPresent: false,
-          requiredIds: null,
-          unavailableReason: "Rename is indexed but not surfaced in the web UI yet.",
+          indexedOwnerCapPresent: true,
+          requiredIds: {
+            structureId: PRINTER_ID,
+            structureType: "assembly",
+            ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001104",
+            networkNodeId: NETWORK_NODE_A_ID,
+          },
+          unavailableReason: null,
         },
       },
       supported: true,
       familySupported: true,
-      unavailableReason: "Indexed for future power support only.",
+      unavailableReason: null,
     },
   };
 }

@@ -134,6 +134,42 @@ assert.deepEqual(getNodeLocalPowerControlState(hiddenVerifiedNodeLocal), {
   isStatusOnly: false,
 });
 
+const verifiedPrinterNodeLocal = makeNodeLocalStructure({
+  canonicalDomainKey: 'assembly:9104',
+  displayName: 'Field Printer',
+  typeLabel: 'Printer',
+  family: 'printer',
+  familyLabel: 'Printer',
+  iconFamily: 'printer',
+  band: 'industry',
+  actionAuthority: {
+    state: 'verified-supported',
+    verifiedTarget: {
+      structureId: '0xprinter',
+      structureType: 'assembly',
+      ownerCapId: '0xprinter-cap',
+      networkNodeId: '0xnode',
+      status: 'offline',
+    },
+    candidateTargets: [],
+    unavailableReason: null,
+  },
+});
+assert.equal(supportsNodeLocalRename(verifiedPrinterNodeLocal), true);
+assert.deepEqual(getNodeLocalPowerToggleIntent(verifiedPrinterNodeLocal), {
+  actionLabel: 'Bring Online',
+  currentStatus: 'offline',
+  nextOnline: true,
+});
+assert.deepEqual(getNodeLocalPowerControlState(verifiedPrinterNodeLocal), {
+  actionLabel: 'Bring Online',
+  currentStatus: 'offline',
+  nextOnline: true,
+  selectedSegment: 'offline',
+  isInteractive: true,
+  isStatusOnly: false,
+});
+
 const backendOnlyNodeLocal = makeNodeLocalStructure({
   hasDirectChainAuthority: false,
   actionAuthority: {

@@ -9,7 +9,13 @@ import {
 } from "@/lib/nodeDrilldownActionAuthority";
 import { buildFuelPresentation, type FuelPresentation, type FuelSeverity } from "@/lib/fuelRuntime";
 import { selectCanonicalNodeDrilldownDomainKey } from "@/lib/nodeDrilldownIdentity";
-import { findNodeLocalStructure, formatNodeLocalSize, formatNodeLocalStatus, summarizeNodeLocalFamilies } from "@/lib/nodeDrilldownModel";
+import {
+  describeNodeLocalWarningMarker,
+  findNodeLocalStructure,
+  formatNodeLocalSize,
+  formatNodeLocalStatus,
+  summarizeNodeLocalFamilies,
+} from "@/lib/nodeDrilldownModel";
 
 import type { Structure, TxResult, TxStatus } from "@/types/domain";
 import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
@@ -303,6 +309,9 @@ function NodeSelectionInspectorContent({
   const isSelectedStructureHidden = selectedStructure
     ? hiddenCanonicalKeySet.has(selectedStructure.canonicalDomainKey)
     : false;
+  const selectedStructureWarningDetail = selectedStructure
+    ? describeNodeLocalWarningMarker(selectedStructure)
+    : null;
   const chainBackedCount = viewModel.structures.filter((structure) => structure.hasDirectChainAuthority).length;
   const backendOnlyCount = viewModel.structures.length - chainBackedCount;
   const canonicalIdentity = selectedNode?.networkNodeRenderMeta?.canonicalIdentity
@@ -332,6 +341,9 @@ function NodeSelectionInspectorContent({
             <InspectorRow label="Family" value={selectedStructure.familyLabel} />
             <InspectorRow label="Size" value={formatNodeLocalSize(selectedStructure.sizeVariant) ?? "Not tagged"} muted={formatNodeLocalSize(selectedStructure.sizeVariant) == null} />
             <InspectorRow label="Status" value={formatNodeLocalStatus(selectedStructure.status)} />
+            {selectedStructureWarningDetail ? (
+              <InspectorRow label="Alert" value={selectedStructureWarningDetail} muted />
+            ) : null}
             <InspectorRow label="Node View" value={isSelectedStructureHidden ? "Hidden from map (local only)" : "Visible in node view"} />
             <InspectorRow label="Object ID" value={renderIdentifierValue(selectedStructure.objectId, "Not supplied", "Copy structure object ID")} muted={!hasValue(selectedStructure.objectId)} />
             <InspectorRow label="Assembly ID" value={renderIdentifierValue(selectedStructure.assemblyId, "Not indexed", "Copy structure assembly ID")} muted={!hasValue(selectedStructure.assemblyId)} />

@@ -8,10 +8,10 @@ import {
   type StructureWriteRefreshOptions,
 } from "@/hooks/useStructureWriteRefresh";
 import { buildStructureRenameTx } from "@/lib/structureMetadataTx";
-import type { ObjectId, StructureType, TxResult, TxStatus } from "@/types/domain";
+import type { ObjectId, StructureActionTargetType, TxResult, TxStatus } from "@/types/domain";
 
 interface RenameStructureParams {
-  structureType: StructureType;
+  structureType: StructureActionTargetType;
   structureId: ObjectId;
   ownerCapId: ObjectId;
   name: string;

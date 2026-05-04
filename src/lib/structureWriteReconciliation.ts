@@ -2,14 +2,14 @@ import { normalizeCanonicalObjectId, type NodeAssembliesLookupResult } from "@/l
 import type {
   NetworkNodeGroup,
   Structure,
+  StructureActionTargetType,
   StructureStatus,
-  StructureType,
 } from "@/types/domain";
 import type { OperatorInventoryResponse, OperatorInventoryStructure } from "@/types/operatorInventory";
 
 export interface StructureWriteTarget {
   objectId: string;
-  structureType: StructureType;
+  structureType: StructureActionTargetType;
   ownerCapId: string;
   networkNodeId?: string | null;
   assemblyId?: string | null;
@@ -19,7 +19,7 @@ export interface StructureWriteTarget {
 
 export interface PendingStructureWriteOverlay {
   key: string;
-  structureType: StructureType;
+  structureType: StructureActionTargetType;
   objectId: string;
   ownerCapId: string;
   networkNodeId: string | null;

@@ -18,10 +18,12 @@ import {
   useStructureWriteRefresh,
   type StructureWriteRefreshOptions,
 } from "@/hooks/useStructureWriteRefresh";
-import type { ObjectId, StructureType, TxStatus, TxResult } from "@/types/domain";
+import type { ObjectId, StructureActionTargetType, TxStatus, TxResult } from "@/types/domain";
+
+type AssemblyPowerStructureType = Exclude<StructureActionTargetType, "network_node">;
 
 interface SinglePowerParams {
-  structureType: StructureType;
+  structureType: AssemblyPowerStructureType;
   structureId: ObjectId;
   ownerCapId: ObjectId;
   networkNodeId: ObjectId;
@@ -29,7 +31,7 @@ interface SinglePowerParams {
 }
 
 interface BatchPowerParams {
-  structureType: StructureType;
+  structureType: AssemblyPowerStructureType;
   targets: { structureId: ObjectId; ownerCapId: ObjectId; networkNodeId: ObjectId }[];
   online: boolean;
 }

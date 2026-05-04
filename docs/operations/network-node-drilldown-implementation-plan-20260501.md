@@ -23,15 +23,27 @@ This tracked follow-up stays on `feat/zero-package-action-parity`. It does not c
 - validation passed: `sui client active-env` (`testnet_stillness`); `sui move build --path contracts/civilization_control`; `sui move test --path contracts/civilization_control`; `npm run typecheck`; `npm run build`; `git diff --check` excluding the preserved unrelated `contracts/civilization_control/Move.lock`, `vendor/world-contracts`, and `.tmp-node-provisional-section.png` dirt; `npx tsx scripts/check-operator-inventory-mapping.mts`; `npx tsx scripts/check-node-drilldown-reconciliation.mts`; `npx tsx scripts/check-signal-history-mapping.mts`; `npx tsx scripts/check-structure-action-support.mts`; `npx tsx scripts/check-structure-write-reconciliation.mts`; `npx tsx scripts/check-node-control-action-projection.mts`; and `npm run sponsor:validate-policy`
 - fresh preview evidence for the final corrective pass is now `https://83603ca1.civilizationcontrol.pages.dev` with alias `https://feat-zero-package-action-par-da22.civilizationcontrol.pages.dev`; route smoke confirmed `/`, `/nodes`, `/activity`, `/settings`, and `/dev/node-drilldown-lab`; dev-lab right-click on `Storage Alpha` exposed `Hide from Node View`, `Take Offline`, and `Rename Assembly`; hidden `Gate Epsilon` exposed `Unhide`, `Take Offline`, and `Rename Assembly`; unsupported `Printer Gamma` exposed only `Hide from Node View` while the row rail stayed status-only; unique and alias HTML both resolved `assets/index-1oyXIeOs.js`; served-bundle scanning across 12 deployed JS assets found `civilizationcontrol-sponsor` in `App-C78lfgSw.js` and `SmartObjectProvider-CpcucCGD.js`, found `https://ef-map.com` in `nodeDrilldownMenuItems-CHOnHGhd.js` and `SmartObjectProvider-CpcucCGD.js`, and found no `flappy-frontier-sponsor`, exact-case `Authorization`, `ASSEMBLY_API_TOKEN`, `X-API-Key`, `SPONSOR_PRIVATE_KEY`, `CF_API_TOKEN`, or `CLOUDFLARE_ACCOUNT_ID`
 - integrated-browser wallet smoke was attempted on the fresh preview, but a usable wallet-owned session was still unavailable in this environment: the connect modal exposed only `Slush`, and the connection attempt immediately returned `Connection failed`. Live owned-structure rename/power proof therefore remains pending one manual wallet-backed preview pass on this fresh unique URL
-- network-node offline, node power state presets, marketplace/revenue work, and signal-history parity expansion remain separate follow-ups; this corrective branch keeps the zero-package four-family scope only
+- network-node offline, node power state presets, marketplace/revenue work, and signal-history parity expansion remain separate follow-ups; this corrective branch closed the shipped Phase 1A four-family parity slice, and the Phase 1B widening result is tracked immediately below
+
+### Phase 1B generic assembly widening - 2026-05-04
+
+This tracked follow-up stays on `feat/zero-package-action-parity`. It does not change Move contracts, package IDs, EF-Map contracts, vendor state, or production deploy state.
+
+- the generic attached-assembly widening slice is now implemented without reopening read-path or package scope: frontend execution now uses `StructureActionTargetType = StructureType | "assembly"` so displayed generic families no longer depend on the older four-family `StructureType` union
+- operator-inventory and node-drilldown normalization now map `printer`, `refinery`, `assembler`, `berth`, `relay`, `nursery`, `nest`, and `shelter` rows to generic `assembly` power/rename targets when indexed required IDs plus `ownerCapId` resolve to one supported candidate
+- `src/lib/structurePowerTx.ts` and `src/lib/structureMetadataTx.ts` now emit generic `world::assembly::{online,offline,update_metadata_name}` PTBs, sponsor policy plus worker validation now mirror those calls under both world package IDs, and deterministic proof now covers mapping, reconciliation, support, and menu/rail projection for the widened generic printer case
+- the orange warning-marker review also closed in the normal operator UI: shared warning detail now appears in tooltip/aria copy and in `Selection Inspector` as `Alert` text instead of leaving the pip unexplained
+- validation passed: `sui client active-env`; `sui move build --path contracts/civilization_control`; `sui move test --path contracts/civilization_control`; `npm run sponsor:validate-policy`; `npm run sponsor:test`; `npx tsx scripts/check-operator-inventory-mapping.mts`; `npx tsx scripts/check-node-drilldown-reconciliation.mts`; `npx tsx scripts/check-structure-action-support.mts`; `npx tsx scripts/check-node-control-action-projection.mts`; `npm run typecheck`; `npm run build`; and `git diff --check` on the touched files
+- fresh preview evidence is now `https://55fdaf7c.civilizationcontrol.pages.dev` with alias `https://feat-zero-package-action-par-da22.civilizationcontrol.pages.dev`; route smoke confirmed `/`, `/nodes`, `/activity`, `/settings`, and `/dev/node-drilldown-lab`; unique and alias HTML both resolved `assets/index-DId4iWQ2.js`; served-bundle scanning found `civilizationcontrol-sponsor` in `App-CuXhOtYo.js`, found `https://ef-map.com` in `nodeDrilldownMenuItems-FvrsLQZR.js` and `SmartObjectProvider-CywV33-9.js`, and found no `flappy-frontier-sponsor`, exact-case `Authorization`, `ASSEMBLY_API_TOKEN`, or `X-API-Key`
+- the dev lab now shows the warning explanation in normal UI as `Alert: Warning status plus extension authorization attention.` for `Gate Zeta`, but the integrated-browser wallet smoke still remained unavailable because no usable wallet-backed session was present in this environment
 
 ### Write-action audit before any package change - 2026-05-04
 
 This follow-up is docs-only on `docs/node-control-write-action-audit`. It does not change frontend runtime code, Move code, sponsor-worker behavior, EF-Map code, package IDs, vendor state, or production deploy state.
 
 - the new authority doc is `docs/operations/node-control-write-action-audit-20260504.md`
-- the audit confirms that current Stillness runtime calls already cover the first useful Node Control write slice: existing gate, storage, turret, and network-node online actions plus metadata rename do not currently justify a package update
-- the audit also confirms that the main near-term gating seam is sponsor policy, not missing on-chain functions; current policy does not yet cover rename, network-node offline, revoke, or freeze
+- the audit confirms that current Stillness runtime calls already cover the shipped Phase 1A slice and the now-shipped widening seam: existing gate, storage, turret, and network-node online actions plus metadata rename already work without a package update, and generic `world::assembly` entrypoints already cover the wider attached-assembly families now wired in this branch
+- the audit also confirms that the main near-term gating seam was sponsor policy and frontend action-target modeling, not missing on-chain functions; current policy in this branch now covers the shipped four-family rename surface plus generic assembly power and rename, while network-node offline, revoke, and freeze remain outside the allowlist
 - network-node offline remains explicitly deferred because the blocker is hot-potato PTB handling for child assemblies, not a proven world-contract gap
 - signal-history parity for posture, policy, toll, turret doctrine, and market settlement remains a separate read-only backlog and should not block the first write-action implementation branch
 
@@ -68,25 +80,22 @@ This follow-up is frontend-only on `feat/signal-history-indexer-feed`. It does n
 
 ### Next work order after merge
 
-The current feature branch should not absorb write-action implementation, power-state presets, marketplace work, or package changes. After this Signal Feed restoration is merged, the next slice should follow the audit in `docs/operations/node-control-write-action-audit-20260504.md` and stay in this order:
+The current feature branch should not absorb package changes, marketplace work, or production deploy scope. After this Signal Feed restoration is merged, the next slice should still follow the audit in `docs/operations/node-control-write-action-audit-20260504.md`, but the shipped order is now:
 
-1. Zero-package action parity
-  - keep current gate, storage, turret, and network-node online actions aligned across Node Control menus, rails, and existing detail screens
-  - add rename only on the current four-family execution set first
-2. Sponsor-policy follow-up only if needed
-  - treat rename sponsorship as a separate worker-policy branch with preview proof
-  - keep sponsor rollout out of the UI branch
-3. Network-node offline proof branch
+1. Phase 1A and Phase 1B are already shipped
+  - gate, storage, and turret power align across Node Control menus, rails, list rows, and current detail screens
+  - network-node online, four-family rename, and generic attached-assembly power/rename now ride the current zero-package action surface where operator-inventory IDs resolve cleanly
+2. Network-node offline proof branch
   - treat node offline as separate PTB work because the blocker is child-offline hot-potato handling, not package state
-4. Local Node Power State presets later
+3. Local Node Power State presets later
   - start with local persistence only if the individual-action slice lands cleanly
   - do not escalate to on-chain preset design without a separate product decision
-5. Signal-history parity remains separate
-  - keep posture, policy, toll, turret-doctrine, and market-settlement history out of the first write-action branch
+4. Signal-history parity remains separate
+  - keep posture, policy, toll, turret-doctrine, and market-settlement history out of the shipped write-action slices
   - do not reopen browser `queryEvents` for normal Signal Feed routes
-6. Marketplace integration later
+5. Marketplace integration later
   - keep listings and settlement work in a separate revenue branch
-7. Package update only by proof
+6. Package update only by proof
   - only reopen package discussion if a required operator action still cannot be expressed after frontend, sponsor-policy, and PTB proof work
 
 ### Indexed fuel fullness correction and immediate boot shell - 2026-05-03
@@ -796,7 +805,7 @@ This is a planning requirement for the first implementation branch because real 
 - Human smoke confirmed that turret-only or no-gate posture switching can succeed after wallet and live world state settle, but three seams remain intentionally deferred here: Signal Feed still lacks posture or turret-doctrine history because EF-Map `signal-history.v1` does not expose those rows; turret extension or readiness display can still overstate rebind work because the indexed read model does not yet mirror the old direct-chain doctrine truth; and stale post-write structure status after in-app power actions remains a separate zero-package write-action parity follow-up.
 - `src/hooks/useStructurePower.ts` and `src/lib/structurePowerTx.ts` already provide structure-level power actions for supported current families.
 - `src/screens/NetworkNodeDetailScreen.tsx` already exposes node online, while node offline remains explicitly unsupported.
-- world modules expose metadata-name updates for gates, storage units, turrets, and network nodes, but the shipped frontend does not currently expose or validate a rename execution flow; treat rename as a separate later capability, not part of the next slice.
+- world modules expose metadata-name updates for gates, storage units, turrets, generic assemblies, and network nodes. This line is now historical only: the later zero-package action branches shipped rename execution for the supported world-family targets plus generic attached-assembly rows that resolve to one supported indexed `assembly` candidate with the required IDs.
 
 ### Icon catalogue state
 
@@ -1076,8 +1085,8 @@ The first implementation branch should not edit any of these. It should only res
 
 Current audit note for future phases:
 
-- world modules expose on-chain metadata-name updates for gates, storage units, turrets, and network nodes, but the shipped web app does not currently expose or validate a rename execution flow
-- `Node Control` should therefore keep rename out of Phase D and Phase E; if naming work is later needed, local labels should be planned separately from any future on-chain rename capability
+- historical note: world modules expose on-chain metadata-name updates for gates, storage units, turrets, generic assemblies, and network nodes, and the later zero-package action branches now ship rename execution for the supported world-family targets plus generic attached-assembly rows that resolve to one supported indexed `assembly` candidate with the required IDs
+- local labels should still remain a separate UI-only seam from on-chain rename capability even after the shipped rename work; later preset or label work should not collapse those two concepts back together
 
 ### 6.5 Hide and unhide behavior
 

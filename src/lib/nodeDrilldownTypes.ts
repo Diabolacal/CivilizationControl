@@ -1,4 +1,9 @@
-import type { ObjectId, Structure, StructureStatus, StructureType } from "@/types/domain";
+import type {
+  ObjectId,
+  Structure,
+  StructureActionTargetType,
+  StructureStatus,
+} from "@/types/domain";
 
 export type NodeLocalSource = "live" | "backendMembership" | "backendObserved" | "synthetic";
 
@@ -40,7 +45,7 @@ export type NodeLocalBadge = "M" | "H" | null;
 
 export type NodeLocalSizeVariant = "mini" | "standard" | "heavy" | null;
 
-export type NodeLocalSupportedPowerType = Extract<StructureType, "gate" | "storage_unit" | "turret">;
+export type NodeLocalSupportedPowerType = Exclude<StructureActionTargetType, "network_node">;
 
 export type NodeLocalActionAuthorityState =
   | "verified-supported"
@@ -54,7 +59,7 @@ export type NodeLocalActionAuthorityState =
 
 export interface NodeLocalActionCandidateTarget {
   structureId: ObjectId;
-  structureType: StructureType;
+  structureType: StructureActionTargetType;
   ownerCapId?: ObjectId;
   networkNodeId?: ObjectId;
   status: StructureStatus;

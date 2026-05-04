@@ -113,42 +113,88 @@ assert.deepEqual(
   "expected hidden supported rows to keep unhide plus valid write actions",
 );
 
-const unsupportedStructure = makeNodeLocalStructure({
+const supportedPrinterStructure = makeNodeLocalStructure({
+  id: "node-local-printer",
+  canonicalDomainKey: "assembly:9104",
+  displayName: "Field Printer",
+  typeLabel: "Printer",
+  family: "printer",
+  familyLabel: "Printer",
+  iconFamily: "printer",
+  band: "industry",
+  actionAuthority: {
+    state: "verified-supported",
+    verifiedTarget: {
+      structureId: "0xprinter",
+      structureType: "assembly",
+      ownerCapId: "0xprinter-cap",
+      networkNodeId: "0xnode",
+      status: "offline",
+    },
+    candidateTargets: [],
+    unavailableReason: null,
+  },
+});
+const supportedPrinterItems = buildNodeDrilldownMenuItems({
+  contextMenu: {
+    ...sharedContextMenu,
+    structureId: "node-local-printer",
+    canonicalDomainKey: "assembly:9104",
+    structureName: "Field Printer",
+  },
+  structure: supportedPrinterStructure,
+  onHideStructure: () => undefined,
+  onUnhideStructure: () => undefined,
+  onTogglePower: () => undefined,
+  onRenameStructure: () => undefined,
+});
+assert.deepEqual(
+  supportedPrinterItems.map((item) => item.label),
+  ["Hide from Node View", "Bring Online", "Rename Assembly"],
+  "expected supported generic assembly rows to project the same write actions as the shipped families",
+);
+
+const missingOwnerCapStructure = makeNodeLocalStructure({
   family: "printer",
   familyLabel: "Printer",
   typeLabel: "Printer",
   isReadOnly: true,
   isActionable: false,
   actionAuthority: {
-    state: "future-supported",
+    state: "missing-owner-cap",
     verifiedTarget: null,
-    candidateTargets: [],
-    unavailableReason: "Frontend action not implemented.",
+    candidateTargets: [{
+      structureId: "0xprinter",
+      structureType: "assembly",
+      networkNodeId: "0xnode",
+      status: "offline",
+    }],
+    unavailableReason: "Missing OwnerCap.",
   },
 });
-const unsupportedItems = buildNodeDrilldownMenuItems({
+const missingOwnerCapItems = buildNodeDrilldownMenuItems({
   contextMenu: {
     ...sharedContextMenu,
     powerActionLabel: null,
     nextOnline: null,
   },
-  structure: unsupportedStructure,
+  structure: missingOwnerCapStructure,
   onHideStructure: () => undefined,
   onUnhideStructure: () => undefined,
 });
 assert.deepEqual(
-  unsupportedItems.map((item) => item.label),
+  missingOwnerCapItems.map((item) => item.label),
   ["Hide from Node View"],
-  "expected unsupported Node Control rows not to project fake enabled write actions",
+  "expected generic assembly rows without OwnerCap proof to stay visibility-only",
 );
 
-assert.deepEqual(getNodeLocalPowerControlState(unsupportedStructure), {
+assert.deepEqual(getNodeLocalPowerControlState(missingOwnerCapStructure), {
   actionLabel: null,
   currentStatus: "offline",
   nextOnline: null,
   selectedSegment: "offline",
   isInteractive: false,
   isStatusOnly: true,
-}, "expected unsupported Node Control rows to resolve to a non-interactive status-only rail state");
+}, "expected missing-owner-cap generic rows to resolve to a non-interactive status-only rail state");
 
 console.log("node control action projection check: ok");

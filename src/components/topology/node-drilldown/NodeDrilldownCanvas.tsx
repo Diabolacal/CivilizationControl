@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 import { NodeIconPreviewGlyph } from "@/components/topology/node-icon-catalogue/NodeIconPreviewGlyph";
 import { layoutNodeDrilldown } from "@/lib/nodeDrilldownLayout";
+import { describeNodeLocalWarningMarker } from "@/lib/nodeDrilldownModel";
 import { cn } from "@/lib/utils";
 
 import { NodeDrilldownTooltip, type NodeDrilldownTooltipData } from "./NodeDrilldownTooltip";
@@ -52,6 +53,7 @@ function buildStructureTooltip(
   yPercent: number,
 ): NodeDrilldownTooltipData {
   const sizeLabel = structure.sizeVariant ? formatTitleCase(structure.sizeVariant) : null;
+  const warningDetail = describeNodeLocalWarningMarker(structure);
 
   return {
     id: structure.id,
@@ -59,7 +61,7 @@ function buildStructureTooltip(
     yPercent,
     ...tooltipPlacement(xPercent, yPercent),
     title: structure.displayName,
-    detail: buildButtonLabel([structure.typeLabel, sizeLabel, formatTitleCase(structure.status)]),
+    detail: buildButtonLabel([structure.typeLabel, sizeLabel, formatTitleCase(structure.status), warningDetail]),
   };
 }
 
@@ -72,12 +74,15 @@ function buildNodeAriaLabel(viewModel: NodeLocalViewModel): string {
 }
 
 function buildStructureAriaLabel(structure: NodeLocalViewModel["structures"][number]): string {
+  const warningDetail = describeNodeLocalWarningMarker(structure);
+
   return buildButtonLabel([
     structure.displayName,
     structure.typeLabel,
     structure.familyLabel,
     structure.sizeVariant ? formatTitleCase(structure.sizeVariant) : null,
     formatTitleCase(structure.status),
+    warningDetail,
   ]);
 }
 
