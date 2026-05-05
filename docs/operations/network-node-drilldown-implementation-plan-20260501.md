@@ -10,6 +10,14 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Signal Feed parity audit - 2026-05-05
+
+This read-only follow-up lives on `docs/signal-feed-parity-audit`. It does not change Node Control behavior, EF-Map or VPS state, Move contracts, package IDs, sponsor-worker behavior, or deploy state.
+
+- Signal Feed normal routes remain on wallet-scoped `signal-history.v1`; browser `queryEvents` stays closed for `/activity` and Dashboard preview.
+- The dedicated authority doc is [signal-feed-parity-audit-20260505.md](signal-feed-parity-audit-20260505.md), which now owns the current coverage matrix, missing audit-log families, and the next EF-Map implementation request outline.
+- The primary live parity gap remains app-originated rename and power writes not appearing in `/activity`; broader governance-history families such as posture, gate policy, treasury/toll config, and turret doctrine remain separate read-only backlog work until EF-Map extends or confirms current `signal-history` coverage.
+
 ### Merge and sponsor-worker activation - 2026-05-05
 
 This activation pass landed the sponsor-worker hardening branch on `master` as `1449dbb19a7113d8d4a19b9fab99ab35247d8e7b` and redeployed only the repo-owned worker, not the main Pages app.

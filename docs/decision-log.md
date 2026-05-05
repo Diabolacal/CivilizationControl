@@ -1,6 +1,14 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-05 – Audit Signal Feed parity
+- Goal: produce a docs-only parity audit that maps the shipped `signal-history.v1` contract, missing operator-audit-log families, and the next EF-Map request, without changing EF-Map/VPS behavior, Move contracts, package IDs, sponsor-worker behavior, UI/runtime behavior, or deploy state.
+- Files: `docs/operations/signal-feed-parity-audit-20260505.md`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/operations/cc-read-path-to-efmap-indexer-replacement-plan-20260428.md`, `docs/operations/node-control-write-action-audit-20260504.md`, `docs/README.md`, `docs/decision-log.md`
+- Diff: docs-only audit, cross-links, and docs-index refresh
+- Risk: low - documentation only; no runtime, backend, Move, sponsor-worker, vendor, or deploy change
+- Gates: diff-check ✅ typecheck ✅ build ✅
+- Result: current normal-route Signal Feed coverage is now explicitly separated from parity backlog work. The new audit records that `/activity` and Dashboard already ride wallet-scoped `signal-history.v1`, that the primary live parity gap is app-originated rename and power writes missing from `/activity`, that posture/policy/treasury-toll/turret-doctrine history remains additive governance backlog, and that the next EF-Map request should start with tx-digest comparison rather than reopening browser `queryEvents` or widening the route contract blindly.
+- Follow-ups: use the new audit doc as the prompt base for the next EF-Map conversation, starting with a tx-digest comparison for recent app-originated rename and power writes.
 ## 2026-05-05 – Merge and activate sponsor worker on master
 - Goal: merge the sponsor-worker hardening pass to `master`, deploy only the repo-owned sponsor worker from clean master, and capture activation evidence without changing Move contracts, package IDs, EF-Map/VPS behavior, or the main Pages production app.
 - Files: `docs/operations/sponsor-worker-runbook.md`, `docs/operations/node-control-write-action-audit-20260504.md`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
