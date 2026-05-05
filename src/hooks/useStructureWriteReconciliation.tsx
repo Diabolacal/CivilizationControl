@@ -19,6 +19,7 @@ import {
   applyStructureWriteOverlaysToStructures,
   buildStructureWriteOverlayKey,
   createPendingStructureWriteOverlay,
+  resolveStructureWriteTargetDesiredStatus,
   resolveStructureWriteConfirmation,
   STRUCTURE_WRITE_RETRY_DELAYS_MS,
   type PendingStructureWriteOverlay,
@@ -141,7 +142,13 @@ export function StructureWriteReconciliationProvider({ children }: PropsWithChil
         targets.forEach((target, index) => {
           const overlayKey = overlayKeys[index]!;
           next[overlayKey] = createPendingStructureWriteOverlay(
-            { ...input, target },
+            {
+              action: input.action,
+              digest: input.digest,
+              target,
+              desiredName: input.desiredName,
+              desiredStatus: resolveStructureWriteTargetDesiredStatus(target, input.desiredStatus),
+            },
             current[overlayKey] ?? null,
           );
         });

@@ -4,9 +4,11 @@ import { readFileSync } from 'node:fs';
 import {
   buildNodeChildBulkPowerPlan,
   buildNodePowerPresetApplyPlan,
+  filterNodePowerPlanForOperatorInventory,
   getNodePowerUsageReadout,
   groupNodePowerOperationTargets,
   NODE_POWER_CAPACITY_GJ,
+  toMixedAssemblyPowerTarget,
   toStructureWriteTarget,
 } from '../src/lib/nodePowerControlModel.ts';
 import {
@@ -16,8 +18,70 @@ import {
   NODE_POWER_PRESET_LABEL_MAX_LENGTH,
   upsertNodePowerPresetSlot,
 } from '../src/lib/nodePowerPresets.ts';
+import { buildMixedAssemblyPowerTx } from '../src/lib/structurePowerTx.ts';
+import { WORLD_RUNTIME_PACKAGE_ID } from '../src/constants.ts';
 
 import type { NodeLocalStructure } from '../src/lib/nodeDrilldownTypes.ts';
+import type { OperatorInventoryResponse, OperatorInventoryStructure } from '../src/types/operatorInventory.ts';
+
+type Command = {
+  $kind: string;
+  MoveCall?: {
+    target?: string;
+    package?: string;
+    module?: string;
+    function?: string;
+  };
+};
+
+function getMoveTargets(commands: Command[]): string[] {
+  return commands
+    .filter((command) => command.$kind === 'MoveCall')
+    .map((command) => {
+      const moveCall = command.MoveCall;
+      if (moveCall?.target) return moveCall.target;
+      return `${moveCall?.package}::${moveCall?.module}::${moveCall?.function}`;
+    });
+}
+
+function objectId(seed: number): string {
+  return `0x${seed.toString(16).padStart(64, '0')}`;
+}
+
+function makeInventoryStructure(overrides: Partial<OperatorInventoryStructure>): OperatorInventoryStructure {
+  return {
+    objectId: null,
+    assemblyId: null,
+    ownerCapId: null,
+    family: null,
+    size: null,
+    displayName: null,
+    name: null,
+    typeId: null,
+    typeName: null,
+    assemblyType: null,
+    status: 'unknown',
+    networkNodeId: null,
+    energySourceId: null,
+    linkedGateId: null,
+    ownerWalletAddress: null,
+    characterId: null,
+    extensionStatus: 'none',
+    fuelAmount: null,
+    powerSummary: null,
+    solarSystemId: null,
+    url: null,
+    lastObservedCheckpoint: null,
+    lastObservedTimestamp: null,
+    lastUpdated: '2026-05-04T12:00:00.000Z',
+    source: 'operator-inventory',
+    provenance: 'operator-inventory',
+    partial: false,
+    warnings: [],
+    actionCandidate: null,
+    ...overrides,
+  };
+}
 
 function makeStructure(overrides: Partial<NodeLocalStructure> = {}): NodeLocalStructure {
   const id = overrides.id ?? 'storage-alpha';
@@ -200,6 +264,65 @@ assert(hiddenWriteTarget, 'expected hidden online child to be present in the off
 const writeTarget = toStructureWriteTarget(hiddenWriteTarget);
 assert.equal(writeTarget.canonicalDomainKey, hiddenOnlineGate.canonicalDomainKey, 'expected write overlays to carry canonical child identity');
 assert.equal(writeTarget.networkNodeId, '0xnode', 'expected child write target to retain selected network-node context');
+assert.equal(writeTarget.desiredStatus, 'offline', 'expected child write targets to carry per-target status for mixed preset overlays');
+
+const mixedPlanTargets = [...takeOfflinePlan.targets, ...bringOnlinePlan.targets];
+const mixedPowerTargets = mixedPlanTargets.map(toMixedAssemblyPowerTarget);
+assert.deepEqual(
+  mixedPowerTargets.map((target) => [target.structureType, target.online]),
+  [['storage_unit', false], ['gate', false], ['turret', true]],
+  'expected mixed Node Control plans to preserve per-target type and desired state for one PTB',
+);
+const mixedMoveTargets = getMoveTargets(buildMixedAssemblyPowerTx({
+  characterId: objectId(500),
+  targets: mixedPowerTargets.map((target, index) => ({
+    ...target,
+    structureId: objectId(600 + index),
+    ownerCapId: objectId(700 + index),
+    networkNodeId: objectId(800),
+  })),
+}).getData().commands as Command[]);
+assert.deepEqual(
+  mixedMoveTargets,
+  [
+    `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
+    `${WORLD_RUNTIME_PACKAGE_ID}::storage_unit::offline`,
+    `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
+    `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
+    `${WORLD_RUNTIME_PACKAGE_ID}::gate::offline`,
+    `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
+    `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
+    `${WORLD_RUNTIME_PACKAGE_ID}::turret::online`,
+    `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
+  ],
+  'expected mixed-family preset apply to build one transaction command sequence instead of grouped submissions',
+);
+
+const freshInventory: OperatorInventoryResponse = {
+  schemaVersion: 'operator-inventory.v1',
+  operator: null,
+  networkNodes: [
+    {
+      node: makeInventoryStructure({ objectId: '0xnode', family: 'networkNode', displayName: 'Node Alpha', status: 'online' }),
+      structures: [
+        makeInventoryStructure({ objectId: onlineStorage.actionAuthority.verifiedTarget!.structureId, assemblyId: '1001', ownerCapId: '0xcap-online-storage', family: 'storage', displayName: 'Online Storage', status: 'online', networkNodeId: '0xnode' }),
+        makeInventoryStructure({ objectId: hiddenOnlineGate.actionAuthority.verifiedTarget!.structureId, assemblyId: '1002', ownerCapId: '0xgate-cap', family: 'gate', displayName: 'Hidden Gate', status: 'offline', networkNodeId: '0xnode' }),
+        makeInventoryStructure({ objectId: offlineTurret.actionAuthority.verifiedTarget!.structureId, assemblyId: null, ownerCapId: '0xturret-cap', family: 'turret', displayName: 'Offline Turret', status: 'offline', networkNodeId: '0xnode' }),
+      ],
+    },
+  ],
+  unlinkedStructures: [],
+  warnings: [],
+  partial: false,
+  source: 'operator-inventory',
+  fetchedAt: '2026-05-04T12:00:00.000Z',
+};
+const filteredOfflinePlan = filterNodePowerPlanForOperatorInventory(takeOfflinePlan, freshInventory, '0xnode');
+assert.deepEqual(
+  filteredOfflinePlan.targets.map((target) => target.structure.id),
+  ['online-storage'],
+  'expected preflight operator-inventory refresh to drop children that already reached the requested status',
+);
 
 const readout = getNodePowerUsageReadout();
 assert.equal(readout.label, 'Power usage unavailable', 'expected unavailable meter state to render calm operator copy');
@@ -219,8 +342,11 @@ assert.equal(
 assert.equal(getDefaultNodePowerPresetLabel(4), 'Preset 4', 'expected default slot label copy');
 
 const dashboardSource = readFileSync('src/screens/Dashboard.tsx', 'utf8');
-assert(dashboardSource.includes('targets: group.targets.map(toStructureWriteTarget)'), 'expected node-local bulk/preset writes to pass per-child overlay targets');
-assert(dashboardSource.includes('structurePower.toggleBatch'), 'expected node-local bulk/preset writes to reuse the existing batch power path');
+assert(dashboardSource.includes('operatorInventory.refetch()'), 'expected node-local bulk/preset writes to refresh operator inventory before final target selection');
+assert(dashboardSource.includes('filterNodePowerPlanForOperatorInventory'), 'expected node-local bulk/preset writes to filter stale already-in-state children before PTB build');
+assert(dashboardSource.includes('targets: executionPlan.targets.map(toStructureWriteTarget)'), 'expected node-local bulk/preset writes to pass per-child overlay targets');
+assert(dashboardSource.includes('structurePower.toggleMixed'), 'expected node-local bulk/preset writes to submit one mixed child-power PTB');
+assert(!dashboardSource.includes('groupNodePowerOperationTargets(plan.targets)'), 'expected Node Control execution not to loop grouped child batches');
 assert(dashboardSource.includes('Power requirements are not available for this node.'), 'expected capacity-unavailable online actions to use an app modal instead of silent pass-through');
 
 console.log('Node power presets and child bulk planning checks passed.');

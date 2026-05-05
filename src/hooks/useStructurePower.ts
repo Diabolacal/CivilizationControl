@@ -11,8 +11,10 @@ import type { Transaction } from "@mysten/sui/transactions";
 import {
   buildAssemblyPowerTx,
   buildBatchAssemblyPowerTx,
+  buildMixedAssemblyPowerTx,
   buildNodeOfflineTx,
   buildNodeOnlineTx,
+  type MixedAssemblyPowerTarget,
   type NodeOfflineChildTarget,
 } from "@/lib/structurePowerTx";
 import { useCharacterId } from "@/hooks/useCharacter";
@@ -22,7 +24,18 @@ import {
   useStructureWriteRefresh,
   type StructureWriteRefreshOptions,
 } from "@/hooks/useStructureWriteRefresh";
-import { classifyStructurePowerError, formatStructurePowerError } from "@/lib/structurePowerErrors";
+import {
+  classifyStructurePowerError,
+  formatStructurePowerError,
+  type StructurePowerErrorContext,
+} from "@/lib/structurePowerErrors";
+import {
+  getStructureWriteRefreshTargetCount,
+  resolveAlreadyOfflineCorrectionTarget,
+  resolvePowerErrorDesiredStatus,
+  toDesiredPowerStatus,
+  type ExactPowerStatus,
+} from "@/lib/structurePowerFailureResolution";
 import type { ObjectId, StructureActionTargetType, TxStatus, TxResult } from "@/types/domain";
 
 type AssemblyPowerStructureType = Exclude<StructureActionTargetType, "network_node">;
@@ -39,6 +52,10 @@ interface BatchPowerParams {
   structureType: AssemblyPowerStructureType;
   targets: { structureId: ObjectId; ownerCapId: ObjectId; networkNodeId: ObjectId }[];
   online: boolean;
+}
+
+interface MixedPowerParams {
+  targets: MixedAssemblyPowerTarget[];
 }
 
 interface NodeOnlineParams {
@@ -65,7 +82,7 @@ export function useStructurePower() {
   const execute = useCallback(
     async (
       buildTx: () => Transaction,
-      desiredStatus: "online" | "offline",
+      desiredStatus: ExactPowerStatus | null,
       refreshOptions?: StructureWriteRefreshOptions,
     ) => {
       setStatus("pending");
@@ -91,9 +108,12 @@ export function useStructurePower() {
         return true;
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
+        const errorDesiredStatus = resolvePowerErrorDesiredStatus(message, desiredStatus, refreshOptions);
+        const errorContext: StructurePowerErrorContext = { desiredStatus: errorDesiredStatus };
+        const errorKind = classifyStructurePowerError(message, errorContext);
         if (
           desiredStatus === "offline"
-          && classifyStructurePowerError(message) === "network_node_already_offline"
+          && errorKind === "network_node_already_offline"
           && refreshOptions?.target?.structureType === "network_node"
         ) {
           if (refreshOptions.target || refreshOptions.targets?.length) {
@@ -109,12 +129,34 @@ export function useStructurePower() {
             await refreshAfterWrite(refreshOptions);
           }
 
-          setResult({ digest: null, message: formatStructurePowerError(message) });
+          setResult({ digest: null, message: formatStructurePowerError(message, errorContext) });
           setStatus("success");
           return true;
         }
 
-        setError(formatStructurePowerError(message));
+        if (errorKind === "target_already_offline") {
+          const correctionTarget = resolveAlreadyOfflineCorrectionTarget(message, desiredStatus, refreshOptions);
+          if (correctionTarget) {
+            const correctionRefreshOptions: StructureWriteRefreshOptions = {
+              ...refreshOptions,
+              target: correctionTarget,
+              targets: [correctionTarget],
+            };
+            reconcileWrite({
+              action: "power",
+              digest: null,
+              target: correctionTarget,
+              desiredStatus: "offline",
+              refreshOptions: correctionRefreshOptions,
+            });
+
+            setResult({ digest: null, message: formatStructurePowerError(message, errorContext) });
+            setStatus("success");
+            return getStructureWriteRefreshTargetCount(refreshOptions) <= 1;
+          }
+        }
+
+        setError(formatStructurePowerError(message, errorContext));
         setStatus("error");
         return false;
       }
@@ -127,7 +169,7 @@ export function useStructurePower() {
       if (!characterId) throw new Error("Character not resolved yet — please wait");
       return execute(
         () => buildAssemblyPowerTx({ ...params, characterId }),
-        params.online ? "online" : "offline",
+        toDesiredPowerStatus(params.online),
         refreshOptions,
       );
     },
@@ -139,7 +181,19 @@ export function useStructurePower() {
       if (!characterId) throw new Error("Character not resolved yet — please wait");
       return execute(
         () => buildBatchAssemblyPowerTx({ ...params, characterId }),
-        params.online ? "online" : "offline",
+        toDesiredPowerStatus(params.online),
+        refreshOptions,
+      );
+    },
+    [execute, characterId],
+  );
+
+  const toggleMixed = useCallback(
+    (params: MixedPowerParams, refreshOptions?: StructureWriteRefreshOptions) => {
+      if (!characterId) throw new Error("Character not resolved yet — please wait");
+      return execute(
+        () => buildMixedAssemblyPowerTx({ ...params, characterId }),
+        null,
         refreshOptions,
       );
     },
@@ -172,5 +226,5 @@ export function useStructurePower() {
     setError(null);
   }, []);
 
-  return { status, result, error, toggleSingle, toggleBatch, bringNodeOnline, bringNodeOffline, reset };
+  return { status, result, error, toggleSingle, toggleBatch, toggleMixed, bringNodeOnline, bringNodeOffline, reset };
 }

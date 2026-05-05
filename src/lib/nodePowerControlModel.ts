@@ -1,5 +1,7 @@
 import type { StructureWriteTarget } from "@/lib/structureWriteReconciliation";
+import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
 import type { StructureActionTargetType, StructureStatus } from "@/types/domain";
+import type { OperatorInventoryResponse, OperatorInventoryStructure } from "@/types/operatorInventory";
 import type { NodeLocalStructure } from "./nodeDrilldownTypes";
 import type { NodePowerPresetSlot } from "./nodePowerPresets";
 
@@ -31,6 +33,76 @@ export interface NodePowerUsageReadout {
 
 function isExactPowerStatus(status: StructureStatus): status is "online" | "offline" {
   return status === "online" || status === "offline";
+}
+
+function normalizeAssemblyId(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  const normalized = trimmed.replace(/^0+/, "");
+  return normalized.length > 0 ? normalized : "0";
+}
+
+function normalizeInventoryStatus(status: string | null | undefined): StructureStatus {
+  const normalized = status?.trim().toLowerCase().replace(/[\s-]+/g, "_");
+  if (["online", "active", "powered", "running", "onlined"].includes(normalized ?? "")) {
+    return "online";
+  }
+
+  if (["offline", "inactive", "unpowered"].includes(normalized ?? "")) {
+    return "offline";
+  }
+
+  if (["warning", "degraded", "low_fuel", "lowfuel", "damaged"].includes(normalized ?? "")) {
+    return "warning";
+  }
+
+  return "neutral";
+}
+
+function rowMatchesTarget(
+  row: OperatorInventoryStructure,
+  target: NodePowerOperationTarget,
+): boolean {
+  const rowObjectId = normalizeCanonicalObjectId(row.objectId);
+  const targetObjectIds = [
+    target.verifiedTarget.structureId,
+    target.structure.objectId,
+    target.structure.directChainObjectId,
+  ].map((value) => normalizeCanonicalObjectId(value));
+  if (rowObjectId && targetObjectIds.some((value) => value === rowObjectId)) {
+    return true;
+  }
+
+  const rowAssemblyId = normalizeAssemblyId(row.assemblyId);
+  const targetAssemblyIds = [
+    target.structure.assemblyId,
+    target.structure.directChainAssemblyId,
+  ].map(normalizeAssemblyId);
+  return rowAssemblyId != null && targetAssemblyIds.some((value) => value === rowAssemblyId);
+}
+
+function findFreshInventoryStatus(
+  inventory: OperatorInventoryResponse,
+  target: NodePowerOperationTarget,
+  selectedNodeId: string | null,
+): StructureStatus | null {
+  const normalizedSelectedNodeId = normalizeCanonicalObjectId(selectedNodeId);
+  const normalizedTargetNodeId = normalizeCanonicalObjectId(target.verifiedTarget.networkNodeId);
+
+  for (const nodeGroup of inventory.networkNodes) {
+    const nodeId = normalizeCanonicalObjectId(nodeGroup.node.objectId);
+    const row = nodeGroup.structures.find((structure) => rowMatchesTarget(structure, target));
+    if (!row) continue;
+
+    const rowNodeId = normalizeCanonicalObjectId(row.networkNodeId) ?? nodeId;
+    const matchesSelectedNode = !normalizedSelectedNodeId || rowNodeId === normalizedSelectedNodeId || nodeId === normalizedSelectedNodeId;
+    const matchesTargetNode = !normalizedTargetNodeId || rowNodeId === normalizedTargetNodeId || nodeId === normalizedTargetNodeId;
+    if (matchesSelectedNode && matchesTargetNode) {
+      return normalizeInventoryStatus(row.status);
+    }
+  }
+
+  return null;
 }
 
 function findStructureForPresetTarget(
@@ -147,6 +219,41 @@ export function groupNodePowerOperationTargets(
   return Array.from(groups.values());
 }
 
+export function filterNodePowerPlanForOperatorInventory(
+  plan: NodePowerOperationPlan,
+  inventory: OperatorInventoryResponse | null | undefined,
+  selectedNodeId: string | null,
+): NodePowerOperationPlan {
+  if (!inventory || plan.targets.length === 0) {
+    return plan;
+  }
+
+  const targets = plan.targets.filter((target) => {
+    const freshStatus = findFreshInventoryStatus(inventory, target, selectedNodeId);
+    if (!freshStatus || !isExactPowerStatus(freshStatus)) {
+      return true;
+    }
+
+    return (freshStatus === "online") !== target.desiredOnline;
+  });
+
+  return {
+    targets,
+    disabledReason: targets.length === 0 ? "no structures need changing" : plan.disabledReason,
+    capacityReason: buildCapacityReason(targets),
+  };
+}
+
+export function toMixedAssemblyPowerTarget(target: NodePowerOperationTarget) {
+  return {
+    structureId: target.verifiedTarget.structureId,
+    structureType: target.verifiedTarget.structureType,
+    ownerCapId: target.verifiedTarget.ownerCapId,
+    networkNodeId: target.verifiedTarget.networkNodeId,
+    online: target.desiredOnline,
+  };
+}
+
 export function toStructureWriteTarget(target: NodePowerOperationTarget): StructureWriteTarget {
   return {
     objectId: target.verifiedTarget.structureId,
@@ -156,5 +263,6 @@ export function toStructureWriteTarget(target: NodePowerOperationTarget): Struct
     assemblyId: target.structure.assemblyId ?? null,
     canonicalDomainKey: target.structure.canonicalDomainKey,
     displayName: target.structure.displayName,
+    desiredStatus: target.desiredOnline ? "online" : "offline",
   };
 }

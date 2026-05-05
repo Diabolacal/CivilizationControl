@@ -59,8 +59,9 @@ import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapsho
 import {
   buildNodeChildBulkPowerPlan,
   buildNodePowerPresetApplyPlan,
+  filterNodePowerPlanForOperatorInventory,
   getNodePowerUsageReadout,
-  groupNodePowerOperationTargets,
+  toMixedAssemblyPowerTarget,
   toStructureWriteTarget,
   type NodePowerOperationPlan,
 } from "@/lib/nodePowerControlModel";
@@ -148,7 +149,7 @@ export function Dashboard({
   } = useNodeAssemblies(selectedNodeGroup?.node.objectId ?? null, {
     enabled: shouldUseNodeAssembliesFallback,
   });
-  const { applyNodeAssembliesLookup } = useStructureWriteReconciliation();
+  const { applyNodeAssembliesLookup, applyOperatorInventory } = useStructureWriteReconciliation();
   const selectedNodeObservedLookup = useMemo(
     () => applyNodeAssembliesLookup(selectedNodeInventoryLookup ?? selectedNodeAssembliesLookup),
     [applyNodeAssembliesLookup, selectedNodeAssembliesLookup, selectedNodeInventoryLookup],
@@ -319,28 +320,29 @@ export function Dashboard({
     setPowerStructureId(null);
     setPowerSuccessLabel(successLabel);
 
-    const groups = groupNodePowerOperationTargets(plan.targets);
-    for (const group of groups) {
-      const succeeded = await structurePower.toggleBatch({
-        structureType: group.structureType,
-        targets: group.targets.map((target) => ({
-          structureId: target.verifiedTarget.structureId,
-          ownerCapId: target.verifiedTarget.ownerCapId,
-          networkNodeId: target.verifiedTarget.networkNodeId,
-        })),
-        online: group.desiredOnline,
-      }, {
-        selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
-        refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
-        refetchSignalFeed: true,
-        targets: group.targets.map(toStructureWriteTarget),
-      });
-
-      if (!succeeded) return false;
+    let executionPlan = plan;
+    const freshInventoryResult = await operatorInventory.refetch().catch(() => null);
+    if (freshInventoryResult?.data) {
+      executionPlan = filterNodePowerPlanForOperatorInventory(
+        plan,
+        applyOperatorInventory(freshInventoryResult.data),
+        selectedNodeGroup?.node.objectId ?? null,
+      );
     }
 
-    return true;
-  }, [handleCloseNodeControlMenus, refetchSelectedNodeAssemblies, selectedNodeGroup, selectedNodeInventoryLookup, selectedStructureCanonicalKeyRef, structurePower]);
+    if (executionPlan.disabledReason || executionPlan.targets.length === 0) {
+      return false;
+    }
+
+    return structurePower.toggleMixed({
+      targets: executionPlan.targets.map(toMixedAssemblyPowerTarget),
+    }, {
+      selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
+      refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
+      refetchSignalFeed: true,
+      targets: executionPlan.targets.map(toStructureWriteTarget),
+    });
+  }, [applyOperatorInventory, handleCloseNodeControlMenus, operatorInventory, refetchSelectedNodeAssemblies, selectedNodeGroup, selectedNodeInventoryLookup, selectedStructureCanonicalKeyRef, structurePower]);
   const requestNodePowerPlanExecution = useCallback((params: {
     plan: NodePowerOperationPlan;
     primaryLabel: string;

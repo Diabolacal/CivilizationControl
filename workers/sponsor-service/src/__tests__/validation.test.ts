@@ -203,6 +203,28 @@ describe('validateCommands happy path', () => {
     expect(result.valid).toBe(true);
   });
 
+  it('accepts a mixed child-power PTB shape', () => {
+    const result = validateCommands(
+      [
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'storage_unit', 'offline'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'gate', 'offline'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'turret', 'online'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'assembly', 'online'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap'),
+      ],
+      [CC_POLICY],
+    );
+
+    expect(result.valid).toBe(true);
+  });
+
   it('accepts a sponsored network-node offline PTB shape', () => {
     const result = validateCommands(
       [

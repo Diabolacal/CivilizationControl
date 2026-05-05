@@ -5,7 +5,7 @@
  *   - Gates, Turrets, Storage Units: same signature (assembly, nwn, energy_config, owner_cap)
  *   - Network Nodes: unique signature (nwn, owner_cap, clock)
  *
- * Batch variants build one PTB for multiple structures of the same type.
+ * Batch variants build one PTB for multiple child structures.
  */
 
 import { Transaction } from "@mysten/sui/transactions";
@@ -83,16 +83,13 @@ interface AssemblyPowerParams {
   characterId: string;
 }
 
-/**
- * Build a PTB to online/offline a single gate, turret, or SSU.
- * Signature: module::online|offline(assembly, nwn, energy_config, owner_cap)
- */
-export function buildAssemblyPowerTx(params: AssemblyPowerParams): Transaction {
+function appendAssemblyPowerCommands(
+  tx: Transaction,
+  params: AssemblyPowerParams,
+) {
   const { structureType, structureId, ownerCapId, networkNodeId, online, characterId } = params;
   const mapping = MODULE_MAP[structureType];
   if (!mapping) throw new Error(`Unsupported structure type: ${structureType}`);
-
-  const tx = new Transaction();
 
   const [cap, receipt] = tx.moveCall({
     target: `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
@@ -115,7 +112,15 @@ export function buildAssemblyPowerTx(params: AssemblyPowerParams): Transaction {
     typeArguments: [mapping.typeStr],
     arguments: [tx.object(characterId), cap, receipt],
   });
+}
 
+/**
+ * Build a PTB to online/offline a single gate, turret, or SSU.
+ * Signature: module::online|offline(assembly, nwn, energy_config, owner_cap)
+ */
+export function buildAssemblyPowerTx(params: AssemblyPowerParams): Transaction {
+  const tx = new Transaction();
+  appendAssemblyPowerCommands(tx, params);
   return tx;
 }
 
@@ -134,6 +139,16 @@ interface BatchAssemblyPowerParams {
   characterId: string;
 }
 
+export interface MixedAssemblyPowerTarget extends BatchAssemblyTarget {
+  structureType: AssemblyActionTargetType;
+  online: boolean;
+}
+
+interface MixedAssemblyPowerParams {
+  targets: MixedAssemblyPowerTarget[];
+  characterId: string;
+}
+
 /**
  * Build a single PTB to online/offline multiple structures of the same type.
  * Each structure gets its own borrow → action → return cycle.
@@ -146,27 +161,26 @@ export function buildBatchAssemblyPowerTx(params: BatchAssemblyPowerParams): Tra
   const tx = new Transaction();
 
   for (const target of targets) {
-    const [cap, receipt] = tx.moveCall({
-      target: `${WORLD_RUNTIME_PACKAGE_ID}::character::borrow_owner_cap`,
-      typeArguments: [mapping.typeStr],
-      arguments: [tx.object(characterId), tx.object(target.ownerCapId)],
+    appendAssemblyPowerCommands(tx, {
+      ...target,
+      structureType,
+      online,
+      characterId,
     });
+  }
 
-    tx.moveCall({
-      target: `${WORLD_RUNTIME_PACKAGE_ID}::${mapping.module}::${online ? "online" : "offline"}`,
-      arguments: [
-        tx.object(target.structureId),
-        tx.object(target.networkNodeId),
-        tx.object(ENERGY_CONFIG_ID),
-        cap,
-      ],
-    });
+  return tx;
+}
 
-    tx.moveCall({
-      target: `${WORLD_RUNTIME_PACKAGE_ID}::character::return_owner_cap`,
-      typeArguments: [mapping.typeStr],
-      arguments: [tx.object(characterId), cap, receipt],
-    });
+/**
+ * Build a single PTB to online/offline mixed child structure families.
+ * The command order remains one borrow -> action -> return cycle per target.
+ */
+export function buildMixedAssemblyPowerTx(params: MixedAssemblyPowerParams): Transaction {
+  const tx = new Transaction();
+
+  for (const target of params.targets) {
+    appendAssemblyPowerCommands(tx, { ...target, characterId: params.characterId });
   }
 
   return tx;

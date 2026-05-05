@@ -167,6 +167,38 @@ assert.equal(
   "Node is already offline. View updated.",
   "expected already-offline errors to use calm state-correction copy",
 );
+assert.equal(
+  classifyStructurePowerError(
+    "Transaction resolution failed: MoveAbort in 2nd command, 'EAssemblyInvalidStatus': Assembly status is invalid, in '0x2::status::offline' line 97.",
+    { desiredStatus: "offline" },
+  ),
+  "target_already_offline",
+  "expected offline status aborts to classify as already-offline child evidence only with offline context",
+);
+assert.equal(
+  formatStructurePowerError(
+    "Transaction resolution failed: MoveAbort in 2nd command, 'EAssemblyInvalidStatus': Assembly status is invalid, in '0x2::status::offline' line 97.",
+    { desiredStatus: "offline" },
+  ),
+  "Already offline. View updated.",
+  "expected child already-offline evidence to use calm correction copy",
+);
+assert.equal(
+  classifyStructurePowerError(
+    "Transaction resolution failed: MoveAbort in 2nd command, 'EAssemblyInvalidStatus': Assembly status is invalid, in '0x2::status::offline' line 97.",
+    { desiredStatus: "online" },
+  ),
+  "target_already_in_state",
+  "expected the same invalid-status abort not to classify as already-offline for online attempts",
+);
+assert.equal(
+  classifyStructurePowerError(
+    "Transaction resolution failed: MoveAbort in 2nd command, 'EAssemblyInvalidStatus': Assembly status is invalid, in '0x2::status::online' line 85.",
+    { desiredStatus: "offline" },
+  ),
+  "target_already_in_state",
+  "expected status::online invalid-status aborts not to classify as already-offline",
+);
 
 const rawOperatorInventory = {
   schemaVersion: "operator-inventory.v1",
@@ -419,7 +451,8 @@ assert.deepEqual(
 
 interface LiveTruthArgs {
   walletAddress: string;
-  nodeObjectId: string;
+  nodeObjectId: string | null;
+  structureObjectId: string | null;
   baseUrl: string;
   origin: string;
   pendingOverlayStatus: StructureStatus | null;
@@ -437,12 +470,13 @@ function readArgValue(args: string[], name: string): string | null {
 function parseLiveTruthArgs(args: string[]): LiveTruthArgs | null {
   const walletAddress = readArgValue(args, "--wallet") ?? readArgValue(args, "--walletAddress");
   const nodeObjectId = readArgValue(args, "--node") ?? readArgValue(args, "--nodeObjectId");
-  if (!walletAddress && !nodeObjectId) {
+  const structureObjectId = readArgValue(args, "--structure") ?? readArgValue(args, "--structureObjectId") ?? readArgValue(args, "--object");
+  if (!walletAddress && !nodeObjectId && !structureObjectId) {
     return null;
   }
 
-  if (!walletAddress || !nodeObjectId) {
-    throw new Error("Live truth check requires both --wallet and --node.");
+  if (!walletAddress || (!nodeObjectId && !structureObjectId)) {
+    throw new Error("Live truth check requires --wallet plus --node or --structure.");
   }
 
   const pendingOverlayStatus = readArgValue(args, "--pending-overlay") ?? readArgValue(args, "--pendingOverlay");
@@ -452,7 +486,8 @@ function parseLiveTruthArgs(args: string[]): LiveTruthArgs | null {
 
   return {
     walletAddress,
-    nodeObjectId,
+    nodeObjectId: nodeObjectId ?? null,
+    structureObjectId: structureObjectId ?? null,
     baseUrl: readArgValue(args, "--base") ?? "https://ef-map.com",
     origin: readArgValue(args, "--origin") ?? "https://civilizationcontrol.com",
     pendingOverlayStatus: pendingOverlayStatus as StructureStatus | null,
@@ -469,11 +504,41 @@ async function printLiveOperatorInventoryTruth(args: LiveTruthArgs): Promise<voi
   }
 
   const rawInventory = await response.json() as OperatorInventoryResponse;
-  const nodeIdLower = args.nodeObjectId.toLowerCase();
-  const rawNodeGroup = rawInventory.networkNodes.find((entry) => entry.node.objectId?.toLowerCase() === nodeIdLower) ?? null;
+  const requestedNodeId = args.nodeObjectId?.toLowerCase() ?? null;
+  const requestedStructureId = args.structureObjectId?.toLowerCase() ?? null;
+  const rawStructureGroup = requestedStructureId
+    ? rawInventory.networkNodes.find((entry) => entry.structures.some((row) => row.objectId?.toLowerCase() === requestedStructureId || row.assemblyId === args.structureObjectId)) ?? null
+    : null;
+  const rawNodeGroup = requestedNodeId
+    ? rawInventory.networkNodes.find((entry) => entry.node.objectId?.toLowerCase() === requestedNodeId) ?? null
+    : rawStructureGroup;
+  const nodeIdLower = rawNodeGroup?.node.objectId?.toLowerCase() ?? requestedNodeId;
+  const rawStructure = requestedStructureId && rawNodeGroup
+    ? rawNodeGroup.structures.find((row) => row.objectId?.toLowerCase() === requestedStructureId || row.assemblyId === args.structureObjectId) ?? null
+    : null;
   let inventoryForAdaptation = rawInventory;
 
-  if (args.pendingOverlayStatus && rawNodeGroup?.node.objectId && rawNodeGroup.node.ownerCapId) {
+  if (args.pendingOverlayStatus && rawStructure?.objectId && rawStructure.ownerCapId) {
+    inventoryForAdaptation = applyStructureWriteOverlaysToOperatorInventory(rawInventory, [createPendingStructureWriteOverlay({
+      action: "power",
+      digest: null,
+      target: {
+        objectId: rawStructure.objectId,
+        structureType: rawStructure.assemblyType === "gate"
+          ? "gate"
+          : rawStructure.assemblyType === "turret"
+            ? "turret"
+            : rawStructure.assemblyType === "storage_unit"
+              ? "storage_unit"
+              : "assembly",
+        ownerCapId: rawStructure.ownerCapId,
+        networkNodeId: rawStructure.networkNodeId ?? rawNodeGroup?.node.objectId ?? null,
+        assemblyId: rawStructure.assemblyId,
+        displayName: rawStructure.displayName ?? rawStructure.name,
+      },
+      desiredStatus: args.pendingOverlayStatus,
+    })]) ?? rawInventory;
+  } else if (args.pendingOverlayStatus && rawNodeGroup?.node.objectId && rawNodeGroup.node.ownerCapId) {
     inventoryForAdaptation = applyStructureWriteOverlaysToOperatorInventory(rawInventory, [createPendingStructureWriteOverlay({
       action: "power",
       digest: null,
@@ -489,16 +554,26 @@ async function printLiveOperatorInventoryTruth(args: LiveTruthArgs): Promise<voi
   }
 
   const adaptedInventory = adaptOperatorInventory(inventoryForAdaptation);
-  const adaptedGroup = adaptedInventory.nodeGroups.find((entry) => entry.node.objectId.toLowerCase() === nodeIdLower) ?? null;
+  const adaptedGroup = nodeIdLower
+    ? adaptedInventory.nodeGroups.find((entry) => entry.node.objectId.toLowerCase() === nodeIdLower) ?? null
+    : null;
   const adaptedLookup = adaptedGroup ? adaptedInventory.nodeLookupsByNodeId.get(adaptedGroup.node.objectId) ?? null : null;
   const nodeControlViewModel = adaptedGroup
     ? buildLiveNodeLocalViewModelWithObserved(adaptedGroup, adaptedLookup, { preferObservedMembership: true })
+    : null;
+  const adaptedStructure = requestedStructureId
+    ? adaptedInventory.structures.find((row) => row.objectId.toLowerCase() === requestedStructureId || row.assemblyId === args.structureObjectId) ?? null
+    : null;
+  const renderedNodeControlStructure = requestedStructureId
+    ? nodeControlViewModel?.structures.find((row) => row.objectId?.toLowerCase() === requestedStructureId || row.assemblyId === args.structureObjectId) ?? null
     : null;
 
   console.log(JSON.stringify({
     requestedWallet: args.walletAddress,
     requestedNodeObjectId: args.nodeObjectId,
+    requestedStructureObjectId: args.structureObjectId,
     sourcePath: "operator-inventory networkNodes[].node.status -> adaptOperatorInventory nodeGroups[].node.status -> /nodes and Node Control",
+    childSourcePath: "operator-inventory networkNodes[].structures[].status -> adaptOperatorInventory structures[]/nodeLookupsByNodeId -> Node Control row",
     fallbackPath: "none in this script; direct-chain fallback only runs in app when operator inventory fails",
     rawNode: rawNodeGroup ? {
       status: rawNodeGroup.node.status,
@@ -507,11 +582,25 @@ async function printLiveOperatorInventoryTruth(args: LiveTruthArgs): Promise<voi
       lastObservedCheckpoint: rawNodeGroup.node.lastObservedCheckpoint,
       fetchedAt: rawInventory.fetchedAt,
     } : null,
+    rawStructure: rawStructure ? {
+      objectId: rawStructure.objectId,
+      assemblyId: rawStructure.assemblyId,
+      status: rawStructure.status,
+      lastUpdated: rawStructure.lastUpdated,
+      lastObservedTimestamp: rawStructure.lastObservedTimestamp,
+      lastObservedCheckpoint: rawStructure.lastObservedCheckpoint,
+      fetchedAt: rawInventory.fetchedAt,
+    } : null,
     pendingOverlayStatus: args.pendingOverlayStatus,
     adaptedNodeStatus: adaptedGroup?.node.status ?? null,
     renderedNodeListStatus: adaptedGroup?.node.status ?? null,
     renderedNodeControlStatus: nodeControlViewModel?.node.status ?? null,
     adaptedLookupNodeStatus: adaptedLookup?.node?.status ?? null,
+    adaptedStructureStatus: adaptedStructure?.status ?? null,
+    renderedNodeControlStructureStatus: renderedNodeControlStructure?.status ?? null,
+    renderedNodeControlStructureSourceMode: nodeControlViewModel?.sourceMode ?? null,
+    renderedNodeControlStructureActionTarget: renderedNodeControlStructure?.actionAuthority.verifiedTarget ?? null,
+    renderedNodeControlStructureLastSeen: renderedNodeControlStructure?.lastUpdated ?? renderedNodeControlStructure?.fetchedAt ?? null,
   }, null, 2));
 }
 

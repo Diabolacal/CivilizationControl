@@ -8,6 +8,7 @@ import {
   applyStructureWriteOverlaysToOperatorInventory,
   applyStructureWriteOverlaysToStructures,
   createPendingStructureWriteOverlay,
+  resolveStructureWriteTargetDesiredStatus,
   resolveStructureWriteConfirmation,
   type StructureWriteTarget,
 } from "../src/lib/structureWriteReconciliation";
@@ -277,6 +278,11 @@ const powerOnlineOverlay = createPendingStructureWriteOverlay({
   target: { ...STORAGE_TARGET, displayName: "Storage Prime" },
   desiredStatus: "online",
 });
+assert.equal(
+  resolveStructureWriteTargetDesiredStatus({ ...STORAGE_TARGET, desiredStatus: "offline" }, "online"),
+  "offline",
+  "expected per-target desired status to be usable for mixed online/offline PTB overlays",
+);
 const staleOfflineInventory: OperatorInventoryResponse = {
   ...confirmedPowerInventory,
   networkNodes: confirmedPowerInventory.networkNodes.map((nodeGroup) => ({
