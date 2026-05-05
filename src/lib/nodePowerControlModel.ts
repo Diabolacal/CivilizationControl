@@ -57,6 +57,10 @@ export interface NodePowerOperationEvaluation extends NodePowerOperationPlan {
   decisions: NodePowerOperationDecision[];
 }
 
+export interface NodePowerOperationInventoryEvaluation extends NodePowerOperationPlan {
+  decisions: NodePowerOperationDecision[];
+}
+
 function isExactPowerStatus(status: StructureStatus): status is "online" | "offline" {
   return status === "online" || status === "offline";
 }
@@ -424,6 +428,45 @@ export function filterNodePowerPlanForOperatorInventory(
     targets,
     disabledReason: targets.length === 0 ? "no structures need changing" : plan.disabledReason,
     capacityReason: buildCapacityReason(targets),
+  };
+}
+
+export function inspectNodePowerPlanForFreshInventory(
+  plan: NodePowerOperationPlan,
+  inventory: OperatorInventoryResponse | null | undefined,
+  selectedNodeId: string | null,
+): NodePowerOperationInventoryEvaluation {
+  if (!inventory || plan.targets.length === 0) {
+    return { ...plan, decisions: [] };
+  }
+
+  const decisions: NodePowerOperationDecision[] = [];
+  const targets = plan.targets.filter((target) => {
+    const freshStatus = findFreshInventoryStatus(inventory, target, selectedNodeId);
+    if (!freshStatus || !isExactPowerStatus(freshStatus)) {
+      return true;
+    }
+
+    if ((freshStatus === "online") !== target.desiredOnline) {
+      return true;
+    }
+
+    decisions.push({
+      target,
+      included: false,
+      reason: freshStatus === "online" ? "already_online" : "already_offline",
+      chainStatus: freshStatus,
+      chainStatusVariant: null,
+      chainState: freshStatus,
+    });
+    return false;
+  });
+
+  return {
+    targets,
+    disabledReason: targets.length === 0 ? getNoEligibleStructuresReason(plan.targets) : plan.disabledReason,
+    capacityReason: buildCapacityReason(targets),
+    decisions,
   };
 }
 

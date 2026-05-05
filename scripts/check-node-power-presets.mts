@@ -4,14 +4,19 @@ import { readFileSync } from 'node:fs';
 import {
   buildNodeChildBulkPowerPlan,
   buildNodePowerPresetApplyPlan,
-  filterNodePowerPlanForOperatorInventory,
   getNodePowerUsageReadout,
   groupNodePowerOperationTargets,
+  inspectNodePowerPlanForFreshInventory,
   inspectNodePowerPlanForChainEligibility,
   NODE_POWER_CAPACITY_GJ,
   toMixedAssemblyPowerTarget,
   toStructureWriteTarget,
 } from '../src/lib/nodePowerControlModel.ts';
+import {
+  buildNodePowerOutcomeDetail,
+  buildNodePowerOutcomePreviewItems,
+  summarizeNodePowerBulkOutcome,
+} from '../src/lib/nodePowerBulkOutcomeModel.ts';
 import {
   buildNodePowerPresetStorageKey,
   buildNodePowerPresetTargets,
@@ -338,12 +343,29 @@ const freshInventory: OperatorInventoryResponse = {
   source: 'operator-inventory',
   fetchedAt: '2026-05-04T12:00:00.000Z',
 };
-const filteredOfflinePlan = filterNodePowerPlanForOperatorInventory(takeOfflinePlan, freshInventory, '0xnode');
+const filteredOfflinePlan = inspectNodePowerPlanForFreshInventory(takeOfflinePlan, freshInventory, '0xnode');
 assert.deepEqual(
   filteredOfflinePlan.targets.map((target) => target.structure.id),
   ['online-storage'],
   'expected preflight operator-inventory refresh to drop children that already reached the requested status',
 );
+assert.equal(filteredOfflinePlan.decisions[0]?.reason, 'already_offline', 'expected fresh operator-inventory proof to classify already-offline children before chain reads');
+
+const takeOfflineExecutionPlan = inspectNodePowerPlanForChainEligibility(
+  filteredOfflinePlan,
+  new Map([[onlineStorage.actionAuthority.verifiedTarget!.structureId, makeChainSnapshot(onlineStorage.actionAuthority.verifiedTarget!.structureId, 'online')]]),
+);
+const takeOfflineOutcome = summarizeNodePowerBulkOutcome(takeOfflinePlan, {
+  ...takeOfflineExecutionPlan,
+  decisions: [...filteredOfflinePlan.decisions, ...takeOfflineExecutionPlan.decisions],
+});
+assert.equal(takeOfflineOutcome.requestedCount, 2, 'expected outcome summary to retain the originally requested child count');
+assert.equal(takeOfflineOutcome.submittedCount, 1, 'expected only surviving child rows to remain queued for the PTB');
+assert.equal(takeOfflineOutcome.alreadyCorrectCount, 1, 'expected fresh inventory proof to surface already-correct child rows');
+assert.equal(takeOfflineOutcome.heldCount, 0, 'expected the fixture to avoid held rows once fresh truth is available');
+assert.equal(takeOfflineOutcome.correctionTargets[0]?.canonicalDomainKey, hiddenOnlineGate.canonicalDomainKey, 'expected already-correct rows to become local correction targets');
+assert.equal(buildNodePowerOutcomeDetail(takeOfflineOutcome), '1 submitted • 1 already matched', 'expected the compact detail line to reflect queued and already-correct rows');
+assert.equal(buildNodePowerOutcomePreviewItems(takeOfflineOutcome)[0], 'Hidden Gate: Already offline', 'expected the preview chips to name already-correct child rows');
 
 const staleRawOnlineRefinery = makeStructure({
   id: 'stale-refinery',
@@ -479,11 +501,13 @@ assert.equal(getDefaultNodePowerPresetLabel(4), 'Preset 4', 'expected default sl
 
 const dashboardSource = readFileSync('src/screens/Dashboard.tsx', 'utf8');
 assert(dashboardSource.includes('operatorInventory.refetch()'), 'expected node-local bulk/preset writes to refresh operator inventory before final target selection');
-assert(dashboardSource.includes('filterNodePowerPlanForOperatorInventory'), 'expected node-local bulk/preset writes to filter stale already-in-state children before PTB build');
+assert(dashboardSource.includes('inspectNodePowerPlanForFreshInventory'), 'expected node-local bulk/preset writes to classify fresh already-in-state children before chain proof');
 assert(dashboardSource.includes('fetchStructurePowerChainSnapshots'), 'expected node-local bulk/preset writes to direct-chain preflight final targets before PTB build');
 assert(dashboardSource.includes('inspectNodePowerPlanForChainEligibility'), 'expected node-local bulk/preset writes to classify online eligibility before PTB build');
-assert(dashboardSource.includes('targets: executionPlan.targets.map(toStructureWriteTarget)'), 'expected node-local bulk/preset writes to pass per-child overlay targets');
+assert(dashboardSource.includes('summarizeNodePowerBulkOutcome'), 'expected node-local bulk/preset writes to preserve explicit per-row outcomes through the wallet boundary');
+assert(dashboardSource.includes('reconcileWrite({'), 'expected preflight-proven already-correct child rows to project into local overlays before the wallet step');
 assert(dashboardSource.includes('structurePower.toggleMixed'), 'expected node-local bulk/preset writes to submit one mixed child-power PTB');
+assert(dashboardSource.includes('buildNodePowerFeedbackResult'), 'expected bulk and preset results to render a compact structured summary instead of a vague success line');
 assert(dashboardSource.includes('structurePower.reportLocalSuccess'), 'expected all-excluded plans to stop before wallet execution with calm no-op feedback');
 assert(dashboardSource.includes('structurePower.applyLocalCorrection("online"'), 'expected single-row Bring online to correct proven already-online rows without opening the wallet');
 assert(!dashboardSource.includes('groupNodePowerOperationTargets(plan.targets)'), 'expected Node Control execution not to loop grouped child batches');

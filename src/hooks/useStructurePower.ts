@@ -40,6 +40,21 @@ import {
 import { fetchStructurePowerChainSnapshots } from "@/lib/structurePowerChainStatus";
 import type { ObjectId, StructureActionTargetType, TxStatus, TxResult } from "@/types/domain";
 
+type StructurePowerFeedbackResult = Omit<TxResult, "digest"> & { digest?: string | null };
+
+function toTxResult(result: string | StructurePowerFeedbackResult, digest: string | null = null): TxResult {
+  if (typeof result === "string") {
+    return { digest, message: result };
+  }
+
+  return {
+    digest: result.digest ?? digest,
+    message: result.message,
+    detail: result.detail,
+    items: result.items,
+  };
+}
+
 type AssemblyPowerStructureType = Exclude<StructureActionTargetType, "network_node">;
 
 interface SinglePowerParams {
@@ -81,17 +96,9 @@ export function useStructurePower() {
   const [result, setResult] = useState<TxResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const reportLocalSuccess = useCallback((message: string) => {
-    setError(null);
-    setResult({ digest: null, message });
-    setStatus("success");
-    return true;
-  }, []);
-
-  const applyLocalCorrection = useCallback((
+  const applyLocalOverlay = useCallback((
     desiredStatus: ExactPowerStatus,
     refreshOptions: StructureWriteRefreshOptions | undefined,
-    message: string,
   ) => {
     if (refreshOptions?.target || refreshOptions?.targets?.length) {
       reconcileWrite({
@@ -103,18 +110,34 @@ export function useStructurePower() {
         refreshOptions,
       });
     }
+  }, [reconcileWrite]);
+
+  const reportLocalSuccess = useCallback((message: string | StructurePowerFeedbackResult) => {
+    setError(null);
+    setResult(toTxResult(message));
+    setStatus("success");
+    return true;
+  }, []);
+
+  const applyLocalCorrection = useCallback((
+    desiredStatus: ExactPowerStatus,
+    refreshOptions: StructureWriteRefreshOptions | undefined,
+    message: string | StructurePowerFeedbackResult,
+  ) => {
+    applyLocalOverlay(desiredStatus, refreshOptions);
 
     setError(null);
-    setResult({ digest: null, message });
+    setResult(toTxResult(message));
     setStatus("success");
     return getStructureWriteRefreshTargetCount(refreshOptions) <= 1;
-  }, [reconcileWrite]);
+  }, [applyLocalOverlay]);
 
   const execute = useCallback(
     async (
       buildTx: () => Transaction,
       desiredStatus: ExactPowerStatus | null,
       refreshOptions?: StructureWriteRefreshOptions,
+      successResult?: StructurePowerFeedbackResult,
     ) => {
       setStatus("pending");
       setError(null);
@@ -134,7 +157,7 @@ export function useStructurePower() {
         } else {
           await refreshAfterWrite(refreshOptions);
         }
-        setResult({ digest });
+        setResult(successResult ? toTxResult(successResult, digest) : { digest });
         setStatus("success");
         return true;
       } catch (err: unknown) {
@@ -142,6 +165,7 @@ export function useStructurePower() {
         const errorDesiredStatus = resolvePowerErrorDesiredStatus(message, desiredStatus, refreshOptions);
         const errorContext: StructurePowerErrorContext = { desiredStatus: errorDesiredStatus };
         const errorKind = classifyStructurePowerError(message, errorContext);
+        const targetCount = getStructureWriteRefreshTargetCount(refreshOptions);
         if (
           desiredStatus === "offline"
           && errorKind === "network_node_already_offline"
@@ -173,7 +197,11 @@ export function useStructurePower() {
               target: correctionTarget,
               targets: [correctionTarget],
             };
-            return applyLocalCorrection("offline", correctionRefreshOptions, formatStructurePowerError(message, errorContext));
+            if (targetCount > 1) {
+              applyLocalOverlay("offline", correctionRefreshOptions);
+            } else {
+              return applyLocalCorrection("offline", correctionRefreshOptions, formatStructurePowerError(message, errorContext));
+            }
           }
         }
 
@@ -193,17 +221,22 @@ export function useStructurePower() {
                 target: correctionTarget,
                 targets: [correctionTarget],
               };
-              return applyLocalCorrection("online", correctionRefreshOptions, "Already online. View updated.");
+              if (targetCount > 1) {
+                applyLocalOverlay("online", correctionRefreshOptions);
+              } else {
+                return applyLocalCorrection("online", correctionRefreshOptions, "Already online. View updated.");
+              }
             }
           }
         }
 
-        setError(formatStructurePowerError(message, errorContext));
+        const formattedError = formatStructurePowerError(message, errorContext);
+        setError(targetCount > 1 ? `${formattedError} Remaining requested changes were not applied.` : formattedError);
         setStatus("error");
         return false;
       }
     },
-    [applyLocalCorrection, executeTx, reconcileWrite, refreshAfterWrite],
+    [applyLocalCorrection, applyLocalOverlay, executeTx, reconcileWrite, refreshAfterWrite],
   );
 
   const toggleSingle = useCallback(
@@ -231,12 +264,13 @@ export function useStructurePower() {
   );
 
   const toggleMixed = useCallback(
-    (params: MixedPowerParams, refreshOptions?: StructureWriteRefreshOptions) => {
+    (params: MixedPowerParams, refreshOptions?: StructureWriteRefreshOptions, successResult?: StructurePowerFeedbackResult) => {
       if (!characterId) throw new Error("Character not resolved yet — please wait");
       return execute(
         () => buildMixedAssemblyPowerTx({ ...params, characterId }),
         null,
         refreshOptions,
+        successResult,
       );
     },
     [execute, characterId],

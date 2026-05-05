@@ -59,19 +59,29 @@ import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapsho
 import {
   buildNodeChildBulkPowerPlan,
   buildNodePowerPresetApplyPlan,
-  filterNodePowerPlanForOperatorInventory,
   getNodePowerUsageReadout,
+  inspectNodePowerPlanForFreshInventory,
   inspectNodePowerPlanForChainEligibility,
   toMixedAssemblyPowerTarget,
-  toStructureWriteTarget,
   type NodePowerOperationPlan,
 } from "@/lib/nodePowerControlModel";
+import {
+  buildNodePowerOutcomeDetail,
+  buildNodePowerOutcomePreviewItems,
+  summarizeNodePowerBulkOutcome,
+  type NodePowerBulkOutcomeSummary,
+} from "@/lib/nodePowerBulkOutcomeModel";
 import { fetchStructurePowerChainSnapshots } from "@/lib/structurePowerChainStatus";
 import { buildOperatorInventoryDebugCopySummary, buildOperatorInventoryDebugSnapshot } from "@/lib/operatorInventoryDebug";
-import type { NetworkMetrics, NetworkNodeGroup, SpatialPin, Structure } from "@/types/domain";
+import type { NetworkMetrics, NetworkNodeGroup, SpatialPin, Structure, TxResult } from "@/types/domain";
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
 
 type VerifiedNodeLocalTarget = NonNullable<NodeLocalStructure["actionAuthority"]["verifiedTarget"]>;
+
+type NodePowerFeedbackContext =
+  | { kind: "bring-online" }
+  | { kind: "take-offline" }
+  | { kind: "preset"; presetLabel: string };
 
 interface DashboardProps {
   nodeGroups: NetworkNodeGroup[];
@@ -82,6 +92,67 @@ interface DashboardProps {
   isConnected: boolean;
   readModelDebug: AssetDiscoveryDisplayDebugState;
   homeRequestToken: number;
+}
+
+function buildNodePowerSubmittedMessage(
+  context: NodePowerFeedbackContext,
+  outcome: NodePowerBulkOutcomeSummary,
+): string {
+  if (outcome.heldCount > 0) {
+    return context.kind === "preset"
+      ? `${context.presetLabel} submitted. Some rows were held. Awaiting read-model sync.`
+      : "Node child power action submitted. Some rows were held. Awaiting read-model sync.";
+  }
+
+  if (outcome.alreadyCorrectCount > 0) {
+    return context.kind === "preset"
+      ? `${context.presetLabel} submitted. Some rows already matched. Awaiting read-model sync.`
+      : "Node child power action submitted. Some rows already matched. Awaiting read-model sync.";
+  }
+
+  switch (context.kind) {
+    case "bring-online":
+      return "Node child structures brought online. Awaiting read-model sync.";
+    case "take-offline":
+      return "Node child structures taken offline. Awaiting read-model sync.";
+    case "preset":
+      return `${context.presetLabel} applied. Awaiting read-model sync.`;
+  }
+}
+
+function buildNodePowerLocalMessage(
+  context: NodePowerFeedbackContext,
+  outcome: NodePowerBulkOutcomeSummary,
+): string {
+  if (outcome.alreadyCorrectCount > 0 && outcome.heldCount === 0) {
+    return "No child power changes needed. View updated.";
+  }
+
+  if (
+    context.kind === "bring-online"
+    && outcome.submittedCount === 0
+    && outcome.alreadyCorrectCount === 0
+    && outcome.heldCount > 0
+    && outcome.heldEntries.every((entry) => entry.reason === "invalid_chain_status" || entry.reason === "chain_status_unavailable")
+  ) {
+    return "No child structures could be brought online from current chain status. View updated.";
+  }
+
+  return "No child power transaction submitted. View updated.";
+}
+
+function buildNodePowerFeedbackResult(
+  context: NodePowerFeedbackContext,
+  outcome: NodePowerBulkOutcomeSummary,
+  mode: "submitted" | "local",
+): Omit<TxResult, "digest"> {
+  return {
+    message: mode === "submitted"
+      ? buildNodePowerSubmittedMessage(context, outcome)
+      : buildNodePowerLocalMessage(context, outcome),
+    detail: buildNodePowerOutcomeDetail(outcome) ?? undefined,
+    items: buildNodePowerOutcomePreviewItems(outcome),
+  };
 }
 
 export function Dashboard({
@@ -151,7 +222,7 @@ export function Dashboard({
   } = useNodeAssemblies(selectedNodeGroup?.node.objectId ?? null, {
     enabled: shouldUseNodeAssembliesFallback,
   });
-  const { applyNodeAssembliesLookup, applyOperatorInventory } = useStructureWriteReconciliation();
+  const { applyNodeAssembliesLookup, applyOperatorInventory, reconcileWrite } = useStructureWriteReconciliation();
   const selectedNodeObservedLookup = useMemo(
     () => applyNodeAssembliesLookup(selectedNodeInventoryLookup ?? selectedNodeAssembliesLookup),
     [applyNodeAssembliesLookup, selectedNodeAssembliesLookup, selectedNodeInventoryLookup],
@@ -173,6 +244,7 @@ export function Dashboard({
   const [isPowerPresetDialogOpen, setIsPowerPresetDialogOpen] = useState(false);
   const [pendingNodePowerPlan, setPendingNodePowerPlan] = useState<{
     body: string;
+    feedbackContext: NodePowerFeedbackContext;
     plan: NodePowerOperationPlan;
     primaryLabel: string;
     successLabel: string;
@@ -318,26 +390,40 @@ export function Dashboard({
       return { ...plan, decisions: [] };
     }
 
-    let executionPlan = plan;
     let inventoryForFinalFilter = operatorInventory.inventory;
     const freshInventoryResult = await operatorInventory.refetch().catch(() => null);
     if (freshInventoryResult?.data) {
       inventoryForFinalFilter = applyOperatorInventory(freshInventoryResult.data);
     }
 
-    executionPlan = filterNodePowerPlanForOperatorInventory(
+    const inventoryEvaluation = inspectNodePowerPlanForFreshInventory(
       plan,
       inventoryForFinalFilter,
       selectedNodeGroup?.node.objectId ?? null,
     );
 
-    const chainSnapshots = executionPlan.targets.length > 0
-      ? await fetchStructurePowerChainSnapshots(executionPlan.targets.map(toMixedAssemblyPowerTarget)).catch(() => null)
+    if (inventoryEvaluation.targets.length === 0) {
+      return inventoryEvaluation;
+    }
+
+    const chainSnapshots = inventoryEvaluation.targets.length > 0
+      ? await fetchStructurePowerChainSnapshots(inventoryEvaluation.targets.map(toMixedAssemblyPowerTarget)).catch(() => null)
       : new Map();
 
-    return inspectNodePowerPlanForChainEligibility(executionPlan, chainSnapshots);
+    const chainEvaluation = inspectNodePowerPlanForChainEligibility(inventoryEvaluation, chainSnapshots);
+
+    return {
+      targets: chainEvaluation.targets,
+      disabledReason: chainEvaluation.disabledReason,
+      capacityReason: chainEvaluation.capacityReason,
+      decisions: [...inventoryEvaluation.decisions, ...chainEvaluation.decisions],
+    };
   }, [applyOperatorInventory, operatorInventory, selectedNodeGroup]);
-  const executeNodePowerPlan = useCallback(async (plan: NodePowerOperationPlan, successLabel: string) => {
+  const executeNodePowerPlan = useCallback(async (
+    plan: NodePowerOperationPlan,
+    successLabel: string,
+    feedbackContext: NodePowerFeedbackContext,
+  ) => {
     if (plan.disabledReason || plan.targets.length === 0) return false;
 
     handleCloseNodeControlMenus();
@@ -347,20 +433,36 @@ export function Dashboard({
     setPowerSuccessLabel(successLabel);
 
     const executionPlan = await preflightNodePowerPlan(plan);
+    const outcome = summarizeNodePowerBulkOutcome(plan, executionPlan);
+    const refreshOptions = {
+      selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
+      refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
+      refetchSignalFeed: true,
+      targets: outcome.submittedTargets,
+    };
+
+    if (outcome.correctionTargets.length > 0) {
+      reconcileWrite({
+        action: "power",
+        digest: null,
+        targets: outcome.correctionTargets,
+        refreshOptions: {
+          ...refreshOptions,
+          targets: outcome.correctionTargets,
+        },
+      });
+    }
+
     if (executionPlan.disabledReason || executionPlan.targets.length === 0) {
-      return structurePower.reportLocalSuccess(executionPlan.disabledReason ?? "No eligible structure changes.");
+      return structurePower.reportLocalSuccess(buildNodePowerFeedbackResult(feedbackContext, outcome, "local"));
     }
 
     return structurePower.toggleMixed({
       targets: executionPlan.targets.map(toMixedAssemblyPowerTarget),
-    }, {
-      selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
-      refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
-      refetchSignalFeed: true,
-      targets: executionPlan.targets.map(toStructureWriteTarget),
-    });
-  }, [handleCloseNodeControlMenus, preflightNodePowerPlan, refetchSelectedNodeAssemblies, selectedNodeGroup, selectedNodeInventoryLookup, selectedStructureCanonicalKeyRef, structurePower]);
+    }, refreshOptions, buildNodePowerFeedbackResult(feedbackContext, outcome, "submitted"));
+  }, [handleCloseNodeControlMenus, preflightNodePowerPlan, reconcileWrite, refetchSelectedNodeAssemblies, selectedNodeGroup, selectedNodeInventoryLookup, selectedStructureCanonicalKeyRef, structurePower]);
   const requestNodePowerPlanExecution = useCallback((params: {
+    feedbackContext: NodePowerFeedbackContext;
     plan: NodePowerOperationPlan;
     primaryLabel: string;
     successLabel: string;
@@ -376,10 +478,11 @@ export function Dashboard({
       return;
     }
 
-    void executeNodePowerPlan(params.plan, params.successLabel);
+    void executeNodePowerPlan(params.plan, params.successLabel, params.feedbackContext);
   }, [executeNodePowerPlan]);
   const handleBulkNodePower = useCallback((nextOnline: boolean) => {
     requestNodePowerPlanExecution({
+      feedbackContext: nextOnline ? { kind: "bring-online" } : { kind: "take-offline" },
       plan: nextOnline ? bringAllOnlinePlan : takeAllOfflinePlan,
       primaryLabel: nextOnline ? "Bring all online" : "Take all offline",
       successLabel: nextOnline
@@ -394,6 +497,7 @@ export function Dashboard({
     if (!plan || !slot) return;
 
     requestNodePowerPlanExecution({
+      feedbackContext: { kind: "preset", presetLabel: slot.label },
       plan,
       primaryLabel: "Apply preset",
       successLabel: `${slot.label} applied. Awaiting read-model sync.`,
@@ -407,7 +511,11 @@ export function Dashboard({
   const handleConfirmPendingNodePowerPlan = useCallback(() => {
     if (!pendingNodePowerPlan) return;
 
-    void executeNodePowerPlan(pendingNodePowerPlan.plan, pendingNodePowerPlan.successLabel).then((succeeded) => {
+    void executeNodePowerPlan(
+      pendingNodePowerPlan.plan,
+      pendingNodePowerPlan.successLabel,
+      pendingNodePowerPlan.feedbackContext,
+    ).then((succeeded) => {
       if (succeeded) {
         setPendingNodePowerPlan(null);
       }

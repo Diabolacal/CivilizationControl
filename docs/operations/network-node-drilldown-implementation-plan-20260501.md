@@ -10,6 +10,19 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Bulk node power outcome truth - 2026-05-05
+
+This corrective pass stays on `feat/network-node-offline-proof`. It does not change EF-Map contracts, VPS state, Move contracts, package IDs, vendor state, production deploy state, on-chain preset storage, Signal Feed parity, marketplace/revenue behavior, browser `queryEvents`, or broad polling.
+
+- Human wallet smoke after `c63dd38` showed the remaining issue was trust, not target eligibility: bulk/preset preflight already excluded already-correct or invalid child rows before wallet signing, but those decisions were still mostly dropped before local reconciliation and banner rendering.
+- Node Control now preserves fresh operator-inventory already-correct rows and direct-chain eligibility decisions in one explicit bulk outcome model. Fresh exact online/offline inventory truth is classified before chain reads; only the remaining candidates go through targeted `multiGetObjects({ showContent: true })` snapshots.
+- Preflight-proven already-online and already-offline child rows now project into digest-null local power overlays before wallet submission, so the visible row state and follow-up plans correct immediately without broad polling or a new read-path contract.
+- Bulk and preset feedback now uses the existing `TxFeedbackBanner` but with compact structured outcome copy: the banner separates submitted rows, already-matched rows, and held rows, and shows short row chips instead of implying a full success when some rows never entered the PTB.
+- `useStructurePower` no longer reports a mixed batch as success when a single corrected row was recovered from a failed PTB. Batch correction overlays can still land locally, but the remaining requested changes now stay visibly failed instead of being collapsed into a misleading success state.
+- `scripts/check-operator-inventory-status-truth.mts` now accepts `--wallet <address> --node <nodeObjectId> --action bring-online|take-offline` so a live selected node can be classified into `includedInTransaction`, already-correct, and held rows without reopening browser `queryEvents` or broad polling.
+- Validation refreshed: `node --import tsx scripts/check-node-power-presets.mts`; `node --import tsx scripts/check-node-power-batch-ptb.mts`; `node --import tsx scripts/check-operator-inventory-status-truth.mts`; `node --import tsx scripts/check-structure-write-reconciliation.mts`; `npm run typecheck`; and `npm run build`.
+- Fresh preview proof is `https://57e02fe6.civilizationcontrol.pages.dev` with alias `https://feat-network-node-offline-pr.civilizationcontrol.pages.dev`; unique and alias `/`, `/nodes`, `/activity`, `/settings`, and `/dev/node-drilldown-lab` returned `200`; unique preview browser smoke loaded the lab route and rendered `Node Drilldown Lab`; served-bundle scanning across all 12 deployed JS assets found the repo sponsor URL in `App-SqqUTx7f.js` and `SmartObjectProvider-Dc3I5kTT.js`, found `https://ef-map.com` in `nodePowerControlModel-C2B26jYx.js` and `SmartObjectProvider-Dc3I5kTT.js`, found `Some rows were held. Awaiting read-model sync.`, `Some rows already matched. Awaiting read-model sync.`, and `No child power transaction submitted. View updated.` in `App-SqqUTx7f.js`, and found no `flappy-frontier-sponsor`, exact-case `Authorization`, `ASSEMBLY_API_TOKEN`, or `X-API-Key`.
+
 ### Node Power online-target guard - 2026-05-05
 
 This corrective pass stays on `feat/network-node-offline-proof`. It does not change EF-Map contracts, VPS state, Move contracts, package IDs, vendor state, production deploy state, on-chain preset storage, Signal Feed parity, marketplace/revenue behavior, browser `queryEvents`, or broad polling.

@@ -7,8 +7,13 @@ import { getNodeLocalPowerControlState } from "../src/lib/nodeDrilldownActionAut
 import { buildLiveNodeLocalViewModelWithObserved } from "../src/lib/nodeDrilldownModel.ts";
 import {
   buildNodeChildBulkPowerPlan,
+  inspectNodePowerPlanForFreshInventory,
   inspectNodePowerPlanForChainEligibility,
 } from "../src/lib/nodePowerControlModel.ts";
+import {
+  formatNodePowerOutcomeReason,
+  summarizeNodePowerBulkOutcome,
+} from "../src/lib/nodePowerBulkOutcomeModel.ts";
 import { getFailedTransactionMessage } from "../src/lib/transactionExecutionErrors.ts";
 import { classifyStructurePowerError, formatStructurePowerError } from "../src/lib/structurePowerErrors.ts";
 import {
@@ -223,6 +228,100 @@ function makeInventory(status: "online" | "offline"): OperatorInventoryResponse 
   };
 }
 
+async function loadChainSnapshotMap(
+  client: SuiJsonRpcClient,
+  structureIds: readonly string[],
+) {
+  if (structureIds.length === 0) {
+    return new Map();
+  }
+
+  const responses = await client.multiGetObjects({
+    ids: structureIds,
+    options: { showContent: true, showType: true },
+  }).catch(() => []);
+
+  return structureIds.reduce((accumulator, structureId, index) => {
+    const normalizedStructureId = normalizeObjectId(structureId);
+    if (!normalizedStructureId) {
+      return accumulator;
+    }
+
+    const response = responses[index];
+    if (!response) {
+      return accumulator;
+    }
+
+    accumulator.set(normalizedStructureId, resolveStructurePowerChainSnapshot(response, normalizedStructureId));
+    return accumulator;
+  }, new Map());
+}
+
+async function buildLiveNodeBulkReport(
+  client: SuiJsonRpcClient,
+  inventory: OperatorInventoryResponse,
+  nodeObjectId: string,
+  desiredOnline: boolean,
+) {
+  const normalizedNodeObjectId = normalizeObjectId(nodeObjectId);
+  const adapted = adaptOperatorInventory(inventory);
+  const nodeGroup = adapted.nodeGroups.find((group) => normalizeObjectId(group.node.objectId) === normalizedNodeObjectId);
+  if (!nodeGroup) {
+    return {
+      error: "node_not_found",
+      nodeObjectId,
+      action: desiredOnline ? "bring-online" : "take-offline",
+    };
+  }
+
+  const nodeLookup = adapted.nodeLookupsByNodeId.get(nodeGroup.node.objectId);
+  const viewModel = buildLiveNodeLocalViewModelWithObserved(nodeGroup, nodeLookup, { preferObservedMembership: true });
+  const plan = buildNodeChildBulkPowerPlan(viewModel.structures, desiredOnline);
+  const inventoryEvaluation = inspectNodePowerPlanForFreshInventory(plan, inventory, nodeGroup.node.objectId);
+  const chainSnapshots = await loadChainSnapshotMap(
+    client,
+    inventoryEvaluation.targets.map((target) => target.verifiedTarget.structureId),
+  );
+  const chainEvaluation = inspectNodePowerPlanForChainEligibility(inventoryEvaluation, chainSnapshots);
+  const evaluation = {
+    ...chainEvaluation,
+    decisions: [...inventoryEvaluation.decisions, ...chainEvaluation.decisions],
+  };
+  const outcome = summarizeNodePowerBulkOutcome(plan, evaluation);
+
+  return {
+    nodeObjectId: nodeGroup.node.objectId,
+    nodeDisplayName: nodeGroup.node.displayName ?? nodeGroup.node.name ?? null,
+    action: desiredOnline ? "bring-online" : "take-offline",
+    planDisabledReason: plan.disabledReason,
+    finalDisabledReason: evaluation.disabledReason,
+    requestedCount: outcome.requestedCount,
+    submittedCount: outcome.submittedCount,
+    alreadyCorrectCount: outcome.alreadyCorrectCount,
+    heldCount: outcome.heldCount,
+    currentRows: viewModel.structures.map((structure) => ({
+      objectId: structure.objectId,
+      displayName: structure.displayName,
+      currentUiStatus: structure.status,
+    })),
+    includedInTransaction: evaluation.targets.map((target) => ({
+      objectId: target.verifiedTarget.structureId,
+      displayName: target.structure.displayName,
+      desiredStatus: target.desiredOnline ? "online" : "offline",
+    })),
+    excludedAlreadyInTargetState: outcome.alreadyCorrectEntries.map((entry) => ({
+      displayName: entry.displayName,
+      reason: entry.reason,
+      reasonLabel: formatNodePowerOutcomeReason(entry.reason),
+    })),
+    excludedHeld: outcome.heldEntries.map((entry) => ({
+      displayName: entry.displayName,
+      reason: entry.reason,
+      reasonLabel: formatNodePowerOutcomeReason(entry.reason),
+    })),
+  };
+}
+
 function firstNodeControlStructureStatus(inventory: OperatorInventoryResponse) {
   const adapted = adaptOperatorInventory(inventory);
   const group = adapted.nodeGroups[0];
@@ -352,7 +451,14 @@ assert.equal(
 
 const wallet = getArg("wallet");
 const object = getArg("object");
-if (wallet && object) {
+const node = getArg("node");
+const action = getArg("action");
+const desiredOnline = action === "bring-online" || action === "online"
+  ? true
+  : action === "take-offline" || action === "offline"
+    ? false
+    : null;
+if (wallet && (object || (node && desiredOnline != null))) {
   const url = new URL("https://ef-map.com/api/civilization-control/operator-inventory");
   url.searchParams.set("walletAddress", wallet);
   const response = await fetch(url, { headers: { Origin: "https://civilizationcontrol.com" } });
@@ -373,8 +479,13 @@ if (wallet && object) {
     nodeObjectId: null,
     row,
   })));
-  const row = allRows.find((entry) => entry.row.objectId?.toLowerCase() === object.toLowerCase());
+  const row = object
+    ? allRows.find((entry) => entry.row.objectId?.toLowerCase() === object.toLowerCase())
+    : null;
   const client = new SuiJsonRpcClient({ url: DEFAULT_SUI_RPC_URL, network: "testnet" });
+  const liveNodeBulk = node && desiredOnline != null
+    ? await buildLiveNodeBulkReport(client, body, node, desiredOnline)
+    : null;
 
   async function getChainSnapshot(objectId: string | null | undefined) {
     const normalized = objectId ? normalizeObjectId(objectId) : null;
@@ -399,8 +510,10 @@ if (wallet && object) {
     };
   }
 
-  const chainObjectId = normalizeObjectId(object);
-  const chainSnapshot = await getChainSnapshot(object);
+  const chainObjectId = object ? normalizeObjectId(object) : null;
+  const chainSnapshot = object
+    ? await getChainSnapshot(object)
+    : { normalizedObjectId: null, chainStatus: null, snapshotState: null, statusVariant: null };
   const liveStructure = row ? makeNodeControlStructureFromLiveRow(row.row) : null;
   const rawOfflinePlan = liveStructure ? buildNodeChildBulkPowerPlan([liveStructure], false) : null;
   const rawOnlinePlan = liveStructure ? buildNodeChildBulkPowerPlan([liveStructure], true) : null;
@@ -525,13 +638,14 @@ if (wallet && object) {
     rawActionCandidate: row?.row.actionCandidate ?? null,
     lastUpdated: row?.row.lastUpdated ?? null,
     provenance: row?.row.provenance ?? null,
+    liveNodeBulk,
     nodeEligibilityRows,
     refineryRows,
   }, null, 2));
 } else {
   console.log(JSON.stringify({
     liveFetch: false,
-    reason: "Pass --wallet <address> --object <objectId> to inspect a live operator-inventory row.",
+    reason: "Pass --wallet <address> with --object <objectId> to inspect one live row, or add --node <nodeObjectId> --action bring-online|take-offline for a selected-node bulk verdict.",
     suppliedObjectHint: "0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780",
   }, null, 2));
 }
