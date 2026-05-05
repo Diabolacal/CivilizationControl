@@ -76,6 +76,23 @@ function forceOnline(structure: NodeLocalStructure): NodeLocalStructure {
   };
 }
 
+function forceOffline(structure: NodeLocalStructure): NodeLocalStructure {
+  return {
+    ...structure,
+    status: 'offline',
+    tone: 'offline',
+    actionAuthority: structure.actionAuthority.verifiedTarget
+      ? {
+          ...structure.actionAuthority,
+          verifiedTarget: {
+            ...structure.actionAuthority.verifiedTarget,
+            status: 'offline',
+          },
+        }
+      : structure.actionAuthority,
+  };
+}
+
 const knownScenario = NODE_DRILLDOWN_SCENARIOS.find((entry) => entry.id === 'power-summary-known');
 const overCapScenario = NODE_DRILLDOWN_SCENARIOS.find((entry) => entry.id === 'power-summary-over-cap');
 const unknownScenario = NODE_DRILLDOWN_SCENARIOS.find((entry) => entry.id === 'power-summary-unknown');
@@ -84,10 +101,51 @@ assert(knownScenario, 'expected a known-power lab scenario');
 assert(overCapScenario, 'expected an over-cap lab scenario');
 assert(unknownScenario, 'expected an unknown-power lab scenario');
 
-const knownReadout = getNodePowerUsageReadout(knownScenario.viewModel.node);
+const knownReadout = getNodePowerUsageReadout(knownScenario.viewModel.node, knownScenario.viewModel.structures);
 assert.equal(knownReadout.label, 'Power 320 / 1000 GJ', 'expected known indexed node load to render a numeric readout');
 assert.equal(knownReadout.capacityGJ, NODE_POWER_CAPACITY_GJ, 'expected numeric readout to retain the fixed node capacity');
 assert.equal(knownReadout.isAvailable, true, 'expected known indexed node load to mark the readout available');
+
+const allOfflineReadout = getNodePowerUsageReadout(
+  knownScenario.viewModel.node,
+  knownScenario.viewModel.structures.map(forceOffline),
+);
+assert.equal(allOfflineReadout.label, 'Power 0 / 1000 GJ', 'expected local all-offline child state to drive the readout to zero even before the node summary refreshes');
+
+const fiftyGjStructure = forceOnline({
+  ...knownScenario.viewModel.structures[2],
+  powerRequirement: knownScenario.viewModel.structures[2]?.powerRequirement
+    ? { ...knownScenario.viewModel.structures[2].powerRequirement, requiredGj: 50 }
+    : null,
+});
+const localIncrementNode = {
+  ...knownScenario.viewModel.node,
+  powerUsageSummary: knownScenario.viewModel.node.powerUsageSummary
+    ? {
+        ...knownScenario.viewModel.node.powerUsageSummary,
+        usedGj: 120,
+        availableGj: 880,
+        onlineKnownLoadGj: 120,
+        totalKnownLoadGj: 120,
+      }
+    : null,
+};
+const localBaseCapacity = evaluateNodePowerCapacity(localIncrementNode, [knownScenario.viewModel.structures[0]]);
+const localIncrementReadout = getNodePowerUsageReadout(
+  localIncrementNode,
+  [knownScenario.viewModel.structures[0], fiftyGjStructure],
+);
+const localIncrementCapacity = evaluateNodePowerCapacity(localIncrementNode, [knownScenario.viewModel.structures[0], fiftyGjStructure]);
+assert.equal(
+  (localIncrementCapacity.currentUsedGj ?? 0) - (localBaseCapacity.currentUsedGj ?? 0),
+  50,
+  'expected bringing one 50 GJ row online locally to increment the current load by 50 GJ',
+);
+assert.equal(
+  localIncrementReadout.label,
+  `Power ${(localBaseCapacity.currentUsedGj ?? 0) + 50} / 1000 GJ`,
+  'expected the readout to reflect the 50 GJ local increment instead of the stale node summary',
+);
 
 const hiddenCanonicalKeySet = new Set(knownScenario.initialHiddenCanonicalKeys ?? []);
 const visibleKnownOnlineLoad = knownScenario.viewModel.structures
@@ -97,7 +155,7 @@ const visibleKnownOnlineLoad = knownScenario.viewModel.structures
 assert.equal(visibleKnownOnlineLoad, 120, 'expected the visible rows alone to undercount the hidden online child load');
 assert.equal(knownScenario.viewModel.node.powerUsageSummary?.usedGj, 320, 'expected the indexed node summary to retain hidden child load');
 
-const unknownReadout = getNodePowerUsageReadout(unknownScenario.viewModel.node);
+const unknownReadout = getNodePowerUsageReadout(unknownScenario.viewModel.node, unknownScenario.viewModel.structures);
 assert.equal(unknownReadout.label, 'Power usage unavailable', 'expected partial node summaries to keep the calm unavailable readout');
 assert.equal(unknownReadout.capacityGJ, NODE_POWER_CAPACITY_GJ, 'expected unavailable readout to retain the node capacity ceiling');
 assert.equal(unknownReadout.isAvailable, false, 'expected partial node summaries to keep the readout unavailable');
@@ -173,8 +231,11 @@ assert.equal(unknownBringOnlineCheck.requiredUnknownCount, 1, 'expected the unkn
 assert.equal(unknownBringOnlineCheck.canVerify, false, 'expected unknown node load to stay unverifiable');
 
 const nodeId = objectId(1);
+const otherNodeId = objectId(2);
 const storageId = objectId(101);
 const gateId = objectId(102);
+const otherStorageId = objectId(103);
+const unlinkedStorageId = objectId(104);
 const rawInventoryPayload = {
   schemaVersion: 'operator-inventory.v1',
   operator: null,
@@ -238,8 +299,66 @@ const rawInventoryPayload = {
         lastUpdated: '2026-05-05T12:00:00.000Z',
       },
     },
+    {
+      node: makeInventoryStructure({
+        objectId: otherNodeId,
+        family: 'networkNode',
+        displayName: 'Other Indexed Load Node',
+        status: 'online',
+      }),
+      structures: [
+        makeInventoryStructure({
+          objectId: otherStorageId,
+          assemblyId: '1003',
+          ownerCapId: objectId(203),
+          family: 'storage',
+          displayName: 'Storage Other',
+          status: 'online',
+          networkNodeId: otherNodeId,
+          powerRequirement: {
+            requiredGj: 80,
+            source: 'indexed_type',
+            confidence: 'indexed',
+            typeId: 84868,
+            family: 'storage',
+            size: 'standard',
+            lastUpdated: '2026-05-05T12:00:00.000Z',
+          },
+        }),
+      ],
+      powerUsageSummary: {
+        capacityGj: 1000,
+        usedGj: 80,
+        availableGj: 920,
+        onlineKnownLoadGj: 80,
+        onlineUnknownLoadCount: 0,
+        totalKnownLoadGj: 80,
+        totalUnknownLoadCount: 0,
+        source: 'indexed_children',
+        confidence: 'indexed',
+        lastUpdated: '2026-05-05T12:00:00.000Z',
+      },
+    },
   ],
-  unlinkedStructures: [],
+  unlinkedStructures: [
+    makeInventoryStructure({
+      objectId: unlinkedStorageId,
+      assemblyId: '1004',
+      ownerCapId: objectId(204),
+      family: 'storage',
+      displayName: 'Storage Unlinked',
+      status: 'online',
+      powerRequirement: {
+        requiredGj: 90,
+        source: 'indexed_type',
+        confidence: 'indexed',
+        typeId: 84868,
+        family: 'storage',
+        size: 'standard',
+        lastUpdated: '2026-05-05T12:00:00.000Z',
+      },
+    }),
+  ],
   warnings: [],
   partial: false,
   source: 'operator-inventory',
@@ -275,6 +394,9 @@ assert.equal(
   200,
   'expected the node-local model to preserve indexed child power requirements',
 );
+assert(liveViewModel.structures.every((structure) => structure.family !== 'networkNode'), 'expected selected-node power structures to exclude the network node itself');
+assert(!liveViewModel.structures.some((structure) => structure.objectId === otherStorageId), 'expected selected-node power structures to exclude child rows from other nodes');
+assert(!liveViewModel.structures.some((structure) => structure.objectId === unlinkedStorageId), 'expected selected-node power structures to exclude unlinked rows');
 
 const dashboardSource = readFileSync('src/screens/Dashboard.tsx', 'utf8');
 assert(dashboardSource.includes('evaluateNodePowerCapacity'), 'expected the dashboard to evaluate preset-save capacity before opening the save dialog');
@@ -289,7 +411,10 @@ assert(presetDialogSource.includes('saveBlockedReason'), 'expected the preset di
 const actionStripSource = readFileSync('src/components/topology/node-drilldown/NodePowerActionStrip.tsx', 'utf8');
 assert(!/title\s*=/.test(actionStripSource), 'expected the node power action strip not to rely on native browser tooltips');
 
+const actionRailSource = readFileSync('src/components/topology/node-drilldown/NodeStructureActionRail.tsx', 'utf8');
+assert(!/title\s*=/.test(actionRailSource), 'expected row-level node power controls not to rely on native browser tooltips');
+
 const labSource = readFileSync('src/screens/NodeDrilldownLabScreen.tsx', 'utf8');
-assert(labSource.includes('getNodePowerUsageReadout(scenarioViewModel?.node ?? null)'), 'expected the dev lab to render the node power readout from the scenario node summary');
+assert(labSource.includes('getNodePowerUsageReadout(scenarioViewModel?.node ?? null, scenarioViewModel?.structures ?? [])'), 'expected the dev lab to render the node power readout from local child state first');
 
 console.log('Node power capacity checks passed.');

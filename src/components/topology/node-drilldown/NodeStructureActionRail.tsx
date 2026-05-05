@@ -127,7 +127,6 @@ function PowerActionControl({
         {showAlert ? (
           <span
             className="inline-flex h-7 items-center justify-center rounded border border-[color:color-mix(in_srgb,var(--topo-state-warning)_42%,var(--border)_58%)] bg-[color:color-mix(in_srgb,var(--topo-state-warning)_14%,transparent)] px-2 text-[10px] font-mono uppercase tracking-[0.18em] text-[var(--topo-state-warning)] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
-            title="Alert status requires attention"
           >
             Alert
           </span>
@@ -136,7 +135,6 @@ function PowerActionControl({
         <span
           className="inline-flex h-7 min-w-[72px] items-center justify-center rounded border bg-background/35 px-2 text-[10px] font-mono uppercase tracking-[0.2em] shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]"
           style={getStatusPillStyle(powerStatus, isBusy || !isInteractive)}
-          title={`Current status: ${pill.label.toLowerCase()}`}
         >
           {pill.label}
         </span>

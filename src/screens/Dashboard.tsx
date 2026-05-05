@@ -290,8 +290,8 @@ export function Dashboard({
     scopeKey: nodeDrilldownScopeKey,
   });
   const nodePowerUsageReadout = useMemo(
-    () => getNodePowerUsageReadout(selectedNodeViewModel?.node ?? null),
-    [selectedNodeViewModel?.node],
+    () => getNodePowerUsageReadout(selectedNodeViewModel?.node ?? null, selectedNodeViewModel?.structures ?? []),
+    [selectedNodeViewModel?.node, selectedNodeViewModel?.structures],
   );
   const {
     hiddenCanonicalKeySet,
