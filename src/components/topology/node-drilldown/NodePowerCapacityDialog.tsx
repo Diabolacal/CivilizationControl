@@ -6,17 +6,19 @@ interface NodePowerCapacityDialogProps {
   isOpen: boolean;
   title: string;
   body: string;
-  primaryLabel: string;
+  confirmLabel?: string | null;
+  dismissLabel?: string;
   isPending?: boolean;
   onCancel: () => void;
-  onConfirm: () => void;
+  onConfirm?: () => void;
 }
 
 export function NodePowerCapacityDialog({
   isOpen,
   title,
   body,
-  primaryLabel,
+  confirmLabel = null,
+  dismissLabel = "Close",
   isPending = false,
   onCancel,
   onConfirm,
@@ -56,16 +58,18 @@ export function NodePowerCapacityDialog({
               disabled={isPending}
               className="rounded border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground disabled:cursor-not-allowed disabled:opacity-50"
             >
-              Cancel
+              {dismissLabel}
             </button>
-            <button
-              type="button"
-              onClick={onConfirm}
-              disabled={isPending}
-              className="rounded border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/18 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {isPending ? "Submitting..." : primaryLabel}
-            </button>
+            {confirmLabel && onConfirm ? (
+              <button
+                type="button"
+                onClick={onConfirm}
+                disabled={isPending}
+                className="rounded border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/18 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isPending ? "Submitting..." : confirmLabel}
+              </button>
+            ) : null}
           </div>
         </div>
       </NodeDrilldownOverlayPanel>

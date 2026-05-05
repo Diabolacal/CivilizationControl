@@ -3,6 +3,8 @@ import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
 import type {
   IndexedActionCandidate,
   IndexedActionRequiredIds,
+  IndexedNodePowerUsageSummary,
+  IndexedPowerRequirement,
   IndexedStructureAction,
   IndexedPowerSummary,
   StructureActionTargetType,
@@ -280,6 +282,8 @@ function normalizeOperatorInventoryStructure(
     extensionStatus: normalizeExtensionStatus(candidate.extensionStatus),
     fuelAmount: normalizeNullableString(candidate.fuelAmount),
     powerSummary: normalizeIndexedPowerSummary(candidate.powerSummary),
+    powerRequirement: normalizeIndexedPowerRequirement(candidate.powerRequirement),
+    powerUsageSummary: normalizeIndexedNodePowerUsageSummary(candidate.powerUsageSummary),
     solarSystemId: normalizeNullableString(candidate.solarSystemId),
     url: normalizeNullableString(candidate.url),
     lastObservedCheckpoint: normalizeNullableString(candidate.lastObservedCheckpoint),
@@ -356,6 +360,126 @@ function normalizeIndexedPowerSummary(value: unknown): IndexedPowerSummary | nul
     source,
     lastUpdated,
     confidence,
+  };
+}
+
+function normalizeIndexedPowerRequirementSource(
+  value: unknown,
+): IndexedPowerRequirement["source"] {
+  const normalized = normalizeNullableString(value);
+  if (normalized === "indexed_config" || normalized === "indexed_type" || normalized === "unavailable") {
+    return normalized;
+  }
+
+  return null;
+}
+
+function normalizeIndexedPowerRequirementConfidence(
+  value: unknown,
+): IndexedPowerRequirement["confidence"] {
+  const normalized = normalizeNullableString(value);
+  if (normalized === "indexed" || normalized === "unavailable") {
+    return normalized;
+  }
+
+  return null;
+}
+
+function normalizeIndexedPowerRequirement(value: unknown): IndexedPowerRequirement | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Record<string, unknown>;
+  const requiredGj = normalizeNumber(candidate.requiredGj);
+  const source = normalizeIndexedPowerRequirementSource(candidate.source);
+  const confidence = normalizeIndexedPowerRequirementConfidence(candidate.confidence);
+  const typeId = normalizeNullableString(candidate.typeId);
+  const family = normalizeNullableString(candidate.family);
+  const size = normalizeNullableString(candidate.size);
+  const lastUpdated = normalizeNullableTimestamp(candidate.lastUpdated);
+
+  const hasUsefulField = [requiredGj, source, confidence, typeId, family, size, lastUpdated]
+    .some((field) => field != null);
+
+  if (!hasUsefulField) {
+    return null;
+  }
+
+  return {
+    requiredGj,
+    source,
+    confidence,
+    typeId,
+    family,
+    size,
+    lastUpdated,
+  };
+}
+
+function normalizeIndexedNodePowerUsageSummarySource(
+  value: unknown,
+): IndexedNodePowerUsageSummary["source"] {
+  const normalized = normalizeNullableString(value);
+  if (normalized === "indexed_children" || normalized === "partial" || normalized === "unavailable") {
+    return normalized;
+  }
+
+  return null;
+}
+
+function normalizeIndexedNodePowerUsageSummaryConfidence(
+  value: unknown,
+): IndexedNodePowerUsageSummary["confidence"] {
+  const normalized = normalizeNullableString(value);
+  if (normalized === "indexed" || normalized === "partial" || normalized === "unavailable") {
+    return normalized;
+  }
+
+  return null;
+}
+
+function normalizeIndexedNodePowerUsageSummary(value: unknown): IndexedNodePowerUsageSummary | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Record<string, unknown>;
+  const capacityGj = normalizeNumber(candidate.capacityGj);
+  const usedGj = normalizeNumber(candidate.usedGj);
+  const availableGj = normalizeNumber(candidate.availableGj);
+  const onlineKnownLoadGj = normalizeNumber(candidate.onlineKnownLoadGj);
+  const onlineUnknownLoadCount = normalizeNumber(candidate.onlineUnknownLoadCount);
+  const totalKnownLoadGj = normalizeNumber(candidate.totalKnownLoadGj);
+  const totalUnknownLoadCount = normalizeNumber(candidate.totalUnknownLoadCount);
+  const source = normalizeIndexedNodePowerUsageSummarySource(candidate.source);
+  const confidence = normalizeIndexedNodePowerUsageSummaryConfidence(candidate.confidence);
+  const lastUpdated = normalizeNullableTimestamp(candidate.lastUpdated);
+
+  const hasUsefulField = [
+    capacityGj,
+    usedGj,
+    availableGj,
+    onlineKnownLoadGj,
+    onlineUnknownLoadCount,
+    totalKnownLoadGj,
+    totalUnknownLoadCount,
+    source,
+    confidence,
+    lastUpdated,
+  ].some((field) => field != null);
+
+  if (!hasUsefulField) {
+    return null;
+  }
+
+  return {
+    capacityGj,
+    usedGj,
+    availableGj,
+    onlineKnownLoadGj,
+    onlineUnknownLoadCount,
+    totalKnownLoadGj,
+    totalUnknownLoadCount,
+    source,
+    confidence,
+    lastUpdated,
   };
 }
 

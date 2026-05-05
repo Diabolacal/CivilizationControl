@@ -552,6 +552,7 @@ function toNodeAssemblyNode(row: OperatorInventoryStructure): NodeAssemblyNode {
     energySourceId: row.energySourceId,
     fuelAmount: row.fuelAmount,
     powerSummary: row.powerSummary,
+    powerUsageSummary: row.powerUsageSummary,
   };
 }
 
@@ -572,6 +573,7 @@ function toNodeAssemblySummary(
     status: row.status,
     fuelAmount: row.fuelAmount,
     powerSummary: row.powerSummary,
+    powerRequirement: row.powerRequirement,
     solarSystemId: row.solarSystemId,
     energySourceId: row.energySourceId,
     url: row.url,
@@ -630,6 +632,8 @@ function toCompatibleStructure(
     networkNodeId: compatibleType === "network_node" ? undefined : networkNodeId ?? undefined,
     indexedFuelAmount: row.fuelAmount,
     indexedPowerSummary: row.powerSummary,
+    indexedPowerRequirement: row.powerRequirement,
+    indexedPowerUsageSummary: row.powerUsageSummary,
     linkedGateId: row.linkedGateId ?? undefined,
     summary: summary ?? undefined,
     extensionStatus: row.extensionStatus ?? "none",
@@ -650,6 +654,8 @@ function toAssemblySummary(row: OperatorInventoryStructure): AssemblySummary | n
     status: row.status,
     fuelAmount: row.fuelAmount,
     powerSummary: row.powerSummary,
+    powerRequirement: row.powerRequirement,
+    powerUsageSummary: row.powerUsageSummary,
     solarSystemId: row.solarSystemId,
     energySourceId: row.energySourceId,
     url: row.url,

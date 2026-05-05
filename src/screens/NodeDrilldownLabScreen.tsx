@@ -61,7 +61,10 @@ export function NodeDrilldownLabScreen() {
     nodeId: scenarioViewModel?.node.id ?? null,
     scopeKey: null,
   });
-  const nodePowerUsageReadout = useMemo(() => getNodePowerUsageReadout(), []);
+  const nodePowerUsageReadout = useMemo(
+    () => getNodePowerUsageReadout(scenarioViewModel?.node ?? null),
+    [scenarioViewModel?.node],
+  );
   const visibleViewModel = useMemo(
     () => (scenarioViewModel ? { ...scenarioViewModel, structures: visibleStructures } : null),
     [scenarioViewModel, visibleStructures],

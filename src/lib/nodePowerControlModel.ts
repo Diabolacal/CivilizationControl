@@ -3,7 +3,7 @@ import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
 import type { StructurePowerChainSnapshot } from "@/lib/structurePowerChainStatus";
 import type { StructureActionTargetType, StructureStatus } from "@/types/domain";
 import type { OperatorInventoryResponse, OperatorInventoryStructure } from "@/types/operatorInventory";
-import type { NodeLocalStructure } from "./nodeDrilldownTypes";
+import type { NodeLocalNode, NodeLocalStructure } from "./nodeDrilldownTypes";
 import type { NodePowerPresetSlot } from "./nodePowerPresets";
 
 export const NODE_POWER_CAPACITY_GJ = 1000;
@@ -28,8 +28,22 @@ export interface NodePowerOperationPlan {
 
 export interface NodePowerUsageReadout {
   label: string;
-  capacityGJ: number;
+  capacityGJ: number | null;
   isAvailable: boolean;
+}
+
+export interface NodePowerCapacityCheck {
+  status: "ok" | "unavailable" | "over-cap";
+  currentUsedGj: number | null;
+  capacityGj: number | null;
+  availableGj: number | null;
+  allOnlineLoadGj: number | null;
+  proposedLoadGj: number | null;
+  totalUnknownLoadCount: number | null;
+  requiredUnknownCount: number;
+  canVerify: boolean;
+  exceedsCapacity: boolean;
+  reason: string | null;
 }
 
 export type NodePowerEligibilityReason =
@@ -157,8 +171,186 @@ function findStructureForPresetTarget(
     ?? null;
 }
 
+function formatPowerGj(value: number): string {
+  return Number.isInteger(value)
+    ? value.toString()
+    : value.toFixed(1).replace(/\.0$/, "");
+}
+
+function resolveNodePowerCapacityGj(
+  node: Pick<NodeLocalNode, "powerUsageSummary"> | null | undefined,
+): number | null {
+  const summary = node?.powerUsageSummary;
+  if (!summary) return null;
+
+  return summary.capacityGj ?? NODE_POWER_CAPACITY_GJ;
+}
+
+function getStructureRequiredPowerGj(structure: NodeLocalStructure): number | null {
+  return structure.powerRequirement?.requiredGj ?? null;
+}
+
+export function evaluateNodePowerCapacity(
+  node: Pick<NodeLocalNode, "powerUsageSummary"> | null | undefined,
+  structures: readonly NodeLocalStructure[],
+  desiredOnlineByCanonicalKey?: ReadonlyMap<string, boolean>,
+): NodePowerCapacityCheck {
+  const summary = node?.powerUsageSummary ?? null;
+  const capacityGj = resolveNodePowerCapacityGj(node);
+  const currentUsedGj = summary?.usedGj ?? null;
+  const availableGj = summary?.availableGj
+    ?? (capacityGj != null && currentUsedGj != null ? capacityGj - currentUsedGj : null);
+  const totalUnknownLoadCount = summary?.totalUnknownLoadCount ?? null;
+
+  let hasDesiredOnlineState = false;
+  let requiredUnknownCount = 0;
+  let canVerify = currentUsedGj != null && capacityGj != null && totalUnknownLoadCount === 0;
+  let proposedLoadGj = currentUsedGj;
+
+  let computedAllOnlineLoadGj = summary?.totalUnknownLoadCount === 0
+    ? summary.totalKnownLoadGj ?? 0
+    : null;
+  let missingAllOnlineRequirement = false;
+
+  for (const structure of structures) {
+    const currentOnline = isExactPowerStatus(structure.status) ? structure.status === "online" : null;
+    const desiredOnline = desiredOnlineByCanonicalKey?.has(structure.canonicalDomainKey)
+      ? desiredOnlineByCanonicalKey.get(structure.canonicalDomainKey) ?? null
+      : currentOnline;
+
+    if (desiredOnline === true) {
+      hasDesiredOnlineState = true;
+
+      const requiredGj = getStructureRequiredPowerGj(structure);
+      if (requiredGj == null) {
+        requiredUnknownCount += 1;
+        if (computedAllOnlineLoadGj != null && summary?.totalKnownLoadGj == null) {
+          missingAllOnlineRequirement = true;
+        }
+      } else if (computedAllOnlineLoadGj != null && summary?.totalKnownLoadGj == null) {
+        computedAllOnlineLoadGj += requiredGj;
+      }
+    }
+
+    if (!canVerify) {
+      continue;
+    }
+
+    if (desiredOnline == null) {
+      continue;
+    }
+
+    if (currentOnline == null) {
+      canVerify = false;
+      continue;
+    }
+
+    if (currentOnline === desiredOnline) {
+      continue;
+    }
+
+    const requiredGj = getStructureRequiredPowerGj(structure);
+    if (requiredGj == null) {
+      canVerify = false;
+      continue;
+    }
+
+    proposedLoadGj = (proposedLoadGj ?? 0) + (desiredOnline ? requiredGj : -requiredGj);
+  }
+
+  const allOnlineLoadGj = summary?.totalUnknownLoadCount === 0
+    ? summary.totalKnownLoadGj ?? (missingAllOnlineRequirement ? null : computedAllOnlineLoadGj)
+    : null;
+
+  if (!hasDesiredOnlineState) {
+    return {
+      status: "ok",
+      currentUsedGj,
+      capacityGj,
+      availableGj,
+      allOnlineLoadGj,
+      proposedLoadGj: currentUsedGj,
+      totalUnknownLoadCount,
+      requiredUnknownCount,
+      canVerify: false,
+      exceedsCapacity: false,
+      reason: null,
+    };
+  }
+
+  const canVerifyDesiredState = canVerify && requiredUnknownCount === 0;
+  const exceedsCapacity = canVerifyDesiredState
+    && proposedLoadGj != null
+    && capacityGj != null
+    && proposedLoadGj > capacityGj;
+
+  if (exceedsCapacity) {
+    return {
+      status: "over-cap",
+      currentUsedGj,
+      capacityGj,
+      availableGj,
+      allOnlineLoadGj,
+      proposedLoadGj,
+      totalUnknownLoadCount,
+      requiredUnknownCount,
+      canVerify: true,
+      exceedsCapacity: true,
+      reason: `This node would exceed ${formatPowerGj(capacityGj)} GJ if those structures were online.`,
+    };
+  }
+
+  if (!canVerifyDesiredState) {
+    return {
+      status: "unavailable",
+      currentUsedGj,
+      capacityGj,
+      availableGj,
+      allOnlineLoadGj,
+      proposedLoadGj: null,
+      totalUnknownLoadCount,
+      requiredUnknownCount,
+      canVerify: false,
+      exceedsCapacity: false,
+      reason: "Power requirement unavailable",
+    };
+  }
+
+  return {
+    status: "ok",
+    currentUsedGj,
+    capacityGj,
+    availableGj,
+    allOnlineLoadGj,
+    proposedLoadGj,
+    totalUnknownLoadCount,
+    requiredUnknownCount,
+    canVerify: true,
+    exceedsCapacity: false,
+    reason: null,
+  };
+}
+
+export function evaluateNodePowerPlanCapacity(
+  node: Pick<NodeLocalNode, "powerUsageSummary"> | null | undefined,
+  structures: readonly NodeLocalStructure[],
+  targets: readonly NodePowerOperationTarget[],
+): NodePowerCapacityCheck {
+  const desiredOnlineByCanonicalKey = new Map<string, boolean>();
+  for (const target of targets) {
+    desiredOnlineByCanonicalKey.set(target.structure.canonicalDomainKey, target.desiredOnline);
+  }
+
+  return evaluateNodePowerCapacity(node, structures, desiredOnlineByCanonicalKey);
+}
+
 function buildCapacityReason(targets: readonly NodePowerOperationTarget[]): string | null {
-  return targets.some((target) => target.desiredOnline)
+  const hasDesiredOnlineTargets = targets.some((target) => target.desiredOnline);
+  if (!hasDesiredOnlineTargets) {
+    return null;
+  }
+
+  return targets.some((target) => target.desiredOnline && getStructureRequiredPowerGj(target.structure) == null)
     ? "Power requirement unavailable"
     : null;
 }
@@ -320,10 +512,23 @@ function evaluateNodePowerOperationTarget(
   };
 }
 
-export function getNodePowerUsageReadout(): NodePowerUsageReadout {
+export function getNodePowerUsageReadout(
+  node: Pick<NodeLocalNode, "powerUsageSummary"> | null | undefined,
+): NodePowerUsageReadout {
+  const usedGj = node?.powerUsageSummary?.usedGj ?? null;
+  const capacityGj = resolveNodePowerCapacityGj(node);
+
+  if (usedGj != null && capacityGj != null) {
+    return {
+      label: `Power ${formatPowerGj(usedGj)} / ${formatPowerGj(capacityGj)} GJ`,
+      capacityGJ: capacityGj,
+      isAvailable: true,
+    };
+  }
+
   return {
     label: "Power usage unavailable",
-    capacityGJ: NODE_POWER_CAPACITY_GJ,
+    capacityGJ: capacityGj,
     isAvailable: false,
   };
 }

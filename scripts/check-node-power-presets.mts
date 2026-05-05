@@ -17,6 +17,7 @@ import {
   buildNodePowerOutcomePreviewItems,
   summarizeNodePowerBulkOutcome,
 } from '../src/lib/nodePowerBulkOutcomeModel.ts';
+import { NODE_DRILLDOWN_SCENARIOS } from '../src/lib/nodeDrilldownScenarios.ts';
 import {
   buildNodePowerPresetStorageKey,
   buildNodePowerPresetTargets,
@@ -95,6 +96,8 @@ function makeInventoryStructure(overrides: Partial<OperatorInventoryStructure>):
     extensionStatus: 'none',
     fuelAmount: null,
     powerSummary: null,
+    powerRequirement: null,
+    powerUsageSummary: null,
     solarSystemId: null,
     url: null,
     lastObservedCheckpoint: null,
@@ -482,10 +485,20 @@ const chainEligibleOnlinePresetPlan = inspectNodePowerPlanForChainEligibility(
 );
 assert.equal(chainEligibleOnlinePresetPlan.targets.length, 1, 'expected direct-chain OFFLINE evidence to keep valid preset online targets');
 
-const readout = getNodePowerUsageReadout();
-assert.equal(readout.label, 'Power usage unavailable', 'expected unavailable meter state to render calm operator copy');
-assert.equal(readout.capacityGJ, NODE_POWER_CAPACITY_GJ, 'expected the node capacity constant to stay pinned at 1000 GJ');
-assert.equal(readout.isAvailable, false, 'expected current data-source audit to keep exact power usage unavailable');
+const knownReadoutScenario = NODE_DRILLDOWN_SCENARIOS.find((entry) => entry.id === 'power-summary-known');
+const unknownReadoutScenario = NODE_DRILLDOWN_SCENARIOS.find((entry) => entry.id === 'power-summary-unknown');
+assert(knownReadoutScenario, 'expected a known-power lab scenario for node readout coverage');
+assert(unknownReadoutScenario, 'expected an unknown-power lab scenario for node readout coverage');
+
+const numericReadout = getNodePowerUsageReadout(knownReadoutScenario.viewModel.node);
+assert.equal(numericReadout.label, 'Power 320 / 1000 GJ', 'expected indexed node summaries to render a numeric power readout');
+assert.equal(numericReadout.capacityGJ, NODE_POWER_CAPACITY_GJ, 'expected the node capacity constant to stay pinned at 1000 GJ');
+assert.equal(numericReadout.isAvailable, true, 'expected indexed node summaries to mark the readout available');
+
+const unavailableReadout = getNodePowerUsageReadout(unknownReadoutScenario.viewModel.node);
+assert.equal(unavailableReadout.label, 'Power usage unavailable', 'expected partial node summaries to keep the calm unavailable readout');
+assert.equal(unavailableReadout.capacityGJ, NODE_POWER_CAPACITY_GJ, 'expected unavailable node readouts to retain the fixed capacity label');
+assert.equal(unavailableReadout.isAvailable, false, 'expected partial node summaries to remain unavailable');
 
 assert.equal(
   buildNodePowerPresetStorageKey('0xnode', 'character:0xabc'),

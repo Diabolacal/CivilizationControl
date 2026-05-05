@@ -59,6 +59,8 @@ import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapsho
 import {
   buildNodeChildBulkPowerPlan,
   buildNodePowerPresetApplyPlan,
+  evaluateNodePowerCapacity,
+  evaluateNodePowerPlanCapacity,
   getNodePowerUsageReadout,
   inspectNodePowerPlanForFreshInventory,
   inspectNodePowerPlanForChainEligibility,
@@ -245,6 +247,7 @@ export function Dashboard({
   const [pendingNodePowerPlan, setPendingNodePowerPlan] = useState<{
     body: string;
     feedbackContext: NodePowerFeedbackContext;
+    mode: "blocked" | "confirm";
     plan: NodePowerOperationPlan;
     primaryLabel: string;
     successLabel: string;
@@ -286,7 +289,10 @@ export function Dashboard({
     nodeId: selectedNodeViewModel?.node.id ?? null,
     scopeKey: nodeDrilldownScopeKey,
   });
-  const nodePowerUsageReadout = useMemo(() => getNodePowerUsageReadout(), []);
+  const nodePowerUsageReadout = useMemo(
+    () => getNodePowerUsageReadout(selectedNodeViewModel?.node ?? null),
+    [selectedNodeViewModel?.node],
+  );
   const {
     hiddenCanonicalKeySet,
     hiddenCount,
@@ -318,6 +324,17 @@ export function Dashboard({
     () => (selectedNodeViewModel?.structures ?? []).some((structure) => structure.status === "online" || structure.status === "offline"),
     [selectedNodeViewModel?.structures],
   );
+  const savePowerPresetCapacityCheck = useMemo(
+    () => evaluateNodePowerCapacity(selectedNodeViewModel?.node ?? null, selectedNodeViewModel?.structures ?? []),
+    [selectedNodeViewModel?.node, selectedNodeViewModel?.structures],
+  );
+  const savePowerPresetDisabledReason = useMemo(() => {
+    if (!canSavePowerPreset) {
+      return "no connected child structures";
+    }
+
+    return savePowerPresetCapacityCheck.reason;
+  }, [canSavePowerPreset, savePowerPresetCapacityCheck.reason]);
   const defaultPowerPresetSlotIndex = useMemo(() => {
     const emptyIndex = nodePowerPresets.slots.findIndex((slot) => slot == null);
     return emptyIndex >= 0 ? emptyIndex + 1 : 1;
@@ -420,10 +437,18 @@ export function Dashboard({
     };
   }, [applyOperatorInventory, operatorInventory, selectedNodeGroup]);
   const executeNodePowerPlan = useCallback(async (
-    plan: NodePowerOperationPlan,
-    successLabel: string,
-    feedbackContext: NodePowerFeedbackContext,
+    params: {
+      feedbackContext: NodePowerFeedbackContext;
+      plan: NodePowerOperationPlan;
+      primaryLabel: string;
+      successLabel: string;
+    },
+    options: {
+      skipCapacityUnavailablePrompt?: boolean;
+      skipPreflight?: boolean;
+    } = {},
   ) => {
+    const { feedbackContext, plan, primaryLabel, successLabel } = params;
     if (plan.disabledReason || plan.targets.length === 0) return false;
 
     handleCloseNodeControlMenus();
@@ -432,8 +457,11 @@ export function Dashboard({
     setPowerStructureId(null);
     setPowerSuccessLabel(successLabel);
 
-    const executionPlan = await preflightNodePowerPlan(plan);
-    const outcome = summarizeNodePowerBulkOutcome(plan, executionPlan);
+    const executionOutcomePlan = options.skipPreflight
+      ? { ...plan, decisions: [] }
+      : await preflightNodePowerPlan(plan);
+    const executionPlan: NodePowerOperationPlan = executionOutcomePlan;
+    const outcome = summarizeNodePowerBulkOutcome(plan, executionOutcomePlan);
     const refreshOptions = {
       selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
       refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
@@ -457,28 +485,50 @@ export function Dashboard({
       return structurePower.reportLocalSuccess(buildNodePowerFeedbackResult(feedbackContext, outcome, "local"));
     }
 
+    const capacityCheck = evaluateNodePowerPlanCapacity(
+      selectedNodeViewModel?.node ?? null,
+      selectedNodeViewModel?.structures ?? [],
+      executionPlan.targets,
+    );
+    if (capacityCheck.status === "over-cap") {
+      setPendingNodePowerPlan({
+        body: capacityCheck.reason ?? "This node would exceed capacity if those structures were online.",
+        feedbackContext,
+        mode: "blocked",
+        plan: executionPlan,
+        primaryLabel,
+        successLabel,
+        title: "Power capacity exceeded",
+      });
+      return false;
+    }
+
+    if (!options.skipCapacityUnavailablePrompt && capacityCheck.status === "unavailable") {
+      setPendingNodePowerPlan({
+        body: "Power requirements are not available for this node. The transaction will not succeed if the node cannot support the requested load.",
+        feedbackContext,
+        mode: "confirm",
+        plan: executionPlan,
+        primaryLabel,
+        successLabel,
+        title: "Power requirement unavailable",
+      });
+      return false;
+    }
+
     return structurePower.toggleMixed({
       targets: executionPlan.targets.map(toMixedAssemblyPowerTarget),
     }, refreshOptions, buildNodePowerFeedbackResult(feedbackContext, outcome, "submitted"));
-  }, [handleCloseNodeControlMenus, preflightNodePowerPlan, reconcileWrite, refetchSelectedNodeAssemblies, selectedNodeGroup, selectedNodeInventoryLookup, selectedStructureCanonicalKeyRef, structurePower]);
+  }, [handleCloseNodeControlMenus, preflightNodePowerPlan, reconcileWrite, refetchSelectedNodeAssemblies, selectedNodeGroup, selectedNodeInventoryLookup, selectedNodeViewModel, selectedStructureCanonicalKeyRef, structurePower]);
   const requestNodePowerPlanExecution = useCallback((params: {
     feedbackContext: NodePowerFeedbackContext;
     plan: NodePowerOperationPlan;
     primaryLabel: string;
     successLabel: string;
-    title: string;
   }) => {
     if (params.plan.disabledReason || params.plan.targets.length === 0) return;
 
-    if (params.plan.capacityReason) {
-      setPendingNodePowerPlan({
-        ...params,
-        body: "Power requirements are not available for this node. The transaction will not succeed if the node cannot support the requested load.",
-      });
-      return;
-    }
-
-    void executeNodePowerPlan(params.plan, params.successLabel, params.feedbackContext);
+    void executeNodePowerPlan(params);
   }, [executeNodePowerPlan]);
   const handleBulkNodePower = useCallback((nextOnline: boolean) => {
     requestNodePowerPlanExecution({
@@ -488,7 +538,6 @@ export function Dashboard({
       successLabel: nextOnline
         ? "Node child structures brought online. Awaiting read-model sync."
         : "Node child structures taken offline. Awaiting read-model sync.",
-      title: nextOnline ? "Power requirement unavailable" : "Confirm child power action",
     });
   }, [bringAllOnlinePlan, requestNodePowerPlanExecution, takeAllOfflinePlan]);
   const handleApplyPowerPreset = useCallback((slotIndex: number) => {
@@ -501,21 +550,28 @@ export function Dashboard({
       plan,
       primaryLabel: "Apply preset",
       successLabel: `${slot.label} applied. Awaiting read-model sync.`,
-      title: plan.capacityReason ? "Power requirement unavailable" : "Apply power preset",
     });
   }, [nodePowerPresets.slots, presetApplyPlans, requestNodePowerPlanExecution]);
   const handleSavePowerPreset = useCallback((slotIndex: number, label: string) => {
+    if (savePowerPresetDisabledReason) {
+      return;
+    }
+
     nodePowerPresets.savePreset(slotIndex, label);
     setIsPowerPresetDialogOpen(false);
-  }, [nodePowerPresets]);
+  }, [nodePowerPresets, savePowerPresetDisabledReason]);
   const handleConfirmPendingNodePowerPlan = useCallback(() => {
     if (!pendingNodePowerPlan) return;
 
-    void executeNodePowerPlan(
-      pendingNodePowerPlan.plan,
-      pendingNodePowerPlan.successLabel,
-      pendingNodePowerPlan.feedbackContext,
-    ).then((succeeded) => {
+    void executeNodePowerPlan({
+      feedbackContext: pendingNodePowerPlan.feedbackContext,
+      plan: pendingNodePowerPlan.plan,
+      primaryLabel: pendingNodePowerPlan.primaryLabel,
+      successLabel: pendingNodePowerPlan.successLabel,
+    }, {
+      skipCapacityUnavailablePrompt: true,
+      skipPreflight: true,
+    }).then((succeeded) => {
       if (succeeded) {
         setPendingNodePowerPlan(null);
       }
@@ -689,7 +745,7 @@ export function Dashboard({
       bringOnlinePlan={bringAllOnlinePlan}
       takeOfflinePlan={takeAllOfflinePlan}
       isPending={structurePower.status === "pending"}
-      canSavePreset={canSavePowerPreset}
+      savePresetDisabledReason={savePowerPresetDisabledReason}
       onApplyPreset={handleApplyPowerPreset}
       onSavePreset={() => setIsPowerPresetDialogOpen(true)}
       onBulkPower={handleBulkNodePower}
@@ -1154,6 +1210,7 @@ export function Dashboard({
         isOpen={isPowerPresetDialogOpen}
         slots={nodePowerPresets.slots}
         defaultSlotIndex={defaultPowerPresetSlotIndex}
+        saveBlockedReason={savePowerPresetDisabledReason === "no connected child structures" ? null : savePowerPresetDisabledReason}
         onClose={() => setIsPowerPresetDialogOpen(false)}
         onSave={handleSavePowerPreset}
       />
@@ -1162,14 +1219,15 @@ export function Dashboard({
         isOpen={pendingNodePowerPlan != null}
         title={pendingNodePowerPlan?.title ?? "Power requirement unavailable"}
         body={pendingNodePowerPlan?.body ?? "Power requirements are not available for this node."}
-        primaryLabel={pendingNodePowerPlan?.primaryLabel ?? "Continue"}
+        confirmLabel={pendingNodePowerPlan?.mode === "confirm" ? pendingNodePowerPlan.primaryLabel : null}
+        dismissLabel={pendingNodePowerPlan?.mode === "confirm" ? "Cancel" : "Close"}
         isPending={structurePower.status === "pending"}
         onCancel={() => {
           if (structurePower.status !== "pending") {
             setPendingNodePowerPlan(null);
           }
         }}
-        onConfirm={handleConfirmPendingNodePowerPlan}
+        onConfirm={pendingNodePowerPlan?.mode === "confirm" ? handleConfirmPendingNodePowerPlan : undefined}
       />
     </div>
   );

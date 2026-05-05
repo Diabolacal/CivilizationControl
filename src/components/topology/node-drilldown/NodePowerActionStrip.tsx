@@ -10,7 +10,7 @@ interface NodePowerActionStripProps {
   bringOnlinePlan: NodePowerOperationPlan;
   takeOfflinePlan: NodePowerOperationPlan;
   isPending: boolean;
-  canSavePreset: boolean;
+  savePresetDisabledReason: string | null;
   onApplyPreset: (slotIndex: number) => void;
   onSavePreset: () => void;
   onBulkPower: (nextOnline: boolean) => void;
@@ -32,7 +32,7 @@ export function NodePowerActionStrip({
   bringOnlinePlan,
   takeOfflinePlan,
   isPending,
-  canSavePreset,
+  savePresetDisabledReason,
   onApplyPreset,
   onSavePreset,
   onBulkPower,
@@ -53,7 +53,7 @@ export function NodePowerActionStrip({
               key={slotIndex}
               type="button"
               disabled={isDisabled}
-              title={disabledTitle(!slot ? "preset slot empty" : plan?.disabledReason ?? null, isPending)}
+              title={disabledTitle(!slot ? "preset slot empty" : plan?.disabledReason ?? plan?.capacityReason ?? null, isPending)}
               onClick={() => onApplyPreset(slotIndex)}
               className={cn(
                 "h-7 max-w-[92px] truncate rounded px-2.5 text-[11px] font-medium transition-colors",
@@ -72,8 +72,8 @@ export function NodePowerActionStrip({
 
       <button
         type="button"
-        disabled={isPending || !canSavePreset}
-        title={disabledTitle(canSavePreset ? null : "no connected child structures", isPending)}
+        disabled={isPending || savePresetDisabledReason != null}
+        title={disabledTitle(savePresetDisabledReason, isPending)}
         onClick={onSavePreset}
         className="inline-flex h-8 shrink-0 items-center gap-1.5 rounded border border-border/65 bg-background/20 px-2.5 text-[11px] font-medium text-muted-foreground transition-colors hover:border-primary/45 hover:text-primary disabled:cursor-not-allowed disabled:opacity-45"
       >

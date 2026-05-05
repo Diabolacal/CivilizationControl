@@ -1,5 +1,7 @@
 import type {
   IndexedActionCandidate,
+  IndexedNodePowerUsageSummary,
+  IndexedPowerRequirement,
   ObjectId,
   Structure,
   StructureActionTargetType,
@@ -102,6 +104,7 @@ export interface NodeLocalNode extends NodeLocalObservationMeta {
   warningPip: boolean;
   source: NodeLocalSource;
   fuelSummary?: string;
+  powerUsageSummary?: IndexedNodePowerUsageSummary | null;
   extensionStatus?: Structure["extensionStatus"];
   solarSystemName?: string | null;
   isSyntheticContainer?: boolean;
@@ -131,6 +134,7 @@ export interface NodeLocalStructure extends NodeLocalObservationMeta {
   tone: NodeLocalTone;
   warningPip: boolean;
   source: NodeLocalSource;
+  powerRequirement?: IndexedPowerRequirement | null;
   extensionStatus?: Structure["extensionStatus"];
   actionCandidate?: IndexedActionCandidate | null;
   actionAuthority: NodeLocalActionAuthority;
@@ -161,6 +165,7 @@ export interface SyntheticNodeLocalStructureInput {
   sizeVariant?: NodeLocalSizeVariant;
   status?: StructureStatus;
   warningPip?: boolean;
+  powerRequirement?: IndexedPowerRequirement | null;
   linkedGateId?: string;
   source?: NodeLocalSource;
   objectId?: ObjectId;
@@ -186,6 +191,7 @@ export interface SyntheticNodeLocalViewModelInput {
   nodeLabel: string;
   nodeStatus?: StructureStatus;
   nodeWarningPip?: boolean;
+  nodePowerUsageSummary?: IndexedNodePowerUsageSummary | null;
   description?: string;
   solarSystemName?: string;
   structures: SyntheticNodeLocalStructureInput[];

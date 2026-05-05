@@ -706,6 +706,7 @@ function createNodeLocalStructure(
     | "sizeVariant"
     | "status"
     | "source"
+    | "powerRequirement"
     | "extensionStatus"
     | "actionCandidate"
     | "actionAuthority"
@@ -752,6 +753,7 @@ function createNodeLocalStructure(
     tone: statusToTone(structure.status),
     warningPip: structure.warningPip ?? structure.status === "warning",
     source: structure.source,
+    powerRequirement: structure.powerRequirement,
     extensionStatus: structure.extensionStatus,
     actionCandidate: structure.actionCandidate,
     actionAuthority: structure.actionAuthority,
@@ -892,6 +894,7 @@ function mergeNodeLocalStructureBucket(
     solarSystemId: pickFirstDefined(bucket.entries.map((entry) => entry.solarSystemId ?? undefined)) ?? null,
     energySourceId: pickFirstDefined(bucket.entries.map((entry) => entry.energySourceId ?? undefined)) ?? null,
     fuelAmount: pickFirstDefined(bucket.entries.map((entry) => entry.fuelAmount ?? undefined)) ?? null,
+    powerRequirement: pickFirstDefined(bucket.entries.map((entry) => entry.powerRequirement ?? undefined)) ?? null,
     isReadOnly: actionAuthority.state !== "verified-supported",
     isActionable: actionAuthority.state === "verified-supported",
   });
@@ -1026,6 +1029,7 @@ function buildLiveFallbackStructures(liveStructures: Structure[]): NodeLocalStru
       sizeVariant,
       status,
       source,
+      powerRequirement: structure.indexedPowerRequirement ?? structure.summary?.powerRequirement ?? null,
       extensionStatus: structure.summary?.extensionStatus ?? structure.extensionStatus,
       actionCandidate: structure.summary?.actionCandidate ?? null,
       actionAuthority,
@@ -1142,6 +1146,10 @@ function buildBackendMembershipStructures(
       sizeVariant,
       status,
       source: "backendMembership",
+      powerRequirement: observed.powerRequirement
+        ?? primaryAuthorityMatch?.indexedPowerRequirement
+        ?? primaryAuthorityMatch?.summary?.powerRequirement
+        ?? null,
       extensionStatus: observed.extensionStatus ?? primaryAuthorityMatch?.extensionStatus,
       actionCandidate: observed.actionCandidate ?? null,
       actionAuthority,
@@ -1251,6 +1259,7 @@ export function buildLiveNodeLocalViewModelWithObserved(
       warningPip: group.node.status === "warning",
       source: group.node.readModelSource === "operator-inventory" ? "backendMembership" : "live",
       fuelSummary: fuelSummary(group.node),
+      powerUsageSummary: group.node.indexedPowerUsageSummary ?? group.node.summary?.powerUsageSummary ?? null,
       extensionStatus: group.node.summary?.extensionStatus ?? group.node.extensionStatus,
       solarSystemName: group.node.summary?.solarSystemId ?? (group.solarSystemId != null ? `System ${group.solarSystemId}` : null),
       isSyntheticContainer: group.node.objectId === "unassigned",
@@ -1451,6 +1460,7 @@ export function buildSyntheticNodeLocalViewModel(
         sizeVariant,
         status,
         source,
+        powerRequirement: structure.powerRequirement ?? null,
         directChainObjectId: structure.directChainObjectId ?? (hasDirectChainAuthority ? structure.objectId ?? null : null),
         directChainAssemblyId: structure.directChainAssemblyId ?? (hasDirectChainAuthority ? normalizedAssemblyId ?? null : null),
         hasDirectChainAuthority,
@@ -1486,6 +1496,7 @@ export function buildSyntheticNodeLocalViewModel(
       tone: statusToTone(input.nodeStatus ?? "online"),
       warningPip: input.nodeWarningPip ?? false,
       source: "synthetic",
+      powerUsageSummary: input.nodePowerUsageSummary ?? null,
       solarSystemName: input.solarSystemName ?? null,
       backendSource: null,
       fetchedAt: null,

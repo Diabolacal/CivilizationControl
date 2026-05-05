@@ -13,6 +13,7 @@ interface NodePowerPresetDialogProps {
   isOpen: boolean;
   slots: readonly (NodePowerPresetSlot | null)[];
   defaultSlotIndex: number;
+  saveBlockedReason?: string | null;
   onClose: () => void;
   onSave: (slotIndex: number, label: string) => void;
 }
@@ -21,6 +22,7 @@ export function NodePowerPresetDialog({
   isOpen,
   slots,
   defaultSlotIndex,
+  saveBlockedReason = null,
   onClose,
   onSave,
 }: NodePowerPresetDialogProps) {
@@ -58,7 +60,7 @@ export function NodePowerPresetDialog({
 
   if (!isOpen) return null;
 
-  const isSaveDisabled = validationMessage != null;
+  const isSaveDisabled = validationMessage != null || saveBlockedReason != null;
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 px-4 backdrop-blur-sm">
@@ -115,8 +117,8 @@ export function NodePowerPresetDialog({
               className="w-full rounded border border-border/70 bg-background/70 px-3 py-2 text-sm text-foreground outline-none transition-colors focus:border-primary/50"
             />
             <div className="flex items-center justify-between gap-3 text-[11px]">
-              <span className={validationMessage ? "text-red-400" : "text-muted-foreground/70"}>
-                {validationMessage ?? (selectedSlot ? "Saving will replace this slot." : "Saved locally for this node.")}
+              <span className={validationMessage || saveBlockedReason ? "text-red-400" : "text-muted-foreground/70"}>
+                {saveBlockedReason ?? validationMessage ?? (selectedSlot ? "Saving will replace this slot." : "Saved locally for this node.")}
               </span>
               <span className="font-mono text-muted-foreground/60">
                 {trimmedLabel.length}/{NODE_POWER_PRESET_LABEL_MAX_LENGTH}
