@@ -10,6 +10,17 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Merge and sponsor-worker activation - 2026-05-05
+
+This activation pass landed the sponsor-worker hardening branch on `master` as `1449dbb19a7113d8d4a19b9fab99ab35247d8e7b` and redeployed only the repo-owned worker, not the main Pages app.
+
+- Worker deploy command: `workers/sponsor-service` -> `npm run deploy`
+- Deployed worker URL remained `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`
+- Cloudflare version id: `0d0b68a4-5a79-4fea-acce-c8802f7cc43f`
+- Post-deploy `OPTIONS /sponsor` checks returned `204` with expected CORS headers for `https://civilizationcontrol.com`, `https://www.civilizationcontrol.com`, `https://civilizationcontrol.pages.dev`, and preview origin `https://cc2253d4.civilizationcontrol.pages.dev`
+- No Pages production deploy was performed; preview evidence used existing preview `https://cc2253d4.civilizationcontrol.pages.dev`
+- Agent-browser wallet smoke could not prove the live sponsored path because the preview wallet dialog exposed only `Slush`, and that provider failed before any rename or low-risk power action could be attempted
+
 ### Sponsor-policy Node Control write pass - 2026-05-05
 
 This corrective audit pass stays on `fix/sponsor-policy-node-control-writes`. It does not change EF-Map contracts, VPS state, Move contracts, package IDs, vendor state, or production deploy state.

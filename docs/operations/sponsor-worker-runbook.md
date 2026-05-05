@@ -33,10 +33,15 @@ Current committed config is CivilizationControl-only:
 
 - Worker name: `civilizationcontrol-sponsor`
 - Worker URL: `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev`
+- Latest activation: deployed from `master` commit `1449dbb19a7113d8d4a19b9fab99ab35247d8e7b` on 2026-05-05 via `workers/sponsor-service` `npm run deploy`
+- Latest Cloudflare version id: `0d0b68a4-5a79-4fea-acce-c8802f7cc43f`
 - Worker source/config/policy live in `workers/sponsor-service/`, `config/chain/stillness.ts`, `config/sponsorship/civilizationControlPolicy.ts`, and `scripts/validate-sponsor-policy.mjs`
 - Production frontend already uses `civilizationcontrol-sponsor`
 - Custom-domain CORS is configured for `https://civilizationcontrol.com` and `https://www.civilizationcontrol.com`
 - `https://civilizationcontrol.pages.dev` remains allowed, and preview hosts remain allowed via `.civilizationcontrol.pages.dev`
+- 2026-05-05 post-deploy `OPTIONS /sponsor` checks returned `204` plus the expected `Access-Control-Allow-Origin`, `POST, OPTIONS`, and `Content-Type, Authorization` headers for `https://civilizationcontrol.com`, `https://www.civilizationcontrol.com`, `https://civilizationcontrol.pages.dev`, and preview origin `https://cc2253d4.civilizationcontrol.pages.dev`
+- No Pages production deploy was performed in the 2026-05-05 activation pass; preview evidence used existing Pages preview `https://cc2253d4.civilizationcontrol.pages.dev`
+- Agent-browser wallet smoke remained blocked during the 2026-05-05 activation pass because the preview connect dialog exposed only `Slush`, and that provider returned `Connection failed` before any sponsored transaction could be attempted
 - Manual production smoke after the custom-domain CORS fix confirmed sponsor-paid transactions by sponsor-wallet observation
 - Production digest evidence was not captured in the agent transcript
 - `flappy-frontier-sponsor` remains rollback-only during soak and is not yet retired

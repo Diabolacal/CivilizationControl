@@ -1,6 +1,14 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-05 – Merge and activate sponsor worker on master
+- Goal: merge the sponsor-worker hardening pass to `master`, deploy only the repo-owned sponsor worker from clean master, and capture activation evidence without changing Move contracts, package IDs, EF-Map/VPS behavior, or the main Pages production app.
+- Files: `docs/operations/sponsor-worker-runbook.md`, `docs/operations/node-control-write-action-audit-20260504.md`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/decision-log.md`
+- Diff: tracked deployment evidence and activation-status documentation only
+- Risk: medium - live sponsor-worker behavior changed because the worker was redeployed from merged master, but the allowlist did not widen, the main app was not production-deployed, and no EF-Map/VPS, Move/package-ID, or vendor surface changed
+- Gates: merge preflight ✅ feature-branch validations ✅ master merge push ✅ worker deploy ✅ sponsor policy validator on master ✅ sponsor worker tests on master ✅ sponsor worker typecheck on master ✅ `OPTIONS /sponsor` CORS checks ✅ preview route smoke ✅ served-bundle scan ✅ wallet smoke ❌ environment blocked
+- Result: merged commit `1449dbb19a7113d8d4a19b9fab99ab35247d8e7b` is live on `master`; the worker was deployed from that clean master commit with Cloudflare version `0d0b68a4-5a79-4fea-acce-c8802f7cc43f`; CORS/OPTIONS checks passed for production and preview origins; and no Pages production deploy was performed. Live sponsored transaction proof remains pending because the agent browser exposed only `Slush`, which failed before any low-risk rename could be submitted.
+- Follow-ups: run one manual low-risk sponsored rename on preview to confirm sponsor success without player-paid fallback, then retire the feature branch if no further evidence changes are needed.
 ## 2026-05-05 – Tighten sponsor validation to builder-shaped writes
 - Goal: align sponsor-worker correctness and coverage with the current `master` Node Control/CivilizationControl write surface after wallet smoke showed some safe actions succeeding only through player-paid fallback, without changing EF-Map/VPS behavior, Move contracts, package IDs, vendor state, or production deploy scope.
 - Files: `workers/sponsor-service/src/validation.ts`, `workers/sponsor-service/src/__tests__/validation.test.ts`, `scripts/validate-sponsor-policy.mjs`, `docs/operations/node-control-write-action-audit-20260504.md`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `docs/operations/sponsor-worker-runbook.md`, `docs/decision-log.md`
