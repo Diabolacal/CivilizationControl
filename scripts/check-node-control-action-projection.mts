@@ -1,7 +1,21 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import { getNodeLocalPowerControlState } from "../src/lib/nodeDrilldownActionAuthority";
 import { buildNodeDrilldownMenuItems } from "../src/lib/nodeDrilldownMenuItems";
+import { getStructurePowerAction, supportsStructureRename } from "../src/lib/structureActionSupport";
+
+function makeStructure(overrides = {}) {
+  return {
+    objectId: "0xnode",
+    ownerCapId: "0xnode-cap",
+    type: "network_node",
+    name: "Probe Node",
+    status: "online",
+    extensionStatus: "authorized",
+    ...overrides,
+  };
+}
 
 function makeNodeLocalStructure(overrides = {}) {
   return {
@@ -292,5 +306,68 @@ assert.deepEqual(
   ["Hide from Node View"],
   "expected unsupported or fallback rows to avoid fake write actions",
 );
+assert.deepEqual(getNodeLocalPowerControlState(unsupportedStructure), {
+  actionLabel: null,
+  currentStatus: "offline",
+  nextOnline: null,
+  selectedSegment: "offline",
+  isInteractive: false,
+  isStatusOnly: true,
+}, "expected Node Control network-node fallback rows to remain status-only instead of receiving node-offline actions");
+
+const nodeSelfOnlinePower = getStructurePowerAction(makeStructure(), { networkNodeOfflineAvailable: true });
+assert.deepEqual(
+  [nodeSelfOnlinePower?.label, supportsStructureRename(makeStructure()) ? "Rename Node" : null].filter(Boolean),
+  ["Take offline", "Rename Node"],
+  "expected node-self menu projection to expose Take offline and Rename Node for online nodes with child proof",
+);
+assert.equal(
+  [nodeSelfOnlinePower?.label, "Rename Node"].includes("Hide from Node View"),
+  false,
+  "expected node-self menus to avoid the child-only hide action",
+);
+
+const nodeSelfOfflinePower = getStructurePowerAction(makeStructure({ status: "offline" }));
+assert.deepEqual(
+  [nodeSelfOfflinePower?.label, supportsStructureRename(makeStructure({ status: "offline" })) ? "Rename Node" : null].filter(Boolean),
+  ["Bring online", "Rename Node"],
+  "expected node-self menu projection to expose Bring online and Rename Node for offline nodes",
+);
+
+const nodeSelfNeutralPower = getStructurePowerAction(makeStructure({ status: "neutral" }));
+assert.equal(
+  nodeSelfNeutralPower,
+  null,
+  "expected neutral network nodes to avoid a confident power action until the read model proves online or offline",
+);
+
+const nodeSelfWarningPower = getStructurePowerAction(makeStructure({ status: "warning" }));
+assert.equal(
+  nodeSelfWarningPower,
+  null,
+  "expected warning network nodes to avoid destructive Take offline or Bring online actions until state is certain",
+);
+
+const nodeSelfWithoutOfflineProof = getStructurePowerAction(makeStructure());
+assert.deepEqual(
+  [nodeSelfWithoutOfflineProof?.label, supportsStructureRename(makeStructure()) ? "Rename Node" : null].filter(Boolean),
+  ["Rename Node"],
+  "expected online node-self menus without connected-child proof to keep rename but hide Take offline",
+);
+
+const canvasSource = readFileSync(new URL('../src/components/topology/node-drilldown/NodeDrilldownCanvas.tsx', import.meta.url), 'utf8');
+const inspectorSource = readFileSync(new URL('../src/components/topology/node-drilldown/NodeSelectionInspector.tsx', import.meta.url), 'utf8');
+const dashboardSource = readFileSync(new URL('../src/screens/Dashboard.tsx', import.meta.url), 'utf8');
+const nodeListSource = readFileSync(new URL('../src/screens/NetworkNodeListScreen.tsx', import.meta.url), 'utf8');
+const nodeDetailSource = readFileSync(new URL('../src/screens/NetworkNodeDetailScreen.tsx', import.meta.url), 'utf8');
+assert.equal(canvasSource.includes('onOpenNodeMenu?.'), true, 'expected the Node Control network-node glyph to open an app action menu');
+assert.equal(canvasSource.includes('onContextMenu={(event) => {'), true, 'expected the Network Node glyph to suppress the browser context menu');
+assert.equal(inspectorSource.includes('onOpenNodeMenu({ clientX: event.clientX, clientY: event.clientY })'), true, 'expected the node inspector area to expose the same app node menu');
+assert.equal(inspectorSource.includes('label="Freshness"'), false, 'expected Selection Inspector to remove the misleading Freshness label');
+assert.equal(inspectorSource.includes('label="Last Seen"'), true, 'expected Selection Inspector to label the mixed indexed timestamp as Last Seen');
+assert.equal(dashboardSource.includes('nodeSurfaceActions.openStructureContextMenu'), true, 'expected live Node Control to reuse the shared node action surface');
+assert.equal(dashboardSource.includes('nodeOfflineLookup: selectedNodeObservedLookup'), true, 'expected Node Control node-offline to use the selected node membership lookup');
+assert.equal(nodeListSource.includes('nodeGroups.map((group) => group.node)'), true, 'expected /nodes list to derive node rows from adapted nodeGroups');
+assert.equal(nodeDetailSource.includes('const group = nodeGroups.find((g) => g.node.objectId === id)'), true, 'expected node detail to prefer the adapted node group source');
 
 console.log("node control action projection check: ok");

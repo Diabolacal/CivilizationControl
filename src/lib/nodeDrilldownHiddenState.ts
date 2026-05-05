@@ -1,4 +1,10 @@
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
+import {
+  buildScopedStorageKey,
+  getBrowserStorageForScope,
+  normalizeStorageScopeValue,
+  removeScopedStorageItem,
+} from "@/lib/browserScopedStorage";
 
 const NODE_DRILLDOWN_HIDDEN_STATE_VERSION = 1;
 const NODE_DRILLDOWN_HIDDEN_STATE_PREFIX = "cc:node-drilldown:hidden:v1";
@@ -11,32 +17,8 @@ interface NodeDrilldownHiddenStateRecord {
   updatedAt: string;
 }
 
-function normalizeScopeValue(value: string | null | undefined): string | null {
-  if (typeof value !== "string") return null;
-
-  const trimmed = value.trim().toLowerCase();
-  return trimmed.length > 0 ? trimmed : null;
-}
-
-function getScopedStorage(scopeKey: string | null): Storage | null {
-  if (typeof window === "undefined") return null;
-  return scopeKey ? window.localStorage : window.sessionStorage;
-}
-
 function buildStorageKey(nodeId: string, scopeKey: string | null): string {
-  return scopeKey
-    ? `${NODE_DRILLDOWN_HIDDEN_STATE_PREFIX}:${scopeKey}:${nodeId}`
-    : `${NODE_DRILLDOWN_HIDDEN_STATE_PREFIX}:session:${nodeId}`;
-}
-
-function invalidateStoredState(storage: Storage | null, storageKey: string) {
-  if (!storage) return;
-
-  try {
-    storage.removeItem(storageKey);
-  } catch {
-    // Ignore storage cleanup failures and fail open.
-  }
+  return buildScopedStorageKey(NODE_DRILLDOWN_HIDDEN_STATE_PREFIX, nodeId, scopeKey);
 }
 
 function isHiddenStateRecord(value: unknown): value is NodeDrilldownHiddenStateRecord {
@@ -55,12 +37,12 @@ export function resolveNodeDrilldownScopeKey(
   characterId: string | null | undefined,
   walletAddress: string | null | undefined,
 ): string | null {
-  const normalizedCharacterId = normalizeScopeValue(characterId);
+  const normalizedCharacterId = normalizeStorageScopeValue(characterId);
   if (normalizedCharacterId) {
     return `character:${normalizedCharacterId}`;
   }
 
-  const normalizedWalletAddress = normalizeScopeValue(walletAddress);
+  const normalizedWalletAddress = normalizeStorageScopeValue(walletAddress);
   if (normalizedWalletAddress) {
     return `wallet:${normalizedWalletAddress}`;
   }
@@ -69,7 +51,7 @@ export function resolveNodeDrilldownScopeKey(
 }
 
 export function loadNodeDrilldownHiddenCanonicalKeys(nodeId: string, scopeKey: string | null): string[] {
-  const storage = getScopedStorage(scopeKey);
+  const storage = getBrowserStorageForScope(scopeKey);
   const storageKey = buildStorageKey(nodeId, scopeKey);
 
   if (!storage) return [];
@@ -80,13 +62,13 @@ export function loadNodeDrilldownHiddenCanonicalKeys(nodeId: string, scopeKey: s
 
     const parsed = JSON.parse(raw) as unknown;
     if (!isHiddenStateRecord(parsed)) {
-      invalidateStoredState(storage, storageKey);
+      removeScopedStorageItem(storage, storageKey);
       return [];
     }
 
     return [...new Set(parsed.hiddenCanonicalKeys.map((key) => key.trim()).filter(Boolean))].sort();
   } catch {
-    invalidateStoredState(storage, storageKey);
+    removeScopedStorageItem(storage, storageKey);
     return [];
   }
 }
@@ -96,14 +78,14 @@ export function saveNodeDrilldownHiddenCanonicalKeys(
   scopeKey: string | null,
   hiddenCanonicalKeys: readonly string[],
 ): void {
-  const storage = getScopedStorage(scopeKey);
+  const storage = getBrowserStorageForScope(scopeKey);
   const storageKey = buildStorageKey(nodeId, scopeKey);
 
   if (!storage) return;
 
   const nextKeys = [...new Set(hiddenCanonicalKeys.map((key) => key.trim()).filter(Boolean))].sort();
   if (nextKeys.length === 0) {
-    invalidateStoredState(storage, storageKey);
+    removeScopedStorageItem(storage, storageKey);
     return;
   }
 

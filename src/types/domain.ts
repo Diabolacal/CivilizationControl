@@ -42,6 +42,29 @@ export interface IndexedPowerSummary {
   confidence: string | null;
 }
 
+export interface IndexedPowerRequirement {
+  requiredGj: number | null;
+  source: "indexed_config" | "indexed_type" | "unavailable" | null;
+  confidence: "indexed" | "unavailable" | null;
+  typeId: string | null;
+  family: string | null;
+  size: string | null;
+  lastUpdated: string | null;
+}
+
+export interface IndexedNodePowerUsageSummary {
+  capacityGj: number | null;
+  usedGj: number | null;
+  availableGj: number | null;
+  onlineKnownLoadGj: number | null;
+  onlineUnknownLoadCount: number | null;
+  totalKnownLoadGj: number | null;
+  totalUnknownLoadCount: number | null;
+  source: "indexed_children" | "partial" | "unavailable" | null;
+  confidence: "indexed" | "partial" | "unavailable" | null;
+  lastUpdated: string | null;
+}
+
 export interface IndexedActionRequiredIds {
   structureId: ObjectId | null;
   structureType: StructureActionTargetType | null;
@@ -96,6 +119,8 @@ export interface AssemblySummary {
   status: string | null;
   fuelAmount: string | null;
   powerSummary?: IndexedPowerSummary | null;
+  powerRequirement?: IndexedPowerRequirement | null;
+  powerUsageSummary?: IndexedNodePowerUsageSummary | null;
   solarSystemId: string | null;
   energySourceId: string | null;
   url: string | null;
@@ -130,6 +155,7 @@ export interface NodeAssemblyNode {
   energySourceId: string | null;
   fuelAmount?: string | null;
   powerSummary?: IndexedPowerSummary | null;
+  powerUsageSummary?: IndexedNodePowerUsageSummary | null;
 }
 
 /** Backend-observed linked assembly returned for a selected network node. */
@@ -146,6 +172,7 @@ export interface NodeAssemblySummary extends NodeAssemblyProvenance {
   status: string | null;
   fuelAmount: string | null;
   powerSummary?: IndexedPowerSummary | null;
+  powerRequirement?: IndexedPowerRequirement | null;
   solarSystemId: string | null;
   energySourceId: string | null;
   url: string | null;
@@ -204,6 +231,10 @@ export interface Structure {
   indexedFuelAmount?: string | null;
   /** Indexed power summary when runtime is supplied by the shared read model. */
   indexedPowerSummary?: IndexedPowerSummary | null;
+  /** Indexed child power requirement from the shared read model. */
+  indexedPowerRequirement?: IndexedPowerRequirement | null;
+  /** Indexed node-local power usage summary from the shared read model. */
+  indexedPowerUsageSummary?: IndexedNodePowerUsageSummary | null;
   /** Linked destination gate ID — only present for linked gates. */
   linkedGateId?: ObjectId;
   /** Optional shared-backend enrichment; direct-chain fields remain authoritative. */
@@ -391,7 +422,10 @@ export type TxStatus = "idle" | "pending" | "success" | "error";
 
 /** Result of a signed transaction. */
 export interface TxResult {
-  digest: string;
+  digest: string | null;
+  message?: string;
+  detail?: string;
+  items?: string[];
 }
 
 // ─── SSU Inventory Types ─────────────────────────────────

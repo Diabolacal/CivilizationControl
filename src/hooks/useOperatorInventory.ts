@@ -8,10 +8,12 @@ import {
   normalizeOperatorInventoryWalletAddress,
 } from "@/lib/operatorInventoryClient";
 import { adaptOperatorInventory } from "@/lib/operatorInventoryAdapter";
+import { useStructureWriteReconciliation } from "@/hooks/useStructureWriteReconciliation";
 
 export function useOperatorInventory() {
   const { walletAddress, isConnected } = useConnection();
   const normalizedWalletAddress = normalizeOperatorInventoryWalletAddress(walletAddress);
+  const { applyOperatorInventory } = useStructureWriteReconciliation();
 
   const query = useQuery({
     queryKey: ["operatorInventory", normalizedWalletAddress],
@@ -26,15 +28,20 @@ export function useOperatorInventory() {
     retry: false,
   });
 
+  const inventory = useMemo(
+    () => applyOperatorInventory(query.data),
+    [applyOperatorInventory, query.data],
+  );
+
   const adapted = useMemo(
-    () => (query.data ? adaptOperatorInventory(query.data) : null),
-    [query.data],
+    () => (inventory ? adaptOperatorInventory(inventory) : null),
+    [inventory],
   );
 
   return {
     walletAddress: normalizedWalletAddress,
     isConnected: isConnected ?? false,
-    inventory: query.data ?? null,
+    inventory,
     adapted,
     isLoading: query.isLoading,
     isError: query.isError,

@@ -1,6 +1,7 @@
 import { sortNodeLocalStructures } from "@/lib/nodeDrilldownModel";
 
 import type { NodeLocalSizeVariant, NodeLocalStructure, NodeLocalViewModel } from "./nodeDrilldownTypes";
+import type { NodeDrilldownLayoutOverrides, NodeDrilldownLayoutPosition } from "./nodeDrilldownLayoutOverrides";
 
 export interface NodeLocalLayoutItem {
   id: string;
@@ -12,6 +13,12 @@ export interface NodeLocalLayoutItem {
 export interface NodeLocalLayoutResult {
   anchor: { xPercent: number; yPercent: number };
   structures: NodeLocalLayoutItem[];
+}
+
+export interface NodeDrilldownCanvasClampContext {
+  canvasWidth: number;
+  canvasHeight: number;
+  iconSize: number;
 }
 
 const MAP_BODY_HEIGHT_PX = 440;
@@ -55,6 +62,53 @@ interface LayoutGroupConfig {
 
 function iconHalfPercent(iconSize: number): number {
   return (iconSize / MAP_BODY_HEIGHT_PX) * 50;
+}
+
+function clampPercent(value: number, min: number, max: number): number {
+  if (min > max) return Math.min(100, Math.max(0, value));
+  return Math.min(max, Math.max(min, value));
+}
+
+function roundPercent(value: number): number {
+  return Math.round(value * 100) / 100;
+}
+
+export function clampNodeDrilldownPosition(
+  position: NodeDrilldownLayoutPosition,
+  context: Partial<NodeDrilldownCanvasClampContext> = {},
+): NodeDrilldownLayoutPosition {
+  const halfX = context.canvasWidth && context.canvasWidth > 0
+    ? (context.iconSize ?? OPERATIONAL_ICON_SIZE) / context.canvasWidth * 50
+    : iconHalfPercent(context.iconSize ?? OPERATIONAL_ICON_SIZE);
+  const halfY = context.canvasHeight && context.canvasHeight > 0
+    ? (context.iconSize ?? OPERATIONAL_ICON_SIZE) / context.canvasHeight * 50
+    : iconHalfPercent(context.iconSize ?? OPERATIONAL_ICON_SIZE);
+
+  return {
+    xPercent: roundPercent(clampPercent(position.xPercent, VISIBLE_LEFT_MARGIN + halfX, VISIBLE_RIGHT_MARGIN - halfX)),
+    yPercent: roundPercent(clampPercent(position.yPercent, VISIBLE_TOP_MARGIN + halfY, VISIBLE_BOTTOM_MARGIN - halfY)),
+  };
+}
+
+export function applyNodeDrilldownPositionOverrides(
+  layout: NodeLocalLayoutResult,
+  structures: readonly NodeLocalStructure[],
+  overrides: NodeDrilldownLayoutOverrides,
+): NodeLocalLayoutResult {
+  if (Object.keys(overrides).length === 0) return layout;
+
+  const canonicalKeyById = new Map(structures.map((structure) => [structure.id, structure.canonicalDomainKey]));
+  return {
+    ...layout,
+    structures: layout.structures.map((item) => {
+      const canonicalKey = canonicalKeyById.get(item.id);
+      const override = canonicalKey ? overrides[canonicalKey] : null;
+      if (!override) return item;
+
+      const clamped = clampNodeDrilldownPosition(override, { iconSize: item.iconSize });
+      return { ...item, ...clamped };
+    }),
+  };
 }
 
 function gridPositions(

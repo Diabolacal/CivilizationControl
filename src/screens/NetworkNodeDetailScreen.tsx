@@ -1,7 +1,7 @@
 /**
  * NetworkNodeDetailScreen — Individual network node governance view.
  *
- * Shows node status, fuel level, online control, and a summary of
+ * Shows node status, fuel level, power controls, and a summary of
  * attached child structures (gates, turrets, SSUs) with their status.
  */
 
@@ -11,8 +11,13 @@ import { ArrowLeft } from "lucide-react";
 import { StructureDetailHeader } from "@/components/StructureDetailHeader";
 import { StatusDot } from "@/components/StatusDot";
 import { TxFeedbackBanner } from "@/components/TxFeedbackBanner";
+import { useNodeAssemblies } from "@/hooks/useNodeAssemblies";
+import { useOperatorInventory } from "@/hooks/useOperatorInventory";
 import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { buildFuelPresentation, type FuelSeverity } from "@/lib/fuelRuntime";
+import { buildNetworkNodeOfflinePlan } from "@/lib/networkNodeOfflineAction";
+import type { NodeAssembliesLookupResult } from "@/lib/nodeAssembliesClient";
+import type { StructurePowerActionSupport } from "@/lib/structureActionSupport";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, NetworkNodeGroup } from "@/types/domain";
 
@@ -54,8 +59,22 @@ interface NetworkNodeDetailScreenProps {
 export function NetworkNodeDetailScreen({ structures, nodeGroups, isLoading }: NetworkNodeDetailScreenProps) {
   const { id } = useParams<{ id: string }>();
   const actions = useStructureSurfaceActions();
+  const operatorInventory = useOperatorInventory();
   const group = nodeGroups.find((g) => g.node.objectId === id);
   const node = group?.node ?? structures.find((s) => s.objectId === id && s.type === "network_node");
+  const nodeInventoryLookup = node?.objectId
+    ? operatorInventory.adapted?.nodeLookupsByNodeId.get(node.objectId) ?? null
+    : null;
+  const { lookup: fallbackNodeLookup } = useNodeAssemblies(node?.objectId ?? null, {
+    enabled: node != null && nodeInventoryLookup == null,
+  });
+  const nodeOfflineLookup = nodeInventoryLookup ?? fallbackNodeLookup;
+  const powerAction = node
+    ? actions.getPowerActionForStructure(node, { nodeOfflineLookup })
+    : null;
+  const nodeOfflineUnavailableReason = node && node.status === "online"
+    ? buildNetworkNodeOfflinePlan(node, nodeOfflineLookup).unavailableReason
+    : null;
 
   if (isLoading) {
     return (
@@ -82,7 +101,13 @@ export function NetworkNodeDetailScreen({ structures, nodeGroups, isLoading }: N
     <div className="space-y-6">
       <BackLink />
       <StructureDetailHeader structure={node} solarSystemName={pin?.solarSystemName} />
-      <PowerControlSection node={node} actions={actions} />
+      <PowerControlSection
+        node={node}
+        nodeOfflineLookup={nodeOfflineLookup}
+        powerAction={powerAction}
+        nodeOfflineUnavailableReason={nodeOfflineUnavailableReason}
+        actions={actions}
+      />
       {group && <AttachedStructuresSection group={group} onOpenStructureMenu={actions.openStructureContextMenu} />}
 
       {(actions.rename.status === "success" || actions.rename.status === "error") && (
@@ -97,6 +122,7 @@ export function NetworkNodeDetailScreen({ structures, nodeGroups, isLoading }: N
 
       {actions.renderContextMenu}
       {actions.renderRenameDialog}
+      {actions.renderPowerConfirmDialog}
     </div>
   );
 }
@@ -115,9 +141,15 @@ function BackLink() {
 
 function PowerControlSection({
   node,
+  nodeOfflineLookup,
+  powerAction,
+  nodeOfflineUnavailableReason,
   actions,
 }: {
   node: Structure;
+  nodeOfflineLookup: NodeAssembliesLookupResult | null;
+  powerAction: StructurePowerActionSupport | null;
+  nodeOfflineUnavailableReason: string | null;
   actions: ReturnType<typeof useStructureSurfaceActions>;
 }) {
   const isOnline = node.status === "online";
@@ -127,26 +159,34 @@ function PowerControlSection({
     : fuelPresentation.amountLabel;
   const severityLabel = fuelSeverityLabel(fuelPresentation.severity);
 
-  const handleOnline = () => {
-    void actions.executePowerAction(node, true);
+  const handlePowerAction = () => {
+    if (!powerAction) {
+      return;
+    }
+
+    void actions.executePowerAction(node, powerAction.nextOnline, {
+      nodeOfflineLookup,
+    });
   };
 
   return (
     <section className="border border-border rounded p-5 space-y-3">
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-semibold text-foreground">Power State</h2>
-        {!isOnline ? (
+        {powerAction ? (
           <div className="flex items-center gap-2">
             <button
-              onClick={handleOnline}
+              onClick={handlePowerAction}
               disabled={actions.power.status === "pending"}
-              className="rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-medium text-teal-400 transition-colors hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+              className={powerAction.nextOnline
+                ? "rounded-md border border-teal-500/30 bg-teal-500/10 px-3 py-1.5 text-xs font-medium text-teal-400 transition-colors hover:bg-teal-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                : "rounded-md border border-red-500/30 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-400 transition-colors hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"}
             >
-              {actions.power.status === "pending" ? "Executing…" : "Bring Online"}
+              {actions.power.status === "pending" ? "Executing…" : powerAction.label}
             </button>
             <button
               type="button"
-              onClick={(event) => actions.openStructureContextMenuFromElement(node, event.currentTarget)}
+              onClick={(event) => actions.openStructureContextMenuFromElement(node, event.currentTarget, { nodeOfflineLookup })}
               className="rounded border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
             >
               Actions
@@ -155,11 +195,13 @@ function PowerControlSection({
         ) : (
           <div className="flex items-center gap-3">
             <span className="text-xs text-muted-foreground">
-              Node offline not yet implemented — use in-game controls
+              {isOnline
+                ? `Take offline unavailable: ${nodeOfflineUnavailableReason ?? "Connected-structure proof missing."}`
+                : "Node power action unavailable."}
             </span>
             <button
               type="button"
-              onClick={(event) => actions.openStructureContextMenuFromElement(node, event.currentTarget)}
+              onClick={(event) => actions.openStructureContextMenuFromElement(node, event.currentTarget, { nodeOfflineLookup })}
               className="rounded border border-border/70 px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground"
             >
               Actions

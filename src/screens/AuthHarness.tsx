@@ -63,7 +63,7 @@ function AuthHarness() {
 
       {/* Action 1: Gate — now informational only */}
       <section>
-        <h2 style={{ fontSize: 16 }}>Gate Extension Authorization</h2>
+        <h2 style={{ fontSize: 16 }}>Gate extension authorization</h2>
         <p style={{ fontSize: 12, color: "#aaa" }}>
           Use the Gates list screen to authorize GateAuth on discovered gates.
         </p>
@@ -74,7 +74,7 @@ function AuthHarness() {
 
       {/* Action 2: SSU — now informational only */}
       <section>
-        <h2 style={{ fontSize: 16 }}>Storage Extension Authorization</h2>
+        <h2 style={{ fontSize: 16 }}>Storage extension authorization</h2>
         <p style={{ fontSize: 12, color: "#aaa" }}>
           Use the Storage list screen to authorize TradeAuth on discovered SSUs.
         </p>

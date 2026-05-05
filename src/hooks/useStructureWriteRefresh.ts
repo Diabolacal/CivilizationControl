@@ -14,6 +14,7 @@ export interface StructureWriteRefreshOptions {
   refetchSignalFeed?: boolean;
   refetchAssetDiscovery?: boolean;
   target?: StructureWriteTarget;
+  targets?: StructureWriteTarget[];
 }
 
 export function useStructureWriteRefresh() {

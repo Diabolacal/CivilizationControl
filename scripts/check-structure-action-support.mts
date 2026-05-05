@@ -66,7 +66,7 @@ function makeNodeLocalStructure(overrides = {}) {
 
 const offlineGate = getStructurePowerAction(makeStructure());
 assert.deepEqual(offlineGate, {
-  label: 'Bring Online',
+  label: 'Bring online',
   nextOnline: true,
   disabledReason: null,
   tone: 'online',
@@ -74,7 +74,7 @@ assert.deepEqual(offlineGate, {
 
 const onlineGate = getStructurePowerAction(makeStructure({ status: 'online' }));
 assert.deepEqual(onlineGate, {
-  label: 'Take Offline',
+  label: 'Take offline',
   nextOnline: false,
   disabledReason: null,
   tone: 'offline',
@@ -85,7 +85,7 @@ assert.equal(missingNodeContextGate?.disabledReason, 'Missing node context.');
 
 const offlineNode = getStructurePowerAction(makeStructure({ type: 'network_node', networkNodeId: undefined }));
 assert.deepEqual(offlineNode, {
-  label: 'Bring Online',
+  label: 'Bring online',
   nextOnline: true,
   disabledReason: null,
   tone: 'online',
@@ -93,6 +93,17 @@ assert.deepEqual(offlineNode, {
 
 const onlineNode = getStructurePowerAction(makeStructure({ type: 'network_node', status: 'online', networkNodeId: undefined }));
 assert.equal(onlineNode, null);
+
+const availableOnlineNode = getStructurePowerAction(
+  makeStructure({ type: 'network_node', status: 'online', networkNodeId: undefined }),
+  { networkNodeOfflineAvailable: true },
+);
+assert.deepEqual(availableOnlineNode, {
+  label: 'Take offline',
+  nextOnline: false,
+  disabledReason: null,
+  tone: 'offline',
+});
 
 assert.equal(supportsStructureRename(makeStructure({ type: 'gate' })), true);
 assert.equal(supportsStructureRename(makeStructure({ type: 'storage_unit' })), true);
@@ -353,10 +364,17 @@ assert.equal(formatNodeLocalActionBadgeText(syntheticNodeLocal), 'Lab preview');
 assert.equal(formatNodeLocalActionTooltip(syntheticNodeLocal), 'Lab preview');
 
 const contextMenuSource = readFileSync(new URL('../src/components/structure-actions/StructureActionContextMenu.tsx', import.meta.url), 'utf8');
+const structureSurfaceActionsSource = readFileSync(new URL('../src/hooks/useStructureSurfaceActions.tsx', import.meta.url), 'utf8');
 const nodeDrilldownMenuHookSource = readFileSync(new URL('../src/hooks/useNodeDrilldownStructureMenu.ts', import.meta.url), 'utf8');
 const structureMenuHookSource = readFileSync(new URL('../src/hooks/useStructureActionMenu.ts', import.meta.url), 'utf8');
 assert.equal(contextMenuSource.includes('min-w-[172px]'), false, 'expected the shared action menu to stop forcing a wide minimum width');
 assert.equal(contextMenuSource.includes('w-max'), true, 'expected the shared action menu to shrink-wrap to content width');
+assert.equal(structureSurfaceActionsSource.includes('window.confirm'), false, 'expected network-node offline to avoid native browser confirm');
+assert.equal(structureSurfaceActionsSource.includes('alert('), false, 'expected active structure actions to avoid native browser alert');
+assert.equal(structureSurfaceActionsSource.includes('prompt('), false, 'expected active structure actions to avoid native browser prompt');
+assert.equal(structureSurfaceActionsSource.includes('StructurePowerConfirmDialog'), true, 'expected network-node offline to use the app-styled confirmation dialog');
+assert.equal(structureSurfaceActionsSource.includes('Rename Node'), true, 'expected node menus/dialogs to keep Rename Node copy');
+assert.equal(structureSurfaceActionsSource.includes('Node Name'), true, 'expected node rename dialog to keep Node Name field copy');
 assert.equal(nodeDrilldownMenuHookSource.includes('CONTEXT_MENU_WIDTH_PX = 196'), false, 'expected Node Control menu placement to stop assuming a fixed 196px width');
 assert.equal(structureMenuHookSource.includes('CONTEXT_MENU_WIDTH_PX = 196'), false, 'expected structure action menu placement to stop assuming a fixed 196px width');
 assert.equal(estimateContextMenuWidthPx(['Unhide']), 64, 'expected single short action menus to stay compact');
@@ -375,6 +393,11 @@ assert.equal(
   estimateContextMenuWidthPx(['Bring Online', 'Rename Assembly']),
   127,
   'expected global row action menus to stay balanced while fitting current labels',
+);
+assert.equal(
+  estimateContextMenuWidthPx(['Take offline', 'Rename Node']),
+  106,
+  'expected node-self action menus to stay compact while fitting node labels',
 );
 
 console.log('structure action support check: ok');

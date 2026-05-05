@@ -15,6 +15,7 @@ export interface StructureWriteTarget {
   assemblyId?: string | null;
   canonicalDomainKey?: string | null;
   displayName?: string | null;
+  desiredStatus?: StructureStatus | null;
 }
 
 export interface PendingStructureWriteOverlay {
@@ -199,6 +200,13 @@ export function createPendingStructureWriteOverlay(
   };
 }
 
+export function resolveStructureWriteTargetDesiredStatus(
+  target: StructureWriteTarget,
+  fallbackStatus: StructureStatus | null | undefined,
+): StructureStatus | null {
+  return target.desiredStatus ?? fallbackStatus ?? null;
+}
+
 export function applyStructureWriteOverlaysToStructures(
   structures: Structure[],
   overlays: readonly PendingStructureWriteOverlay[],
@@ -282,6 +290,14 @@ function resolveNodeAssembliesConfirmation(
 ): StructureWriteConfirmation {
   if (!lookup || lookup.status !== "success") {
     return { nameConfirmed: false, statusConfirmed: false };
+  }
+
+  if (lookup.node && overlayMatchesIdentifiers(overlay, lookup.node.objectId, lookup.node.assemblyId)) {
+    const resolvedName = lookup.node.displayName?.trim() || lookup.node.name?.trim() || null;
+    return {
+      nameConfirmed: overlay.pendingName != null && resolvedName === overlay.pendingName,
+      statusConfirmed: overlay.pendingStatus != null && normalizeStructureStatus(lookup.node.status) === overlay.pendingStatus,
+    };
   }
 
   const assembly = lookup.assemblies.find((entry) => overlayMatchesIdentifiers(overlay, entry.objectId, entry.assemblyId));

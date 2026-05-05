@@ -1,4 +1,10 @@
-import type { IndexedActionCandidate, IndexedPowerSummary, ObjectId } from "@/types/domain";
+import type {
+  IndexedActionCandidate,
+  IndexedNodePowerUsageSummary,
+  IndexedPowerRequirement,
+  IndexedPowerSummary,
+  ObjectId,
+} from "@/types/domain";
 
 export type OperatorInventorySchemaVersion = "operator-inventory.v1";
 
@@ -48,6 +54,8 @@ export interface OperatorInventoryStructure {
   extensionStatus: "authorized" | "stale" | "none" | null;
   fuelAmount: string | null;
   powerSummary: IndexedPowerSummary | null;
+  powerRequirement: IndexedPowerRequirement | null;
+  powerUsageSummary: IndexedNodePowerUsageSummary | null;
   solarSystemId: string | null;
   url: string | null;
   lastObservedCheckpoint: string | null;
@@ -63,6 +71,7 @@ export interface OperatorInventoryStructure {
 export interface OperatorInventoryNode {
   node: OperatorInventoryStructure;
   structures: OperatorInventoryStructure[];
+  powerUsageSummary?: IndexedNodePowerUsageSummary | null;
 }
 
 export interface OperatorInventoryResponse {

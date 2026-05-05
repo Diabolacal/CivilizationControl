@@ -1,28 +1,39 @@
 import type { Structure } from "@/types/domain";
 
 export interface StructurePowerActionSupport {
-  label: "Bring Online" | "Take Offline";
+  label: "Bring online" | "Take offline";
   nextOnline: boolean;
   disabledReason: string | null;
   tone: "online" | "offline";
 }
 
-export function getStructurePowerAction(structure: Structure): StructurePowerActionSupport | null {
+interface StructurePowerActionOptions {
+  networkNodeOfflineAvailable?: boolean;
+}
+
+export function getStructurePowerAction(
+  structure: Structure,
+  options: StructurePowerActionOptions = {},
+): StructurePowerActionSupport | null {
   if (structure.type === "network_node") {
-    if (structure.status === "online") {
+    if (structure.status === "online" && !options.networkNodeOfflineAvailable) {
+      return null;
+    }
+
+    if (structure.status !== "online" && structure.status !== "offline") {
       return null;
     }
 
     return {
-      label: "Bring Online",
-      nextOnline: true,
+      label: structure.status === "online" ? "Take offline" : "Bring online",
+      nextOnline: structure.status !== "online",
       disabledReason: null,
-      tone: "online",
+      tone: structure.status === "online" ? "offline" : "online",
     };
   }
 
   return {
-    label: structure.status === "online" ? "Take Offline" : "Bring Online",
+    label: structure.status === "online" ? "Take offline" : "Bring online",
     nextOnline: structure.status !== "online",
     disabledReason: structure.networkNodeId ? null : "Missing node context.",
     tone: structure.status === "online" ? "offline" : "online",

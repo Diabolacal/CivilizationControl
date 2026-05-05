@@ -1,6 +1,8 @@
 import { buildSyntheticNodeLocalViewModel } from "@/lib/nodeDrilldownModel";
 import type {
   IndexedActionCandidate,
+  IndexedNodePowerUsageSummary,
+  IndexedPowerRequirement,
   IndexedActionRequiredIds,
   IndexedStructureAction,
   StructureActionTargetType,
@@ -95,6 +97,40 @@ function buildControllableActionCandidate(
     supported: true,
     familySupported: true,
     unavailableReason: null,
+  };
+}
+
+function createPowerRequirement(
+  requiredGj: number | null,
+  overrides: Partial<IndexedPowerRequirement> = {},
+): IndexedPowerRequirement {
+  return {
+    requiredGj,
+    source: requiredGj == null ? "unavailable" : "indexed_type",
+    confidence: requiredGj == null ? "unavailable" : "indexed",
+    typeId: null,
+    family: null,
+    size: null,
+    lastUpdated: "2026-05-05T12:00:00.000Z",
+    ...overrides,
+  };
+}
+
+function createPowerUsageSummary(
+  overrides: Partial<IndexedNodePowerUsageSummary> = {},
+): IndexedNodePowerUsageSummary {
+  return {
+    capacityGj: 1000,
+    usedGj: null,
+    availableGj: null,
+    onlineKnownLoadGj: null,
+    onlineUnknownLoadCount: 0,
+    totalKnownLoadGj: null,
+    totalUnknownLoadCount: 0,
+    source: "indexed_children",
+    confidence: "indexed",
+    lastUpdated: "2026-05-05T12:00:00.000Z",
+    ...overrides,
   };
 }
 
@@ -298,6 +334,7 @@ function createScenario(
     label: string;
     description: string;
     nodeLabel: string;
+    nodePowerUsageSummary?: IndexedNodePowerUsageSummary | null;
     structures: SyntheticNodeLocalStructureInput[];
     initialHiddenCanonicalKeys?: string[];
   },
@@ -314,6 +351,7 @@ function createScenario(
     viewModel: buildSyntheticNodeLocalViewModel({
       nodeId: config.id,
       nodeLabel: config.nodeLabel,
+      nodePowerUsageSummary: config.nodePowerUsageSummary ?? null,
       structures,
     }),
     initialHiddenCanonicalKeys: config.initialHiddenCanonicalKeys,
@@ -384,7 +422,150 @@ function createAuthorityMatrixScenario(): NodeLocalScenario {
   };
 }
 
+function createKnownPowerScenario(): NodeLocalScenario {
+  const baseScenario = createScenario({
+    id: "power-summary-known",
+    label: "Power Summary Known",
+    description: "Indexed node load is available, and hidden online children still count through the summary.",
+    nodeLabel: "Indexed Load Node",
+    nodePowerUsageSummary: createPowerUsageSummary({
+      usedGj: 320,
+      availableGj: 680,
+      onlineKnownLoadGj: 320,
+      totalKnownLoadGj: 770,
+    }),
+    structures: [
+      createControllableFixture("power-summary-known", "power-summary-known", 0, {
+        family: "tradePost",
+        displayName: "Storage Alpha",
+        typeLabel: "Storage",
+        status: "online",
+        powerRequirement: createPowerRequirement(120, { family: "storage", size: "standard" }),
+      }),
+      createControllableFixture("power-summary-known", "power-summary-known", 1, {
+        family: "gate",
+        displayName: "Hidden Gate Beta",
+        typeLabel: "Mini Gate",
+        sizeVariant: "mini",
+        status: "online",
+        powerRequirement: createPowerRequirement(200, { family: "gate", size: "mini" }),
+      }),
+      createControllableFixture("power-summary-known", "power-summary-known", 2, {
+        family: "turret",
+        displayName: "Turret Gamma",
+        typeLabel: "Turret",
+        status: "offline",
+        powerRequirement: createPowerRequirement(150, { family: "turret", size: "standard" }),
+      }),
+      createControllableFixture("power-summary-known", "power-summary-known", 3, {
+        family: "printer",
+        displayName: "Printer Delta",
+        typeLabel: "Printer",
+        status: "offline",
+        powerRequirement: createPowerRequirement(300, { family: "printer", size: "standard" }),
+      }),
+    ],
+  });
+
+  const hiddenGate = baseScenario.viewModel.structures.find((structure) => structure.displayName === "Hidden Gate Beta");
+  return {
+    ...baseScenario,
+    initialHiddenCanonicalKeys: hiddenGate ? [hiddenGate.canonicalDomainKey] : undefined,
+  };
+}
+
+function createOverCapacityScenario(): NodeLocalScenario {
+  return createScenario({
+    id: "power-summary-over-cap",
+    label: "Power Summary Over Cap",
+    description: "Bring all online would exceed indexed node capacity before the wallet step.",
+    nodeLabel: "Over-Cap Node",
+    nodePowerUsageSummary: createPowerUsageSummary({
+      usedGj: 320,
+      availableGj: 680,
+      onlineKnownLoadGj: 320,
+      totalKnownLoadGj: 1120,
+    }),
+    structures: [
+      createControllableFixture("power-summary-over-cap", "power-summary-over-cap", 0, {
+        family: "tradePost",
+        displayName: "Storage Alpha",
+        typeLabel: "Storage",
+        status: "online",
+        powerRequirement: createPowerRequirement(120, { family: "storage", size: "standard" }),
+      }),
+      createControllableFixture("power-summary-over-cap", "power-summary-over-cap", 1, {
+        family: "gate",
+        displayName: "Gate Beta",
+        typeLabel: "Mini Gate",
+        sizeVariant: "mini",
+        status: "online",
+        powerRequirement: createPowerRequirement(200, { family: "gate", size: "mini" }),
+      }),
+      createControllableFixture("power-summary-over-cap", "power-summary-over-cap", 2, {
+        family: "turret",
+        displayName: "Turret Gamma",
+        typeLabel: "Turret",
+        status: "offline",
+        powerRequirement: createPowerRequirement(300, { family: "turret", size: "standard" }),
+      }),
+      createControllableFixture("power-summary-over-cap", "power-summary-over-cap", 3, {
+        family: "printer",
+        displayName: "Printer Delta",
+        typeLabel: "Printer",
+        status: "offline",
+        powerRequirement: createPowerRequirement(500, { family: "printer", size: "standard" }),
+      }),
+    ],
+  });
+}
+
+function createUnknownPowerScenario(): NodeLocalScenario {
+  return createScenario({
+    id: "power-summary-unknown",
+    label: "Power Summary Unknown",
+    description: "Partial power data keeps the readout unavailable and blocks false confidence.",
+    nodeLabel: "Partial Load Node",
+    nodePowerUsageSummary: createPowerUsageSummary({
+      usedGj: null,
+      availableGj: null,
+      onlineKnownLoadGj: 200,
+      onlineUnknownLoadCount: 1,
+      totalKnownLoadGj: 350,
+      totalUnknownLoadCount: 1,
+      source: "partial",
+      confidence: "partial",
+    }),
+    structures: [
+      createControllableFixture("power-summary-unknown", "power-summary-unknown", 0, {
+        family: "tradePost",
+        displayName: "Storage Alpha",
+        typeLabel: "Storage",
+        status: "online",
+        powerRequirement: createPowerRequirement(200, { family: "storage", size: "standard" }),
+      }),
+      createControllableFixture("power-summary-unknown", "power-summary-unknown", 1, {
+        family: "relay",
+        displayName: "Relay Beta",
+        typeLabel: "Relay",
+        status: "online",
+        powerRequirement: createPowerRequirement(null, { family: "relay", size: "standard" }),
+      }),
+      createControllableFixture("power-summary-unknown", "power-summary-unknown", 2, {
+        family: "turret",
+        displayName: "Turret Gamma",
+        typeLabel: "Turret",
+        status: "offline",
+        powerRequirement: createPowerRequirement(150, { family: "turret", size: "standard" }),
+      }),
+    ],
+  });
+}
+
 export const NODE_DRILLDOWN_SCENARIOS: NodeLocalScenario[] = [
+  createKnownPowerScenario(),
+  createOverCapacityScenario(),
+  createUnknownPowerScenario(),
   createAuthorityMatrixScenario(),
   createScenario({
     id: "sparse-solo-node",

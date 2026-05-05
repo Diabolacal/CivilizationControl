@@ -8,6 +8,7 @@ import { Sidebar } from "../src/components/Sidebar";
 import { selectDisplayNodeGroups } from "../src/lib/assetDiscoveryDisplayModel";
 import { buildFuelPresentation } from "../src/lib/fuelRuntime";
 import { getNodeLocalPowerToggleIntent } from "../src/lib/nodeDrilldownActionAuthority";
+import { getStructurePowerAction } from "../src/lib/structureActionSupport";
 import { buildOperatorInventoryDebugCopySummary, buildOperatorInventoryDebugSnapshot } from "../src/lib/operatorInventoryDebug";
 import { adaptOperatorInventory } from "../src/lib/operatorInventoryAdapter";
 import { buildLiveNodeLocalViewModelWithObserved } from "../src/lib/nodeDrilldownModel";
@@ -420,6 +421,13 @@ const response: OperatorInventoryResponse = {
 };
 
 const adapted = adaptOperatorInventory(response);
+const offlineResponse: OperatorInventoryResponse = {
+  ...response,
+  networkNodes: response.networkNodes.map((nodeGroup, index) => index === 0
+    ? { ...nodeGroup, node: { ...nodeGroup.node, status: "offline" as const } }
+    : nodeGroup),
+};
+const offlineAdapted = adaptOperatorInventory(offlineResponse);
 const legacyFallbackStructures = buildLegacyFallbackStructures();
 const displayNodeGroups = selectDisplayNodeGroups({
   operatorInventoryNodeGroups: adapted.nodeGroups,
@@ -462,6 +470,13 @@ const lookup = adapted.nodeLookupsByNodeId.get(NETWORK_NODE_A_ID);
 const relayGroup = buildGroup(displayNodeGroups, NETWORK_NODE_B_ID);
 const reserveGroup = buildGroup(displayNodeGroups, NETWORK_NODE_EMPTY_VALID_ID);
 const reserveLookup = adapted.nodeLookupsByNodeId.get(NETWORK_NODE_EMPTY_VALID_ID);
+const offlineDisplayNodeGroups = selectDisplayNodeGroups({
+  operatorInventoryNodeGroups: offlineAdapted.nodeGroups,
+  structures: offlineAdapted.structures,
+  useOperatorInventory: true,
+});
+const offlineGroup = buildGroup(offlineDisplayNodeGroups, NETWORK_NODE_A_ID);
+const offlineLookup = offlineAdapted.nodeLookupsByNodeId.get(NETWORK_NODE_A_ID);
 const groupFuelPresentation = buildFuelPresentation(group.node);
 const relayFuelPresentation = buildFuelPresentation(relayGroup.node);
 const reserveFuelPresentation = buildFuelPresentation(reserveGroup.node);
@@ -563,9 +578,15 @@ assert.equal(lowOnlyFuelPresentation.severity, "low");
 
 const viewModel = buildLiveNodeLocalViewModelWithObserved(group, lookup, { preferObservedMembership: true });
 const reserveViewModel = buildLiveNodeLocalViewModelWithObserved(reserveGroup, reserveLookup, { preferObservedMembership: true });
+const offlineViewModel = buildLiveNodeLocalViewModelWithObserved(offlineGroup, offlineLookup, { preferObservedMembership: true });
 
 assert.equal(viewModel.sourceMode, "backend-membership");
 assert.equal(viewModel.structures.length, 7);
+assert.equal(offlineGroup.node.status, "offline", "expected raw operator-inventory offline node to render offline in /nodes list source");
+assert.equal(offlineViewModel.node.status, "offline", "expected Node Control to use the same adapted offline node status as /nodes");
+assert.equal(reserveGroup.node.status, "neutral", "expected raw unknown node status to adapt to neutral rather than online");
+assert.equal(reserveViewModel.node.status, "neutral", "expected Node Control to preserve neutral node status rather than defaulting to online");
+assert.equal(getStructurePowerAction(reserveGroup.node), null, "expected neutral network nodes not to receive a fake node power action");
 assert.equal(reserveViewModel.node.fuelSummary, "D1 · 900 / 3,571 units");
 assert.equal(reserveViewModel.node.fuelAmount, "900");
 

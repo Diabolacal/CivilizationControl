@@ -8,6 +8,9 @@ interface StructureRenameDialogProps {
   isOpen: boolean;
   structureName: string;
   initialValue: string;
+  title?: string;
+  fieldLabel?: string;
+  submitLabel?: string;
   isPending?: boolean;
   error?: string | null;
   onClose: () => void;
@@ -18,6 +21,9 @@ export function StructureRenameDialog({
   isOpen,
   structureName,
   initialValue,
+  title = "Rename Assembly",
+  fieldLabel = "Assembly Name",
+  submitLabel = "Rename Assembly",
   isPending = false,
   error = null,
   onClose,
@@ -82,7 +88,7 @@ export function StructureRenameDialog({
             <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-muted-foreground/70">
               Structure Action
             </p>
-            <h2 className="text-lg font-semibold text-foreground">Rename Assembly</h2>
+            <h2 className="text-lg font-semibold text-foreground">{title}</h2>
             <p className="text-sm text-muted-foreground">
               Update the operator-facing name for {structureName}.
             </p>
@@ -90,7 +96,7 @@ export function StructureRenameDialog({
 
           <div className="space-y-2">
             <label className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground/70" htmlFor="structure-rename-input">
-              Assembly Name
+              {fieldLabel}
             </label>
             <input
               id="structure-rename-input"
@@ -128,7 +134,7 @@ export function StructureRenameDialog({
               disabled={isSubmitDisabled}
               className="rounded border border-primary/40 bg-primary/10 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/18 disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {isPending ? "Renaming…" : "Rename Assembly"}
+              {isPending ? "Renaming…" : submitLabel}
             </button>
           </div>
         </div>

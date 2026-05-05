@@ -16,6 +16,7 @@ import type {
 } from "@/types/domain";
 import type {
   OperatorInventoryFamily,
+  OperatorInventoryNode,
   OperatorInventoryResponse,
   OperatorInventorySize,
   OperatorInventoryStatus,
@@ -134,13 +135,14 @@ export function adaptOperatorInventory(response: OperatorInventoryResponse): Ada
   let ignoredUnlinkedNodeLikeCount = 0;
 
   for (const nodeGroup of response.networkNodes) {
-    const nodeStructure = toCompatibleStructure(nodeGroup.node, nodeGroup.node.objectId ?? null);
+    const nodeRow = resolveNodeGroupNodeRow(nodeGroup);
+    const nodeStructure = toCompatibleStructure(nodeRow, nodeRow.objectId ?? null);
     if (nodeStructure) {
       mergeCompatibleStructure(groupedStructuresByKey, nodeStructure);
     }
 
     for (const structure of nodeGroup.structures) {
-      const compatible = toCompatibleStructure(structure, nodeGroup.node.objectId ?? structure.networkNodeId ?? null);
+      const compatible = toCompatibleStructure(structure, nodeRow.objectId ?? structure.networkNodeId ?? null);
       if (compatible) {
         mergeCompatibleStructure(groupedStructuresByKey, compatible);
       }
@@ -227,14 +229,15 @@ function buildNodeLookupMap(response: OperatorInventoryResponse): Map<ObjectId, 
   }>();
 
   for (const nodeGroup of response.networkNodes) {
-    const key = structureIdentityKey(nodeGroup.node.objectId, nodeGroup.node.assemblyId);
+    const nodeRow = resolveNodeGroupNodeRow(nodeGroup);
+    const key = structureIdentityKey(nodeRow.objectId, nodeRow.assemblyId);
     if (!key) {
       continue;
     }
 
-    const nextNode = toNodeAssemblyNode(nodeGroup.node);
+    const nextNode = toNodeAssemblyNode(nodeRow);
     const nextAssemblies = nodeGroup.structures.map((structure) => toNodeAssemblySummary(structure, response));
-    const nextIsPartial = response.partial || nodeGroup.node.partial || nodeGroup.structures.some((structure) => structure.partial);
+    const nextIsPartial = response.partial || nodeRow.partial || nodeGroup.structures.some((structure) => structure.partial);
     const existing = buckets.get(key);
 
     if (!existing) {
@@ -291,10 +294,11 @@ function buildOperatorInventoryNodeGroups(
   const quarantinedNodeRows: OperatorInventoryQuarantinedNodeRow[] = [];
 
   for (const [index, rawGroup] of response.networkNodes.entries()) {
-    const groupKey = structureIdentityKey(rawGroup.node.objectId, rawGroup.node.assemblyId);
-    const compatibleType = rawGroup.node.family ? COMPATIBLE_TYPE_BY_FAMILY[rawGroup.node.family] : null;
-    const proofSignals = collectNodeProofSignals(rawGroup.node);
-    const strongOwnedNodeProof = hasStrongOwnedNodeProof(rawGroup.node, proofSignals);
+    const nodeRow = resolveNodeGroupNodeRow(rawGroup);
+    const groupKey = structureIdentityKey(nodeRow.objectId, nodeRow.assemblyId);
+    const compatibleType = nodeRow.family ? COMPATIBLE_TYPE_BY_FAMILY[nodeRow.family] : null;
+    const proofSignals = collectNodeProofSignals(nodeRow);
+    const strongOwnedNodeProof = hasStrongOwnedNodeProof(nodeRow, proofSignals);
     const renderEligibility = resolveNetworkNodeRenderEligibility(rawGroup.structures.length, strongOwnedNodeProof);
     let quarantineReason: OperatorInventoryQuarantinedNodeReason | null = null;
 
@@ -302,7 +306,7 @@ function buildOperatorInventoryNodeGroups(
       quarantineReason = "missing-canonical-identity";
     } else if (compatibleType !== "network_node") {
       quarantineReason = "invalid-node-family";
-    } else if (!normalizeCanonicalObjectId(rawGroup.node.objectId)) {
+    } else if (!normalizeCanonicalObjectId(nodeRow.objectId)) {
       quarantineReason = "missing-displayable-object-id";
     }
 
@@ -315,10 +319,10 @@ function buildOperatorInventoryNodeGroups(
       quarantineReason = "zero-structure-missing-strong-owned-proof";
     }
 
-    const node = groupKey ? resolveCompatibleStructure(rawGroup.node, rawGroup.node.objectId ?? null, structuresByKey) : null;
+    const node = groupKey ? resolveCompatibleStructure(nodeRow, nodeRow.objectId ?? null, structuresByKey) : null;
     const decision = describeNodeEligibilityDecision({
       index,
-      row: rawGroup.node,
+      row: nodeRow,
       structureCount: rawGroup.structures.length,
       rendered: quarantineReason == null,
       quarantineReason,
@@ -362,7 +366,11 @@ function buildOperatorInventoryNodeGroups(
     rebindBucketStructuresToNode(bucket, bucket.node.objectId);
 
     for (const rawStructure of rawGroup.structures) {
-      const structure = resolveCompatibleStructure(rawStructure, rawGroup.node.objectId ?? null, structuresByKey);
+      const structure = resolveCompatibleStructure(
+        rawStructure,
+        nodeRow.objectId ?? rawStructure.networkNodeId ?? null,
+        structuresByKey,
+      );
       if (!structure || structure.type === "network_node") {
         continue;
       }
@@ -552,6 +560,7 @@ function toNodeAssemblyNode(row: OperatorInventoryStructure): NodeAssemblyNode {
     energySourceId: row.energySourceId,
     fuelAmount: row.fuelAmount,
     powerSummary: row.powerSummary,
+    powerUsageSummary: row.powerUsageSummary,
   };
 }
 
@@ -572,6 +581,7 @@ function toNodeAssemblySummary(
     status: row.status,
     fuelAmount: row.fuelAmount,
     powerSummary: row.powerSummary,
+    powerRequirement: row.powerRequirement,
     solarSystemId: row.solarSystemId,
     energySourceId: row.energySourceId,
     url: row.url,
@@ -630,6 +640,8 @@ function toCompatibleStructure(
     networkNodeId: compatibleType === "network_node" ? undefined : networkNodeId ?? undefined,
     indexedFuelAmount: row.fuelAmount,
     indexedPowerSummary: row.powerSummary,
+    indexedPowerRequirement: row.powerRequirement,
+    indexedPowerUsageSummary: row.powerUsageSummary,
     linkedGateId: row.linkedGateId ?? undefined,
     summary: summary ?? undefined,
     extensionStatus: row.extensionStatus ?? "none",
@@ -650,6 +662,8 @@ function toAssemblySummary(row: OperatorInventoryStructure): AssemblySummary | n
     status: row.status,
     fuelAmount: row.fuelAmount,
     powerSummary: row.powerSummary,
+    powerRequirement: row.powerRequirement,
+    powerUsageSummary: row.powerUsageSummary,
     solarSystemId: row.solarSystemId,
     energySourceId: row.energySourceId,
     url: row.url,
@@ -910,5 +924,16 @@ function computeMetrics(structures: Structure[], networkNodeCount: number): Netw
     turretCount: structures.filter((structure) => structure.type === "turret").length,
     networkNodeCount,
     enforcedDirectives: structures.filter((structure) => structure.extensionStatus === "authorized").length,
+  };
+}
+
+function resolveNodeGroupNodeRow(nodeGroup: OperatorInventoryNode): OperatorInventoryStructure {
+  if (nodeGroup.node.powerUsageSummary != null || nodeGroup.powerUsageSummary == null) {
+    return nodeGroup.node;
+  }
+
+  return {
+    ...nodeGroup.node,
+    powerUsageSummary: nodeGroup.powerUsageSummary,
   };
 }

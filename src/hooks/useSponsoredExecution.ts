@@ -22,8 +22,16 @@ import {
   requestSponsorship,
   type SponsorResponse,
 } from "@/lib/sponsorship";
+import { getFailedTransactionMessage } from "@/lib/transactionExecutionErrors";
 
 const TAG = "[sponsor]";
+
+class SponsoredExecutionFailure extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "SponsoredExecutionFailure";
+  }
+}
 
 /**
  * Hook providing a unified `executeTx` function for governance operations.
@@ -74,12 +82,20 @@ export function useSponsoredExecution() {
           const result = await client.executeTransactionBlock({
             transactionBlock: bytes,
             signature: [signature, sponsorResult.sponsorSignature],
+            options: { showEffects: true },
           });
+          if (result.effects?.status.status === "failure") {
+            throw new SponsoredExecutionFailure(result.effects.status.error ?? "Transaction failed on-chain");
+          }
           console.info(`${TAG} Step 4 OK: digest=${result.digest}`);
           console.info(`${TAG} ✓ Sponsored transaction complete`);
 
           return { digest: result.digest };
         } catch (err) {
+          if (err instanceof SponsoredExecutionFailure) {
+            throw err;
+          }
+
           const reason = err instanceof Error ? err.message : String(err);
           console.warn(`${TAG} Sponsor path failed: ${reason}`);
           console.warn(`${TAG} Falling back to standard (player-paid) execution`);
@@ -95,7 +111,7 @@ export function useSponsoredExecution() {
       const txData =
         result.$kind === "Transaction" ? result.Transaction : result.FailedTransaction;
       if (!txData || result.$kind === "FailedTransaction") {
-        throw new Error("Transaction failed on-chain");
+        throw new Error(getFailedTransactionMessage(txData) ?? "Transaction failed on-chain");
       }
       console.info(`${TAG} Standard execution complete: digest=${txData.digest}`);
       return { digest: txData.digest };

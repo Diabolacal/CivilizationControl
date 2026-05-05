@@ -6,9 +6,12 @@ import { NodeDrilldownSurface } from "@/components/topology/node-drilldown/NodeD
 import { NodeSelectionInspector } from "@/components/topology/node-drilldown/NodeSelectionInspector";
 import { NodeStructureListPanel } from "@/components/topology/node-drilldown/NodeStructureListPanel";
 import { useNodeDrilldownHiddenState } from "@/hooks/useNodeDrilldownHiddenState";
+import { useNodeDrilldownLayoutOverrides } from "@/hooks/useNodeDrilldownLayoutOverrides";
 import { useNodeDrilldownStructureMenu } from "@/hooks/useNodeDrilldownStructureMenu";
+import { useStructureActionMenu } from "@/hooks/useStructureActionMenu";
 import { buildNodeDrilldownMenuItems } from "@/lib/nodeDrilldownMenuItems";
 import { NODE_DRILLDOWN_SCENARIOS } from "@/lib/nodeDrilldownScenarios";
+import { getNodePowerUsageReadout } from "@/lib/nodePowerControlModel";
 import { cn } from "@/lib/utils";
 
 import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
@@ -34,6 +37,7 @@ export function NodeDrilldownLabScreen() {
   const [scenarioId, setScenarioId] = useState(NODE_DRILLDOWN_SCENARIOS[0]?.id ?? "");
   const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
+  const [isNodeRenameOpen, setIsNodeRenameOpen] = useState(false);
 
   const scenario = useMemo(
     () => NODE_DRILLDOWN_SCENARIOS.find((entry) => entry.id === scenarioId) ?? NODE_DRILLDOWN_SCENARIOS[0],
@@ -53,6 +57,14 @@ export function NodeDrilldownLabScreen() {
     scopeKey: null,
     structures: scenarioViewModel?.structures ?? [],
   });
+  const layoutOverrides = useNodeDrilldownLayoutOverrides({
+    nodeId: scenarioViewModel?.node.id ?? null,
+    scopeKey: null,
+  });
+  const nodePowerUsageReadout = useMemo(
+    () => getNodePowerUsageReadout(scenarioViewModel?.node ?? null, scenarioViewModel?.structures ?? []),
+    [scenarioViewModel?.node, scenarioViewModel?.structures],
+  );
   const visibleViewModel = useMemo(
     () => (scenarioViewModel ? { ...scenarioViewModel, structures: visibleStructures } : null),
     [scenarioViewModel, visibleStructures],
@@ -63,6 +75,7 @@ export function NodeDrilldownLabScreen() {
     openStructureMenu,
     closeStructureMenu,
   } = useNodeDrilldownStructureMenu();
+  const nodeActionMenu = useStructureActionMenu();
   const scenarioStructureMap = useMemo(
     () => new Map((scenarioViewModel?.structures ?? []).map((structure) => [structure.id, structure])),
     [scenarioViewModel],
@@ -101,6 +114,39 @@ export function NodeDrilldownLabScreen() {
       };
     });
   };
+  const handlePreviewNodePower = (nextOnline: boolean) => {
+    setSelectedStructureId(null);
+    setScenarioViewModel((current) => {
+      if (!current) return current;
+
+      const nextStatus = nextOnline ? "online" : "offline";
+      return {
+        ...current,
+        node: {
+          ...current.node,
+          status: nextStatus,
+          tone: nextStatus,
+          warningPip: nextOnline ? current.node.warningPip : false,
+        },
+        structures: nextOnline ? current.structures : current.structures.map((entry) => ({
+          ...entry,
+          status: "offline",
+          tone: "offline",
+          warningPip: false,
+          actionAuthority: {
+            ...entry.actionAuthority,
+            verifiedTarget: entry.actionAuthority.verifiedTarget
+              ? { ...entry.actionAuthority.verifiedTarget, status: "offline" }
+              : null,
+            candidateTargets: entry.actionAuthority.candidateTargets.map((candidate) => ({
+              ...candidate,
+              status: "offline",
+            })),
+          },
+        })),
+      };
+    });
+  };
   const handlePreviewRename = (structure: NodeLocalStructure, nextName: string) => {
     setScenarioViewModel((current) => {
       if (!current) return current;
@@ -116,11 +162,48 @@ export function NodeDrilldownLabScreen() {
     });
     setRenameTargetId(null);
   };
+  const handlePreviewNodeRename = (nextName: string) => {
+    setScenarioViewModel((current) => current ? {
+      ...current,
+      node: { ...current.node, displayName: nextName },
+    } : current);
+    setIsNodeRenameOpen(false);
+  };
+  const handleOpenNodeMenu = ({ clientX, clientY }: { clientX: number; clientY: number }) => {
+    if (!scenarioViewModel) {
+      return;
+    }
+
+    closeStructureMenu();
+    setSelectedStructureId(null);
+    const isOnline = scenarioViewModel.node.status === "online";
+    nodeActionMenu.openStructureActionMenu({
+      structureId: scenarioViewModel.node.id,
+      structureName: scenarioViewModel.node.displayName,
+      clientX,
+      clientY,
+      items: [
+        {
+          key: isOnline ? "take-offline" : "bring-online",
+          label: isOnline ? "Take offline" : "Bring online",
+          tone: isOnline ? "offline" : "online",
+          onSelect: () => handlePreviewNodePower(!isOnline),
+        },
+        {
+          key: "rename-node",
+          label: "Rename Node",
+          onSelect: () => setIsNodeRenameOpen(true),
+        },
+      ],
+    });
+  };
 
   useEffect(() => {
     setSelectedStructureId(null);
     closeStructureMenu();
-  }, [closeStructureMenu, scenarioId]);
+    nodeActionMenu.closeStructureActionMenu();
+    setIsNodeRenameOpen(false);
+  }, [closeStructureMenu, nodeActionMenu.closeStructureActionMenu, scenarioId]);
 
   useEffect(() => {
     if (!scenario) {
@@ -204,14 +287,21 @@ export function NodeDrilldownLabScreen() {
               viewModel={visibleViewModel}
               selectedStructureId={selectedStructureId}
               onSelectStructure={setSelectedStructureId}
+              onOpenNodeMenu={handleOpenNodeMenu}
               onOpenStructureMenu={(params) => {
+                nodeActionMenu.closeStructureActionMenu();
                 setSelectedStructureId(params.structure.id);
                 openStructureMenu(params);
               }}
               onCloseStructureMenu={closeStructureMenu}
               totalStructureCount={scenarioViewModel?.structures.length ?? 0}
               hiddenStructureCount={hiddenCount}
-              isStructureMenuOpen={contextMenu != null}
+              layoutOverrides={layoutOverrides.positions}
+              powerUsageLabel={nodePowerUsageReadout.label}
+              hasManualLayout={layoutOverrides.hasManualLayout}
+              isStructureMenuOpen={contextMenu != null || nodeActionMenu.contextMenu != null}
+              onResetLayout={layoutOverrides.resetLayout}
+              onUpdateStructurePosition={layoutOverrides.setStructurePosition}
               title="Node Drilldown Lab"
               subtitle={scenario.description}
               headerAction={
@@ -232,6 +322,7 @@ export function NodeDrilldownLabScreen() {
               hiddenCanonicalKeySet={hiddenCanonicalKeySet}
               onUnhideStructure={unhideStructure}
               onOpenStructureMenu={(params) => {
+                nodeActionMenu.closeStructureActionMenu();
                 setSelectedStructureId(params.structure.id);
                 openStructureMenu(params);
               }}
@@ -246,6 +337,7 @@ export function NodeDrilldownLabScreen() {
               viewModel={scenarioViewModel ?? scenario.viewModel}
               selectedStructureId={selectedStructureId}
               hiddenCanonicalKeySet={hiddenCanonicalKeySet}
+              onOpenNodeMenu={handleOpenNodeMenu}
               onUnhideStructure={unhideStructure}
               onTogglePower={handlePreviewTogglePower}
               previewMode
@@ -273,6 +365,14 @@ export function NodeDrilldownLabScreen() {
           />
         ) : null}
 
+        {nodeActionMenu.contextMenu ? (
+          <StructureActionContextMenu
+            menu={nodeActionMenu.contextMenu}
+            menuRef={nodeActionMenu.menuRef}
+            onClose={nodeActionMenu.closeStructureActionMenu}
+          />
+        ) : null}
+
         {renameTarget ? (
           <StructureRenameDialog
             isOpen
@@ -280,6 +380,19 @@ export function NodeDrilldownLabScreen() {
             initialValue={renameTarget.displayName}
             onClose={() => setRenameTargetId(null)}
             onSubmit={(nextName) => handlePreviewRename(renameTarget, nextName)}
+          />
+        ) : null}
+
+        {isNodeRenameOpen && scenarioViewModel ? (
+          <StructureRenameDialog
+            isOpen
+            structureName={scenarioViewModel.node.displayName}
+            initialValue={scenarioViewModel.node.displayName}
+            title="Rename Node"
+            fieldLabel="Node Name"
+            submitLabel="Rename Node"
+            onClose={() => setIsNodeRenameOpen(false)}
+            onSubmit={handlePreviewNodeRename}
           />
         ) : null}
       </main>

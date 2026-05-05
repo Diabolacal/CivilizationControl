@@ -1,7 +1,16 @@
 import { useCallback, useState } from "react";
 
 import { StructureActionContextMenu } from "@/components/structure-actions/StructureActionContextMenu";
+import { StructurePowerConfirmDialog } from "@/components/structure-actions/StructurePowerConfirmDialog";
 import { StructureRenameDialog } from "@/components/structure-actions/StructureRenameDialog";
+import type { NodeAssembliesLookupResult } from "@/lib/nodeAssembliesClient";
+import {
+  buildNetworkNodeOfflinePlan,
+  canTakeNetworkNodeOffline,
+  NETWORK_NODE_OFFLINE_CONFIRMATION_BODY,
+  NETWORK_NODE_OFFLINE_CONFIRMATION_TITLE,
+  type NetworkNodeOfflinePlan,
+} from "@/lib/networkNodeOfflineAction";
 import { useStructureActionMenu } from "@/hooks/useStructureActionMenu";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import { useStructureRename } from "@/hooks/useStructureRename";
@@ -26,6 +35,30 @@ function formatRenameSuccessLabel(structure: Structure): string {
     : "Assembly renamed. Awaiting read-model sync.";
 }
 
+function formatRenameActionLabel(structure: Structure): string {
+  return structure.type === "network_node" ? "Rename Node" : "Rename Assembly";
+}
+
+interface StructureActionContextOptions {
+  nodeOfflineLookup?: NodeAssembliesLookupResult | null;
+}
+
+interface PendingNodeOfflineConfirmation {
+  structure: Structure;
+  plan: NetworkNodeOfflinePlan;
+}
+
+function buildStructureWriteTarget(structure: Structure) {
+  return {
+    objectId: structure.objectId,
+    structureType: structure.type,
+    ownerCapId: structure.ownerCapId,
+    networkNodeId: structure.networkNodeId ?? null,
+    assemblyId: structure.assemblyId ?? null,
+    displayName: structure.name,
+  };
+}
+
 export function useStructureSurfaceActions() {
   const power = useStructurePower();
   const rename = useStructureRename();
@@ -36,14 +69,36 @@ export function useStructureSurfaceActions() {
     closeStructureActionMenu,
   } = useStructureActionMenu();
   const [renameTarget, setRenameTarget] = useState<Structure | null>(null);
+  const [pendingNodeOfflineConfirmation, setPendingNodeOfflineConfirmation] = useState<PendingNodeOfflineConfirmation | null>(null);
   const [powerSuccessLabel, setPowerSuccessLabel] = useState("Structure power state updated");
   const [renameSuccessLabel, setRenameSuccessLabel] = useState("Assembly renamed");
 
+  const getPowerActionForStructure = useCallback(
+    (structure: Structure, options: StructureActionContextOptions = {}) => getStructurePowerAction(
+      structure,
+      structure.type === "network_node" && structure.status === "online"
+        ? { networkNodeOfflineAvailable: canTakeNetworkNodeOffline(structure, options.nodeOfflineLookup) }
+        : undefined,
+    ),
+    [],
+  );
+
   const executePowerAction = useCallback(
-    (structure: Structure, nextOnline: boolean) => {
+    (structure: Structure, nextOnline: boolean, options: StructureActionContextOptions = {}) => {
       setPowerSuccessLabel(formatPowerSuccessLabel(structure, nextOnline));
 
       if (structure.type === "network_node") {
+        if (!nextOnline) {
+          const offlinePlan = buildNetworkNodeOfflinePlan(structure, options.nodeOfflineLookup);
+          if (offlinePlan.unavailableReason) {
+            throw new Error(offlinePlan.unavailableReason);
+          }
+
+          power.reset();
+          setPendingNodeOfflineConfirmation({ structure, plan: offlinePlan });
+          return Promise.resolve(false);
+        }
+
         return power.bringNodeOnline(
           {
             nodeId: structure.objectId,
@@ -51,13 +106,8 @@ export function useStructureSurfaceActions() {
           },
           {
             refetchSignalFeed: true,
-            target: {
-              objectId: structure.objectId,
-              structureType: structure.type,
-              ownerCapId: structure.ownerCapId,
-              assemblyId: structure.assemblyId ?? null,
-              displayName: structure.name,
-            },
+            selectedNodeId: structure.objectId,
+            target: buildStructureWriteTarget(structure),
           },
         );
       }
@@ -85,6 +135,39 @@ export function useStructureSurfaceActions() {
     },
     [power],
   );
+
+  const closePowerConfirmation = useCallback(() => {
+    if (power.status !== "pending") {
+      setPendingNodeOfflineConfirmation(null);
+    }
+  }, [power.status]);
+
+  const submitNodeOfflineConfirmation = useCallback(async () => {
+    if (!pendingNodeOfflineConfirmation) {
+      return false;
+    }
+
+    const { structure, plan } = pendingNodeOfflineConfirmation;
+    const succeeded = await power.bringNodeOffline(
+      {
+        nodeId: structure.objectId,
+        ownerCapId: structure.ownerCapId,
+        connectedAssemblies: plan.connectedAssemblies,
+      },
+      {
+        refetchSignalFeed: true,
+        selectedNodeId: structure.objectId,
+        target: buildStructureWriteTarget(structure),
+        targets: plan.affectedTargets,
+      },
+    );
+
+    if (succeeded) {
+      setPendingNodeOfflineConfirmation(null);
+    }
+
+    return succeeded;
+  }, [pendingNodeOfflineConfirmation, power]);
 
   const openRenameDialog = useCallback(
     (structure: Structure) => {
@@ -137,8 +220,8 @@ export function useStructureSurfaceActions() {
   );
 
   const openStructureContextMenu = useCallback(
-    (structure: Structure, clientX: number, clientY: number) => {
-      const powerAction = getStructurePowerAction(structure);
+    (structure: Structure, clientX: number, clientY: number, options: StructureActionContextOptions = {}) => {
+      const powerAction = getPowerActionForStructure(structure, options);
       const items = [
         ...(powerAction ? [{
           key: powerAction.nextOnline ? "bring-online" : "take-offline",
@@ -149,12 +232,12 @@ export function useStructureSurfaceActions() {
             : powerAction.disabledReason,
           tone: powerAction.tone,
           onSelect: () => {
-            void executePowerAction(structure, powerAction.nextOnline);
+            void executePowerAction(structure, powerAction.nextOnline, options);
           },
         }] : []),
         ...(supportsStructureRename(structure) ? [{
           key: "rename-assembly",
-          label: "Rename Assembly",
+          label: formatRenameActionLabel(structure),
           disabled: rename.status === "pending",
           disabledReason: rename.status === "pending" ? "Submitting rename…" : null,
           onSelect: () => openRenameDialog(structure),
@@ -173,16 +256,17 @@ export function useStructureSurfaceActions() {
         items,
       });
     },
-    [executePowerAction, openRenameDialog, openStructureActionMenu, power.status, rename.status],
+    [executePowerAction, getPowerActionForStructure, openRenameDialog, openStructureActionMenu, power.status, rename.status],
   );
 
   const openStructureContextMenuFromElement = useCallback(
-    (structure: Structure, element: HTMLElement) => {
+    (structure: Structure, element: HTMLElement, options: StructureActionContextOptions = {}) => {
       const bounds = element.getBoundingClientRect();
       openStructureContextMenu(
         structure,
         bounds.left + bounds.width / 2,
         bounds.top + bounds.height / 2,
+        options,
       );
     },
     [openStructureContextMenu],
@@ -201,9 +285,11 @@ export function useStructureSurfaceActions() {
     openStructureContextMenuFromElement,
     closeStructureContextMenu: closeStructureActionMenu,
     closeRenameDialog,
+    closePowerConfirmation,
     dismissPowerFeedback: power.reset,
     dismissRenameFeedback: rename.reset,
     submitRename,
+    getPowerActionForStructure,
     renderContextMenu: contextMenu ? (
       <StructureActionContextMenu menu={contextMenu} menuRef={menuRef} onClose={closeStructureActionMenu} />
     ) : null,
@@ -212,11 +298,28 @@ export function useStructureSurfaceActions() {
         isOpen
         structureName={renameTarget.name}
         initialValue={renameTarget.name}
+        title={renameTarget.type === "network_node" ? "Rename Node" : "Rename Assembly"}
+        fieldLabel={renameTarget.type === "network_node" ? "Node Name" : "Assembly Name"}
+        submitLabel={renameTarget.type === "network_node" ? "Rename Node" : "Rename Assembly"}
         isPending={rename.status === "pending"}
         error={rename.error}
         onClose={closeRenameDialog}
         onSubmit={(nextName) => {
           void submitRename(nextName);
+        }}
+      />
+    ) : null,
+    renderPowerConfirmDialog: pendingNodeOfflineConfirmation ? (
+      <StructurePowerConfirmDialog
+        isOpen
+        title={NETWORK_NODE_OFFLINE_CONFIRMATION_TITLE}
+        body={NETWORK_NODE_OFFLINE_CONFIRMATION_BODY}
+        primaryLabel="Take offline"
+        isPending={power.status === "pending"}
+        error={power.status === "error" ? power.error : null}
+        onCancel={closePowerConfirmation}
+        onConfirm={() => {
+          void submitNodeOfflineConfirmation();
         }}
       />
     ) : null,
