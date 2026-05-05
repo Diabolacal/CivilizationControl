@@ -10,6 +10,15 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Sponsor-policy Node Control write pass - 2026-05-05
+
+This corrective audit pass stays on `fix/sponsor-policy-node-control-writes`. It does not change EF-Map contracts, VPS state, Move contracts, package IDs, vendor state, or production deploy state.
+
+- Recent wallet smoke showed some current Node Control writes only succeeding through player-paid fallback after sponsor rejection, so the worker policy and validator were re-audited against the live write surface on `master`.
+- The committed allowlist already covered the current Node Control/CivilizationControl write target set: generic assembly power, rename, network-node online/offline teardown, mixed child-power PTBs, posture switching, gate-policy writes, and existing permit/trade flows. The repo fix therefore stayed narrow: worker validation now enforces builder-shaped owner-cap sequences and the full `network_node::offline` teardown tail instead of approving any allowlisted world mutation in isolation.
+- Sponsor worker acceptance coverage now proves generic assembly online/offline, rename, network-node online/offline teardown, mixed child-power, posture, gate-control, extension authorization plus metadata URL, and standalone market flows. Rejection coverage now proves missing borrow/return, malformed node-offline teardown, unknown package/module/function, command overflow, and transfer-object mutation blocking. `scripts/validate-sponsor-policy.mjs` also now checks `FUEL_CONFIG_ID` parity for node-offline sponsorship.
+- Validation refreshed for the sponsor surface: `npm run sponsor:validate-policy` and `npm run sponsor:test` both passed after the worker hardening. No sponsor-worker deploy or Pages deploy was performed in this pass, so a live worker rollout remains the explicit next activation step if preview or production traffic is still serving the older validator.
+
 ### Node Power local load truth - 2026-05-05
 
 This corrective pass stays on `feat/network-node-offline-proof`. It does not change EF-Map contracts, VPS state, Move contracts, package IDs, vendor state, production deploy state, on-chain preset storage, Signal Feed parity, marketplace or revenue behavior, browser `queryEvents`, or broad polling.

@@ -125,8 +125,10 @@ Package-ID, runtime-ID, and allowlist changes belong in this repo. Update the co
 3. Reflect the same allowlist in `workers/sponsor-service/wrangler.toml`.
 4. Run `npm run sponsor:validate-policy`.
 5. Run worker tests and worker typecheck.
-6. Run root `npm run typecheck` and `npm run build`.
-7. Validate one actual sponsored governance action on preview before promoting any worker URL.
+6. When the change touches owner-cap-gated or hot-potato write families, make the worker tests prove the actual builder-shaped PTBs, not only standalone allowlisted MoveCalls.
+7. Run root `npm run typecheck` and `npm run build`.
+8. Deploy the worker explicitly before expecting live preview or production sponsorship behavior to change. Frontend Pages previews alone do not activate worker-source changes.
+9. Validate one actual sponsored governance action on preview before promoting any worker URL.
 
 ## Validation checklist
 
@@ -134,6 +136,7 @@ Package-ID, runtime-ID, and allowlist changes belong in this repo. Update the co
 - `npm run sponsor:validate-policy`
 - `npm run sponsor:test`
 - `npm run sponsor:typecheck`
+- builder-shaped acceptance or rejection coverage for any newly touched owner-cap or hot-potato write family
 - `npm run typecheck`
 - `npm run build`
 - `OPTIONS /sponsor` checks for `https://civilizationcontrol.com`, `https://www.civilizationcontrol.com`, and `https://civilizationcontrol.pages.dev`

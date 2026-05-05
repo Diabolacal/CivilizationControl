@@ -204,6 +204,11 @@ function main() {
     'EnergyConfig object id matches src/constants.ts',
     results,
   );
+  check(
+    chain.FUEL_CONFIG_ID === extractTsConstant(CONSTANTS_FILE, 'FUEL_CONFIG_ID'),
+    'FuelConfig object id matches src/constants.ts',
+    results,
+  );
 
   check(
     chain.CC_PACKAGE_ID === extractPublishedStillnessValue('published-at'),

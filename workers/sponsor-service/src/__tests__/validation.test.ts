@@ -92,6 +92,40 @@ function makeMoveCall(
   };
 }
 
+function makeOwnerCapSequence(
+  actionPackageId: string,
+  actionModule: string,
+  actionFunctions: string | string[],
+  ownerCapPackageId: string = WORLD_RUNTIME_PACKAGE,
+): Command[] {
+  const functions = Array.isArray(actionFunctions) ? actionFunctions : [actionFunctions];
+  return [
+    makeMoveCall(ownerCapPackageId, 'character', 'borrow_owner_cap'),
+    ...functions.map((functionName) => makeMoveCall(actionPackageId, actionModule, functionName)),
+    makeMoveCall(ownerCapPackageId, 'character', 'return_owner_cap'),
+  ];
+}
+
+function makeNodeOfflineSequence(
+  packageId: string,
+  connectedChildren: Array<'assembly' | 'gate' | 'storage_unit' | 'turret'> = [],
+): Command[] {
+  const childFunctions = {
+    assembly: 'offline_connected_assembly',
+    gate: 'offline_connected_gate',
+    storage_unit: 'offline_connected_storage_unit',
+    turret: 'offline_connected_turret',
+  } as const;
+
+  return [
+    makeMoveCall(packageId, 'character', 'borrow_owner_cap'),
+    makeMoveCall(packageId, 'network_node', 'offline'),
+    makeMoveCall(packageId, 'character', 'return_owner_cap'),
+    ...connectedChildren.map((moduleName) => makeMoveCall(packageId, moduleName, childFunctions[moduleName])),
+    makeMoveCall(packageId, 'network_node', 'destroy_offline_assemblies'),
+  ];
+}
+
 function makeSplitCoins(
   coin: Record<string, unknown>,
   amounts: Array<Record<string, unknown>>,
@@ -182,79 +216,76 @@ describe('parseAppPolicies', () => {
 
 describe('validateCommands happy path', () => {
   it('accepts a CC-only MoveCall', () => {
-    const result = validateCommands([makeMoveCall()], [CC_POLICY]);
+    const result = validateCommands(
+      [makeMoveCall(CC_PACKAGE, 'trade_post', 'cancel_listing')],
+      [CC_POLICY],
+    );
     expect(result.valid).toBe(true);
     expect(result.matchedApp).toBe('civilization-control');
   });
 
   it('accepts a world-only MoveCall', () => {
-    const result = validateCommands(
-      [makeMoveCall(WORLD_RUNTIME_PACKAGE, 'gate', 'online')],
-      [CC_POLICY],
-    );
+    const result = validateCommands(makeOwnerCapSequence(WORLD_RUNTIME_PACKAGE, 'gate', 'online'), [CC_POLICY]);
     expect(result.valid).toBe(true);
   });
 
-  it('accepts a generic assembly MoveCall', () => {
-    const result = validateCommands(
-      [makeMoveCall(WORLD_RUNTIME_PACKAGE, 'assembly', 'online')],
-      [CC_POLICY],
-    );
-    expect(result.valid).toBe(true);
+  it('accepts generic assembly online and offline sequences', () => {
+    expect(
+      validateCommands(makeOwnerCapSequence(WORLD_RUNTIME_PACKAGE, 'assembly', 'online'), [CC_POLICY]).valid,
+    ).toBe(true);
+    expect(
+      validateCommands(makeOwnerCapSequence(WORLD_RUNTIME_PACKAGE, 'assembly', 'offline'), [CC_POLICY]).valid,
+    ).toBe(true);
+  });
+
+  it('accepts rename sequences for assembly and network nodes', () => {
+    expect(
+      validateCommands(makeOwnerCapSequence(WORLD_RUNTIME_PACKAGE, 'assembly', 'update_metadata_name'), [CC_POLICY]).valid,
+    ).toBe(true);
+    expect(
+      validateCommands(makeOwnerCapSequence(WORLD_RUNTIME_PACKAGE, 'network_node', 'update_metadata_name'), [CC_POLICY]).valid,
+    ).toBe(true);
   });
 
   it('accepts a mixed child-power PTB shape', () => {
-    const result = validateCommands(
-      [
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'storage_unit', 'offline'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'gate', 'offline'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'turret', 'online'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'assembly', 'online'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap'),
-      ],
-      [CC_POLICY],
-    );
+    const result = validateCommands([
+      ...makeOwnerCapSequence(WORLD_RUNTIME_PACKAGE, 'storage_unit', 'offline'),
+      ...makeOwnerCapSequence(WORLD_RUNTIME_PACKAGE, 'gate', 'offline'),
+      ...makeOwnerCapSequence(WORLD_RUNTIME_PACKAGE, 'turret', 'online'),
+      ...makeOwnerCapSequence(WORLD_RUNTIME_PACKAGE, 'assembly', 'online'),
+    ], [CC_POLICY]);
 
     expect(result.valid).toBe(true);
   });
 
-  it('accepts a sponsored network-node offline PTB shape', () => {
-    const result = validateCommands(
-      [
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'network_node', 'offline'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'gate', 'offline_connected_gate'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'assembly', 'offline_connected_assembly'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'network_node', 'destroy_offline_assemblies'),
-        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap'),
-      ],
+  it('accepts sponsored network-node online and offline PTB shapes', () => {
+    const online = validateCommands(
+      makeOwnerCapSequence(WORLD_RUNTIME_PACKAGE, 'network_node', 'online'),
+      [CC_POLICY],
+    );
+    const offline = validateCommands(
+      makeNodeOfflineSequence(WORLD_RUNTIME_PACKAGE, ['gate', 'storage_unit', 'turret', 'assembly']),
       [CC_POLICY],
     );
 
-    expect(result.valid).toBe(true);
+    expect(online.valid).toBe(true);
+    expect(offline.valid).toBe(true);
   });
 
   it('accepts a compatibility-world MoveCall', () => {
     const result = validateCommands(
-      [makeMoveCall(WORLD_COMPAT_RUNTIME_PACKAGE, 'gate', 'offline')],
+      makeOwnerCapSequence(WORLD_COMPAT_RUNTIME_PACKAGE, 'gate', 'offline'),
       [CC_POLICY],
     );
     expect(result.valid).toBe(true);
   });
 
-  it('accepts a multi-package governance PTB', () => {
+  it('accepts posture switch and gate-control governance PTBs', () => {
     const commands = [
-      makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
-      makeMoveCall(WORLD_COMPAT_RUNTIME_PACKAGE, 'turret', 'authorize_extension'),
-      makeMoveCall(CC_PACKAGE, 'posture', 'set_posture'),
-      makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap'),
+      ...makeOwnerCapSequence(WORLD_RUNTIME_PACKAGE, 'turret', 'authorize_extension'),
+      ...makeOwnerCapSequence(WORLD_RUNTIME_PACKAGE, 'gate', ['authorize_extension', 'update_metadata_url']),
+      ...makeOwnerCapSequence(CC_PACKAGE, 'posture', 'set_posture', WORLD_RUNTIME_PACKAGE),
+      ...makeOwnerCapSequence(CC_PACKAGE, 'gate_control', 'set_policy_preset', WORLD_RUNTIME_PACKAGE),
     ];
 
     const result = validateCommands(commands, [CC_POLICY]);
@@ -283,6 +314,17 @@ describe('validateCommands happy path', () => {
     ];
 
     expect(validateCommands(commands, [CC_POLICY]).valid).toBe(true);
+  });
+
+  it('accepts standalone market listing flows', () => {
+    const createListing = [
+      makeMoveCall(CC_PACKAGE, 'trade_post', 'create_listing'),
+      makeMoveCall(CC_PACKAGE, 'trade_post', 'share_listing'),
+    ];
+    const cancelListing = [makeMoveCall(CC_PACKAGE, 'trade_post', 'cancel_listing')];
+
+    expect(validateCommands(createListing, [CC_POLICY]).valid).toBe(true);
+    expect(validateCommands(cancelListing, [CC_POLICY]).valid).toBe(true);
   });
 });
 
@@ -328,6 +370,63 @@ describe('validateCommands rejection paths', () => {
     expect(badModule.reason).toContain('module');
     expect(badFunction.valid).toBe(false);
     expect(badFunction.reason).toContain('function');
+  });
+
+  it('rejects owner-cap actions that skip or break the borrow/use/return sequence', () => {
+    const missingBorrow = validateCommands(
+      [makeMoveCall(WORLD_RUNTIME_PACKAGE, 'assembly', 'online')],
+      [CC_POLICY],
+    );
+    const missingReturn = validateCommands(
+      [
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'assembly', 'online'),
+      ],
+      [CC_POLICY],
+    );
+    const strayReturn = validateCommands(
+      [makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap')],
+      [CC_POLICY],
+    );
+
+    expect(missingBorrow.valid).toBe(false);
+    expect(missingBorrow.reason).toContain('requires borrow_owner_cap');
+    expect(missingReturn.valid).toBe(false);
+    expect(missingReturn.reason).toContain('missing return_owner_cap');
+    expect(strayReturn.valid).toBe(false);
+    expect(strayReturn.reason).toContain('without an active borrow_owner_cap');
+  });
+
+  it('rejects malformed network-node offline teardown sequences', () => {
+    const missingDestroy = validateCommands(
+      [
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'network_node', 'offline'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'return_owner_cap'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'gate', 'offline_connected_gate'),
+      ],
+      [CC_POLICY],
+    );
+    const missingReturn = validateCommands(
+      [
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'character', 'borrow_owner_cap'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'network_node', 'offline'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'gate', 'offline_connected_gate'),
+        makeMoveCall(WORLD_RUNTIME_PACKAGE, 'network_node', 'destroy_offline_assemblies'),
+      ],
+      [CC_POLICY],
+    );
+    const strayDestroy = validateCommands(
+      [makeMoveCall(WORLD_RUNTIME_PACKAGE, 'network_node', 'destroy_offline_assemblies')],
+      [CC_POLICY],
+    );
+
+    expect(missingDestroy.valid).toBe(false);
+    expect(missingDestroy.reason).toContain('missing destroy_offline_assemblies');
+    expect(missingReturn.valid).toBe(false);
+    expect(missingReturn.reason).toContain('only allowed after network_node::offline and return_owner_cap');
+    expect(strayDestroy.valid).toBe(false);
+    expect(strayDestroy.reason).toContain('requires an active network_node::offline teardown');
   });
 
   it('rejects cross-app PTBs when another policy is present', () => {
