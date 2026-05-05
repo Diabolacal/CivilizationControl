@@ -19,7 +19,7 @@ This activation pass landed the sponsor-worker hardening branch on `master` as `
 - Cloudflare version id: `0d0b68a4-5a79-4fea-acce-c8802f7cc43f`
 - Post-deploy `OPTIONS /sponsor` checks returned `204` with expected CORS headers for `https://civilizationcontrol.com`, `https://www.civilizationcontrol.com`, `https://civilizationcontrol.pages.dev`, and preview origin `https://cc2253d4.civilizationcontrol.pages.dev`
 - No Pages production deploy was performed; preview evidence used existing preview `https://cc2253d4.civilizationcontrol.pages.dev`
-- Agent-browser wallet smoke could not prove the live sponsored path because the preview wallet dialog exposed only `Slush`, and that provider failed before any rename or low-risk power action could be attempted
+- Later human preview smoke on `https://cc2253d4.civilizationcontrol.pages.dev` connected a wallet, completed a harmless structure rename, and confirmed sponsorship, proving the activated worker avoided player-paid fallback for at least one current preview write path without any further code, worker, Pages, EF-Map, VPS, Move, or package change
 
 ### Sponsor-policy Node Control write pass - 2026-05-05
 

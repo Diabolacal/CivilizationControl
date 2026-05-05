@@ -41,7 +41,8 @@ Current committed config is CivilizationControl-only:
 - `https://civilizationcontrol.pages.dev` remains allowed, and preview hosts remain allowed via `.civilizationcontrol.pages.dev`
 - 2026-05-05 post-deploy `OPTIONS /sponsor` checks returned `204` plus the expected `Access-Control-Allow-Origin`, `POST, OPTIONS`, and `Content-Type, Authorization` headers for `https://civilizationcontrol.com`, `https://www.civilizationcontrol.com`, `https://civilizationcontrol.pages.dev`, and preview origin `https://cc2253d4.civilizationcontrol.pages.dev`
 - No Pages production deploy was performed in the 2026-05-05 activation pass; preview evidence used existing Pages preview `https://cc2253d4.civilizationcontrol.pages.dev`
-- Agent-browser wallet smoke remained blocked during the 2026-05-05 activation pass because the preview connect dialog exposed only `Slush`, and that provider returned `Connection failed` before any sponsored transaction could be attempted
+- Agent-browser wallet smoke was initially blocked during the 2026-05-05 activation pass because the preview connect dialog exposed only `Slush`, and that provider returned `Connection failed` before any sponsored transaction could be attempted
+- Later human preview smoke on `https://cc2253d4.civilizationcontrol.pages.dev` connected a wallet, completed a harmless structure rename, and confirmed the transaction was sponsored, proving the activated worker avoided player-paid fallback for at least one current preview write path without any further code, worker, Pages, EF-Map, VPS, Move, or package change
 - Manual production smoke after the custom-domain CORS fix confirmed sponsor-paid transactions by sponsor-wallet observation
 - Production digest evidence was not captured in the agent transcript
 - `flappy-frontier-sponsor` remains rollback-only during soak and is not yet retired
