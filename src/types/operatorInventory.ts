@@ -71,6 +71,7 @@ export interface OperatorInventoryStructure {
 export interface OperatorInventoryNode {
   node: OperatorInventoryStructure;
   structures: OperatorInventoryStructure[];
+  powerUsageSummary?: IndexedNodePowerUsageSummary | null;
 }
 
 export interface OperatorInventoryResponse {

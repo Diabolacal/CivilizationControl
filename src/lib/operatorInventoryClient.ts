@@ -178,7 +178,7 @@ async function parseErrorPayload(response: Response): Promise<ErrorPayload> {
   }
 }
 
-function normalizeOperatorInventoryResponse(payload: unknown): OperatorInventoryResponse | null {
+export function normalizeOperatorInventoryResponse(payload: unknown): OperatorInventoryResponse | null {
   if (!payload || typeof payload !== "object") return null;
 
   const candidate = payload as Record<string, unknown>;
@@ -232,14 +232,23 @@ function normalizeOperatorInventoryNode(
   if (!value || typeof value !== "object") return null;
 
   const candidate = value as Record<string, unknown>;
-  const node = normalizeOperatorInventoryStructure(candidate.node, defaults);
-  if (!node || !Array.isArray(candidate.structures)) return null;
+  const rawNode = normalizeOperatorInventoryStructure(candidate.node, defaults);
+  if (!rawNode || !Array.isArray(candidate.structures)) return null;
+
+  const wrapperPowerUsageSummary = normalizeIndexedNodePowerUsageSummary(candidate.powerUsageSummary);
+  const node = rawNode.powerUsageSummary == null && wrapperPowerUsageSummary != null
+    ? {
+        ...rawNode,
+        powerUsageSummary: wrapperPowerUsageSummary,
+      }
+    : rawNode;
 
   return {
     node,
     structures: candidate.structures
       .map((entry) => normalizeOperatorInventoryStructure(entry, defaults))
       .filter((entry): entry is OperatorInventoryStructure => entry !== null),
+    powerUsageSummary: wrapperPowerUsageSummary ?? node.powerUsageSummary,
   };
 }
 

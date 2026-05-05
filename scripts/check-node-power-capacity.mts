@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 
+import { normalizeOperatorInventoryResponse } from '../src/lib/operatorInventoryClient.ts';
 import { adaptOperatorInventory } from '../src/lib/operatorInventoryAdapter.ts';
 import { buildLiveNodeLocalViewModelWithObserved } from '../src/lib/nodeDrilldownModel.ts';
 import { NODE_DRILLDOWN_SCENARIOS } from '../src/lib/nodeDrilldownScenarios.ts';
@@ -15,7 +16,7 @@ import {
 import { upsertNodePowerPresetSlot } from '../src/lib/nodePowerPresets.ts';
 
 import type { NodeLocalStructure } from '../src/lib/nodeDrilldownTypes.ts';
-import type { OperatorInventoryResponse, OperatorInventoryStructure } from '../src/types/operatorInventory.ts';
+import type { OperatorInventoryStructure } from '../src/types/operatorInventory.ts';
 
 function objectId(seed: number): string {
   return `0x${seed.toString(16).padStart(64, '0')}`;
@@ -174,7 +175,7 @@ assert.equal(unknownBringOnlineCheck.canVerify, false, 'expected unknown node lo
 const nodeId = objectId(1);
 const storageId = objectId(101);
 const gateId = objectId(102);
-const inventory: OperatorInventoryResponse = {
+const rawInventoryPayload = {
   schemaVersion: 'operator-inventory.v1',
   operator: null,
   networkNodes: [
@@ -184,18 +185,6 @@ const inventory: OperatorInventoryResponse = {
         family: 'networkNode',
         displayName: 'Indexed Load Node',
         status: 'online',
-        powerUsageSummary: {
-          capacityGj: 1000,
-          usedGj: 320,
-          availableGj: 680,
-          onlineKnownLoadGj: 320,
-          onlineUnknownLoadCount: 0,
-          totalKnownLoadGj: 770,
-          totalUnknownLoadCount: 0,
-          source: 'indexed_children',
-          confidence: 'indexed',
-          lastUpdated: '2026-05-05T12:00:00.000Z',
-        },
       }),
       structures: [
         makeInventoryStructure({
@@ -236,6 +225,18 @@ const inventory: OperatorInventoryResponse = {
           },
         }),
       ],
+      powerUsageSummary: {
+        capacityGj: 1000,
+        usedGj: 320,
+        availableGj: 680,
+        onlineKnownLoadGj: 320,
+        onlineUnknownLoadCount: 0,
+        totalKnownLoadGj: 770,
+        totalUnknownLoadCount: 0,
+        source: 'indexed_children',
+        confidence: 'indexed',
+        lastUpdated: '2026-05-05T12:00:00.000Z',
+      },
     },
   ],
   unlinkedStructures: [],
@@ -245,7 +246,20 @@ const inventory: OperatorInventoryResponse = {
   fetchedAt: '2026-05-05T12:00:00.000Z',
 };
 
-const adapted = adaptOperatorInventory(inventory);
+const normalizedInventory = normalizeOperatorInventoryResponse(rawInventoryPayload);
+assert(normalizedInventory, 'expected live wrapper-level node power summaries to normalize');
+assert.equal(
+  normalizedInventory.networkNodes[0]?.node.powerUsageSummary?.usedGj,
+  320,
+  'expected wrapper-level node power usage summaries to normalize onto the node row',
+);
+assert.equal(
+  normalizedInventory.networkNodes[0]?.powerUsageSummary?.usedGj,
+  320,
+  'expected the normalized grouped node shape to retain the live wrapper-level power summary',
+);
+
+const adapted = adaptOperatorInventory(normalizedInventory);
 const adaptedNodeGroup = adapted.nodeGroups[0];
 assert(adaptedNodeGroup, 'expected adapted node groups for indexed power mapping');
 assert.equal(adaptedNodeGroup.node.indexedPowerUsageSummary?.usedGj, 320, 'expected the adapter to preserve indexed node power usage summaries');
@@ -271,6 +285,9 @@ assert(!/window\.confirm\s*\(/.test(dashboardSource), 'expected dashboard capaci
 
 const presetDialogSource = readFileSync('src/components/topology/node-drilldown/NodePowerPresetDialog.tsx', 'utf8');
 assert(presetDialogSource.includes('saveBlockedReason'), 'expected the preset dialog to surface a calm inline blocked reason');
+
+const actionStripSource = readFileSync('src/components/topology/node-drilldown/NodePowerActionStrip.tsx', 'utf8');
+assert(!/title\s*=/.test(actionStripSource), 'expected the node power action strip not to rely on native browser tooltips');
 
 const labSource = readFileSync('src/screens/NodeDrilldownLabScreen.tsx', 'utf8');
 assert(labSource.includes('getNodePowerUsageReadout(scenarioViewModel?.node ?? null)'), 'expected the dev lab to render the node power readout from the scenario node summary');
