@@ -5,6 +5,7 @@ import {
   buildNodeChildBulkPowerPlan,
   buildNodePowerPresetApplyPlan,
   filterNodePowerPlanForOperatorInventory,
+  filterNodePowerPlanForTargetStatuses,
   getNodePowerUsageReadout,
   groupNodePowerOperationTargets,
   NODE_POWER_CAPACITY_GJ,
@@ -324,6 +325,55 @@ assert.deepEqual(
   'expected preflight operator-inventory refresh to drop children that already reached the requested status',
 );
 
+const staleRawOnlineRefinery = makeStructure({
+  id: 'stale-refinery',
+  canonicalDomainKey: 'object:stale-refinery',
+  status: 'online',
+  displayName: 'Stale Refinery',
+  family: 'refinery',
+  familyLabel: 'Refinery',
+  iconFamily: 'refinery',
+  band: 'industry',
+  actionAuthority: {
+    state: 'verified-supported',
+    verifiedTarget: {
+      structureId: objectId(901),
+      structureType: 'assembly',
+      ownerCapId: objectId(902),
+      networkNodeId: objectId(903),
+      status: 'online',
+    },
+    candidateTargets: [],
+    unavailableReason: null,
+  },
+});
+const staleRawTakeOfflinePlan = buildNodeChildBulkPowerPlan([staleRawOnlineRefinery], false);
+const chainFilteredOfflinePlan = filterNodePowerPlanForTargetStatuses(
+  staleRawTakeOfflinePlan,
+  new Map([[objectId(901), 'offline']]),
+);
+assert.equal(
+  chainFilteredOfflinePlan.disabledReason,
+  'no structures need changing',
+  'expected direct-chain OFFLINE evidence to drop stale raw-online children before PTB build',
+);
+assert.equal(chainFilteredOfflinePlan.targets.length, 0, 'expected stale raw-online Take all offline target list to be empty before wallet prompt');
+
+const offlinePresetSlot = upsertNodePowerPresetSlot([null, null, null, null], {
+  label: 'Offline State',
+  nodeId: objectId(903),
+  slotIndex: 1,
+  structures: [{ ...staleRawOnlineRefinery, status: 'offline' }],
+})[0];
+assert(offlinePresetSlot, 'expected offline preset fixture to save');
+const staleRawPresetApplyPlan = buildNodePowerPresetApplyPlan(offlinePresetSlot, [staleRawOnlineRefinery]);
+assert.equal(staleRawPresetApplyPlan.targets.length, 1, 'expected stale raw-online preset apply to produce one offline target before chain proof');
+const chainFilteredPresetPlan = filterNodePowerPlanForTargetStatuses(
+  staleRawPresetApplyPlan,
+  new Map([[objectId(901), 'offline']]),
+);
+assert.equal(chainFilteredPresetPlan.targets.length, 0, 'expected direct-chain OFFLINE evidence to drop stale raw-online preset target before wallet prompt');
+
 const readout = getNodePowerUsageReadout();
 assert.equal(readout.label, 'Power usage unavailable', 'expected unavailable meter state to render calm operator copy');
 assert.equal(readout.capacityGJ, NODE_POWER_CAPACITY_GJ, 'expected the node capacity constant to stay pinned at 1000 GJ');
@@ -344,6 +394,8 @@ assert.equal(getDefaultNodePowerPresetLabel(4), 'Preset 4', 'expected default sl
 const dashboardSource = readFileSync('src/screens/Dashboard.tsx', 'utf8');
 assert(dashboardSource.includes('operatorInventory.refetch()'), 'expected node-local bulk/preset writes to refresh operator inventory before final target selection');
 assert(dashboardSource.includes('filterNodePowerPlanForOperatorInventory'), 'expected node-local bulk/preset writes to filter stale already-in-state children before PTB build');
+assert(dashboardSource.includes('fetchStructurePowerChainStatuses'), 'expected node-local bulk/preset writes to direct-chain preflight final targets before PTB build');
+assert(dashboardSource.includes('filterNodePowerPlanForTargetStatuses'), 'expected node-local bulk/preset writes to remove chain-confirmed already-in-state targets before PTB build');
 assert(dashboardSource.includes('targets: executionPlan.targets.map(toStructureWriteTarget)'), 'expected node-local bulk/preset writes to pass per-child overlay targets');
 assert(dashboardSource.includes('structurePower.toggleMixed'), 'expected node-local bulk/preset writes to submit one mixed child-power PTB');
 assert(!dashboardSource.includes('groupNodePowerOperationTargets(plan.targets)'), 'expected Node Control execution not to loop grouped child batches');

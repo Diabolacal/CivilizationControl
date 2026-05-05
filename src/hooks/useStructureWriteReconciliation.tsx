@@ -26,6 +26,10 @@ import {
   type StructureWriteDebugController,
   type StructureWriteTarget,
 } from "@/lib/structureWriteReconciliation";
+import {
+  loadStructurePowerSessionCorrections,
+  saveStructurePowerSessionCorrections,
+} from "@/lib/structurePowerSessionCorrections";
 import { normalizeOperatorInventoryWalletAddress } from "@/lib/operatorInventoryClient";
 import type { NetworkNodeGroup, Structure, StructureStatus } from "@/types/domain";
 import type { OperatorInventoryResponse } from "@/types/operatorInventory";
@@ -72,9 +76,15 @@ export function StructureWriteReconciliationProvider({ children }: PropsWithChil
   const refreshAfterWrite = useStructureWriteRefresh();
   const { walletAddress } = useConnection();
   const normalizedWalletAddress = normalizeOperatorInventoryWalletAddress(walletAddress);
-  const [overlaysByKey, setOverlaysByKey] = useState<Record<string, PendingStructureWriteOverlay>>({});
+  const [overlaysByKey, setOverlaysByKey] = useState<Record<string, PendingStructureWriteOverlay>>(
+    () => loadStructurePowerSessionCorrections(),
+  );
   const overlays = useMemo(() => Object.values(overlaysByKey), [overlaysByKey]);
   const debugEnabled = useMemo(() => isStructureWriteDebugEnabled(), []);
+
+  useEffect(() => {
+    saveStructurePowerSessionCorrections(overlaysByKey);
+  }, [overlaysByKey]);
 
   useEffect(() => {
     if (typeof window === "undefined") {

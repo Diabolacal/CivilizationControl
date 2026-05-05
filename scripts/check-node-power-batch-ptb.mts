@@ -85,6 +85,16 @@ const dashboardSource = readFileSync("src/screens/Dashboard.tsx", "utf8");
 assert(dashboardSource.includes("structurePower.toggleMixed"), "expected Node Control bulk/preset execution to use the mixed one-PTB hook path");
 assert(!dashboardSource.includes("structurePower.toggleBatch"), "expected Node Control not to loop same-family batch submissions from Dashboard");
 assert(dashboardSource.includes("operatorInventory.refetch()"), "expected Node Control bulk/preset execution to preflight-refresh before final diffing");
+assert(dashboardSource.includes("fetchStructurePowerChainStatuses"), "expected Node Control bulk/preset execution to chain-preflight final targets before wallet prompt");
+assert(dashboardSource.includes("filterNodePowerPlanForTargetStatuses"), "expected Node Control bulk/preset execution to drop chain-confirmed already-in-state targets before wallet prompt");
+assert(!/queryEvents\s*\(/.test(dashboardSource), "expected Node Control bulk/preset execution not to use browser queryEvents");
+assert(!/setInterval\s*\(/.test(dashboardSource), "expected Node Control bulk/preset execution not to add broad polling");
+assert(!/window\.confirm\s*\(/.test(dashboardSource), "expected Node Control bulk/preset execution not to use native browser confirmation popups");
+
+const chainStatusSource = readFileSync("src/lib/structurePowerChainStatus.ts", "utf8");
+assert(chainStatusSource.includes("multiGetObjects"), "expected final target truth guard to use targeted object reads only");
+assert(!/queryEvents\s*\(/.test(chainStatusSource), "expected final target truth guard not to query events");
+assert(!/setInterval\s*\(/.test(chainStatusSource), "expected final target truth guard not to poll broadly");
 
 const powerHookSource = readFileSync("src/hooks/useStructurePower.ts", "utf8");
 assert(powerHookSource.includes("buildMixedAssemblyPowerTx"), "expected the power hook to expose a mixed-family PTB builder path");

@@ -244,6 +244,31 @@ export function filterNodePowerPlanForOperatorInventory(
   };
 }
 
+export function filterNodePowerPlanForTargetStatuses(
+  plan: NodePowerOperationPlan,
+  statusesByStructureId: ReadonlyMap<string, StructureStatus> | null | undefined,
+): NodePowerOperationPlan {
+  if (!statusesByStructureId || statusesByStructureId.size === 0 || plan.targets.length === 0) {
+    return plan;
+  }
+
+  const targets = plan.targets.filter((target) => {
+    const structureId = normalizeCanonicalObjectId(target.verifiedTarget.structureId);
+    const status = structureId ? statusesByStructureId.get(structureId) : null;
+    if (!status || !isExactPowerStatus(status)) {
+      return true;
+    }
+
+    return (status === "online") !== target.desiredOnline;
+  });
+
+  return {
+    targets,
+    disabledReason: targets.length === 0 ? "no structures need changing" : plan.disabledReason,
+    capacityReason: buildCapacityReason(targets),
+  };
+}
+
 export function toMixedAssemblyPowerTarget(target: NodePowerOperationTarget) {
   return {
     structureId: target.verifiedTarget.structureId,

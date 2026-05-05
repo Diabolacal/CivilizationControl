@@ -60,11 +60,13 @@ import {
   buildNodeChildBulkPowerPlan,
   buildNodePowerPresetApplyPlan,
   filterNodePowerPlanForOperatorInventory,
+  filterNodePowerPlanForTargetStatuses,
   getNodePowerUsageReadout,
   toMixedAssemblyPowerTarget,
   toStructureWriteTarget,
   type NodePowerOperationPlan,
 } from "@/lib/nodePowerControlModel";
+import { fetchStructurePowerChainStatuses } from "@/lib/structurePowerChainStatus";
 import { buildOperatorInventoryDebugCopySummary, buildOperatorInventoryDebugSnapshot } from "@/lib/operatorInventoryDebug";
 import type { NetworkMetrics, NetworkNodeGroup, SpatialPin, Structure } from "@/types/domain";
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
@@ -321,13 +323,23 @@ export function Dashboard({
     setPowerSuccessLabel(successLabel);
 
     let executionPlan = plan;
+    let inventoryForFinalFilter = operatorInventory.inventory;
     const freshInventoryResult = await operatorInventory.refetch().catch(() => null);
     if (freshInventoryResult?.data) {
-      executionPlan = filterNodePowerPlanForOperatorInventory(
-        plan,
-        applyOperatorInventory(freshInventoryResult.data),
-        selectedNodeGroup?.node.objectId ?? null,
-      );
+      inventoryForFinalFilter = applyOperatorInventory(freshInventoryResult.data);
+    }
+
+    executionPlan = filterNodePowerPlanForOperatorInventory(
+      plan,
+      inventoryForFinalFilter,
+      selectedNodeGroup?.node.objectId ?? null,
+    );
+
+    if (!executionPlan.disabledReason && executionPlan.targets.length > 0) {
+      const chainStatuses = await fetchStructurePowerChainStatuses(
+        executionPlan.targets.map(toMixedAssemblyPowerTarget),
+      ).catch(() => null);
+      executionPlan = filterNodePowerPlanForTargetStatuses(executionPlan, chainStatuses);
     }
 
     if (executionPlan.disabledReason || executionPlan.targets.length === 0) {

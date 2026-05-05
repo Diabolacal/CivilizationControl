@@ -22,6 +22,7 @@ import {
   requestSponsorship,
   type SponsorResponse,
 } from "@/lib/sponsorship";
+import { getFailedTransactionMessage } from "@/lib/transactionExecutionErrors";
 
 const TAG = "[sponsor]";
 
@@ -110,7 +111,7 @@ export function useSponsoredExecution() {
       const txData =
         result.$kind === "Transaction" ? result.Transaction : result.FailedTransaction;
       if (!txData || result.$kind === "FailedTransaction") {
-        throw new Error("Transaction failed on-chain");
+        throw new Error(getFailedTransactionMessage(txData) ?? "Transaction failed on-chain");
       }
       console.info(`${TAG} Standard execution complete: digest=${txData.digest}`);
       return { digest: txData.digest };
