@@ -1,5 +1,6 @@
 import type { StructureWriteTarget } from "@/lib/structureWriteReconciliation";
 import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
+import type { StructurePowerChainSnapshot } from "@/lib/structurePowerChainStatus";
 import type { StructureActionTargetType, StructureStatus } from "@/types/domain";
 import type { OperatorInventoryResponse, OperatorInventoryStructure } from "@/types/operatorInventory";
 import type { NodeLocalStructure } from "./nodeDrilldownTypes";
@@ -29,6 +30,31 @@ export interface NodePowerUsageReadout {
   label: string;
   capacityGJ: number;
   isAvailable: boolean;
+}
+
+export type NodePowerEligibilityReason =
+  | "already_online"
+  | "already_offline"
+  | "chain_offline"
+  | "chain_online"
+  | "chain_status_unavailable"
+  | "invalid_chain_status"
+  | "missing_structure_id"
+  | "missing_owner_cap"
+  | "missing_network_node"
+  | "modeled_online_without_chain_status";
+
+export interface NodePowerOperationDecision {
+  target: NodePowerOperationTarget;
+  included: boolean;
+  reason: NodePowerEligibilityReason;
+  chainStatus: StructureStatus | null;
+  chainStatusVariant: string | null;
+  chainState: StructurePowerChainSnapshot["state"] | null;
+}
+
+export interface NodePowerOperationEvaluation extends NodePowerOperationPlan {
+  decisions: NodePowerOperationDecision[];
 }
 
 function isExactPowerStatus(status: StructureStatus): status is "online" | "offline" {
@@ -131,6 +157,163 @@ function buildCapacityReason(targets: readonly NodePowerOperationTarget[]): stri
   return targets.some((target) => target.desiredOnline)
     ? "Power requirement unavailable"
     : null;
+}
+
+function hasRequiredTargetContext(target: NodePowerOperationTarget): NodePowerEligibilityReason | null {
+  if (!normalizeCanonicalObjectId(target.verifiedTarget.structureId)) {
+    return "missing_structure_id";
+  }
+
+  if (target.verifiedTarget.ownerCapId.trim().length === 0) {
+    return "missing_owner_cap";
+  }
+
+  if (target.verifiedTarget.networkNodeId.trim().length === 0) {
+    return "missing_network_node";
+  }
+
+  return null;
+}
+
+function getModeledExactStatus(target: NodePowerOperationTarget): "online" | "offline" | null {
+  if (isExactPowerStatus(target.structure.status)) {
+    return target.structure.status;
+  }
+
+  return isExactPowerStatus(target.verifiedTarget.status) ? target.verifiedTarget.status : null;
+}
+
+function getNoEligibleStructuresReason(targets: readonly NodePowerOperationTarget[]): string {
+  const hasOnlineTargets = targets.some((target) => target.desiredOnline);
+  const hasOfflineTargets = targets.some((target) => !target.desiredOnline);
+  if (hasOnlineTargets && !hasOfflineTargets) {
+    return "No eligible structures to bring online.";
+  }
+
+  if (hasOfflineTargets && !hasOnlineTargets) {
+    return "No eligible structures to take offline.";
+  }
+
+  return "No eligible structure changes.";
+}
+
+function evaluateNodePowerOperationTarget(
+  target: NodePowerOperationTarget,
+  chainSnapshots: ReadonlyMap<string, StructurePowerChainSnapshot> | null | undefined,
+): NodePowerOperationDecision {
+  const missingContextReason = hasRequiredTargetContext(target);
+  if (missingContextReason) {
+    return {
+      target,
+      included: false,
+      reason: missingContextReason,
+      chainStatus: null,
+      chainStatusVariant: null,
+      chainState: null,
+    };
+  }
+
+  const normalizedStructureId = normalizeCanonicalObjectId(target.verifiedTarget.structureId);
+  const modeledStatus = getModeledExactStatus(target);
+  if (!normalizedStructureId) {
+    return {
+      target,
+      included: false,
+      reason: "missing_structure_id",
+      chainStatus: null,
+      chainStatusVariant: null,
+      chainState: null,
+    };
+  }
+
+  if (!chainSnapshots) {
+    if (target.desiredOnline) {
+      return {
+        target,
+        included: false,
+        reason: "chain_status_unavailable",
+        chainStatus: null,
+        chainStatusVariant: null,
+        chainState: null,
+      };
+    }
+
+    const included = modeledStatus === "online";
+    return {
+      target,
+      included,
+      reason: included ? "modeled_online_without_chain_status" : "chain_status_unavailable",
+      chainStatus: null,
+      chainStatusVariant: null,
+      chainState: null,
+    };
+  }
+
+  const snapshot = chainSnapshots.get(normalizedStructureId);
+  if (!snapshot) {
+    if (target.desiredOnline) {
+      return {
+        target,
+        included: false,
+        reason: "chain_status_unavailable",
+        chainStatus: null,
+        chainStatusVariant: null,
+        chainState: null,
+      };
+    }
+
+    const included = modeledStatus === "online";
+    return {
+      target,
+      included,
+      reason: included ? "modeled_online_without_chain_status" : "chain_status_unavailable",
+      chainStatus: null,
+      chainStatusVariant: null,
+      chainState: null,
+    };
+  }
+
+  if (target.desiredOnline) {
+    if (snapshot.state === "offline") {
+      return {
+        target,
+        included: true,
+        reason: "chain_offline",
+        chainStatus: snapshot.chainStatus,
+        chainStatusVariant: snapshot.statusVariant,
+        chainState: snapshot.state,
+      };
+    }
+
+    return {
+      target,
+      included: false,
+      reason: snapshot.state === "online" ? "already_online" : "invalid_chain_status",
+      chainStatus: snapshot.chainStatus,
+      chainStatusVariant: snapshot.statusVariant,
+      chainState: snapshot.state,
+    };
+  }
+
+  if (snapshot.state === "online") {
+    return {
+      target,
+      included: true,
+      reason: "chain_online",
+      chainStatus: snapshot.chainStatus,
+      chainStatusVariant: snapshot.statusVariant,
+      chainState: snapshot.state,
+    };
+  }
+
+  return {
+    target,
+    included: false,
+    reason: snapshot.state === "offline" ? "already_offline" : "invalid_chain_status",
+    chainStatus: snapshot.chainStatus,
+    chainStatusVariant: snapshot.statusVariant,
+    chainState: snapshot.state,
+  };
 }
 
 export function getNodePowerUsageReadout(): NodePowerUsageReadout {
@@ -266,6 +449,37 @@ export function filterNodePowerPlanForTargetStatuses(
     targets,
     disabledReason: targets.length === 0 ? "no structures need changing" : plan.disabledReason,
     capacityReason: buildCapacityReason(targets),
+  };
+}
+
+export function inspectNodePowerPlanForChainEligibility(
+  plan: NodePowerOperationPlan,
+  chainSnapshots: ReadonlyMap<string, StructurePowerChainSnapshot> | null | undefined,
+): NodePowerOperationEvaluation {
+  if (plan.targets.length === 0) {
+    return { ...plan, decisions: [] };
+  }
+
+  const decisions = plan.targets.map((target) => evaluateNodePowerOperationTarget(target, chainSnapshots));
+  const targets = decisions.filter((decision) => decision.included).map((decision) => decision.target);
+
+  return {
+    targets,
+    disabledReason: targets.length === 0 ? getNoEligibleStructuresReason(plan.targets) : null,
+    capacityReason: buildCapacityReason(targets),
+    decisions,
+  };
+}
+
+export function filterNodePowerPlanForChainEligibility(
+  plan: NodePowerOperationPlan,
+  chainSnapshots: ReadonlyMap<string, StructurePowerChainSnapshot> | null | undefined,
+): NodePowerOperationPlan {
+  const evaluation = inspectNodePowerPlanForChainEligibility(plan, chainSnapshots);
+  return {
+    targets: evaluation.targets,
+    disabledReason: evaluation.disabledReason,
+    capacityReason: evaluation.capacityReason,
   };
 }
 

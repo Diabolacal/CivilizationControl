@@ -32,10 +32,12 @@ import {
 import {
   getStructureWriteRefreshTargetCount,
   resolveAlreadyOfflineCorrectionTarget,
+  resolvePowerErrorTarget,
   resolvePowerErrorDesiredStatus,
   toDesiredPowerStatus,
   type ExactPowerStatus,
 } from "@/lib/structurePowerFailureResolution";
+import { fetchStructurePowerChainSnapshots } from "@/lib/structurePowerChainStatus";
 import type { ObjectId, StructureActionTargetType, TxStatus, TxResult } from "@/types/domain";
 
 type AssemblyPowerStructureType = Exclude<StructureActionTargetType, "network_node">;
@@ -78,6 +80,35 @@ export function useStructurePower() {
   const [status, setStatus] = useState<TxStatus>("idle");
   const [result, setResult] = useState<TxResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  const reportLocalSuccess = useCallback((message: string) => {
+    setError(null);
+    setResult({ digest: null, message });
+    setStatus("success");
+    return true;
+  }, []);
+
+  const applyLocalCorrection = useCallback((
+    desiredStatus: ExactPowerStatus,
+    refreshOptions: StructureWriteRefreshOptions | undefined,
+    message: string,
+  ) => {
+    if (refreshOptions?.target || refreshOptions?.targets?.length) {
+      reconcileWrite({
+        action: "power",
+        digest: null,
+        target: refreshOptions.target,
+        targets: refreshOptions.targets,
+        desiredStatus,
+        refreshOptions,
+      });
+    }
+
+    setError(null);
+    setResult({ digest: null, message });
+    setStatus("success");
+    return getStructureWriteRefreshTargetCount(refreshOptions) <= 1;
+  }, [reconcileWrite]);
 
   const execute = useCallback(
     async (
@@ -142,17 +173,28 @@ export function useStructurePower() {
               target: correctionTarget,
               targets: [correctionTarget],
             };
-            reconcileWrite({
-              action: "power",
-              digest: null,
-              target: correctionTarget,
-              desiredStatus: "offline",
-              refreshOptions: correctionRefreshOptions,
-            });
+            return applyLocalCorrection("offline", correctionRefreshOptions, formatStructurePowerError(message, errorContext));
+          }
+        }
 
-            setResult({ digest: null, message: formatStructurePowerError(message, errorContext) });
-            setStatus("success");
-            return getStructureWriteRefreshTargetCount(refreshOptions) <= 1;
+        if (errorKind === "target_invalid_online_state" && errorDesiredStatus === "online") {
+          const correctionTarget = resolvePowerErrorTarget(message, desiredStatus, refreshOptions, "online");
+          if (correctionTarget) {
+            const chainSnapshots = await fetchStructurePowerChainSnapshots([
+              { structureId: correctionTarget.objectId },
+            ]).catch(() => null);
+            const normalizedCorrectionTarget = correctionTarget.objectId.trim().toLowerCase();
+            const correctionSnapshot = chainSnapshots?.get(normalizedCorrectionTarget)
+              ?? chainSnapshots?.values().next().value
+              ?? null;
+            if (correctionSnapshot?.chainStatus === "online") {
+              const correctionRefreshOptions: StructureWriteRefreshOptions = {
+                ...refreshOptions,
+                target: correctionTarget,
+                targets: [correctionTarget],
+              };
+              return applyLocalCorrection("online", correctionRefreshOptions, "Already online. View updated.");
+            }
           }
         }
 
@@ -161,7 +203,7 @@ export function useStructurePower() {
         return false;
       }
     },
-    [executeTx, reconcileWrite, refreshAfterWrite],
+    [applyLocalCorrection, executeTx, reconcileWrite, refreshAfterWrite],
   );
 
   const toggleSingle = useCallback(
@@ -226,5 +268,17 @@ export function useStructurePower() {
     setError(null);
   }, []);
 
-  return { status, result, error, toggleSingle, toggleBatch, toggleMixed, bringNodeOnline, bringNodeOffline, reset };
+  return {
+    status,
+    result,
+    error,
+    toggleSingle,
+    toggleBatch,
+    toggleMixed,
+    bringNodeOnline,
+    bringNodeOffline,
+    reportLocalSuccess,
+    applyLocalCorrection,
+    reset,
+  };
 }

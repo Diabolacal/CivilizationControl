@@ -7,7 +7,9 @@ function isBrowserSessionStorageAvailable(): boolean {
 }
 
 function isPersistablePowerCorrection(overlay: PendingStructureWriteOverlay): boolean {
-  return overlay.pendingStatus === "offline" && overlay.pendingName == null && overlay.latestDigest == null;
+  return (overlay.pendingStatus === "offline" || overlay.pendingStatus === "online")
+    && overlay.pendingName == null
+    && overlay.latestDigest == null;
 }
 
 function normalizeRecord(value: unknown): Record<string, PendingStructureWriteOverlay> {

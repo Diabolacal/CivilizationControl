@@ -60,13 +60,13 @@ import {
   buildNodeChildBulkPowerPlan,
   buildNodePowerPresetApplyPlan,
   filterNodePowerPlanForOperatorInventory,
-  filterNodePowerPlanForTargetStatuses,
   getNodePowerUsageReadout,
+  inspectNodePowerPlanForChainEligibility,
   toMixedAssemblyPowerTarget,
   toStructureWriteTarget,
   type NodePowerOperationPlan,
 } from "@/lib/nodePowerControlModel";
-import { fetchStructurePowerChainStatuses } from "@/lib/structurePowerChainStatus";
+import { fetchStructurePowerChainSnapshots } from "@/lib/structurePowerChainStatus";
 import { buildOperatorInventoryDebugCopySummary, buildOperatorInventoryDebugSnapshot } from "@/lib/operatorInventoryDebug";
 import type { NetworkMetrics, NetworkNodeGroup, SpatialPin, Structure } from "@/types/domain";
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
@@ -313,14 +313,10 @@ export function Dashboard({
     structurePower.reset();
     setPowerStructureId(null);
   }, [structurePower]);
-  const executeNodePowerPlan = useCallback(async (plan: NodePowerOperationPlan, successLabel: string) => {
-    if (plan.disabledReason || plan.targets.length === 0) return false;
-
-    handleCloseNodeControlMenus();
-    selectedStructureCanonicalKeyRef.current = null;
-    setSelectedStructureId(null);
-    setPowerStructureId(null);
-    setPowerSuccessLabel(successLabel);
+  const preflightNodePowerPlan = useCallback(async (plan: NodePowerOperationPlan) => {
+    if (plan.disabledReason || plan.targets.length === 0) {
+      return { ...plan, decisions: [] };
+    }
 
     let executionPlan = plan;
     let inventoryForFinalFilter = operatorInventory.inventory;
@@ -335,15 +331,24 @@ export function Dashboard({
       selectedNodeGroup?.node.objectId ?? null,
     );
 
-    if (!executionPlan.disabledReason && executionPlan.targets.length > 0) {
-      const chainStatuses = await fetchStructurePowerChainStatuses(
-        executionPlan.targets.map(toMixedAssemblyPowerTarget),
-      ).catch(() => null);
-      executionPlan = filterNodePowerPlanForTargetStatuses(executionPlan, chainStatuses);
-    }
+    const chainSnapshots = executionPlan.targets.length > 0
+      ? await fetchStructurePowerChainSnapshots(executionPlan.targets.map(toMixedAssemblyPowerTarget)).catch(() => null)
+      : new Map();
 
+    return inspectNodePowerPlanForChainEligibility(executionPlan, chainSnapshots);
+  }, [applyOperatorInventory, operatorInventory, selectedNodeGroup]);
+  const executeNodePowerPlan = useCallback(async (plan: NodePowerOperationPlan, successLabel: string) => {
+    if (plan.disabledReason || plan.targets.length === 0) return false;
+
+    handleCloseNodeControlMenus();
+    selectedStructureCanonicalKeyRef.current = null;
+    setSelectedStructureId(null);
+    setPowerStructureId(null);
+    setPowerSuccessLabel(successLabel);
+
+    const executionPlan = await preflightNodePowerPlan(plan);
     if (executionPlan.disabledReason || executionPlan.targets.length === 0) {
-      return false;
+      return structurePower.reportLocalSuccess(executionPlan.disabledReason ?? "No eligible structure changes.");
     }
 
     return structurePower.toggleMixed({
@@ -354,7 +359,7 @@ export function Dashboard({
       refetchSignalFeed: true,
       targets: executionPlan.targets.map(toStructureWriteTarget),
     });
-  }, [applyOperatorInventory, handleCloseNodeControlMenus, operatorInventory, refetchSelectedNodeAssemblies, selectedNodeGroup, selectedNodeInventoryLookup, selectedStructureCanonicalKeyRef, structurePower]);
+  }, [handleCloseNodeControlMenus, preflightNodePowerPlan, refetchSelectedNodeAssemblies, selectedNodeGroup, selectedNodeInventoryLookup, selectedStructureCanonicalKeyRef, structurePower]);
   const requestNodePowerPlanExecution = useCallback((params: {
     plan: NodePowerOperationPlan;
     primaryLabel: string;
@@ -413,11 +418,57 @@ export function Dashboard({
       const verifiedTarget = structure.actionAuthority.verifiedTarget;
       if (!verifiedTarget) return;
 
+      const desiredStatus: "online" | "offline" = nextOnline ? "online" : "offline";
+      const refreshTarget = {
+        objectId: verifiedTarget.structureId,
+        structureType: verifiedTarget.structureType,
+        ownerCapId: verifiedTarget.ownerCapId,
+        networkNodeId: verifiedTarget.networkNodeId,
+        assemblyId: structure.assemblyId ?? null,
+        canonicalDomainKey: structure.canonicalDomainKey,
+        displayName: structure.displayName,
+        desiredStatus,
+      };
+
       closeStructureMenu();
       selectedStructureCanonicalKeyRef.current = structure.canonicalDomainKey;
       setSelectedStructureId(structure.id);
       setPowerStructureId(structure.id);
       setPowerSuccessLabel(`${structure.familyLabel} ${nextOnline ? "brought online" : "taken offline"}. Awaiting read-model sync.`);
+
+      const preflightPlan = await preflightNodePowerPlan({
+        targets: [{ desiredOnline: nextOnline, structure, verifiedTarget }],
+        disabledReason: null,
+        capacityReason: null,
+      });
+      const firstDecision = preflightPlan.decisions[0] ?? null;
+      if (preflightPlan.disabledReason || preflightPlan.targets.length === 0) {
+        if (nextOnline && firstDecision?.reason === "already_online") {
+          return structurePower.applyLocalCorrection("online", {
+            selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
+            refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
+            refetchSignalFeed: true,
+            target: refreshTarget,
+          }, "Already online. View updated.");
+        }
+
+        if (nextOnline && firstDecision?.reason === "invalid_chain_status") {
+          return structurePower.reportLocalSuccess("Cannot bring online from current chain status.");
+        }
+
+        if (!nextOnline && firstDecision?.reason === "already_offline") {
+          return structurePower.applyLocalCorrection("offline", {
+            selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
+            refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
+            refetchSignalFeed: true,
+            target: refreshTarget,
+          }, "Already offline. View updated.");
+        }
+
+        return structurePower.reportLocalSuccess(
+          preflightPlan.disabledReason ?? (nextOnline ? "No eligible structures to bring online." : "No eligible structures to take offline."),
+        );
+      }
 
       await structurePower.toggleSingle({
         structureType: verifiedTarget.structureType,
@@ -429,19 +480,12 @@ export function Dashboard({
         selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
         refetchNodeAssemblies: selectedNodeInventoryLookup ? null : refetchSelectedNodeAssemblies,
         refetchSignalFeed: true,
-        target: {
-          objectId: verifiedTarget.structureId,
-          structureType: verifiedTarget.structureType,
-          ownerCapId: verifiedTarget.ownerCapId,
-          networkNodeId: verifiedTarget.networkNodeId,
-          assemblyId: structure.assemblyId ?? null,
-          canonicalDomainKey: structure.canonicalDomainKey,
-          displayName: structure.displayName,
-        },
+        target: refreshTarget,
       });
     },
     [
       closeStructureMenu,
+      preflightNodePowerPlan,
       refetchSelectedNodeAssemblies,
       selectedNodeGroup,
       selectedNodeInventoryLookup,

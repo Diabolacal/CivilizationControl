@@ -63,13 +63,22 @@ export function resolveAlreadyOfflineCorrectionTarget(
   fallbackDesiredStatus: ExactPowerStatus | null,
   refreshOptions: StructureWriteRefreshOptions | undefined,
 ) {
+  return resolvePowerErrorTarget(rawError, fallbackDesiredStatus, refreshOptions, "offline");
+}
+
+export function resolvePowerErrorTarget(
+  rawError: string,
+  fallbackDesiredStatus: ExactPowerStatus | null,
+  refreshOptions: StructureWriteRefreshOptions | undefined,
+  desiredStatus: ExactPowerStatus,
+) {
   const targets = getRefreshTargets(refreshOptions);
   const targetIndex = getFailedActionTargetIndex(rawError);
   if (targetIndex != null) {
     const target = targets[targetIndex];
-    return target && getTargetDesiredStatus(target, fallbackDesiredStatus) === "offline" ? target : null;
+    return target && getTargetDesiredStatus(target, fallbackDesiredStatus) === desiredStatus ? target : null;
   }
 
-  const offlineTargets = targets.filter((target) => getTargetDesiredStatus(target, fallbackDesiredStatus) === "offline");
-  return offlineTargets.length === 1 ? offlineTargets[0]! : null;
+  const matchingTargets = targets.filter((target) => getTargetDesiredStatus(target, fallbackDesiredStatus) === desiredStatus);
+  return matchingTargets.length === 1 ? matchingTargets[0]! : null;
 }

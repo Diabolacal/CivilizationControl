@@ -7,15 +7,16 @@ import { getNodeLocalPowerControlState } from "../src/lib/nodeDrilldownActionAut
 import { buildLiveNodeLocalViewModelWithObserved } from "../src/lib/nodeDrilldownModel.ts";
 import {
   buildNodeChildBulkPowerPlan,
-  filterNodePowerPlanForTargetStatuses,
+  inspectNodePowerPlanForChainEligibility,
 } from "../src/lib/nodePowerControlModel.ts";
 import { getFailedTransactionMessage } from "../src/lib/transactionExecutionErrors.ts";
 import { classifyStructurePowerError, formatStructurePowerError } from "../src/lib/structurePowerErrors.ts";
 import {
   resolveAlreadyOfflineCorrectionTarget,
   resolvePowerErrorDesiredStatus,
+  resolvePowerErrorTarget,
 } from "../src/lib/structurePowerFailureResolution.ts";
-import { resolveStructurePowerChainStatusFromContent } from "../src/lib/structurePowerChainStatus.ts";
+import { resolveStructurePowerChainSnapshot, resolveStructurePowerChainStatusFromContent } from "../src/lib/structurePowerChainStatus.ts";
 import {
   applyStructureWriteOverlaysToOperatorInventory,
   createPendingStructureWriteOverlay,
@@ -26,6 +27,26 @@ import { DEFAULT_SUI_RPC_URL } from "../src/constants.ts";
 
 import type { OperatorInventoryResponse, OperatorInventoryStructure } from "../src/types/operatorInventory.ts";
 import type { NodeLocalStructure } from "../src/lib/nodeDrilldownTypes.ts";
+
+function makeChainSnapshot(
+  normalizedStructureId: string,
+  state: "online" | "offline" | "neutral" | "missing_content" | "missing_object" | "unexpected_variant",
+  statusVariant?: string | null,
+) {
+  const chainStatus = state === "online"
+    ? "online"
+    : state === "offline"
+      ? "offline"
+      : state === "neutral"
+        ? "neutral"
+        : null;
+  return {
+    normalizedStructureId,
+    chainStatus,
+    statusVariant: statusVariant ?? (state === "online" ? "ONLINE" : state === "offline" ? "OFFLINE" : state === "neutral" ? "NULL" : null),
+    state,
+  };
+}
 
 function getArg(name: string): string | null {
   const index = process.argv.indexOf(`--${name}`);
@@ -242,11 +263,35 @@ assert.equal(correctedResult.structure.status, "offline", "expected local alread
 assert.equal(correctedResult.controlState.actionLabel, "Bring Online", "expected locally corrected offline rows not to offer Take offline");
 assert.equal(correctedResult.sourceMode, "backend-membership", "expected the proof to exercise the operator-inventory Node Control path");
 
+const onlineCorrection = createPendingStructureWriteOverlay({
+  action: "power",
+  digest: null,
+  target: {
+    ...target,
+    desiredStatus: "online",
+  },
+  desiredStatus: "online",
+});
+const correctedOnlineInventory = applyStructureWriteOverlaysToOperatorInventory(rawOffline, [onlineCorrection]);
+assert(correctedOnlineInventory, "expected online correction overlay to apply to stale offline inventory");
+const correctedOnlineResult = firstNodeControlStructureStatus(correctedOnlineInventory);
+assert.equal(correctedOnlineResult.structure.status, "online", "expected local already-online evidence to override stale raw offline status");
+assert.equal(correctedOnlineResult.controlState.actionLabel, "Take Offline", "expected locally corrected online rows not to offer Bring online");
+
 const staleOnlineNodeControl = firstNodeControlStructureStatus(staleOnline);
 const staleOnlinePlan = buildNodeChildBulkPowerPlan([staleOnlineNodeControl.structure], false);
 assert.equal(staleOnlinePlan.targets.length, 1, "expected stale raw online child to enter the offline plan before chain proof");
-const chainCorrectedPlan = filterNodePowerPlanForTargetStatuses(staleOnlinePlan, new Map([[objectId(101), "offline"]]));
+const chainCorrectedPlan = inspectNodePowerPlanForChainEligibility(staleOnlinePlan, new Map([[objectId(101), makeChainSnapshot(objectId(101), "offline")]]));
 assert.equal(chainCorrectedPlan.targets.length, 0, "expected direct-chain offline status to exclude stale raw online child from final PTB targets");
+
+const staleOfflineNodeControl = firstNodeControlStructureStatus(rawOffline);
+const staleOfflinePlan = buildNodeChildBulkPowerPlan([staleOfflineNodeControl.structure], true);
+assert.equal(staleOfflinePlan.targets.length, 1, "expected stale raw offline child to enter the online plan before chain proof");
+const chainFilteredOnlinePlan = inspectNodePowerPlanForChainEligibility(staleOfflinePlan, new Map([[objectId(101), makeChainSnapshot(objectId(101), "online")]]));
+assert.equal(chainFilteredOnlinePlan.targets.length, 0, "expected direct-chain online status to exclude stale raw offline child from final Bring online PTB targets");
+assert.equal(chainFilteredOnlinePlan.disabledReason, "No eligible structures to bring online.", "expected stale Bring online plans to become calm no-ops after final chain proof");
+const chainEligibleOnlinePlan = inspectNodePowerPlanForChainEligibility(staleOfflinePlan, new Map([[objectId(101), makeChainSnapshot(objectId(101), "offline")]]));
+assert.equal(chainEligibleOnlinePlan.targets.length, 1, "expected direct-chain offline status to keep valid Bring online targets");
 
 const staleConfirmation = resolveStructureWriteConfirmation(staleOnline, null, offlineCorrection);
 assert.equal(staleConfirmation.statusConfirmed, false, "expected stale raw online data not to clear an offline correction overlay");
@@ -257,6 +302,11 @@ const offlineAbort = "Transaction resolution failed: MoveAbort in 2nd command, '
 assert.equal(classifyStructurePowerError(offlineAbort, { desiredStatus: "offline" }), "target_already_offline");
 assert.equal(formatStructurePowerError(offlineAbort, { desiredStatus: "offline" }), "Already offline. View updated.");
 assert.equal(classifyStructurePowerError(offlineAbort, { desiredStatus: "online" }), "target_already_in_state", "expected offline abort evidence not to be swallowed for online attempts");
+
+const onlineAbort = "Transaction resolution failed: MoveAbort in 1st command, 'EAssemblyInvalidStatus': Assembly status is invalid, in '0xd2fd1224f881e7a705dbc211888af11655c315f2ee0f03fe680fc3176e6e4780::status::online' line 90.";
+assert.equal(classifyStructurePowerError(onlineAbort, { desiredStatus: "online" }), "target_invalid_online_state", "expected status::online aborts to classify as invalid online source state");
+assert.equal(formatStructurePowerError(onlineAbort, { desiredStatus: "online" }), "Cannot bring online from current chain status.", "expected status::online aborts not to be reported as generic already-in-state success");
+assert.equal(classifyStructurePowerError(onlineAbort, { desiredStatus: "offline" }), "target_already_in_state", "expected status::online abort evidence to retain the legacy generic already-in-state classification outside the online-intent path");
 
 const unrelatedAbort = "Transaction resolution failed: MoveAbort in 1st command, 'ESomeOtherAbort': not our status path.";
 assert.equal(classifyStructurePowerError(unrelatedAbort, { desiredStatus: "offline" }), null, "expected unrelated MoveAbort not to classify as already offline");
@@ -273,6 +323,11 @@ assert.deepEqual(
   resolveAlreadyOfflineCorrectionTarget(failedTransactionMessage, null, { targets: [target] }),
   target,
   "expected wallet-resolution status::offline abort to map to the failed target before recording a correction",
+);
+assert.deepEqual(
+  resolvePowerErrorTarget(onlineAbort, null, { targets: [{ ...target, desiredStatus: "online" }] }, "online"),
+  { ...target, desiredStatus: "online" },
+  "expected wallet-resolution status::online abort to map to the failed target before proving or rejecting a correction",
 );
 assert.equal(
   resolveAlreadyOfflineCorrectionTarget("MoveAbort: status::offline EAssemblyInvalidStatus", null, { targets: [target, { ...target, objectId: objectId(102), desiredStatus: "offline" }] }),
@@ -321,30 +376,93 @@ if (wallet && object) {
   const row = allRows.find((entry) => entry.row.objectId?.toLowerCase() === object.toLowerCase());
   const client = new SuiJsonRpcClient({ url: DEFAULT_SUI_RPC_URL, network: "testnet" });
 
-  async function getChainStatus(objectId: string | null | undefined) {
+  async function getChainSnapshot(objectId: string | null | undefined) {
     const normalized = objectId ? normalizeObjectId(objectId) : null;
     if (!normalized) {
-      return { normalizedObjectId: normalized, chainStatus: null };
+      return { normalizedObjectId: normalized, chainStatus: null, snapshotState: null, statusVariant: null };
     }
 
     const objectResponse = await client.getObject({
       id: normalized,
       options: { showContent: true, showType: true },
     }).catch(() => null);
-    const content = objectResponse?.data?.content as { fields?: Record<string, unknown> } | null | undefined;
+    if (!objectResponse) {
+      return { normalizedObjectId: normalized, chainStatus: null, snapshotState: "missing_object", statusVariant: null };
+    }
+
+    const snapshot = resolveStructurePowerChainSnapshot(objectResponse, normalized);
     return {
       normalizedObjectId: normalized,
-      chainStatus: resolveStructurePowerChainStatusFromContent(content?.fields ?? null),
+      chainStatus: snapshot.chainStatus,
+      snapshotState: snapshot.state,
+      statusVariant: snapshot.statusVariant,
     };
   }
 
   const chainObjectId = normalizeObjectId(object);
-  const { chainStatus } = await getChainStatus(object);
+  const chainSnapshot = await getChainSnapshot(object);
   const liveStructure = row ? makeNodeControlStructureFromLiveRow(row.row) : null;
-  const rawPlan = liveStructure ? buildNodeChildBulkPowerPlan([liveStructure], false) : null;
-  const finalPlan = rawPlan && chainStatus
-    ? filterNodePowerPlanForTargetStatuses(rawPlan, new Map([[chainObjectId!, chainStatus]]))
-    : rawPlan;
+  const rawOfflinePlan = liveStructure ? buildNodeChildBulkPowerPlan([liveStructure], false) : null;
+  const rawOnlinePlan = liveStructure ? buildNodeChildBulkPowerPlan([liveStructure], true) : null;
+  const chainSnapshotMap = chainObjectId && chainSnapshot.snapshotState
+    ? new Map([[chainObjectId, {
+      normalizedStructureId: chainObjectId,
+      chainStatus: chainSnapshot.chainStatus,
+      state: chainSnapshot.snapshotState,
+      statusVariant: chainSnapshot.statusVariant,
+    }]])
+    : null;
+  const finalOfflinePlan = rawOfflinePlan
+    ? inspectNodePowerPlanForChainEligibility(rawOfflinePlan, chainSnapshotMap)
+    : null;
+  const finalOnlinePlan = rawOnlinePlan
+    ? inspectNodePowerPlanForChainEligibility(rawOnlinePlan, chainSnapshotMap)
+    : null;
+
+  const nodeEligibilityRows = [];
+  for (const entry of allRows) {
+    const liveNodeStructure = makeNodeControlStructureFromLiveRow(entry.row);
+    if (!liveNodeStructure) continue;
+
+    const candidateSnapshot = await getChainSnapshot(entry.row.objectId);
+    const normalizedObjectId = candidateSnapshot.normalizedObjectId;
+    const candidateSnapshotMap = normalizedObjectId && candidateSnapshot.snapshotState
+      ? new Map([[normalizedObjectId, {
+        normalizedStructureId: normalizedObjectId,
+        chainStatus: candidateSnapshot.chainStatus,
+        state: candidateSnapshot.snapshotState,
+        statusVariant: candidateSnapshot.statusVariant,
+      }]])
+      : null;
+    const bringOnline = inspectNodePowerPlanForChainEligibility(buildNodeChildBulkPowerPlan([liveNodeStructure], true), candidateSnapshotMap);
+    const takeOffline = inspectNodePowerPlanForChainEligibility(buildNodeChildBulkPowerPlan([liveNodeStructure], false), candidateSnapshotMap);
+    nodeEligibilityRows.push({
+      nodeObjectId: entry.nodeObjectId,
+      location: entry.location,
+      childIndex: entry.childIndex,
+      objectId: entry.row.objectId,
+      normalizedObjectId,
+      displayName: entry.row.displayName ?? entry.row.name,
+      family: entry.row.family,
+      rawStatus: entry.row.status,
+      adaptedStatus: liveNodeStructure.status,
+      localSessionOverlayStatus: null,
+      currentUiStatus: liveNodeStructure.status,
+      chainStatus: candidateSnapshot.chainStatus,
+      chainState: candidateSnapshot.snapshotState,
+      chainStatusVariant: candidateSnapshot.statusVariant,
+      bringOnlineEligible: bringOnline.targets.length > 0,
+      bringOnlineReason: bringOnline.decisions[0]?.reason ?? null,
+      takeOfflineEligible: takeOffline.targets.length > 0,
+      takeOfflineReason: takeOffline.decisions[0]?.reason ?? null,
+      ownerCapId: entry.row.ownerCapId,
+      networkNodeId: entry.row.networkNodeId,
+      actionCandidate: entry.row.actionCandidate,
+      lastUpdated: entry.row.lastUpdated,
+      source: entry.row.source,
+      provenance: entry.row.provenance,
+    });
+  }
 
   const refineryRows = [];
   for (const entry of allRows) {
@@ -357,7 +475,7 @@ if (wallet && object) {
     ].map((value) => String(value ?? "").toLowerCase()).join(" ");
     if (!haystack.includes("refinery")) continue;
 
-    const refineryChain = await getChainStatus(entry.row.objectId);
+    const refineryChain = await getChainSnapshot(entry.row.objectId);
     refineryRows.push({
       location: entry.location,
       groupIndex: entry.groupIndex,
@@ -390,8 +508,13 @@ if (wallet && object) {
     object,
     rawLocation: row?.location ?? null,
     rawStatus: row?.row.status ?? null,
-    chainStatus,
-    finalOfflineTargetCount: finalPlan?.targets.length ?? null,
+    chainStatus: chainSnapshot.chainStatus,
+    chainState: chainSnapshot.snapshotState,
+    chainStatusVariant: chainSnapshot.statusVariant,
+    finalOfflineTargetCount: finalOfflinePlan?.targets.length ?? null,
+    finalOfflineDecision: finalOfflinePlan?.decisions[0]?.reason ?? null,
+    finalOnlineTargetCount: finalOnlinePlan?.targets.length ?? null,
+    finalOnlineDecision: finalOnlinePlan?.decisions[0]?.reason ?? null,
     rawFamily: row?.row.family ?? null,
     rawTypeName: row?.row.typeName ?? null,
     rawAssemblyType: row?.row.assemblyType ?? null,
@@ -402,6 +525,7 @@ if (wallet && object) {
     rawActionCandidate: row?.row.actionCandidate ?? null,
     lastUpdated: row?.row.lastUpdated ?? null,
     provenance: row?.row.provenance ?? null,
+    nodeEligibilityRows,
     refineryRows,
   }, null, 2));
 } else {

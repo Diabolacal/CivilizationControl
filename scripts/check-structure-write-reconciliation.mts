@@ -263,6 +263,28 @@ assert.equal(poweredOfflineLookup?.assemblies[0]?.status, "OFFLINE", "expected p
 const powerStaleConfirmation = resolveStructureWriteConfirmation(staleOperatorInventory, staleLookup, powerOfflineOverlay);
 assert.equal(powerStaleConfirmation.statusConfirmed, false, "expected stale backend power data to remain unconfirmed");
 
+const staleOfflineOperatorInventory: OperatorInventoryResponse = {
+  ...staleOperatorInventory,
+  networkNodes: staleOperatorInventory.networkNodes.map((nodeGroup) => ({
+    ...nodeGroup,
+    structures: nodeGroup.structures.map((row) => row.objectId === STORAGE_TARGET.objectId
+      ? { ...row, status: "offline" }
+      : row),
+  })),
+};
+const powerOnlineCorrectionOverlay = createPendingStructureWriteOverlay({
+  action: "power",
+  digest: null,
+  target: STORAGE_TARGET,
+  desiredStatus: "online",
+});
+const poweredOnlineInventory = applyStructureWriteOverlaysToOperatorInventory(staleOfflineOperatorInventory, [powerOnlineCorrectionOverlay]);
+assert.equal(
+  poweredOnlineInventory?.networkNodes[0]?.structures[0]?.status,
+  "online",
+  "expected already-online correction to project the pending online state onto operator-inventory rows",
+);
+
 const sessionStore = new Map<string, string>();
 Object.defineProperty(globalThis, "window", {
   configurable: true,
@@ -280,6 +302,19 @@ const alreadyOfflineCorrection = createPendingStructureWriteOverlay({
   target: STORAGE_TARGET,
   desiredStatus: "offline",
 });
+const alreadyOnlineSessionCorrection = createPendingStructureWriteOverlay({
+  action: "power",
+  digest: null,
+  target: {
+    ...STORAGE_TARGET,
+    objectId: "0x0000000000000000000000000000000000000000000000000000000000000a03",
+    ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000ca03",
+    assemblyId: "4103",
+    canonicalDomainKey: "assembly:4103",
+    displayName: "Storage Gamma",
+  },
+  desiredStatus: "online",
+});
 const successfulDigestOverlay = createPendingStructureWriteOverlay({
   action: "power",
   digest: "power-online-digest",
@@ -295,13 +330,14 @@ const successfulDigestOverlay = createPendingStructureWriteOverlay({
 });
 saveStructurePowerSessionCorrections({
   [alreadyOfflineCorrection.key]: alreadyOfflineCorrection,
+  [alreadyOnlineSessionCorrection.key]: alreadyOnlineSessionCorrection,
   [successfulDigestOverlay.key]: successfulDigestOverlay,
 });
 const loadedCorrections = loadStructurePowerSessionCorrections();
 assert.deepEqual(
-  Object.keys(loadedCorrections),
-  [alreadyOfflineCorrection.key],
-  "expected only digest-null already-offline corrections to survive session persistence",
+  Object.keys(loadedCorrections).sort(),
+  [alreadyOfflineCorrection.key, alreadyOnlineSessionCorrection.key].sort(),
+  "expected only digest-null already-in-state corrections to survive session persistence",
 );
 const sessionCorrectedInventory = applyStructureWriteOverlaysToOperatorInventory(staleOperatorInventory, Object.values(loadedCorrections));
 assert.equal(

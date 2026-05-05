@@ -5,9 +5,9 @@ import {
   buildNodeChildBulkPowerPlan,
   buildNodePowerPresetApplyPlan,
   filterNodePowerPlanForOperatorInventory,
-  filterNodePowerPlanForTargetStatuses,
   getNodePowerUsageReadout,
   groupNodePowerOperationTargets,
+  inspectNodePowerPlanForChainEligibility,
   NODE_POWER_CAPACITY_GJ,
   toMixedAssemblyPowerTarget,
   toStructureWriteTarget,
@@ -24,6 +24,26 @@ import { WORLD_RUNTIME_PACKAGE_ID } from '../src/constants.ts';
 
 import type { NodeLocalStructure } from '../src/lib/nodeDrilldownTypes.ts';
 import type { OperatorInventoryResponse, OperatorInventoryStructure } from '../src/types/operatorInventory.ts';
+
+function makeChainSnapshot(
+  normalizedStructureId: string,
+  state: 'online' | 'offline' | 'neutral' | 'missing_content' | 'missing_object' | 'unexpected_variant',
+  statusVariant?: string | null,
+) {
+  const chainStatus = state === 'online'
+    ? 'online'
+    : state === 'offline'
+      ? 'offline'
+      : state === 'neutral'
+        ? 'neutral'
+        : null;
+  return {
+    normalizedStructureId,
+    chainStatus,
+    statusVariant: statusVariant ?? (state === 'online' ? 'ONLINE' : state === 'offline' ? 'OFFLINE' : state === 'neutral' ? 'NULL' : null),
+    state,
+  };
+}
 
 type Command = {
   $kind: string;
@@ -348,13 +368,13 @@ const staleRawOnlineRefinery = makeStructure({
   },
 });
 const staleRawTakeOfflinePlan = buildNodeChildBulkPowerPlan([staleRawOnlineRefinery], false);
-const chainFilteredOfflinePlan = filterNodePowerPlanForTargetStatuses(
+const chainFilteredOfflinePlan = inspectNodePowerPlanForChainEligibility(
   staleRawTakeOfflinePlan,
-  new Map([[objectId(901), 'offline']]),
+  new Map([[objectId(901), makeChainSnapshot(objectId(901), 'offline')]]),
 );
 assert.equal(
   chainFilteredOfflinePlan.disabledReason,
-  'no structures need changing',
+  'No eligible structures to take offline.',
   'expected direct-chain OFFLINE evidence to drop stale raw-online children before PTB build',
 );
 assert.equal(chainFilteredOfflinePlan.targets.length, 0, 'expected stale raw-online Take all offline target list to be empty before wallet prompt');
@@ -368,11 +388,77 @@ const offlinePresetSlot = upsertNodePowerPresetSlot([null, null, null, null], {
 assert(offlinePresetSlot, 'expected offline preset fixture to save');
 const staleRawPresetApplyPlan = buildNodePowerPresetApplyPlan(offlinePresetSlot, [staleRawOnlineRefinery]);
 assert.equal(staleRawPresetApplyPlan.targets.length, 1, 'expected stale raw-online preset apply to produce one offline target before chain proof');
-const chainFilteredPresetPlan = filterNodePowerPlanForTargetStatuses(
+const chainFilteredPresetPlan = inspectNodePowerPlanForChainEligibility(
   staleRawPresetApplyPlan,
-  new Map([[objectId(901), 'offline']]),
+  new Map([[objectId(901), makeChainSnapshot(objectId(901), 'offline')]]),
 );
 assert.equal(chainFilteredPresetPlan.targets.length, 0, 'expected direct-chain OFFLINE evidence to drop stale raw-online preset target before wallet prompt');
+
+const staleRawOfflineRefinery = makeStructure({
+  id: 'stale-offline-refinery',
+  canonicalDomainKey: 'object:stale-offline-refinery',
+  status: 'offline',
+  displayName: 'Stale Offline Refinery',
+  family: 'refinery',
+  familyLabel: 'Refinery',
+  iconFamily: 'refinery',
+  band: 'industry',
+  actionAuthority: {
+    state: 'verified-supported',
+    verifiedTarget: {
+      structureId: objectId(911),
+      structureType: 'assembly',
+      ownerCapId: objectId(912),
+      networkNodeId: objectId(913),
+      status: 'offline',
+    },
+    candidateTargets: [],
+    unavailableReason: null,
+  },
+});
+const staleRawBringOnlinePlan = buildNodeChildBulkPowerPlan([staleRawOfflineRefinery], true);
+assert.equal(staleRawBringOnlinePlan.targets.length, 1, 'expected stale raw-offline child to enter the online plan before final eligibility proof');
+const chainFilteredBringOnlineAlreadyOnlinePlan = inspectNodePowerPlanForChainEligibility(
+  staleRawBringOnlinePlan,
+  new Map([[objectId(911), makeChainSnapshot(objectId(911), 'online')]]),
+);
+assert.equal(chainFilteredBringOnlineAlreadyOnlinePlan.targets.length, 0, 'expected direct-chain ONLINE evidence to drop stale raw-offline Bring all online targets before wallet prompt');
+assert.equal(chainFilteredBringOnlineAlreadyOnlinePlan.disabledReason, 'No eligible structures to bring online.', 'expected corrected Bring all online plans to become calm no-ops');
+const chainFilteredBringOnlineEligiblePlan = inspectNodePowerPlanForChainEligibility(
+  staleRawBringOnlinePlan,
+  new Map([[objectId(911), makeChainSnapshot(objectId(911), 'offline')]]),
+);
+assert.equal(chainFilteredBringOnlineEligiblePlan.targets.length, 1, 'expected direct-chain OFFLINE evidence to keep valid Bring all online targets');
+assert.equal(chainFilteredBringOnlineEligiblePlan.decisions[0]?.reason, 'chain_offline', 'expected online eligibility to require direct-chain OFFLINE status');
+const chainFilteredBringOnlineInvalidPlan = inspectNodePowerPlanForChainEligibility(
+  staleRawBringOnlinePlan,
+  new Map([[objectId(911), makeChainSnapshot(objectId(911), 'neutral')]]),
+);
+assert.equal(chainFilteredBringOnlineInvalidPlan.targets.length, 0, 'expected neutral/non-OFFLINE chain status to block Bring all online targets');
+assert.equal(chainFilteredBringOnlineInvalidPlan.decisions[0]?.reason, 'invalid_chain_status', 'expected non-OFFLINE chain states to be classified as invalid online sources');
+const chainUnavailableBringOnlinePlan = inspectNodePowerPlanForChainEligibility(staleRawBringOnlinePlan, null);
+assert.equal(chainUnavailableBringOnlinePlan.targets.length, 0, 'expected unavailable chain status to block Bring all online targets instead of failing open');
+assert.equal(chainUnavailableBringOnlinePlan.decisions[0]?.reason, 'chain_status_unavailable', 'expected unavailable chain status to classify Bring all online targets explicitly');
+
+const onlineOnlyPresetSlot = upsertNodePowerPresetSlot([null, null, null, null], {
+  label: 'Online State',
+  nodeId: objectId(913),
+  slotIndex: 3,
+  structures: [{ ...staleRawOfflineRefinery, status: 'online' }],
+})[2];
+assert(onlineOnlyPresetSlot, 'expected online preset fixture to save');
+const staleRawOnlinePresetApplyPlan = buildNodePowerPresetApplyPlan(onlineOnlyPresetSlot, [staleRawOfflineRefinery]);
+assert.equal(staleRawOnlinePresetApplyPlan.targets.length, 1, 'expected preset apply to produce one online target before final eligibility proof');
+const chainFilteredOnlinePresetPlan = inspectNodePowerPlanForChainEligibility(
+  staleRawOnlinePresetApplyPlan,
+  new Map([[objectId(911), makeChainSnapshot(objectId(911), 'online')]]),
+);
+assert.equal(chainFilteredOnlinePresetPlan.targets.length, 0, 'expected direct-chain ONLINE evidence to drop preset online targets before wallet prompt');
+const chainEligibleOnlinePresetPlan = inspectNodePowerPlanForChainEligibility(
+  staleRawOnlinePresetApplyPlan,
+  new Map([[objectId(911), makeChainSnapshot(objectId(911), 'offline')]]),
+);
+assert.equal(chainEligibleOnlinePresetPlan.targets.length, 1, 'expected direct-chain OFFLINE evidence to keep valid preset online targets');
 
 const readout = getNodePowerUsageReadout();
 assert.equal(readout.label, 'Power usage unavailable', 'expected unavailable meter state to render calm operator copy');
@@ -394,10 +480,12 @@ assert.equal(getDefaultNodePowerPresetLabel(4), 'Preset 4', 'expected default sl
 const dashboardSource = readFileSync('src/screens/Dashboard.tsx', 'utf8');
 assert(dashboardSource.includes('operatorInventory.refetch()'), 'expected node-local bulk/preset writes to refresh operator inventory before final target selection');
 assert(dashboardSource.includes('filterNodePowerPlanForOperatorInventory'), 'expected node-local bulk/preset writes to filter stale already-in-state children before PTB build');
-assert(dashboardSource.includes('fetchStructurePowerChainStatuses'), 'expected node-local bulk/preset writes to direct-chain preflight final targets before PTB build');
-assert(dashboardSource.includes('filterNodePowerPlanForTargetStatuses'), 'expected node-local bulk/preset writes to remove chain-confirmed already-in-state targets before PTB build');
+assert(dashboardSource.includes('fetchStructurePowerChainSnapshots'), 'expected node-local bulk/preset writes to direct-chain preflight final targets before PTB build');
+assert(dashboardSource.includes('inspectNodePowerPlanForChainEligibility'), 'expected node-local bulk/preset writes to classify online eligibility before PTB build');
 assert(dashboardSource.includes('targets: executionPlan.targets.map(toStructureWriteTarget)'), 'expected node-local bulk/preset writes to pass per-child overlay targets');
 assert(dashboardSource.includes('structurePower.toggleMixed'), 'expected node-local bulk/preset writes to submit one mixed child-power PTB');
+assert(dashboardSource.includes('structurePower.reportLocalSuccess'), 'expected all-excluded plans to stop before wallet execution with calm no-op feedback');
+assert(dashboardSource.includes('structurePower.applyLocalCorrection("online"'), 'expected single-row Bring online to correct proven already-online rows without opening the wallet');
 assert(!dashboardSource.includes('groupNodePowerOperationTargets(plan.targets)'), 'expected Node Control execution not to loop grouped child batches');
 assert(dashboardSource.includes('Power requirements are not available for this node.'), 'expected capacity-unavailable online actions to use an app modal instead of silent pass-through');
 

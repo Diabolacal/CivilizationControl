@@ -2,6 +2,7 @@ export type StructurePowerErrorKind =
   | "network_node_already_offline"
   | "network_node_mismatch"
   | "target_already_offline"
+  | "target_invalid_online_state"
   | "target_already_in_state"
   | "not_online"
   | "no_fuel"
@@ -9,6 +10,7 @@ export type StructurePowerErrorKind =
 
 const NETWORK_NODE_ABORT_CODE_PATTERN = /network_node[\s\S]{0,160}(?:abort|code|MoveAbort)[\s\S]{0,60}\b7\b/i;
 const STATUS_OFFLINE_FRAME_PATTERN = /(?:^|[:'"`\s])status::offline\b/i;
+const STATUS_ONLINE_FRAME_PATTERN = /(?:^|[:'"`\s])status::online\b/i;
 
 export interface StructurePowerErrorContext {
   desiredStatus?: "online" | "offline" | null;
@@ -50,6 +52,10 @@ export function classifyStructurePowerError(
       return "target_already_offline";
     }
 
+    if (context.desiredStatus === "online" && STATUS_ONLINE_FRAME_PATTERN.test(raw)) {
+      return "target_invalid_online_state";
+    }
+
     return "target_already_in_state";
   }
   if (raw.includes("ENotOnline")) return "not_online";
@@ -70,6 +76,8 @@ export function formatStructurePowerError(
       return "Wrong network node — structure may have moved.";
     case "target_already_offline":
       return "Already offline. View updated.";
+    case "target_invalid_online_state":
+      return "Cannot bring online from current chain status.";
     case "target_already_in_state":
       return "Structure is already in the target state.";
     case "not_online":
