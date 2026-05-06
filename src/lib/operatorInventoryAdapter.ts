@@ -793,27 +793,230 @@ function rebindGroupedStructureToNode(structure: Structure, networkNodeId: strin
   };
 }
 
+function preferTextValue(preferred: string | null | undefined, fallback: string | null | undefined): string | null {
+  const preferredValue = typeof preferred === "string" && preferred.trim().length > 0 ? preferred : null;
+  if (preferredValue) {
+    return preferredValue;
+  }
+
+  return typeof fallback === "string" && fallback.trim().length > 0 ? fallback : null;
+}
+
+function mergeWarnings(
+  preferred: string[] | null | undefined,
+  fallback: string[] | null | undefined,
+): string[] | undefined {
+  if (preferred && preferred.length > 0) {
+    return preferred;
+  }
+
+  if (fallback && fallback.length > 0) {
+    return fallback;
+  }
+
+  return undefined;
+}
+
+function mergeAssemblySummary(
+  preferred: AssemblySummary | undefined,
+  fallback: AssemblySummary | undefined,
+): AssemblySummary | undefined {
+  if (!preferred) {
+    return fallback;
+  }
+
+  if (!fallback) {
+    return preferred;
+  }
+
+  return {
+    ...fallback,
+    ...preferred,
+    assemblyId: preferred.assemblyId ?? fallback.assemblyId,
+    assemblyType: preferTextValue(preferred.assemblyType, fallback.assemblyType),
+    typeId: preferred.typeId ?? fallback.typeId,
+    name: preferTextValue(preferred.name, fallback.name),
+    displayName: preferTextValue(preferred.displayName ?? null, fallback.displayName ?? null),
+    displayNameSource: preferTextValue(preferred.displayNameSource ?? null, fallback.displayNameSource ?? null),
+    displayNameUpdatedAt: preferTextValue(preferred.displayNameUpdatedAt ?? null, fallback.displayNameUpdatedAt ?? null),
+    status: preferTextValue(preferred.status, fallback.status),
+    fuelAmount: preferTextValue(preferred.fuelAmount, fallback.fuelAmount),
+    powerSummary: preferred.powerSummary ?? fallback.powerSummary,
+    powerRequirement: preferred.powerRequirement ?? fallback.powerRequirement,
+    powerUsageSummary: preferred.powerUsageSummary ?? fallback.powerUsageSummary,
+    solarSystemId: preferTextValue(preferred.solarSystemId, fallback.solarSystemId),
+    energySourceId: preferTextValue(preferred.energySourceId, fallback.energySourceId),
+    url: preferTextValue(preferred.url, fallback.url),
+    lastUpdated: preferTextValue(preferred.lastUpdated, fallback.lastUpdated),
+    typeName: preferTextValue(preferred.typeName, fallback.typeName),
+    family: preferTextValue(preferred.family ?? null, fallback.family ?? null),
+    size: preferTextValue(preferred.size ?? null, fallback.size ?? null),
+    source: preferTextValue(preferred.source ?? null, fallback.source ?? null),
+    provenance: preferTextValue(preferred.provenance ?? null, fallback.provenance ?? null),
+    lastObservedCheckpoint: preferTextValue(preferred.lastObservedCheckpoint ?? null, fallback.lastObservedCheckpoint ?? null),
+    lastObservedTimestamp: preferTextValue(preferred.lastObservedTimestamp ?? null, fallback.lastObservedTimestamp ?? null),
+    extensionStatus: preferred.extensionStatus ?? fallback.extensionStatus,
+    partial: preferred.partial ?? fallback.partial,
+    warnings: mergeWarnings(preferred.warnings, fallback.warnings),
+    actionCandidate: preferred.actionCandidate ?? fallback.actionCandidate,
+  };
+}
+
+function mergeCompatibleStructureFields(preferred: Structure, fallback: Structure): Structure {
+  return {
+    ...fallback,
+    ...preferred,
+    assemblyId: preferred.assemblyId ?? fallback.assemblyId,
+    ownerCapId: preferTextValue(preferred.ownerCapId, fallback.ownerCapId) ?? "",
+    name: preferTextValue(preferred.name, fallback.name) ?? preferred.name,
+    networkNodeId: preferTextValue(preferred.networkNodeId ?? null, fallback.networkNodeId ?? null) ?? undefined,
+    indexedFuelAmount: preferTextValue(preferred.indexedFuelAmount ?? null, fallback.indexedFuelAmount ?? null),
+    indexedPowerSummary: preferred.indexedPowerSummary ?? fallback.indexedPowerSummary,
+    indexedPowerRequirement: preferred.indexedPowerRequirement ?? fallback.indexedPowerRequirement,
+    indexedPowerUsageSummary: preferred.indexedPowerUsageSummary ?? fallback.indexedPowerUsageSummary,
+    linkedGateId: preferTextValue(preferred.linkedGateId ?? null, fallback.linkedGateId ?? null) ?? undefined,
+    summary: mergeAssemblySummary(preferred.summary, fallback.summary),
+    networkNodeRenderMeta: preferred.networkNodeRenderMeta ?? fallback.networkNodeRenderMeta,
+    extensionStatus: preferred.extensionStatus !== "none" ? preferred.extensionStatus : fallback.extensionStatus,
+  };
+}
+
+function compareDisplayFreshness(
+  existingSource: string | null | undefined,
+  existingUpdatedAt: string | null | undefined,
+  incomingSource: string | null | undefined,
+  incomingUpdatedAt: string | null | undefined,
+): number {
+  const existingTime = existingUpdatedAt ? Date.parse(existingUpdatedAt) : Number.NaN;
+  const incomingTime = incomingUpdatedAt ? Date.parse(incomingUpdatedAt) : Number.NaN;
+
+  if (Number.isFinite(existingTime) && Number.isFinite(incomingTime) && existingTime !== incomingTime) {
+    return incomingTime - existingTime;
+  }
+
+  if (!existingUpdatedAt && incomingUpdatedAt) {
+    return 1;
+  }
+
+  if (existingUpdatedAt && !incomingUpdatedAt) {
+    return -1;
+  }
+
+  if (!existingSource && incomingSource) {
+    return 1;
+  }
+
+  if (existingSource && !incomingSource) {
+    return -1;
+  }
+
+  return 0;
+}
+
+function mergeNodeAssemblyNodeFields(preferred: NodeAssemblyNode, fallback: NodeAssemblyNode): NodeAssemblyNode {
+  return {
+    ...fallback,
+    ...preferred,
+    objectId: preferTextValue(preferred.objectId, fallback.objectId) ?? fallback.objectId,
+    name: preferTextValue(preferred.name, fallback.name),
+    displayName: preferTextValue(preferred.displayName ?? null, fallback.displayName ?? null),
+    displayNameSource: preferTextValue(preferred.displayNameSource ?? null, fallback.displayNameSource ?? null),
+    displayNameUpdatedAt: preferTextValue(preferred.displayNameUpdatedAt ?? null, fallback.displayNameUpdatedAt ?? null),
+    status: preferTextValue(preferred.status, fallback.status),
+    assemblyId: preferTextValue(preferred.assemblyId, fallback.assemblyId),
+    solarSystemId: preferTextValue(preferred.solarSystemId, fallback.solarSystemId),
+    energySourceId: preferTextValue(preferred.energySourceId, fallback.energySourceId),
+    fuelAmount: preferTextValue(preferred.fuelAmount ?? null, fallback.fuelAmount ?? null),
+    powerSummary: preferred.powerSummary ?? fallback.powerSummary,
+    powerUsageSummary: preferred.powerUsageSummary ?? fallback.powerUsageSummary,
+  };
+}
+
+function mergeNodeAssemblySummaryFields(
+  preferred: NodeAssemblySummary,
+  fallback: NodeAssemblySummary,
+): NodeAssemblySummary {
+  return {
+    ...fallback,
+    ...preferred,
+    objectId: preferTextValue(preferred.objectId, fallback.objectId),
+    assemblyId: preferTextValue(preferred.assemblyId, fallback.assemblyId),
+    linkedGateId: preferTextValue(preferred.linkedGateId, fallback.linkedGateId),
+    assemblyType: preferTextValue(preferred.assemblyType, fallback.assemblyType),
+    typeId: preferred.typeId ?? fallback.typeId,
+    name: preferTextValue(preferred.name, fallback.name),
+    displayName: preferTextValue(preferred.displayName ?? null, fallback.displayName ?? null),
+    displayNameSource: preferTextValue(preferred.displayNameSource ?? null, fallback.displayNameSource ?? null),
+    displayNameUpdatedAt: preferTextValue(preferred.displayNameUpdatedAt ?? null, fallback.displayNameUpdatedAt ?? null),
+    family: preferTextValue(preferred.family ?? null, fallback.family ?? null),
+    size: preferTextValue(preferred.size ?? null, fallback.size ?? null),
+    status: preferTextValue(preferred.status, fallback.status),
+    fuelAmount: preferTextValue(preferred.fuelAmount, fallback.fuelAmount),
+    powerSummary: preferred.powerSummary ?? fallback.powerSummary,
+    powerRequirement: preferred.powerRequirement ?? fallback.powerRequirement,
+    solarSystemId: preferTextValue(preferred.solarSystemId, fallback.solarSystemId),
+    energySourceId: preferTextValue(preferred.energySourceId, fallback.energySourceId),
+    url: preferTextValue(preferred.url, fallback.url),
+    lastUpdated: preferTextValue(preferred.lastUpdated, fallback.lastUpdated),
+    lastObservedCheckpoint: preferTextValue(preferred.lastObservedCheckpoint ?? null, fallback.lastObservedCheckpoint ?? null),
+    lastObservedTimestamp: preferTextValue(preferred.lastObservedTimestamp ?? null, fallback.lastObservedTimestamp ?? null),
+    typeName: preferTextValue(preferred.typeName, fallback.typeName),
+    ownerCapId: preferTextValue(preferred.ownerCapId ?? null, fallback.ownerCapId ?? null),
+    ownerWalletAddress: preferTextValue(preferred.ownerWalletAddress ?? null, fallback.ownerWalletAddress ?? null),
+    characterId: preferTextValue(preferred.characterId ?? null, fallback.characterId ?? null),
+    extensionStatus: preferred.extensionStatus ?? fallback.extensionStatus,
+    partial: preferred.partial ?? fallback.partial,
+    warnings: mergeWarnings(preferred.warnings, fallback.warnings),
+    actionCandidate: preferred.actionCandidate ?? fallback.actionCandidate,
+    source: preferTextValue(preferred.source ?? null, fallback.source ?? null),
+    provenance: preferTextValue(preferred.provenance ?? null, fallback.provenance ?? null),
+  };
+}
+
 function preferCompatibleStructure(existing: Structure, incoming: Structure): Structure {
+  const displayFreshness = compareDisplayFreshness(
+    existing.summary?.displayNameSource,
+    existing.summary?.displayNameUpdatedAt,
+    incoming.summary?.displayNameSource,
+    incoming.summary?.displayNameUpdatedAt,
+  );
   const existingScore = compatibilityStructureScore(existing);
   const incomingScore = compatibilityStructureScore(incoming);
-  if (incomingScore > existingScore) return incoming;
-  if (incomingScore < existingScore) return existing;
-  if (!existing.networkNodeId && incoming.networkNodeId) return incoming;
-  if (!existing.indexedFuelAmount && incoming.indexedFuelAmount) return incoming;
-  if (!existing.indexedPowerSummary && incoming.indexedPowerSummary) return incoming;
-  if (!existing.summary?.displayNameSource && incoming.summary?.displayNameSource) return incoming;
-  if (!existing.summary?.displayNameUpdatedAt && incoming.summary?.displayNameUpdatedAt) return incoming;
-  return existing;
+  const preferred = displayFreshness > 0
+    ? incoming
+    : displayFreshness < 0
+      ? existing
+      : incomingScore > existingScore
+    ? incoming
+    : incomingScore < existingScore
+      ? existing
+      : !existing.networkNodeId && incoming.networkNodeId
+        ? incoming
+        : !existing.indexedFuelAmount && incoming.indexedFuelAmount
+          ? incoming
+          : !existing.indexedPowerSummary && incoming.indexedPowerSummary
+            ? incoming
+            : !existing.summary?.displayNameSource && incoming.summary?.displayNameSource
+              ? incoming
+              : !existing.summary?.displayNameUpdatedAt && incoming.summary?.displayNameUpdatedAt
+                ? incoming
+                : existing;
+  const fallback = preferred === existing ? incoming : existing;
+
+  return mergeCompatibleStructureFields(preferred, fallback);
 }
 
 function compatibilityStructureScore(structure: Structure): number {
   let score = 0;
   if (structure.ownerCapId) score += 3;
   if (structure.summary) score += 2;
+  if (structure.summary?.actionCandidate) score += 2;
   if (structure.summary?.displayNameSource) score += 1;
   if (structure.summary?.displayNameUpdatedAt) score += 1;
   if (structure.indexedFuelAmount) score += 1;
   if (structure.indexedPowerSummary) score += 2;
+  if (structure.indexedPowerRequirement) score += 2;
+  if (structure.indexedPowerUsageSummary) score += 2;
   if (structure.networkNodeId) score += 1;
   if (structure.extensionStatus === "authorized") score += 1;
   return score;
@@ -865,22 +1068,54 @@ function preferNodeAssemblyNode(
     + (incoming.assemblyId ? 1 : 0)
     + (incoming.fuelAmount ? 1 : 0)
     + (incoming.powerSummary ? 2 : 0)
+    + (incoming.powerUsageSummary ? 2 : 0)
     + (incoming.energySourceId ? 1 : 0);
+  const displayFreshness = compareDisplayFreshness(
+    existing.displayNameSource,
+    existing.displayNameUpdatedAt,
+    incoming.displayNameSource,
+    incoming.displayNameUpdatedAt,
+  );
+  const preferred = displayFreshness > 0
+    ? incoming
+    : displayFreshness < 0
+      ? existing
+      : incomingScore > existingScore
+        ? incoming
+        : existing;
+  const fallback = preferred === existing ? incoming : existing;
 
-  return incomingScore > existingScore ? incoming : existing;
+  return mergeNodeAssemblyNodeFields(preferred, fallback);
 }
 
 function preferNodeAssemblySummary(
   existing: NodeAssemblySummary,
   incoming: NodeAssemblySummary,
 ): NodeAssemblySummary {
+  const displayFreshness = compareDisplayFreshness(
+    existing.displayNameSource,
+    existing.displayNameUpdatedAt,
+    incoming.displayNameSource,
+    incoming.displayNameUpdatedAt,
+  );
   const existingScore = nodeAssemblySummaryScore(existing);
   const incomingScore = nodeAssemblySummaryScore(incoming);
-  if (incomingScore > existingScore) return incoming;
-  if (incomingScore < existingScore) return existing;
-  if (!existing.energySourceId && incoming.energySourceId) return incoming;
-  if (!existing.powerSummary && incoming.powerSummary) return incoming;
-  return existing;
+  const preferred = displayFreshness > 0
+    ? incoming
+    : displayFreshness < 0
+      ? existing
+      : incomingScore > existingScore
+    ? incoming
+    : incomingScore < existingScore
+      ? existing
+      : !existing.energySourceId && incoming.energySourceId
+        ? incoming
+        : !existing.powerSummary && incoming.powerSummary
+          ? incoming
+          : existing;
+  const fallback = preferred === existing ? incoming : existing;
+
+  return mergeNodeAssemblySummaryFields(preferred, fallback);
 }
 
 function nodeAssemblySummaryScore(summary: NodeAssemblySummary): number {
@@ -890,6 +1125,7 @@ function nodeAssemblySummaryScore(summary: NodeAssemblySummary): number {
   if (summary.assemblyId) score += 1;
   if (summary.actionCandidate) score += 1;
   if (summary.powerSummary) score += 2;
+  if (summary.powerRequirement) score += 2;
   if (summary.displayNameSource) score += 1;
   if (summary.displayNameUpdatedAt) score += 1;
   if (summary.displayName || summary.name) score += 1;

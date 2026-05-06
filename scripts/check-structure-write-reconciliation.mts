@@ -461,7 +461,8 @@ const useOperatorInventorySource = readFileSync("src/hooks/useOperatorInventory.
 assert(useOperatorInventorySource.includes('getSharedBackendBaseUrl'), "expected operator-inventory queries to key by the shared-backend base URL");
 assert(!useOperatorInventorySource.includes('placeholderData'), "expected operator-inventory queries not to keep placeholder previous data across reconnects");
 assert(useOperatorInventorySource.includes('refetchOnReconnect: true'), "expected operator-inventory queries to refetch on reconnect");
-assert(useOperatorInventorySource.includes('refetchOnMount: "always"'), "expected operator-inventory queries to refetch on mount");
+assert(useOperatorInventorySource.includes('refetchOnMount: true'), "expected operator-inventory queries to refetch on mount only when stale");
+assert(!useOperatorInventorySource.includes('refetchOnMount: "always"'), "expected operator-inventory queries to avoid forced mount refetches that block Node Control warm-cache renders");
 
 const useSignalHistorySource = readFileSync("src/hooks/useSignalHistory.ts", "utf8");
 assert(useSignalHistorySource.includes('getSharedBackendBaseUrl'), "expected signal-history queries to key by the shared-backend base URL");

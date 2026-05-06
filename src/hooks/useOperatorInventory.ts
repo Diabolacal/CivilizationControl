@@ -25,7 +25,7 @@ export function useOperatorInventory() {
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,
     refetchOnReconnect: true,
-    refetchOnMount: "always",
+    refetchOnMount: true,
     retry: false,
   });
 

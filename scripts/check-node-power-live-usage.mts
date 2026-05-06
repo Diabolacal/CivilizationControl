@@ -2,13 +2,20 @@ import { SuiJsonRpcClient } from "@mysten/sui/jsonRpc";
 
 import { DEFAULT_SUI_RPC_URL } from "../src/constants.ts";
 import { adaptOperatorInventory } from "../src/lib/operatorInventoryAdapter.ts";
+import {
+  getNodeLocalPowerToggleIntent,
+  supportsNodeLocalRename,
+} from "../src/lib/nodeDrilldownActionAuthority.ts";
 import { buildLiveNodeLocalViewModelWithObserved } from "../src/lib/nodeDrilldownModel.ts";
 import {
   buildNodeAssembliesUrl,
   normalizeCanonicalObjectId,
 } from "../src/lib/nodeAssembliesClient.ts";
+import { buildNetworkNodeOfflinePlan } from "../src/lib/networkNodeOfflineAction.ts";
 import {
+  buildNodeChildBulkPowerPlan,
   evaluateNodePowerCapacity,
+  evaluateNodePowerPlanCapacity,
   getNodePowerUsageReadout,
 } from "../src/lib/nodePowerControlModel.ts";
 import {
@@ -19,6 +26,10 @@ import {
   buildSignalHistoryUrl,
 } from "../src/lib/signalHistoryClient.ts";
 import { resolveStructurePowerChainSnapshot } from "../src/lib/structurePowerChainStatus.ts";
+import {
+  getStructurePowerAction,
+  supportsStructureRename,
+} from "../src/lib/structureActionSupport.ts";
 
 import type { StructurePowerChainSnapshot } from "../src/lib/structurePowerChainStatus.ts";
 import type { NodeAssembliesLookupResult } from "../src/lib/nodeAssembliesClient.ts";
@@ -66,6 +77,85 @@ function hasLoadMismatch(indexed: number | null | undefined, local: number | nul
   return indexed !== local;
 }
 
+function normalizeAssemblyId(value: string | null | undefined): string | null {
+  const trimmed = value?.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const withoutLeadingZeros = trimmed.replace(/^0+/, "");
+  return withoutLeadingZeros.length > 0 ? withoutLeadingZeros : "0";
+}
+
+function matchesStructureIdentity(
+  objectId: string | null | undefined,
+  assemblyId: string | null | undefined,
+  candidateObjectId: string | null | undefined,
+  candidateAssemblyId: string | null | undefined,
+): boolean {
+  const normalizedObjectId = normalizeCanonicalObjectId(objectId);
+  const normalizedCandidateObjectId = normalizeCanonicalObjectId(candidateObjectId);
+  if (normalizedObjectId && normalizedCandidateObjectId && normalizedObjectId === normalizedCandidateObjectId) {
+    return true;
+  }
+
+  const normalizedAssemblyId = normalizeAssemblyId(assemblyId);
+  const normalizedCandidateAssemblyId = normalizeAssemblyId(candidateAssemblyId);
+  return normalizedAssemblyId != null
+    && normalizedCandidateAssemblyId != null
+    && normalizedAssemblyId === normalizedCandidateAssemblyId;
+}
+
+function deriveRawAuthority(row: OperatorInventoryStructure) {
+  const powerRequiredIds = row.actionCandidate?.actions.power?.requiredIds;
+  const ownerCapId = normalizeCanonicalObjectId(powerRequiredIds?.ownerCapId ?? row.ownerCapId);
+  const networkNodeId = normalizeCanonicalObjectId(powerRequiredIds?.networkNodeId ?? row.networkNodeId);
+  const structureId = normalizeCanonicalObjectId(powerRequiredIds?.structureId ?? row.objectId);
+
+  return {
+    structureId,
+    structureType: powerRequiredIds?.structureType ?? null,
+    ownerCapId,
+    networkNodeId,
+    powerCandidate: row.actionCandidate?.actions.power?.candidate ?? null,
+    renameCandidate: row.actionCandidate?.actions.rename?.candidate ?? null,
+    supported: row.actionCandidate?.supported ?? null,
+    familySupported: row.actionCandidate?.familySupported ?? null,
+    ready: Boolean(structureId && ownerCapId && networkNodeId && powerRequiredIds?.structureType),
+    unavailableReason: row.actionCandidate?.unavailableReason ?? row.actionCandidate?.actions.power?.unavailableReason ?? null,
+  };
+}
+
+function summarizeRawActionCandidate(row: OperatorInventoryStructure) {
+  return {
+    supported: row.actionCandidate?.supported ?? null,
+    familySupported: row.actionCandidate?.familySupported ?? null,
+    unavailableReason: row.actionCandidate?.unavailableReason ?? null,
+    power: {
+      candidate: row.actionCandidate?.actions.power?.candidate ?? null,
+      familySupported: row.actionCandidate?.actions.power?.familySupported ?? null,
+      currentlyImplementedInCivilizationControl: row.actionCandidate?.actions.power?.currentlyImplementedInCivilizationControl ?? null,
+      indexedOwnerCapPresent: row.actionCandidate?.actions.power?.indexedOwnerCapPresent ?? null,
+      requiredIds: row.actionCandidate?.actions.power?.requiredIds ?? null,
+      unavailableReason: row.actionCandidate?.actions.power?.unavailableReason ?? null,
+    },
+    rename: {
+      candidate: row.actionCandidate?.actions.rename?.candidate ?? null,
+      familySupported: row.actionCandidate?.actions.rename?.familySupported ?? null,
+      currentlyImplementedInCivilizationControl: row.actionCandidate?.actions.rename?.currentlyImplementedInCivilizationControl ?? null,
+      indexedOwnerCapPresent: row.actionCandidate?.actions.rename?.indexedOwnerCapPresent ?? null,
+      requiredIds: row.actionCandidate?.actions.rename?.requiredIds ?? null,
+      unavailableReason: row.actionCandidate?.actions.rename?.unavailableReason ?? null,
+    },
+  };
+}
+
+function summarizeVerifiedTarget(
+  verifiedTarget: NonNullable<ReturnType<typeof deriveRawAuthority>> | null | undefined,
+) {
+  return verifiedTarget ?? null;
+}
+
 async function fetchLiveInventory(args: LiveUsageArgs) {
   const response = await fetch(buildOperatorInventoryUrl(args.walletAddress, args.baseUrl), {
     headers: { Origin: args.origin },
@@ -111,8 +201,12 @@ async function fetchSignalHistoryDiagnostic(args: LiveUsageArgs) {
 }
 
 function describeRawChild(row: OperatorInventoryStructure) {
+  const authority = deriveRawAuthority(row);
+
   return {
     objectId: row.objectId,
+    ownerCapId: row.ownerCapId,
+    networkNodeId: row.networkNodeId,
     assemblyId: row.assemblyId,
     displayName: row.displayName,
     name: row.name,
@@ -120,18 +214,31 @@ function describeRawChild(row: OperatorInventoryStructure) {
     displayNameUpdatedAt: row.displayNameUpdatedAt,
     status: row.status,
     powerRequirement: row.powerRequirement,
+    readModelSource: row.source ?? null,
+    authority,
+    actionCandidate: summarizeRawActionCandidate(row),
   };
 }
 
 function describeAdaptedChild(group: ReturnType<typeof adaptOperatorInventory>["nodeGroups"][number]) {
   return [...group.gates, ...group.storageUnits, ...group.turrets].map((structure) => ({
     objectId: structure.objectId,
+    ownerCapId: structure.ownerCapId,
+    networkNodeId: structure.networkNodeId ?? null,
     assemblyId: structure.assemblyId ?? null,
     displayName: structure.summary?.displayName ?? structure.summary?.name ?? structure.name,
     name: structure.name,
+    displayNameSource: structure.summary?.displayNameSource ?? null,
     status: structure.status,
     powerRequirement: structure.indexedPowerRequirement ?? structure.summary?.powerRequirement ?? null,
     readModelSource: structure.readModelSource ?? null,
+    authority: {
+      structureId: structure.objectId,
+      structureType: structure.type,
+      ownerCapId: structure.ownerCapId,
+      networkNodeId: structure.networkNodeId ?? null,
+      ready: Boolean(structure.ownerCapId && structure.networkNodeId),
+    },
   }));
 }
 
@@ -154,6 +261,17 @@ function describeViewModelChildren(
       displayNameSource: structure.displayNameSource ?? null,
       displayNameUpdatedAt: structure.displayNameUpdatedAt ?? null,
       provenance: structure.provenance ?? null,
+      hasDirectChainAuthority: structure.hasDirectChainAuthority,
+      actionAuthority: {
+        state: structure.actionAuthority.state,
+        verifiedTarget: structure.actionAuthority.verifiedTarget ?? null,
+        candidateTargets: structure.actionAuthority.candidateTargets,
+        unavailableReason: structure.actionAuthority.unavailableReason ?? null,
+      },
+      canRename: supportsNodeLocalRename(structure),
+      powerToggle: getNodeLocalPowerToggleIntent(structure),
+      canBringOnline: getNodeLocalPowerToggleIntent(structure)?.nextOnline === true,
+      canTakeOffline: getNodeLocalPowerToggleIntent(structure)?.nextOnline === false,
       chainStatus: chainSnapshot?.chainStatus ?? null,
       chainState: chainSnapshot?.state ?? null,
       chainVariant: chainSnapshot?.statusVariant ?? null,
@@ -168,6 +286,8 @@ function describeLookupChildren(lookup: NodeAssembliesLookupResult | null) {
 
   return lookup.assemblies.map((row) => ({
     objectId: row.objectId,
+    ownerCapId: row.ownerCapId ?? null,
+    networkNodeId: lookup.networkNodeId,
     assemblyId: row.assemblyId,
     displayName: row.displayName ?? null,
     name: row.name,
@@ -178,7 +298,95 @@ function describeLookupChildren(lookup: NodeAssembliesLookupResult | null) {
     powerSummary: row.powerSummary ?? null,
     provenance: row.provenance ?? null,
     source: row.source ?? null,
+    authority: deriveRawAuthority(row),
   }));
+}
+
+function findMatchingRawChild(rawNode: OperatorInventoryNode | null, objectId: string | null | undefined, assemblyId: string | null | undefined) {
+  return rawNode?.structures.find((row) => matchesStructureIdentity(objectId, assemblyId, row.objectId, row.assemblyId)) ?? null;
+}
+
+function findMatchingAdaptedChild(group: ReturnType<typeof adaptOperatorInventory>["nodeGroups"][number], objectId: string | null | undefined, assemblyId: string | null | undefined) {
+  return [...group.gates, ...group.storageUnits, ...group.turrets].find((structure) => (
+    matchesStructureIdentity(objectId, assemblyId, structure.objectId, structure.assemblyId)
+  )) ?? null;
+}
+
+function formatBulkPlan(
+  label: string,
+  viewModel: ReturnType<typeof buildLiveNodeLocalViewModelWithObserved>,
+  desiredOnline: boolean,
+) {
+  const plan = buildNodeChildBulkPowerPlan(viewModel.structures, desiredOnline);
+  const capacity = evaluateNodePowerPlanCapacity(viewModel.node, viewModel.structures, plan.targets);
+
+  return {
+    label,
+    enabled: !plan.disabledReason && plan.targets.length > 0,
+    disabledReason: plan.disabledReason,
+    capacityReason: plan.capacityReason,
+    targetCount: plan.targets.length,
+    capacity,
+    targets: plan.targets.map((target) => ({
+      objectId: target.structure.objectId ?? null,
+      assemblyId: target.structure.assemblyId ?? null,
+      displayName: target.structure.displayName,
+      desiredOnline: target.desiredOnline,
+      verifiedTarget: target.verifiedTarget,
+      powerRequirement: target.structure.powerRequirement ?? null,
+    })),
+  };
+}
+
+function buildAuthorityRegression(
+  rawNode: OperatorInventoryNode | null,
+  group: ReturnType<typeof adaptOperatorInventory>["nodeGroups"][number],
+  viewModel: ReturnType<typeof buildLiveNodeLocalViewModelWithObserved>,
+  fallbackViewModel: ReturnType<typeof buildLiveNodeLocalViewModelWithObserved>,
+) {
+  const failures = viewModel.structures.flatMap((structure) => {
+    const rawMatch = findMatchingRawChild(rawNode, structure.objectId, structure.assemblyId);
+    if (!rawMatch) {
+      return [];
+    }
+
+    const rawAuthority = deriveRawAuthority(rawMatch);
+    if (!rawAuthority.ready) {
+      return [];
+    }
+
+    if (structure.actionAuthority.verifiedTarget) {
+      return [];
+    }
+
+    const adaptedMatch = findMatchingAdaptedChild(group, structure.objectId, structure.assemblyId);
+    const fallbackMatch = fallbackViewModel.structures.find((candidate) => (
+      matchesStructureIdentity(structure.objectId, structure.assemblyId, candidate.objectId, candidate.assemblyId)
+    )) ?? null;
+
+    return [{
+      objectId: structure.objectId ?? rawMatch.objectId ?? null,
+      assemblyId: structure.assemblyId ?? rawMatch.assemblyId ?? null,
+      displayName: structure.displayName,
+      reason: "operator_inventory_authority_lost_in_selected_node",
+      rawAuthority,
+      adaptedAuthority: adaptedMatch ? {
+        ownerCapId: adaptedMatch.ownerCapId,
+        networkNodeId: adaptedMatch.networkNodeId ?? null,
+        readModelSource: adaptedMatch.readModelSource ?? null,
+        powerRequirement: adaptedMatch.indexedPowerRequirement ?? adaptedMatch.summary?.powerRequirement ?? null,
+      } : null,
+      selectedNodeActionAuthority: structure.actionAuthority,
+      fallbackActionAuthority: fallbackMatch?.actionAuthority ?? null,
+      fallbackWouldStripAuthority: fallbackMatch?.actionAuthority.verifiedTarget == null,
+    }];
+  });
+
+  return {
+    ok: failures.length === 0,
+    failureCount: failures.length,
+    failures,
+  };
 }
 
 function normalizeNullableString(value: unknown): string | null {
@@ -375,6 +583,7 @@ async function main() {
   }
 
   const client = args.checkChain ? new SuiJsonRpcClient({ url: args.rpcUrl }) : null;
+  const authorityFailures: Array<Record<string, unknown>> = [];
   const nodes = await Promise.all(selectedNodeGroups.map(async (group) => {
     const rawNode = findRawNode(inventory, group.node.objectId);
     const lookup = adaptedInventory.nodeLookupsByNodeId.get(group.node.objectId) ?? null;
@@ -385,6 +594,22 @@ async function main() {
     const readout = getNodePowerUsageReadout(viewModel.node, viewModel.structures);
     const fallbackCapacityCheck = evaluateNodePowerCapacity(fallbackViewModel.node, fallbackViewModel.structures);
     const fallbackReadout = getNodePowerUsageReadout(fallbackViewModel.node, fallbackViewModel.structures);
+    const bringAllOnlinePlan = formatBulkPlan("Bring all online", viewModel, true);
+    const takeAllOfflinePlan = formatBulkPlan("Take all offline", viewModel, false);
+    const canSavePowerPreset = viewModel.structures.some((structure) => structure.status === "online" || structure.status === "offline");
+    const savePowerPresetDisabledReason = !canSavePowerPreset
+      ? "no connected child structures"
+      : capacityCheck.reason;
+    const nodeOfflinePlan = buildNetworkNodeOfflinePlan(group.node, lookup ?? (fallbackLookup.status === "success" ? fallbackLookup : null));
+    const nodePowerAction = getStructurePowerAction(group.node, {
+      networkNodeOfflineAvailable: nodeOfflinePlan.unavailableReason == null,
+    });
+    const authorityRegression = buildAuthorityRegression(rawNode, group, viewModel, fallbackViewModel);
+    authorityFailures.push(...authorityRegression.failures.map((failure) => ({
+      nodeObjectId: group.node.objectId,
+      nodeDisplayName: viewModel.node.displayName,
+      ...failure,
+    })));
     const chainSnapshots = client
       ? await loadChainSnapshotMap(
           client,
@@ -407,9 +632,17 @@ async function main() {
       rawOperatorInventory: {
         node: rawNode ? {
           objectId: rawNode.node.objectId,
+          ownerCapId: rawNode.node.ownerCapId,
           displayName: rawNode.node.displayName,
           name: rawNode.node.name,
+          displayNameSource: rawNode.node.displayNameSource ?? null,
+          displayNameUpdatedAt: rawNode.node.displayNameUpdatedAt ?? null,
           status: rawNode.node.status,
+          powerAction: getStructurePowerAction(group.node, {
+            networkNodeOfflineAvailable: nodeOfflinePlan.unavailableReason == null,
+          }),
+          canRename: supportsStructureRename(group.node) && group.node.ownerCapId.trim().length > 0,
+          nodeOfflinePlan,
           powerUsageSummary: rawNode.powerUsageSummary ?? rawNode.node.powerUsageSummary ?? null,
         } : null,
         powerUsageSummary: rawNode?.powerUsageSummary ?? rawNode?.node.powerUsageSummary ?? null,
@@ -418,9 +651,15 @@ async function main() {
       adaptedOperatorInventory: {
         node: {
           objectId: group.node.objectId,
+          ownerCapId: group.node.ownerCapId,
           displayName: group.node.summary?.displayName ?? group.node.summary?.name ?? group.node.name,
           name: group.node.name,
+          displayNameSource: group.node.summary?.displayNameSource ?? null,
+          displayNameUpdatedAt: group.node.summary?.displayNameUpdatedAt ?? null,
           status: group.node.status,
+          powerAction: nodePowerAction,
+          canRename: supportsStructureRename(group.node) && group.node.ownerCapId.trim().length > 0,
+          nodeOfflinePlan,
           powerUsageSummary: group.node.indexedPowerUsageSummary ?? group.node.summary?.powerUsageSummary ?? null,
         },
         powerUsageSummary: group.node.indexedPowerUsageSummary ?? group.node.summary?.powerUsageSummary ?? null,
@@ -428,6 +667,16 @@ async function main() {
       },
       operatorInventorySelectedNode: {
         sourceMode: viewModel.sourceMode,
+        authorityRegression,
+        nodeSelf: {
+          objectId: group.node.objectId,
+          ownerCapId: group.node.ownerCapId,
+          displayName: viewModel.node.displayName,
+          status: group.node.status,
+          powerAction: nodePowerAction,
+          canRename: supportsStructureRename(group.node) && group.node.ownerCapId.trim().length > 0,
+          nodeOfflinePlan,
+        },
         powerReadoutInput: {
           nodePowerUsageSummary: viewModel.node.powerUsageSummary ?? null,
           structures: viewModel.structures.map((structure) => ({
@@ -449,6 +698,16 @@ async function main() {
         mismatch: {
           currentLoad: hasLoadMismatch(viewModel.node.powerUsageSummary?.usedGj, capacityCheck.currentUsedGj),
           allOnlineLoad: hasLoadMismatch(viewModel.node.powerUsageSummary?.totalKnownLoadGj, capacityCheck.allOnlineLoadGj),
+        },
+        bulkActions: {
+          bringAllOnline: bringAllOnlinePlan,
+          takeAllOffline: takeAllOfflinePlan,
+          savePowerPreset: {
+            enabled: !savePowerPresetDisabledReason,
+            disabledReason: savePowerPresetDisabledReason,
+            canSavePowerPreset,
+            capacity: capacityCheck,
+          },
         },
         children: describeViewModelChildren(viewModel.structures, chainSnapshots),
       },
@@ -524,8 +783,17 @@ async function main() {
         : [],
     } : null,
     visibilityNote: "This script does not read browser-local hidden state, so selected-node child rows are reported as visible runtime members.",
+    authorityRegression: {
+      ok: authorityFailures.length === 0,
+      failureCount: authorityFailures.length,
+      failures: authorityFailures,
+    },
     nodes,
   }, null, 2));
+
+  if (authorityFailures.length > 0) {
+    throw new Error(`operator-inventory authority was lost for ${authorityFailures.length} selected-node row(s)`);
+  }
 }
 
 await main();
