@@ -55,7 +55,7 @@ import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDispla
 import { formatLux, formatEve } from "@/lib/currency";
 import { buildFuelPresentation, formatRuntimeSeconds } from "@/lib/fuelRuntime";
 import { buildNodeControlDebugCopySummary, buildNodeControlDebugSnapshot } from "@/lib/nodeControlDebug";
-import { resolveSelectedNodeInventoryLookup } from "@/lib/nodeControlInventoryLookup";
+import { operatorInventoryContainsNode, resolveSelectedNodeInventoryLookup } from "@/lib/nodeControlInventoryLookup";
 import { resolveNodeDrilldownScopeKey } from "@/lib/nodeDrilldownHiddenState";
 import { buildNodeDrilldownMenuItems } from "@/lib/nodeDrilldownMenuItems";
 import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapshot } from "@/lib/nodeDrilldownModel";
@@ -218,11 +218,16 @@ export function Dashboard({
     [operatorInventory.adapted?.nodeLookupsByNodeId, selectedNodeGroup],
   );
   const selectedNodeInventoryLookup = selectedNodeInventoryLookupResolution.lookup;
+  const rawOperatorInventoryContainsSelectedNode = useMemo(
+    () => operatorInventoryContainsNode(operatorInventory.inventory, selectedNodeGroup?.node.objectId),
+    [operatorInventory.inventory, selectedNodeGroup?.node.objectId],
+  );
   const shouldUseNodeAssembliesFallback = Boolean(
     selectedNodeGroup?.node.objectId
     && selectedNodeGroup.node.objectId !== "unassigned"
     && selectedNodeInventoryLookup == null
-    && operatorInventory.isError,
+    && operatorInventory.isError
+    && !rawOperatorInventoryContainsSelectedNode,
   );
   const {
     lookup: selectedNodeAssembliesLookup,

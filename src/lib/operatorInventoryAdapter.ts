@@ -234,12 +234,16 @@ function buildNodeLookupMap(response: OperatorInventoryResponse): Map<ObjectId, 
 
   for (const nodeGroup of response.networkNodes) {
     const nodeRow = resolveNodeGroupNodeRow(nodeGroup);
-    const key = structureIdentityKey(nodeRow.objectId, nodeRow.assemblyId);
+    const lookupNodeObjectId = resolveNodeGroupLookupObjectId(nodeGroup);
+    const key = structureIdentityKey(lookupNodeObjectId, nodeRow.assemblyId);
     if (!key) {
       continue;
     }
 
-    const nextNode = toNodeAssemblyNode(nodeRow);
+    const nodeForLookup = lookupNodeObjectId && nodeRow.objectId !== lookupNodeObjectId
+      ? { ...nodeRow, objectId: lookupNodeObjectId }
+      : nodeRow;
+    const nextNode = toNodeAssemblyNode(nodeForLookup);
     const nextAssemblies = nodeGroup.structures.map((structure) => toNodeAssemblySummary(structure, response));
     const nextIsPartial = response.partial || nodeRow.partial || nodeGroup.structures.some((structure) => structure.partial);
     const existing = buckets.get(key);
@@ -306,6 +310,29 @@ function buildNodeLookupMap(response: OperatorInventoryResponse): Map<ObjectId, 
   }
 
   return lookups;
+}
+
+function resolveNodeGroupLookupObjectId(nodeGroup: OperatorInventoryNode): ObjectId | null {
+  const nodeObjectId = normalizeCanonicalObjectId(nodeGroup.node.objectId);
+  if (nodeObjectId) {
+    return nodeObjectId;
+  }
+
+  const childNodeIds = new Set<string>();
+  for (const structure of nodeGroup.structures) {
+    for (const value of [
+      structure.networkNodeId,
+      structure.actionCandidate?.actions.power?.requiredIds?.networkNodeId,
+      structure.actionCandidate?.actions.rename?.requiredIds?.networkNodeId,
+    ]) {
+      const normalized = normalizeCanonicalObjectId(value);
+      if (normalized) {
+        childNodeIds.add(normalized);
+      }
+    }
+  }
+
+  return childNodeIds.size === 1 ? [...childNodeIds][0]! : null;
 }
 
 function buildOperatorInventoryNodeGroups(

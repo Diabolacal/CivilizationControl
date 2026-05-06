@@ -12,7 +12,10 @@ import { formatNodeLocalActionAvailability } from "@/lib/nodeDrilldownActionAuth
 
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
 import type { NodeAssembliesLookupResult } from "@/lib/nodeAssembliesClient";
-import type { SelectedNodeInventoryLookupResolution } from "@/lib/nodeControlInventoryLookup";
+import {
+  operatorInventoryNodeGroupReferencesNode,
+  type SelectedNodeInventoryLookupResolution,
+} from "@/lib/nodeControlInventoryLookup";
 import type { NodeDrilldownMenuContext, NodeDrilldownMenuItem } from "@/lib/nodeDrilldownMenuItems";
 import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 import type { NodePowerCapacityCheck, NodePowerOperationPlan, NodePowerUsageReadout } from "@/lib/nodePowerControlModel";
@@ -293,6 +296,12 @@ export interface NodeControlDebugCopySummary {
     selectedNodeInventoryLookupFound: boolean;
     selectedNodeInventoryLookupMatchedKey: string | null;
     selectedNodeInventoryLookupKeysTried: string[];
+    selectedNodeInventoryLookupFailureReason: string | null;
+    selectedNodeIdNormalized: string | null;
+    nodeLookupsByNodeIdKeys: string[];
+    rawOperatorInventoryNodeIdsNormalized: string[];
+    rawOperatorInventoryStructureNetworkNodeIdsNormalized: string[];
+    rawOperatorInventorySelectedNodePresent: boolean;
     selectedNodeInventoryLookupRawChildCount: number;
   };
 }
@@ -431,7 +440,9 @@ function identityMatches(row: { objectId?: string | null; assemblyId?: string | 
   return Boolean(
     (rowObjectId && [
       structure.objectId,
+      structure.assemblyId,
       structure.directChainObjectId,
+      structure.directChainAssemblyId,
       structure.actionAuthority.verifiedTarget?.structureId,
     ].some((value) => normalizeCanonicalObjectId(value) === rowObjectId))
     || (rowAssemblyId && [
@@ -748,7 +759,45 @@ function findRawNodeGroup(inventory: OperatorInventoryResponse | null, selectedN
   const normalizedNodeId = normalizeCanonicalObjectId(selectedNodeId);
   if (!inventory || !normalizedNodeId) return null;
 
-  return inventory.networkNodes.find((group) => normalizeCanonicalObjectId(group.node.objectId) === normalizedNodeId) ?? null;
+  return inventory.networkNodes.find((group) => operatorInventoryNodeGroupReferencesNode(group, normalizedNodeId)) ?? null;
+}
+
+function findRawStructure(
+  inventory: OperatorInventoryResponse | null,
+  rawNodeGroup: OperatorInventoryResponse["networkNodes"][number] | null,
+  selectedStructure: NodeLocalStructure | null,
+) {
+  if (!inventory || !selectedStructure) return null;
+
+  const nodeRow = rawNodeGroup?.structures.find((row) => identityMatches(row, selectedStructure)) ?? null;
+  if (nodeRow) return nodeRow;
+
+  for (const group of inventory.networkNodes) {
+    const row = group.structures.find((structure) => identityMatches(structure, selectedStructure));
+    if (row) return row;
+  }
+
+  return inventory.unlinkedStructures.find((structure) => identityMatches(structure, selectedStructure)) ?? null;
+}
+
+function uniqueNormalizedObjectIds(values: Array<string | null | undefined>): string[] {
+  return [...new Set(values
+    .map((value) => normalizeCanonicalObjectId(value))
+    .filter((value): value is string => Boolean(value)))];
+}
+
+function getRawOperatorInventoryNodeIds(inventory: OperatorInventoryResponse | null): string[] {
+  return uniqueNormalizedObjectIds(inventory?.networkNodes.map((group) => group.node.objectId) ?? []);
+}
+
+function getRawOperatorInventoryStructureNetworkNodeIds(inventory: OperatorInventoryResponse | null): string[] {
+  if (!inventory) return [];
+
+  return uniqueNormalizedObjectIds(inventory.networkNodes.flatMap((group) => group.structures.flatMap((row) => [
+    row.networkNodeId,
+    row.actionCandidate?.actions.power?.requiredIds?.networkNodeId,
+    row.actionCandidate?.actions.rename?.requiredIds?.networkNodeId,
+  ])));
 }
 
 function summarizeLookup(lookup: NodeAssembliesLookupResult | null) {
@@ -767,7 +816,7 @@ function summarizeLookup(lookup: NodeAssembliesLookupResult | null) {
 
 export function buildNodeControlDebugSnapshot(input: BuildNodeControlDebugSnapshotInput): NodeControlDebugCopySummary {
   const rawNodeGroup = findRawNodeGroup(input.operatorInventory.inventory, input.selectedNodeId);
-  const rawStructure = rawNodeGroup?.structures.find((row) => identityMatches(row, input.selectedStructure)) ?? null;
+  const rawStructure = findRawStructure(input.operatorInventory.inventory, rawNodeGroup, input.selectedStructure);
   const lookupStructure = input.selectedNodeObservedLookup?.status === "success"
     ? input.selectedNodeObservedLookup.assemblies.find((row) => identityMatches(row, input.selectedStructure))
     : null;
@@ -785,6 +834,16 @@ export function buildNodeControlDebugSnapshot(input: BuildNodeControlDebugSnapsh
     detail: selectedRow.actionAuthorityDetail,
     canRename: selectedRow.actionAuthority.verifiedTarget != null,
   } : null;
+  const rawOperatorInventoryNodeIdsNormalized = getRawOperatorInventoryNodeIds(input.operatorInventory.inventory);
+  const rawOperatorInventoryStructureNetworkNodeIdsNormalized = getRawOperatorInventoryStructureNetworkNodeIds(input.operatorInventory.inventory);
+  const rawOperatorInventorySelectedNodePresent = Boolean(
+    input.operatorInventory.inventory
+      && input.selectedNodeId
+      && input.operatorInventory.inventory.networkNodes.some((group) => operatorInventoryNodeGroupReferencesNode(group, input.selectedNodeId)),
+  );
+  const selectedNodeInventoryLookupFailureReason = !input.selectedNodeInventoryLookupResolution.found && rawOperatorInventorySelectedNodePresent
+    ? "operator-inventory-contains-selected-node-but-lookup-not-resolved"
+    : input.selectedNodeInventoryLookupResolution.lookupFailureReason;
 
   return {
     schemaVersion: "node-control-debug.v1",
@@ -923,6 +982,12 @@ export function buildNodeControlDebugSnapshot(input: BuildNodeControlDebugSnapsh
         foundBy: input.selectedNodeInventoryLookupResolution.foundBy,
         matchedKey: input.selectedNodeInventoryLookupResolution.matchedKey,
         lookupKeysTried: input.selectedNodeInventoryLookupResolution.lookupKeysTried,
+        nodeLookupsByNodeIdKeys: input.selectedNodeInventoryLookupResolution.nodeLookupKeysPresent,
+        selectedNodeIdNormalized: input.selectedNodeInventoryLookupResolution.selectedNodeIdNormalized,
+        lookupFailureReason: selectedNodeInventoryLookupFailureReason,
+        rawOperatorInventoryNodeIdsNormalized,
+        rawOperatorInventoryStructureNetworkNodeIdsNormalized,
+        rawOperatorInventorySelectedNodePresent,
         rawChildCount: input.selectedNodeInventoryLookupResolution.rawChildCount,
       },
       nodeAssembliesFallbackEnabled: input.nodeAssembliesFallbackEnabled,
@@ -960,7 +1025,9 @@ export function buildNodeControlDebugSnapshot(input: BuildNodeControlDebugSnapsh
       nodeUsageReadout: input.nodeUsageReadout,
     }),
     pipeline: {
-      phase: input.operatorInventory.isLoading
+      phase: selectedNodeInventoryLookupFailureReason === "operator-inventory-contains-selected-node-but-lookup-not-resolved"
+        ? "operator-inventory-lookup-bug"
+        : input.operatorInventory.isLoading
         ? "operator-inventory-loading"
         : input.selectedNodeViewModel?.sourceMode === "backend-membership"
           ? "operator-inventory-authoritative"
@@ -971,6 +1038,12 @@ export function buildNodeControlDebugSnapshot(input: BuildNodeControlDebugSnapsh
       selectedNodeInventoryLookupFound: input.selectedNodeInventoryLookupResolution.found,
       selectedNodeInventoryLookupMatchedKey: input.selectedNodeInventoryLookupResolution.matchedKey,
       selectedNodeInventoryLookupKeysTried: input.selectedNodeInventoryLookupResolution.lookupKeysTried,
+      selectedNodeInventoryLookupFailureReason,
+      selectedNodeIdNormalized: input.selectedNodeInventoryLookupResolution.selectedNodeIdNormalized,
+      nodeLookupsByNodeIdKeys: input.selectedNodeInventoryLookupResolution.nodeLookupKeysPresent,
+      rawOperatorInventoryNodeIdsNormalized,
+      rawOperatorInventoryStructureNetworkNodeIdsNormalized,
+      rawOperatorInventorySelectedNodePresent,
       selectedNodeInventoryLookupRawChildCount: input.selectedNodeInventoryLookupResolution.rawChildCount,
     },
   };

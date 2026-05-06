@@ -22,7 +22,7 @@ import type {
 } from "@/types/operatorInventory";
 
 const OPERATOR_INVENTORY_PATH = "/api/civilization-control/operator-inventory";
-const REQUEST_TIMEOUT_MS = 5_000;
+const REQUEST_TIMEOUT_MS = 15_000;
 
 interface FetchOperatorInventoryOptions {
   baseUrl?: string;
