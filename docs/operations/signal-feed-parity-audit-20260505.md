@@ -23,6 +23,8 @@ Preview validation refresh (2026-05-06, live preview-origin proof): the branch w
 
 Validation refresh (2026-05-06, repaired live EF-Map truth): EF-Map live assembly-state freshness repair is now active for the checked wallet and preview-origin path. The same unique preview-origin diagnostic now shows raw operator-inventory names and statuses aligned with the adapted frontend rows, selected-node statuses aligned with direct-chain snapshots, and the main online node reading `Power 770 / 1000 GJ` with no current-load mismatch or unknown-load count on the operator-inventory path. The offline node now reads `Power 0 / 1000 GJ`, while the node-assemblies fallback still remains the weaker read seam because it keeps unknown child-load counts even when the top-level label matches. `structure_renamed` handling remains safe even though only one older rename row is currently present for the test wallet, because the live row still normalizes cleanly and the deterministic fixture probe still covers posture, policy, treasury, permit, and toll families without reopening browser `queryEvents` or broad polling. No fresh preview deploy, EF-Map change, VPS change, Move/package change, sponsor-worker change, or production deploy was required for this validation pass.
 
+Cross-repo diagnostic update (2026-05-06, `master` after Node Control human smoke): recent power-write digests prove the current Signal Feed break is upstream of CivilizationControl client mapping. Sui RPC shows wallet `0x11dd567e72d160ad7116a7358684dfff800af2a8e429cd1a65778640f8a61f62` successfully offlined 11 selected-node child structures in `HhWpbi6sdnG3QUCM9DgWgBUzJC6Sv4FJkk8UYn29zr13` at `2026-05-06T17:02:42.823Z`, then brought the same 11 structures online in `FMB5oNg783eLXCJJkf3XE7QDXkwXWjgWftAdJ6sJhVsA` at `2026-05-06T17:02:50.054Z`. Both transactions emitted world `status::StatusChangedEvent` rows for the selected node `0x2deb4248ed82ecbe42410e6ff4f8902f2e48b0c348c3dfdfb3f2c83acde73b85`, including Shadow Broker `0xe009613ba63c34ffca0fee893123037eab35e25e23dc13644613d792d55886da`. The public EF-Map `signal-history` endpoint returned `200` but returned zero rows for the May 6 window, zero rows for those exact digests, zero selected-node rows since `2026-05-05T22:15:00Z`, and zero Shadow Broker rows since `2026-05-05T18:40:00Z`. Operator-inventory for the same node is fresh and online with `powerUsageSummary.lastUpdated = 2026-05-06T17:19:18.695000Z`, so current-state indexing is alive while the signal-history event source or API history projection is not exposing recent events. Direct Sui queries found no `CC::posture::set_posture` transactions and no `posture::PostureChangedEvent` rows for this wallet; the observed posture-like actions were turret `ExtensionAuthorizedEvent` rebinds, so `posture_changed` absence is not a CivilizationControl normalizer miss for this smoke. No CivilizationControl runtime code was changed in this pass.
+
 ## 2. Scope and non-goals
 
 This pass is intentionally docs-only on `docs/signal-feed-parity-audit`.
@@ -373,11 +375,12 @@ Recommended metadata keys for the first pass:
 
 ## 11. Recommended next step
 
-The next implementation prompt should start with a tx-digest comparison for recent app-originated rename and power writes.
+The next implementation prompt should start inside EF-Map runtime or database diagnostics for the exact recent power digests, not inside CivilizationControl route wiring.
 
 Decision rule:
 
-- if EF-Map already has those rows and CivilizationControl is not mapping them correctly, do the small CC-side follow-up
-- if EF-Map does not have those rows, extend `signal-history.v1` narrowly for the `P0` families above without widening the endpoint shape or scoping model
+- if `ef_sui.raw_events` or `ef_sui.assembly_transitions` has `HhWpbi6sdnG3QUCM9DgWgBUzJC6Sv4FJkk8UYn29zr13` and `FMB5oNg783eLXCJJkf3XE7QDXkwXWjgWftAdJ6sJhVsA`, fix EF-Map `signal-history.v1` classification, scoping, cursor ordering, or API projection so those raw status events return as `structure_offline` and `structure_online`
+- if those raw or normalized rows are absent, fix EF-Map event ingestion, allowlist, checkpoint catch-up, or backfill for world `status::StatusChangedEvent`; current operator-inventory freshness alone is not enough to prove Signal Feed history ingestion
+- if a future smoke actually emits `CC::posture::set_posture` and `posture::PostureChangedEvent`, repeat the same DB-to-API check for `posture_changed`; the May 6 smoke did not emit that event
 
 This keeps the next step falsifiable, low-risk, and aligned with the already-shipped shared history route.
