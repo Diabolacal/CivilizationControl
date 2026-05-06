@@ -1,6 +1,17 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-06 - Signal Feed operator-audit model correction
+- Goal: document the EF-Map repair outcome and align CivilizationControl docs with the operator-audit Signal Feed model.
+- Files: `docs/operations/signal-feed-parity-audit-20260505.md`, `docs/decision-log.md`
+- Diff: docs-only clarification; no CivilizationControl runtime code changed.
+- Risk: low - documentation only.
+- Gates: EF-Map public signal-history filter matrix proved the two audited power digests now return selected-node operator-action rows; Sui fullnode proof confirmed `Hi2...` was a turret extension rebind, not posture.
+- Decisions:
+  - Signal Feed should show one meaningful operator-facing action when a user performs one action; selected-node bulk online/offline rows are valid when EF-Map can scope them safely.
+  - Child status rows remain drill-down detail, not the default Dashboard/global feed shape for bulk node actions.
+  - Turret extension authorization is not posture. `posture_changed` requires the CivilizationControl `posture::set_posture` path and `PostureChangedEvent`.
+
 ## 2026-05-06 - Close Node Control authority regression after wallet smoke
 - Goal: record the first connected-wallet green smoke for the Node Control authority regression before merging `fix/node-control-authority-regression` back to `master`.
 - Files: `docs/decision-log.md`

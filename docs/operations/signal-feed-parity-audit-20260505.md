@@ -25,6 +25,8 @@ Validation refresh (2026-05-06, repaired live EF-Map truth): EF-Map live assembl
 
 Cross-repo diagnostic update (2026-05-06, `master` after Node Control human smoke): recent power-write digests prove the current Signal Feed break is upstream of CivilizationControl client mapping. Sui RPC shows wallet `0x11dd567e72d160ad7116a7358684dfff800af2a8e429cd1a65778640f8a61f62` successfully offlined 11 selected-node child structures in `HhWpbi6sdnG3QUCM9DgWgBUzJC6Sv4FJkk8UYn29zr13` at `2026-05-06T17:02:42.823Z`, then brought the same 11 structures online in `FMB5oNg783eLXCJJkf3XE7QDXkwXWjgWftAdJ6sJhVsA` at `2026-05-06T17:02:50.054Z`. Both transactions emitted world `status::StatusChangedEvent` rows for the selected node `0x2deb4248ed82ecbe42410e6ff4f8902f2e48b0c348c3dfdfb3f2c83acde73b85`, including Shadow Broker `0xe009613ba63c34ffca0fee893123037eab35e25e23dc13644613d792d55886da`. The public EF-Map `signal-history` endpoint returned `200` but returned zero rows for the May 6 window, zero rows for those exact digests, zero selected-node rows since `2026-05-05T22:15:00Z`, and zero Shadow Broker rows since `2026-05-05T18:40:00Z`. Operator-inventory for the same node is fresh and online with `powerUsageSummary.lastUpdated = 2026-05-06T17:19:18.695000Z`, so current-state indexing is alive while the signal-history event source or API history projection is not exposing recent events. Direct Sui queries found no `CC::posture::set_posture` transactions and no `posture::PostureChangedEvent` rows for this wallet; the observed posture-like actions were turret `ExtensionAuthorizedEvent` rebinds, so `posture_changed` absence is not a CivilizationControl normalizer miss for this smoke. No CivilizationControl runtime code was changed in this pass.
 
+EF-Map repair update (2026-05-06, operator-audit model): the product owner corrected the model after the diagnostic above. Signal Feed should answer which operator-facing action happened, not list every internal turret/gate/energy implementation detail. EF-Map repaired the upstream capture/projection path and backfilled only the two audited power digests. The public endpoint now returns one selected-node operator-action row for each digest (`Took 11 structures offline`, `Brought 11 structures online`) for wallet, `since`, `categories=status`, and `networkNodeId` filters, while `structureId=0xe009613ba63c34ffca0fee893123037eab35e25e23dc13644613d792d55886da` still returns the Shadow Broker child rows. The `Hi2...` digest remains classified as a direct turret extension rebind only: it did not call `posture::set_posture` and did not emit `PostureChangedEvent`.
+
 ## 2. Scope and non-goals
 
 This pass is intentionally docs-only on `docs/signal-feed-parity-audit`.
@@ -71,7 +73,8 @@ Current Dashboard behavior:
 
 - fetches `limit = 10`
 - renders only the first `6` rows
-- disables timer polling
+- polls every `30s` by default through `useSignalFeed(...)`
+- switches to `4s` polling while `aggressiveRefetch` is true; Dashboard passes `aggressiveRefetch: postureTransitioning`
 - uses the same wallet-scoped shared history contract as `/activity`
 - continues to invalidate the signal-history query after successful structure writes through `useStructureWriteRefresh(...)`
 
@@ -132,7 +135,7 @@ Inclusion rules:
 2. Show relevant world/indexed side effects that materially affect governed infrastructure even if they are not initiated through CivilizationControl, such as fuel state, storage movement, or gate transit through a governed gate.
 3. Prefer raw on-chain events when the contracts already emit them.
 4. Use classification or state-delta logic only where the chain proof is more generic than the operator-facing row, such as `MetadataChangedEvent` for rename rows.
-5. Do not create synthetic rows for local orchestration buttons themselves. For example, Node Power bulk or preset apply should surface the underlying node and child status changes, not `preset applied` or `children taken offline` meta-rows.
+5. Prefer one meaningful operator-action row for one intentional operator action when EF-Map can classify it safely. Node Power bulk online/offline should surface as a selected-node bulk power action, with child structure status changes available as drill-down metadata or structure-scoped rows.
 6. Do not surface implementation-detail energy reserve or release rows in the first pass when the operator-facing action is already proven by the online/offline status change.
 
 Category rule for the first restore pass:
@@ -163,7 +166,7 @@ The first EF-Map follow-up should therefore start with a tx-digest comparison, n
 |---|---|---|---|---|---|---|
 | Structure online / offline (`assembly`, `gate`, `storage_unit`, `turret`) | `structurePowerTx.ts`, `useStructurePower.ts`, list/detail screens, Node Control | world online/offline PTBs | `world::status::StatusChangedEvent` | Kind exists, but live parity for current CC power writes is unresolved because human smoke found missing `/activity` rows | Keep `structure_online` / `structure_offline` | `P0` |
 | Network node online / offline | `structurePowerTx.ts`, node list/detail, Node Control node-self actions | world node online/offline PTBs | `world::status::StatusChangedEvent` on the node | Kind exists only generically; live parity for current node writes is not yet proven | Keep `structure_online` / `structure_offline` with `metadata.structureType = network_node` | `P0` |
-| Connected child offline caused by node offline | `buildNodeOfflineTx(...)` and Node Control node-offline flow | same transaction as node offline | child `world::status::StatusChangedEvent` rows only for actual transitions | No special row needed today | Keep child `structure_offline` rows; do not synthesize `preset_applied` or `children_offlined` | `P0` boundary: no meta-rows |
+| Connected child offline caused by node offline | `buildNodeOfflineTx(...)` and Node Control node-offline flow | same transaction as node offline | child `world::status::StatusChangedEvent` rows only for actual transitions | EF-Map now summarizes proven selected-node bulk writes as operator-action rows | Prefer one selected-node bulk row; keep child `structure_offline` rows for structure-level drill-down | `P0` operator-audit boundary |
 | Structure rename / node rename | `structureMetadataTx.ts`, rename dialog, node rename flows | world metadata name update PTBs | `world::metadata::MetadataChangedEvent` plus tx-target classification (`update_metadata_name`) | Repo-proven live gap | Add `structure_renamed` | `P0` |
 | Gate / storage / turret extension authorization and rebind | `useAuthorizeExtension.ts`, gate/storage/turret list and detail actions, posture sidecar for turrets | world authorize_extension PTBs | per-module `ExtensionAuthorizedEvent` | Generic `extension_authorized` kind exists, but rebind/doctrine nuance is not preserved in current UI | Keep `extension_authorized`; include `metadata.previousExtension`, `metadata.extensionType`, and `metadata.structureType` so CC can render rebind/doctrine titles later | `P0` for visibility |
 | Extension freeze | future world freeze surfaces only; not a current main CC write | world freeze PTB | `world::extension_freeze::ExtensionConfigFrozenEvent` | Kind exists | Keep `extension_frozen` | Covered, not a blocker |
@@ -319,7 +322,7 @@ Wallet scoping must stay consistent with the current endpoint intent:
 
 1. resolve the wallet's current governed infrastructure using the same indexed ownership/governed-inventory model that already backs the route
 2. include only rows whose `structureId`, `networkNodeId`, `assemblyId`, or `ownerCapId` resolve to that governed infrastructure
-3. for node-offline cascades, keep the raw child status rows for actual child transitions; do not emit a synthetic node-preset or node-bulk meta-row
+3. for node-offline cascades, emit one selected-node bulk operator-action row when the transaction and scoped node can be proven; keep raw child status rows available through structure-level drill-down
 
 ### 10.4 Dedupe and `id` strategy
 
@@ -328,7 +331,7 @@ Use stable one-row-per-event identifiers by default:
 - raw event row: `id = {txDigest}:{eventSeq}`
 - if EF-Map deliberately splits one raw event into more than one operator-facing row, suffix the kind: `id = {txDigest}:{eventSeq}:{kind}`
 
-Do not reintroduce the old digest-level folding behavior in the backend first pass. The current objective is precise audit visibility, not synthetic cluster summarization.
+Do not reintroduce broad digest-level folding. The only intended summary is a product-level operator action that EF-Map can prove and scope safely, such as selected-node bulk power online/offline.
 
 ### 10.5 Required fields per signal row
 
@@ -370,7 +373,7 @@ Recommended metadata keys for the first pass:
 - no marketplace external events yet unless the external app contract is supplied later
 - no restoration of browser `queryEvents`
 - no unscoped package-event leak
-- no local-only Node Power preset or bulk UI audit rows
+- no local-only Node Power preset save/rename/layout rows; bulk online/offline rows require on-chain status proof and scoped infrastructure
 - no energy reserve or release rows as first-pass operator audit entries
 
 ## 11. Recommended next step
@@ -379,7 +382,7 @@ The next implementation prompt should start inside EF-Map runtime or database di
 
 Decision rule:
 
-- if `ef_sui.raw_events` or `ef_sui.assembly_transitions` has `HhWpbi6sdnG3QUCM9DgWgBUzJC6Sv4FJkk8UYn29zr13` and `FMB5oNg783eLXCJJkf3XE7QDXkwXWjgWftAdJ6sJhVsA`, fix EF-Map `signal-history.v1` classification, scoping, cursor ordering, or API projection so those raw status events return as `structure_offline` and `structure_online`
+- if `ef_sui.raw_events` or `ef_sui.assembly_transitions` has `HhWpbi6sdnG3QUCM9DgWgBUzJC6Sv4FJkk8UYn29zr13` and `FMB5oNg783eLXCJJkf3XE7QDXkwXWjgWftAdJ6sJhVsA`, fix EF-Map `signal-history.v1` classification, scoping, cursor ordering, or API projection so wallet/node-scoped views return one operator-action status row per bulk transaction and structure-scoped views can still return the relevant child row
 - if those raw or normalized rows are absent, fix EF-Map event ingestion, allowlist, checkpoint catch-up, or backfill for world `status::StatusChangedEvent`; current operator-inventory freshness alone is not enough to prove Signal Feed history ingestion
 - if a future smoke actually emits `CC::posture::set_posture` and `posture::PostureChangedEvent`, repeat the same DB-to-API check for `posture_changed`; the May 6 smoke did not emit that event
 
