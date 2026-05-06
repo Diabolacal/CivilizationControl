@@ -116,6 +116,8 @@ export interface AssemblySummary {
   typeId: number | null;
   name: string | null;
   displayName?: string | null;
+  displayNameSource?: string | null;
+  displayNameUpdatedAt?: string | null;
   status: string | null;
   fuelAmount: string | null;
   powerSummary?: IndexedPowerSummary | null;
@@ -149,6 +151,8 @@ export interface NodeAssemblyNode {
   objectId: ObjectId;
   name: string | null;
   displayName?: string | null;
+  displayNameSource?: string | null;
+  displayNameUpdatedAt?: string | null;
   status: string | null;
   assemblyId: string | null;
   solarSystemId: string | null;
@@ -167,6 +171,8 @@ export interface NodeAssemblySummary extends NodeAssemblyProvenance {
   typeId: number | null;
   name: string | null;
   displayName?: string | null;
+  displayNameSource?: string | null;
+  displayNameUpdatedAt?: string | null;
   family?: string | null;
   size?: string | null;
   status: string | null;
@@ -382,6 +388,60 @@ export interface GatePolicy {
 /** Event category for Signal Feed grouping. */
 export type SignalCategory = "governance" | "trade" | "transit" | "status";
 
+export type KnownSignalKind =
+  | "extension_authorized"
+  | "extension_frozen"
+  | "fuel_changed"
+  | "gate_policy_preset_changed"
+  | "gate_transit"
+  | "gate_treasury_changed"
+  | "node_critical_fuel"
+  | "node_fuel_changed"
+  | "node_low_fuel"
+  | "ownership_transferred"
+  | "permit_issued"
+  | "posture_changed"
+  | "storage_deposit"
+  | "storage_withdraw"
+  | "structure_destroyed"
+  | "structure_offline"
+  | "structure_online"
+  | "structure_renamed"
+  | "structure_unanchored"
+  | "toll_paid";
+
+export type SignalKind = KnownSignalKind | (string & {});
+
+export type SignalMetadataValue = string | number | boolean | null;
+
+export interface SignalEventMetadata {
+  [key: string]: SignalMetadataValue | undefined;
+  amount?: number | null;
+  authorizationMode?: string | null;
+  defaultAccess?: string | null;
+  defaultToll?: number | null;
+  entryCount?: number | null;
+  errorCode?: string | null;
+  extensionType?: string | null;
+  itemTypeName?: string | null;
+  mode?: string | null;
+  name?: string | null;
+  newMode?: string | null;
+  oldMode?: string | null;
+  oldName?: string | null;
+  operation?: string | null;
+  permitId?: string | null;
+  previousExtension?: string | null;
+  reason?: string | null;
+  status?: string | null;
+  structureType?: string | null;
+  tollAmount?: number | null;
+  treasury?: string | null;
+  treasuryAddress?: string | null;
+  tribeId?: number | null;
+  volume?: number | null;
+}
+
 /** Visual variant for signal rendering. */
 export type SignalVariant = "revenue" | "blocked" | "neutral" | "info";
 
@@ -395,6 +455,8 @@ export interface SignalEvent {
   eventSeq: string;
   /** ISO timestamp from chain. */
   timestamp: string;
+  /** Raw shared-backend signal kind. */
+  kind: SignalKind;
   /** Short event type label for display. */
   label: string;
   /** Human-readable description. */
@@ -407,6 +469,20 @@ export interface SignalEvent {
   relatedObjectId?: ObjectId;
   /** Secondary related object ID (e.g. storage_unit_id on trade events). */
   secondaryObjectId?: ObjectId;
+  /** Related assembly ID if present in the indexed payload. */
+  assemblyId?: string;
+  /** Related network node ID if present in the indexed payload. */
+  networkNodeId?: ObjectId;
+  /** Related owner-cap ID if present in the indexed payload. */
+  ownerCapId?: ObjectId;
+  /** Character actor observed by the indexed payload, when supplied. */
+  actorCharacterId?: ObjectId;
+  /** Indexed checkpoint sequence when supplied. */
+  checkpoint?: string;
+  /** Raw indexed signal severity when supplied. */
+  severity?: string | null;
+  /** Bounded metadata carried by the indexed payload. */
+  metadata?: SignalEventMetadata | null;
   /** Tx sender address. */
   sender?: string;
   /** Owner address for scoping (e.g. seller on trade events). */

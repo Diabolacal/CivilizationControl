@@ -10,6 +10,43 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Signal Feed parity audit - 2026-05-05
+
+This read-only follow-up lives on `docs/signal-feed-parity-audit`. It does not change Node Control behavior, EF-Map or VPS state, Move contracts, package IDs, sponsor-worker behavior, or deploy state.
+
+- Signal Feed normal routes remain on wallet-scoped `signal-history.v1`; browser `queryEvents` stays closed for `/activity` and Dashboard preview.
+- The dedicated authority doc is [signal-feed-parity-audit-20260505.md](signal-feed-parity-audit-20260505.md), which now owns the current coverage matrix, missing audit-log families, and the next EF-Map implementation request outline.
+- The primary live parity gap remains app-originated rename and power writes not appearing in `/activity`; broader governance-history families such as posture, gate policy, treasury/toll config, and turret doctrine remain separate read-only backlog work until EF-Map extends or confirms current `signal-history` coverage.
+
+### Operator-inventory name freshness adoption - 2026-05-06
+
+This frontend-only follow-up stays inside the accepted operator-inventory-first read boundary. It does not change Node Control write behavior, EF-Map or VPS contracts, browser `queryEvents`, Move contracts, package IDs, sponsor-worker behavior, or deploy state.
+
+- Operator-inventory normalization and the selected-node lookup path now preserve `displayNameSource` and `displayNameUpdatedAt` from the shared payload instead of dropping those fields at the typed frontend boundary.
+- Node Control and global summary enrichment now prefer indexed `displayName` over stale legacy `name` fields when both are present, which fixes the selected-node header and other summary-based naming surfaces without widening shared-backend authority.
+- Deterministic proof now covers the stale-name regression directly in `scripts/check-operator-inventory-mapping.mts` by proving that a node-local header still renders the indexed display name even when the legacy `name` field is older.
+
+### Live operator-inventory truth reconciliation - 2026-05-06
+
+This frontend-only follow-up stays on `feat/signal-history-display-parity`. It does not change Node Control write behavior, EF-Map or VPS contracts, browser `queryEvents`, Move contracts, package IDs, sponsor-worker behavior, or production deploy state.
+
+- `src/lib/nodeDrilldownModel.ts` now lets fresher direct-chain rows beat stale backend-membership `node-local-indexer` name and status when no freshness metadata proves the backend row newer, so selected-node headers and row state do not stay pinned to stale fallback data.
+- `scripts/check-structure-write-reconciliation.mts` now proves session power-correction expiry, drops legacy correction format, and guards mount or reconnect refetch policy in `useAssetDiscovery`, `useOperatorInventory`, `useNodeAssemblies`, and `useSignalHistory` so sticky stale state is treated as a frontend defect rather than mistaken for backend authority.
+- `scripts/check-node-power-live-usage.mts` now probes operator-inventory, signal-history, and node-assemblies with explicit preview-origin requests. Fresh live proof from `https://f65b2e87.civilizationcontrol.pages.dev` for wallet `0x11dd567e72d160ad7116a7358684dfff800af2a8e429cd1a65778640f8a61f62` returned `200` for operator-inventory and signal-history, kept the selected-node power readouts at `Power 320 / 1000 GJ` and `Power 50 / 1000 GJ`, and showed node-assemblies fallback still carries higher unknown child-load counts (`6` and `1`) even when the top-level readouts match.
+- Signal-history parity stays a separate read-only backlog: the same live preview-origin diagnostic found only one older rename row for that wallet, so missing app-originated rename or power rows in `/activity` still point to indexed row presence rather than to a normal-route client filter.
+- Validation refreshed: `scripts/check-signal-history-mapping.mts`; `scripts/check-operator-inventory-mapping.mts`; `scripts/check-node-drilldown-reconciliation.mts`; `scripts/check-structure-write-reconciliation.mts`; `scripts/check-node-power-capacity.mts`; `scripts/check-node-power-presets.mts`; `npm run typecheck`; explicit-env `npm run build`; `sui client active-env`; `sui move build --path contracts/civilization_control`; and `sui move test --path contracts/civilization_control`. Move build and test only emitted the existing `gate_control.move` non-composable self-transfer lint warning.
+- Fresh preview proof is `https://f65b2e87.civilizationcontrol.pages.dev` with alias `https://feat-signal-history-display.civilizationcontrol.pages.dev`; unique and alias `/`, `/nodes`, `/activity`, `/settings`, and `/dev/node-drilldown-lab` returned `200`, both hosts served `/assets/index-D8zq3gDN.js`, unique preview browser smoke loaded `/`, `/activity`, and `/dev/node-drilldown-lab`, and served-bundle scanning across all 12 deployed JS assets found `https://civilizationcontrol-sponsor.michael-davis-home.workers.dev` plus `https://ef-map.com` while finding no `flappy-frontier-sponsor`, exact-case `Authorization`, `ASSEMBLY_API_TOKEN`, or `X-API-Key`.
+
+### Repaired EF-Map validation closeout - 2026-05-06
+
+This merge-readiness follow-up stays on `feat/signal-history-display-parity`. It does not change Node Control write behavior, EF-Map or VPS contracts, browser `queryEvents`, Move contracts, package IDs, sponsor-worker behavior, or production deploy state.
+
+- EF-Map live assembly-state freshness repair is now active for the checked wallet/node path. Re-running the preview-origin diagnostic from `https://f65b2e87.civilizationcontrol.pages.dev` showed the main online node at `Power 770 / 1000 GJ` with raw operator-inventory `usedGj` aligned to the selected-node readout and no mismatch against the adapted/frontend model.
+- The same run showed the second node offline at `Power 0 / 1000 GJ`, with raw and adapted node names both staying `Network Node` and selected-node child statuses matching direct-chain snapshots for both nodes.
+- `node-assemblies` remains a fallback only: its top-level power labels now match the repaired truth, but it still carries larger unknown child-load counts, so the existing operator-inventory-first truth boundary remains the correct model for Node Control and drilldown surfaces.
+- Signal-history transport still returned `200` from the preview origin and still exposed only one older rename row for the test wallet. That does not block this merge because the branch is pre-release, `structure_renamed` normalizes safely, and the deterministic mapping fixture still covers posture, policy, treasury, permit, and toll families without reopening browser `queryEvents` or broad polling.
+- Existing preview proof remained representative after the repair, so no fresh Pages deploy was needed. Route smoke still passed on `/`, `/activity`, `/nodes`, `/settings`, and `/dev/node-drilldown-lab` for both `https://f65b2e87.civilizationcontrol.pages.dev` and `https://feat-signal-history-display.civilizationcontrol.pages.dev`. No wallet-connected browser smoke was available in this environment.
+
 ### Merge and sponsor-worker activation - 2026-05-05
 
 This activation pass landed the sponsor-worker hardening branch on `master` as `1449dbb19a7113d8d4a19b9fab99ab35247d8e7b` and redeployed only the repo-owned worker, not the main Pages app.

@@ -2,6 +2,7 @@ import { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useConnection } from "@evefrontier/dapp-kit";
 
+import { getSharedBackendBaseUrl } from "@/lib/assemblySummaryClient";
 import {
   fetchOperatorInventory,
   getOperatorInventoryErrorMessage,
@@ -13,18 +14,18 @@ import { useStructureWriteReconciliation } from "@/hooks/useStructureWriteReconc
 export function useOperatorInventory() {
   const { walletAddress, isConnected } = useConnection();
   const normalizedWalletAddress = normalizeOperatorInventoryWalletAddress(walletAddress);
+  const sharedBackendBaseUrl = getSharedBackendBaseUrl();
   const { applyOperatorInventory } = useStructureWriteReconciliation();
 
   const query = useQuery({
-    queryKey: ["operatorInventory", normalizedWalletAddress],
-    queryFn: () => fetchOperatorInventory(normalizedWalletAddress!),
+    queryKey: ["operatorInventory", sharedBackendBaseUrl, normalizedWalletAddress],
+    queryFn: () => fetchOperatorInventory(normalizedWalletAddress!, { baseUrl: sharedBackendBaseUrl }),
     enabled: Boolean(isConnected && normalizedWalletAddress),
     staleTime: 30_000,
     gcTime: 5 * 60_000,
-    placeholderData: (previousData) => previousData,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnReconnect: true,
+    refetchOnMount: "always",
     retry: false,
   });
 

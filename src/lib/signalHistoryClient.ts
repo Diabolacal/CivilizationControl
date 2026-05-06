@@ -1,6 +1,12 @@
 import { getSharedBackendBaseUrl } from "@/lib/assemblySummaryClient";
 import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
-import type { SignalCategory, SignalEvent, SignalVariant } from "@/types/domain";
+import type {
+  SignalCategory,
+  SignalEvent,
+  SignalEventMetadata,
+  SignalKind,
+  SignalVariant,
+} from "@/types/domain";
 import type {
   SignalHistoryCategory,
   SignalHistoryOperator,
@@ -36,6 +42,36 @@ interface SignalHistoryDescriptor {
   variant: SignalVariant;
 }
 
+const SIGNAL_METADATA_TEXT_KEYS = [
+  "authorizationMode",
+  "defaultAccess",
+  "errorCode",
+  "extensionType",
+  "itemTypeName",
+  "mode",
+  "name",
+  "newMode",
+  "oldMode",
+  "oldName",
+  "operation",
+  "permitId",
+  "previousExtension",
+  "reason",
+  "status",
+  "structureType",
+  "treasury",
+  "treasuryAddress",
+] as const;
+
+const SIGNAL_METADATA_NUMBER_KEYS = [
+  "amount",
+  "defaultToll",
+  "entryCount",
+  "tollAmount",
+  "tribeId",
+  "volume",
+] as const;
+
 const SIGNAL_KIND_FALLBACKS: Record<string, SignalHistoryDescriptor> = {
   extension_authorized: {
     label: "Extension Authorized",
@@ -57,6 +93,16 @@ const SIGNAL_KIND_FALLBACKS: Record<string, SignalHistoryDescriptor> = {
     description: "A transit event was recorded through a governed gate.",
     variant: "info",
   },
+  gate_policy_preset_changed: {
+    label: "Gate policy preset changed",
+    description: "A governed gate policy preset changed.",
+    variant: "info",
+  },
+  gate_treasury_changed: {
+    label: "Gate treasury changed",
+    description: "A governed gate treasury changed.",
+    variant: "info",
+  },
   node_critical_fuel: {
     label: "Critical Fuel",
     description: "A governed network node reached a critical fuel threshold.",
@@ -75,6 +121,16 @@ const SIGNAL_KIND_FALLBACKS: Record<string, SignalHistoryDescriptor> = {
   ownership_transferred: {
     label: "Ownership Transferred",
     description: "Ownership changed on a governed structure.",
+    variant: "info",
+  },
+  permit_issued: {
+    label: "Permit issued",
+    description: "A transit permit was issued for governed infrastructure.",
+    variant: "info",
+  },
+  posture_changed: {
+    label: "Posture changed",
+    description: "Operational posture changed for governed infrastructure.",
     variant: "info",
   },
   storage_deposit: {
@@ -102,10 +158,20 @@ const SIGNAL_KIND_FALLBACKS: Record<string, SignalHistoryDescriptor> = {
     description: "A governed structure came online.",
     variant: "info",
   },
+  structure_renamed: {
+    label: "Structure renamed",
+    description: "A governed structure was renamed.",
+    variant: "info",
+  },
   structure_unanchored: {
     label: "Structure Unanchored",
     description: "A governed structure was unanchored.",
     variant: "blocked",
+  },
+  toll_paid: {
+    label: "Toll paid",
+    description: "A governed transit toll was recorded.",
+    variant: "revenue",
   },
 };
 
@@ -361,35 +427,50 @@ function normalizeSignalHistorySignal(value: unknown): SignalEvent | null {
     return null;
   }
 
-  const kind = normalizeOptionalText(candidate.kind) ?? "unknown";
+  const kind = (normalizeOptionalText(candidate.kind) ?? "unknown") as SignalKind;
   const severity = normalizeOptionalText(candidate.severity)?.toLowerCase() ?? null;
+  const metadata = normalizeSignalMetadata(candidate.metadata);
+  const amount = normalizeNumber(candidate.amount) ?? getSignalMetadataNumber(metadata, "amount", "tollAmount");
   const fallback = SIGNAL_KIND_FALLBACKS[kind] ?? {
     label: fallbackTitleFromKind(kind, category),
     description: "A signal was recorded in your governed infrastructure.",
     variant: category === "status" ? "neutral" : "info",
   };
+  const descriptor = resolveSignalDescriptor(kind, metadata, amount);
 
   const structureId = normalizeCanonicalObjectId(normalizeNullableString(candidate.structureId));
   const networkNodeId = normalizeCanonicalObjectId(normalizeNullableString(candidate.networkNodeId));
   const ownerCapId = normalizeCanonicalObjectId(normalizeNullableString(candidate.ownerCapId));
-  const title = normalizeOptionalText(candidate.title) ?? fallback.label;
-  const summary = normalizeOptionalText(candidate.summary) ?? fallback.description;
-  const txDigest = normalizeOptionalText(candidate.txDigest) ?? id;
-  const amount = normalizeNumber(candidate.amount);
-  const variant = resolveSignalVariant(category, kind, severity, fallback.variant);
+  const assemblyId = normalizeOptionalText(candidate.assemblyId);
+  const actorCharacterId = normalizeCanonicalObjectId(normalizeNullableString(candidate.actorCharacterId));
   const checkpoint = normalizeNumberishValue(candidate.checkpoint);
+  const eventSeq = normalizeNumberishValue(candidate.eventSeq) ?? checkpoint ?? id;
+  const title = descriptor?.label ?? normalizeOptionalText(candidate.title) ?? fallback.label;
+  const summary = descriptor?.description ?? normalizeOptionalText(candidate.summary) ?? fallback.description;
+  const txDigest = normalizeOptionalText(candidate.txDigest) ?? id;
+  const variant = resolveSignalVariant(category, kind, severity, descriptor?.variant ?? fallback.variant, amount);
 
   return {
     id,
     txDigest,
-    eventSeq: checkpoint ?? id,
+    eventSeq,
     timestamp,
+    kind,
     label: title,
     description: summary,
     category,
     variant,
     relatedObjectId: structureId ?? networkNodeId ?? undefined,
     secondaryObjectId: structureId ? (networkNodeId ?? ownerCapId ?? undefined) : (networkNodeId ?? ownerCapId ?? undefined),
+    assemblyId: assemblyId ?? undefined,
+    networkNodeId: networkNodeId ?? undefined,
+    ownerCapId: ownerCapId ?? undefined,
+    actorCharacterId: actorCharacterId ?? undefined,
+    checkpoint: checkpoint ?? undefined,
+    severity,
+    metadata,
+    sender: normalizeSignalHistoryWalletAddress(normalizeNullableString(candidate.sender)) ?? undefined,
+    ownerAddress: normalizeSignalHistoryWalletAddress(normalizeNullableString(candidate.ownerAddress)) ?? undefined,
     amount: amount ?? undefined,
   };
 }
@@ -399,7 +480,12 @@ function resolveSignalVariant(
   kind: string,
   severity: string | null,
   fallback: SignalVariant,
+  amount: number | null,
 ): SignalVariant {
+  if (kind === "toll_paid" && amount != null && amount > 0) {
+    return "revenue";
+  }
+
   if (kind === "structure_offline" || kind === "structure_destroyed" || kind === "structure_unanchored") {
     return "blocked";
   }
@@ -429,6 +515,380 @@ function resolveSignalVariant(
   }
 
   return fallback;
+}
+
+function resolveSignalDescriptor(
+  kind: SignalKind,
+  metadata: SignalEventMetadata | null,
+  amount: number | null,
+): SignalHistoryDescriptor | null {
+  switch (kind) {
+    case "extension_authorized":
+      return describeExtensionAuthorizedSignal(metadata);
+    case "gate_policy_preset_changed":
+      return describeGatePolicyPresetChangedSignal(metadata);
+    case "gate_treasury_changed":
+      return describeGateTreasuryChangedSignal(metadata);
+    case "permit_issued":
+      return describePermitIssuedSignal(metadata);
+    case "posture_changed":
+      return describePostureChangedSignal(metadata);
+    case "structure_renamed":
+      return describeStructureRenamedSignal(metadata);
+    case "toll_paid":
+      return describeTollPaidSignal(amount);
+    default:
+      return null;
+  }
+}
+
+function describeStructureRenamedSignal(metadata: SignalEventMetadata | null): SignalHistoryDescriptor {
+  const structureLabel = formatSignalStructureTypeLabel(getSignalMetadataText(metadata, "structureType"));
+  const previousName = getSignalMetadataText(metadata, "oldName");
+  const nextName = getSignalMetadataText(metadata, "name");
+
+  if (previousName && nextName) {
+    return {
+      label: "Structure renamed",
+      description: `${structureLabel} renamed from ${previousName} to ${nextName}.`,
+      variant: "info",
+    };
+  }
+
+  if (nextName) {
+    return {
+      label: "Structure renamed",
+      description: `${structureLabel} renamed to ${nextName}.`,
+      variant: "info",
+    };
+  }
+
+  return {
+    label: "Structure renamed",
+    description: `${structureLabel} name changed in your governed infrastructure.`,
+    variant: "info",
+  };
+}
+
+function describeExtensionAuthorizedSignal(metadata: SignalEventMetadata | null): SignalHistoryDescriptor {
+  const structureLabel = formatSignalStructureTypeLabel(getSignalMetadataText(metadata, "structureType"));
+  const previousExtension = formatSignalExtensionLabel(getSignalMetadataText(metadata, "previousExtension"));
+  const extensionType = formatSignalExtensionLabel(getSignalMetadataText(metadata, "extensionType"));
+  const mode = formatSignalModeLabel(getSignalMetadataText(metadata, "authorizationMode", "mode"));
+  const label = previousExtension ? "Extension reauthorized" : "Extension authorized";
+
+  if (previousExtension && extensionType && previousExtension !== extensionType) {
+    return {
+      label,
+      description: `${structureLabel} extension reauthorized from ${previousExtension} to ${extensionType}.`,
+      variant: "info",
+    };
+  }
+
+  if (extensionType && mode) {
+    return {
+      label,
+      description: `${structureLabel} extension authorized to ${extensionType} for ${mode} posture.`,
+      variant: "info",
+    };
+  }
+
+  if (extensionType) {
+    return {
+      label,
+      description: `${structureLabel} extension authorized to ${extensionType}.`,
+      variant: "info",
+    };
+  }
+
+  if (mode) {
+    return {
+      label,
+      description: `${structureLabel} extension authorized for ${mode} posture.`,
+      variant: "info",
+    };
+  }
+
+  return {
+    label,
+    description: `${structureLabel} extension authorization changed.`,
+    variant: "info",
+  };
+}
+
+function describePostureChangedSignal(metadata: SignalEventMetadata | null): SignalHistoryDescriptor {
+  const oldMode = formatSignalModeLabel(getSignalMetadataText(metadata, "oldMode"));
+  const newMode = formatSignalModeLabel(getSignalMetadataText(metadata, "newMode", "mode"));
+
+  if (oldMode && newMode) {
+    return {
+      label: "Posture changed",
+      description: `Posture changed from ${oldMode} to ${newMode}.`,
+      variant: "info",
+    };
+  }
+
+  if (newMode) {
+    return {
+      label: "Posture changed",
+      description: `Posture set to ${newMode}.`,
+      variant: "info",
+    };
+  }
+
+  return {
+    label: "Posture changed",
+    description: "Operational posture changed for governed infrastructure.",
+    variant: "info",
+  };
+}
+
+function describeGatePolicyPresetChangedSignal(metadata: SignalEventMetadata | null): SignalHistoryDescriptor {
+  const mode = formatSignalModeLabel(getSignalMetadataText(metadata, "mode"));
+  const operation = formatSignalPolicyOperation(getSignalMetadataText(metadata, "operation"));
+  const entryCount = getSignalMetadataNumber(metadata, "entryCount");
+  const entrySuffix = entryCount === 1 ? "entry" : "entries";
+
+  if (operation === "removed" && mode) {
+    return {
+      label: "Gate policy preset changed",
+      description: `${mode} gate policy preset removed.`,
+      variant: "info",
+    };
+  }
+
+  if (mode && entryCount != null && operation === "set") {
+    return {
+      label: "Gate policy preset changed",
+      description: `${mode} gate policy preset set with ${entryCount} ${entrySuffix}.`,
+      variant: "info",
+    };
+  }
+
+  if (mode) {
+    return {
+      label: "Gate policy preset changed",
+      description: `${mode} gate policy preset ${operation}.`,
+      variant: "info",
+    };
+  }
+
+  return {
+    label: "Gate policy preset changed",
+    description: `Gate policy preset ${operation}.`,
+    variant: "info",
+  };
+}
+
+function describeGateTreasuryChangedSignal(metadata: SignalEventMetadata | null): SignalHistoryDescriptor {
+  const treasuryAddress = truncateSignalAddress(getSignalMetadataText(metadata, "treasuryAddress", "treasury"));
+  return {
+    label: "Gate treasury changed",
+    description: treasuryAddress
+      ? `Gate treasury set to ${treasuryAddress}.`
+      : "Gate treasury updated.",
+    variant: "info",
+  };
+}
+
+function describePermitIssuedSignal(metadata: SignalEventMetadata | null): SignalHistoryDescriptor {
+  const tribeId = getSignalMetadataNumber(metadata, "tribeId");
+  const mode = formatSignalModeLabel(getSignalMetadataText(metadata, "mode", "authorizationMode"));
+
+  if (tribeId != null && mode) {
+    return {
+      label: "Permit issued",
+      description: `Permit issued for tribe ${tribeId} in ${mode} posture.`,
+      variant: "info",
+    };
+  }
+
+  if (tribeId != null) {
+    return {
+      label: "Permit issued",
+      description: `Permit issued for tribe ${tribeId}.`,
+      variant: "info",
+    };
+  }
+
+  return {
+    label: "Permit issued",
+    description: "Transit permit issued for governed infrastructure.",
+    variant: "info",
+  };
+}
+
+function describeTollPaidSignal(amount: number | null): SignalHistoryDescriptor {
+  return {
+    label: "Toll paid",
+    description: amount != null && amount > 0
+      ? "Transit toll recorded for a governed gate."
+      : "Transit toll recorded."
+    ,
+    variant: amount != null && amount > 0 ? "revenue" : "info",
+  };
+}
+
+function formatSignalStructureTypeLabel(value: string | null): string {
+  const normalized = value?.trim().toLowerCase() ?? null;
+  switch (normalized) {
+    case "network_node":
+    case "networknode":
+      return "Node";
+    case "storage":
+    case "storage_unit":
+      return "Storage";
+    case "trade_post":
+      return "Trade Post";
+    case "gate":
+      return "Gate";
+    case "turret":
+      return "Turret";
+    case "assembly":
+      return "Assembly";
+    default:
+      return value
+        ? value
+          .split(/[_\s-]+/)
+          .filter(Boolean)
+          .map((segment) => `${segment.charAt(0).toUpperCase()}${segment.slice(1)}`)
+          .join(" ")
+        : "Structure";
+  }
+}
+
+function formatSignalExtensionLabel(value: string | null): string | null {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+
+  const simple = trimmed.includes("::") ? trimmed.split("::").pop() ?? trimmed : trimmed;
+  return simple.trim() || null;
+}
+
+function formatSignalModeLabel(value: string | null): string | null {
+  if (!value) return null;
+
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return null;
+  if (normalized === "commercial") return "Commercial";
+  if (normalized === "defense" || normalized === "defensive") return "Defense";
+
+  return normalized
+    .split(/[_\s-]+/)
+    .filter(Boolean)
+    .map((segment) => `${segment.charAt(0).toUpperCase()}${segment.slice(1)}`)
+    .join(" ");
+}
+
+function formatSignalPolicyOperation(value: string | null): "set" | "removed" | "updated" {
+  const normalized = value?.trim().toLowerCase() ?? null;
+  if (!normalized) return "updated";
+  if (["set", "created", "applied", "enabled"].includes(normalized)) return "set";
+  if (["removed", "deleted", "cleared", "revoked", "disabled"].includes(normalized)) return "removed";
+  return "updated";
+}
+
+function truncateSignalAddress(value: string | null): string | null {
+  if (!value) return null;
+
+  const trimmed = value.trim();
+  if (trimmed.length <= 12) return trimmed;
+  return `${trimmed.slice(0, 6)}…${trimmed.slice(-4)}`;
+}
+
+function normalizeSignalMetadata(value: unknown): SignalEventMetadata | null {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return null;
+  }
+
+  const candidate = value as Record<string, unknown>;
+  const metadata: SignalEventMetadata = {};
+
+  for (const key of SIGNAL_METADATA_TEXT_KEYS) {
+    const normalized = normalizeOptionalText(candidate[key]);
+    if (normalized != null) {
+      metadata[key] = normalized;
+    }
+  }
+
+  for (const key of SIGNAL_METADATA_NUMBER_KEYS) {
+    const normalized = normalizeNumber(candidate[key]);
+    if (normalized != null) {
+      metadata[key] = normalized;
+    }
+  }
+
+  for (const [key, rawValue] of Object.entries(candidate)) {
+    if (metadata[key] !== undefined) {
+      continue;
+    }
+
+    const normalized = normalizeSignalMetadataValue(rawValue);
+    if (normalized !== undefined) {
+      metadata[key] = normalized;
+    }
+  }
+
+  return Object.keys(metadata).length > 0 ? metadata : null;
+}
+
+function normalizeSignalMetadataValue(value: unknown) {
+  if (value == null) {
+    return null;
+  }
+
+  if (typeof value === "boolean") {
+    return value;
+  }
+
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : undefined;
+  }
+
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed.length > 0 ? trimmed : undefined;
+  }
+
+  return undefined;
+}
+
+function getSignalMetadataText(
+  metadata: SignalEventMetadata | null,
+  ...keys: string[]
+): string | null {
+  for (const key of keys) {
+    const value = metadata?.[key];
+    if (typeof value === "string") {
+      const trimmed = value.trim();
+      if (trimmed.length > 0) {
+        return trimmed;
+      }
+    }
+
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return String(value);
+    }
+  }
+
+  return null;
+}
+
+function getSignalMetadataNumber(
+  metadata: SignalEventMetadata | null,
+  ...keys: string[]
+): number | null {
+  for (const key of keys) {
+    const value = metadata?.[key];
+    const normalized = normalizeNumber(value);
+    if (normalized != null) {
+      return normalized;
+    }
+  }
+
+  return null;
 }
 
 function normalizeSignalCategory(value: unknown): SignalCategory | null {

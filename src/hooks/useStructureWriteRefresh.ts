@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useConnection } from "@evefrontier/dapp-kit";
 
+import { getSharedBackendBaseUrl } from "@/lib/assemblySummaryClient";
 import { SIGNAL_FEED_QUERY_KEY } from "@/hooks/useSignalHistory";
 import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
 import { normalizeOperatorInventoryWalletAddress } from "@/lib/operatorInventoryClient";
@@ -22,13 +23,14 @@ export function useStructureWriteRefresh() {
   const { walletAddress } = useConnection();
   const rpcUrl = getConfiguredSuiRpcUrl();
   const normalizedWalletAddress = normalizeOperatorInventoryWalletAddress(walletAddress);
+  const sharedBackendBaseUrl = getSharedBackendBaseUrl();
 
   return useCallback(
     async (options: StructureWriteRefreshOptions = {}) => {
       const refreshes: Array<Promise<unknown>> = [];
 
       if (normalizedWalletAddress) {
-        const operatorInventoryKey = ["operatorInventory", normalizedWalletAddress] as const;
+        const operatorInventoryKey = ["operatorInventory", sharedBackendBaseUrl, normalizedWalletAddress] as const;
         queryClient.invalidateQueries({ queryKey: operatorInventoryKey });
         refreshes.push(queryClient.refetchQueries({ queryKey: operatorInventoryKey, type: "active" }));
       }
@@ -44,7 +46,7 @@ export function useStructureWriteRefresh() {
         if (options.refetchNodeAssemblies) {
           refreshes.push(Promise.resolve(options.refetchNodeAssemblies()));
         } else {
-          const nodeAssembliesKey = ["nodeAssemblies", normalizedNodeId] as const;
+          const nodeAssembliesKey = ["nodeAssemblies", sharedBackendBaseUrl, normalizedNodeId] as const;
           queryClient.invalidateQueries({ queryKey: nodeAssembliesKey });
           refreshes.push(queryClient.refetchQueries({ queryKey: nodeAssembliesKey, type: "active" }));
         }
@@ -61,6 +63,6 @@ export function useStructureWriteRefresh() {
 
       await Promise.all(refreshes.map((refresh) => refresh.catch(() => undefined)));
     },
-    [normalizedWalletAddress, queryClient, rpcUrl, walletAddress],
+    [normalizedWalletAddress, queryClient, rpcUrl, sharedBackendBaseUrl, walletAddress],
   );
 }

@@ -84,6 +84,8 @@ export interface NodeLocalActionAuthority {
 
 export interface NodeLocalObservationMeta {
   backendSource?: string | null;
+  displayNameSource?: string | null;
+  displayNameUpdatedAt?: string | null;
   provenance?: string | null;
   fetchedAt?: string | null;
   lastUpdated?: string | null;
@@ -161,6 +163,8 @@ export interface NodeLocalScenario {
 export interface SyntheticNodeLocalStructureInput {
   family: Exclude<NodeLocalFamily, "networkNode">;
   displayName: string;
+  displayNameSource?: string | null;
+  displayNameUpdatedAt?: string | null;
   typeLabel?: string;
   sizeVariant?: NodeLocalSizeVariant;
   status?: StructureStatus;

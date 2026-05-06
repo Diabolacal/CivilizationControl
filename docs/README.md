@@ -159,6 +159,7 @@ Documentation for CivilizationControl. Active product, architecture, validation,
 | [operations/network-node-posture-icon-and-drilldown-plan-20260429.md](operations/network-node-posture-icon-and-drilldown-plan-20260429.md) | **Network-node posture icon and drilldown plan** — structure catalogue, icon taxonomy, node-local UX concept, and phased implementation sequence for the next operator-control surface |
 | [operations/network-node-drilldown-implementation-plan-20260501.md](operations/network-node-drilldown-implementation-plan-20260501.md) | **Network-node drilldown implementation plan** — implementation-ready same-dashboard drilldown model, node-local layout, persistence, preset staging, and safe write sequencing |
 | [operations/node-control-write-action-audit-20260504.md](operations/node-control-write-action-audit-20260504.md) | **Node Control write-action audit** — current-state capability matrix for write actions, sponsor gaps, zero-package candidates, and deferred high-risk actions |
+| [operations/signal-feed-parity-audit-20260505.md](operations/signal-feed-parity-audit-20260505.md) | **Signal Feed parity audit** — current `signal-history.v1` coverage, missing audit-log families, UI/display gaps, priority order, and the next EF-Map request outline |
 
 ## Working Memory
 

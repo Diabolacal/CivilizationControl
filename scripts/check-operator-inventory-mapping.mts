@@ -58,6 +58,9 @@ const response: OperatorInventoryResponse = {
         assemblyId: "9001",
         ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000000faa",
         displayName: "Index Node",
+        name: "Legacy Node Alpha",
+        displayNameSource: "metadata_event",
+        displayNameUpdatedAt: OBSERVED_AT,
         solarSystemId: "30000142",
         fuelAmount: "1200",
         powerSummary: createPowerSummary({
@@ -582,6 +585,13 @@ const offlineViewModel = buildLiveNodeLocalViewModelWithObserved(offlineGroup, o
 
 assert.equal(viewModel.sourceMode, "backend-membership");
 assert.equal(viewModel.structures.length, 7);
+assert.equal(group.node.summary?.displayNameSource, "metadata_event");
+assert.equal(group.node.summary?.displayNameUpdatedAt, OBSERVED_AT);
+assert.equal(lookup?.node.displayNameSource, "metadata_event");
+assert.equal(lookup?.node.displayNameUpdatedAt, OBSERVED_AT);
+assert.equal(viewModel.node.displayName, "Index Node", "expected node-local header to prefer indexed displayName over stale legacy name fields");
+assert.equal(viewModel.node.displayNameSource, "metadata_event");
+assert.equal(viewModel.node.displayNameUpdatedAt, OBSERVED_AT);
 assert.equal(offlineGroup.node.status, "offline", "expected raw operator-inventory offline node to render offline in /nodes list source");
 assert.equal(offlineViewModel.node.status, "offline", "expected Node Control to use the same adapted offline node status as /nodes");
 assert.equal(reserveGroup.node.status, "neutral", "expected raw unknown node status to adapt to neutral rather than online");
@@ -742,6 +752,9 @@ function actionRow(input: {
   ownerCapId: string | null;
   family: "gate" | "storage" | "turret";
   displayName: string;
+  name?: string | null;
+  displayNameSource?: string | null;
+  displayNameUpdatedAt?: string | null;
   typeId: number;
   typeName: string;
   assemblyType: string;
@@ -762,7 +775,9 @@ function actionRow(input: {
     family: input.family,
     size: input.size ?? "standard",
     displayName: input.displayName,
-    name: input.displayName,
+    displayNameSource: input.displayNameSource ?? null,
+    displayNameUpdatedAt: input.displayNameUpdatedAt ?? null,
+    name: input.name ?? input.displayName,
     typeId: input.typeId,
     typeName: input.typeName,
     assemblyType: input.assemblyType,
@@ -815,6 +830,9 @@ function networkNodeRow(input: {
   assemblyId: string | null;
   ownerCapId: string | null;
   displayName: string;
+  name?: string | null;
+  displayNameSource?: string | null;
+  displayNameUpdatedAt?: string | null;
   solarSystemId: string | null;
   fuelAmount: string | null;
   status?: "online" | "offline" | "warning" | "unknown" | "unanchored";
@@ -828,7 +846,9 @@ function networkNodeRow(input: {
     family: "networkNode",
     size: "standard",
     displayName: input.displayName,
-    name: input.displayName,
+    displayNameSource: input.displayNameSource ?? null,
+    displayNameUpdatedAt: input.displayNameUpdatedAt ?? null,
+    name: input.name ?? input.displayName,
     typeId: 99001,
     typeName: "Network Node",
     assemblyType: "network_node",

@@ -272,6 +272,7 @@ export function parseChainEvent(raw: RawSuiEvent): SignalEvent | null {
     txDigest: raw.id.txDigest,
     eventSeq: raw.id.eventSeq,
     timestamp,
+    kind: raw.type,
     label,
     description: descriptor.describe(json),
     category: descriptor.category,

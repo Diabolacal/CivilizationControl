@@ -554,6 +554,8 @@ function toNodeAssemblyNode(row: OperatorInventoryStructure): NodeAssemblyNode {
     objectId: row.objectId ?? "",
     name: row.name,
     displayName: row.displayName,
+    displayNameSource: row.displayNameSource,
+    displayNameUpdatedAt: row.displayNameUpdatedAt,
     status: row.status,
     assemblyId: row.assemblyId,
     solarSystemId: row.solarSystemId,
@@ -576,6 +578,8 @@ function toNodeAssemblySummary(
     typeId: row.typeId,
     name: row.name,
     displayName: row.displayName,
+    displayNameSource: row.displayNameSource,
+    displayNameUpdatedAt: row.displayNameUpdatedAt,
     family: row.family,
     size: row.size,
     status: row.status,
@@ -659,6 +663,8 @@ function toAssemblySummary(row: OperatorInventoryStructure): AssemblySummary | n
     typeId: row.typeId,
     name: row.name,
     displayName: row.displayName,
+    displayNameSource: row.displayNameSource,
+    displayNameUpdatedAt: row.displayNameUpdatedAt,
     status: row.status,
     fuelAmount: row.fuelAmount,
     powerSummary: row.powerSummary,
@@ -795,6 +801,8 @@ function preferCompatibleStructure(existing: Structure, incoming: Structure): St
   if (!existing.networkNodeId && incoming.networkNodeId) return incoming;
   if (!existing.indexedFuelAmount && incoming.indexedFuelAmount) return incoming;
   if (!existing.indexedPowerSummary && incoming.indexedPowerSummary) return incoming;
+  if (!existing.summary?.displayNameSource && incoming.summary?.displayNameSource) return incoming;
+  if (!existing.summary?.displayNameUpdatedAt && incoming.summary?.displayNameUpdatedAt) return incoming;
   return existing;
 }
 
@@ -802,6 +810,8 @@ function compatibilityStructureScore(structure: Structure): number {
   let score = 0;
   if (structure.ownerCapId) score += 3;
   if (structure.summary) score += 2;
+  if (structure.summary?.displayNameSource) score += 1;
+  if (structure.summary?.displayNameUpdatedAt) score += 1;
   if (structure.indexedFuelAmount) score += 1;
   if (structure.indexedPowerSummary) score += 2;
   if (structure.networkNodeId) score += 1;
@@ -842,12 +852,16 @@ function preferNodeAssemblyNode(
 
   const existingScore = (existing.displayName ? 2 : 0)
     + (existing.name ? 1 : 0)
+    + (existing.displayNameSource ? 1 : 0)
+    + (existing.displayNameUpdatedAt ? 1 : 0)
     + (existing.assemblyId ? 1 : 0)
     + (existing.fuelAmount ? 1 : 0)
     + (existing.powerSummary ? 2 : 0)
     + (existing.energySourceId ? 1 : 0);
   const incomingScore = (incoming.displayName ? 2 : 0)
     + (incoming.name ? 1 : 0)
+    + (incoming.displayNameSource ? 1 : 0)
+    + (incoming.displayNameUpdatedAt ? 1 : 0)
     + (incoming.assemblyId ? 1 : 0)
     + (incoming.fuelAmount ? 1 : 0)
     + (incoming.powerSummary ? 2 : 0)
@@ -876,6 +890,8 @@ function nodeAssemblySummaryScore(summary: NodeAssemblySummary): number {
   if (summary.assemblyId) score += 1;
   if (summary.actionCandidate) score += 1;
   if (summary.powerSummary) score += 2;
+  if (summary.displayNameSource) score += 1;
+  if (summary.displayNameUpdatedAt) score += 1;
   if (summary.displayName || summary.name) score += 1;
   return score;
 }

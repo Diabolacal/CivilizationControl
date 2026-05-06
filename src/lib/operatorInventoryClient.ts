@@ -278,6 +278,8 @@ function normalizeOperatorInventoryStructure(
     family: normalizeOperatorInventoryFamily(candidate.family, candidate.assemblyType, candidate.typeName),
     size: normalizeOperatorInventorySize(candidate.size, candidate.typeName, candidate.assemblyType),
     displayName: normalizeNullableString(candidate.displayName),
+    displayNameSource: normalizeNullableString(candidate.displayNameSource),
+    displayNameUpdatedAt: normalizeNullableTimestamp(candidate.displayNameUpdatedAt),
     name: normalizeNullableString(candidate.name),
     typeId: normalizeNumber(candidate.typeId),
     typeName: normalizeNullableString(candidate.typeName),

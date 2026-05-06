@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 
+import { getSharedBackendBaseUrl } from "@/lib/assemblySummaryClient";
 import {
   fetchSignalHistory,
   normalizeSignalHistoryCategories,
@@ -27,6 +28,7 @@ interface UseSignalHistoryOptions {
 export function useSignalHistory(options: UseSignalHistoryOptions = {}) {
   const normalizedWalletAddress = normalizeSignalHistoryWalletAddress(options.walletAddress);
   const normalizedLimit = normalizeSignalHistoryLimit(options.limit);
+  const sharedBackendBaseUrl = getSharedBackendBaseUrl();
   const normalizedCategories = useMemo(
     () => normalizeSignalHistoryCategories(options.categories),
     [options.categories],
@@ -35,6 +37,7 @@ export function useSignalHistory(options: UseSignalHistoryOptions = {}) {
   const query = useInfiniteQuery({
     queryKey: [
       SIGNAL_FEED_QUERY_KEY,
+      sharedBackendBaseUrl,
       normalizedWalletAddress,
       normalizedLimit,
       normalizedCategories.join(","),
@@ -50,6 +53,8 @@ export function useSignalHistory(options: UseSignalHistoryOptions = {}) {
       networkNodeId: options.networkNodeId,
       structureId: options.structureId,
       since: options.since,
+    }, {
+      baseUrl: sharedBackendBaseUrl,
     }),
     enabled: Boolean((options.enabled ?? true) && normalizedWalletAddress),
     initialPageParam: options.cursor ?? null,
@@ -57,8 +62,8 @@ export function useSignalHistory(options: UseSignalHistoryOptions = {}) {
     staleTime: 30_000,
     gcTime: 5 * 60_000,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnReconnect: true,
+    refetchOnMount: "always",
     refetchInterval: normalizedWalletAddress && options.pollingMs ? options.pollingMs : false,
     retry: false,
   });

@@ -377,7 +377,7 @@ function createObservedAssemblyIndex(
 }
 
 function cleanStructureName(structure: Structure): string {
-  const enrichedName = structure.summary?.name?.trim();
+  const enrichedName = structure.summary?.displayName?.trim() || structure.summary?.name?.trim();
   if (enrichedName) return enrichedName;
   return structure.name.replace(/\s+[0-9a-f]{8}$/i, "").trim() || DEFAULT_TYPE_LABELS[LIVE_FAMILY_MAP[structure.type]];
 }
@@ -434,10 +434,49 @@ function resolveLiveDisplayName(
   structure: Structure,
   family: NodeLocalFamily,
   typeLabel: string,
-  observed?: Pick<ObservedAssembly, "name">,
+  observed?: Pick<ObservedAssembly, "displayName" | "name">,
 ): string {
-  const candidateName = observed?.name?.trim() || cleanStructureName(structure);
+  const candidateName = observed?.displayName?.trim() || observed?.name?.trim() || cleanStructureName(structure);
   return normalizeNodeLocalDisplayName(candidateName, family, typeLabel, structure.objectId, structure.assemblyId);
+}
+
+function resolveBackendMembershipDisplayName(
+  observed: ObservedAssembly,
+  family: NodeLocalFamily,
+  typeLabel: string,
+  normalizedAssemblyId: string | undefined,
+  primaryDirectChainMatch?: Structure,
+): string {
+  const shouldPreferDirectChainLabel = primaryDirectChainMatch != null
+    && primaryDirectChainMatch.readModelSource !== "operator-inventory"
+    && observed.provenance === "node-local-indexer"
+    && !observed.displayNameSource
+    && !observed.displayNameUpdatedAt;
+  const directChainLabel = primaryDirectChainMatch
+    ? resolveLiveDisplayName(primaryDirectChainMatch, family, typeLabel)
+    : null;
+  const candidateName = shouldPreferDirectChainLabel
+    ? directChainLabel ?? observed.displayName ?? observed.name
+    : observed.displayName ?? observed.name ?? directChainLabel;
+
+  return normalizeNodeLocalDisplayName(
+    candidateName,
+    family,
+    typeLabel,
+    observed.objectId ?? primaryDirectChainMatch?.objectId,
+    normalizedAssemblyId ?? normalizeNodeDrilldownAssemblyId(primaryDirectChainMatch?.assemblyId) ?? undefined,
+  );
+}
+
+function resolveBackendMembershipStatus(
+  observed: ObservedAssembly,
+  primaryDirectChainMatch?: Structure,
+): StructureStatus {
+  if (primaryDirectChainMatch != null && primaryDirectChainMatch.readModelSource !== "operator-inventory" && observed.provenance === "node-local-indexer") {
+    return mergeLiveStructureStatus(primaryDirectChainMatch.status, observed.status);
+  }
+
+  return normalizeObservedStatus(observed.status);
 }
 
 function mergeLiveStructureStatus(
@@ -713,6 +752,8 @@ function createNodeLocalStructure(
     | "isReadOnly"
     | "isActionable"
     | "backendSource"
+    | "displayNameSource"
+    | "displayNameUpdatedAt"
     | "fetchedAt"
     | "lastUpdated"
     | "provenance"
@@ -758,6 +799,8 @@ function createNodeLocalStructure(
     actionCandidate: structure.actionCandidate,
     actionAuthority: structure.actionAuthority,
     backendSource: structure.backendSource,
+    displayNameSource: structure.displayNameSource,
+    displayNameUpdatedAt: structure.displayNameUpdatedAt,
     fetchedAt: structure.fetchedAt,
     lastUpdated: structure.lastUpdated,
     provenance: structure.provenance,
@@ -1037,6 +1080,8 @@ function buildLiveFallbackStructures(liveStructures: Structure[]): NodeLocalStru
       typeId: resolvedType.typeId,
       warningPip: status === "warning" || needsExtensionWarning,
       backendSource: source === "backendMembership" ? structure.summary?.source ?? null : null,
+      displayNameSource: source === "backendMembership" ? structure.summary?.displayNameSource ?? null : null,
+      displayNameUpdatedAt: structure.summary?.displayNameUpdatedAt ?? null,
       fetchedAt: source === "backendMembership" ? structure.summary?.lastObservedTimestamp ?? null : null,
       lastUpdated: structure.summary?.lastUpdated ?? structure.summary?.lastObservedTimestamp ?? null,
       provenance: source === "backendMembership" ? structure.summary?.provenance ?? "operator-inventory" : null,
@@ -1087,7 +1132,7 @@ function buildBackendMembershipStructures(
       observed.typeId ?? undefined,
       null,
     );
-    const status = normalizeObservedStatus(observed.status);
+    const status = resolveBackendMembershipStatus(observed, primaryDirectChainMatch);
     const sizeVariant = normalizeObservedSize(observed.size) ?? deriveSizeVariant(resolvedType.typeLabel) ?? "standard";
     const needsExtensionWarning = primaryAuthorityMatch != null
       && (primaryAuthorityMatch.type === "gate" || primaryAuthorityMatch.type === "turret")
@@ -1135,12 +1180,12 @@ function buildBackendMembershipStructures(
         || actionAuthority.state === "future-supported"
         || authorityMatches.length === 1,
       linkedGateId: observed.linkedGateId ?? primaryAuthorityMatch?.linkedGateId ?? undefined,
-      displayName: normalizeNodeLocalDisplayName(
-        observed.displayName ?? observed.name,
+      displayName: resolveBackendMembershipDisplayName(
+        observed,
         family,
         resolvedType.typeLabel,
-        observed.objectId ?? primaryAuthorityMatch?.objectId,
         normalizedAssemblyId,
+        primaryDirectChainMatch,
       ),
       family,
       sizeVariant,
@@ -1157,6 +1202,8 @@ function buildBackendMembershipStructures(
       typeId: resolvedType.typeId,
       warningPip: status === "warning" || needsExtensionWarning,
       backendSource: observed.source ?? observedLookup.source ?? null,
+      displayNameSource: observed.displayNameSource ?? null,
+      displayNameUpdatedAt: observed.displayNameUpdatedAt ?? null,
       fetchedAt: observedLookup.fetchedAt,
       lastUpdated: observed.lastUpdated,
       provenance: observed.provenance,
@@ -1264,6 +1311,8 @@ export function buildLiveNodeLocalViewModelWithObserved(
       solarSystemName: group.node.summary?.solarSystemId ?? (group.solarSystemId != null ? `System ${group.solarSystemId}` : null),
       isSyntheticContainer: group.node.objectId === "unassigned",
       backendSource: isBackendMembership ? observedLookup?.source ?? null : null,
+      displayNameSource: group.node.summary?.displayNameSource ?? observedLookup?.node?.displayNameSource ?? null,
+      displayNameUpdatedAt: group.node.summary?.displayNameUpdatedAt ?? observedLookup?.node?.displayNameUpdatedAt ?? null,
       fetchedAt: isBackendMembership ? observedLookup?.fetchedAt : null,
       lastUpdated: null,
       provenance: isBackendMembership ? "node-local-indexer" : null,
@@ -1475,6 +1524,8 @@ export function buildSyntheticNodeLocalViewModel(
         linkedGateId: structure.linkedGateId,
         extensionStatus: structure.extensionStatus,
         backendSource: structure.backendSource ?? null,
+        displayNameSource: structure.displayNameSource ?? null,
+        displayNameUpdatedAt: structure.displayNameUpdatedAt ?? null,
         fetchedAt: structure.fetchedAt ?? null,
         lastUpdated: structure.lastUpdated ?? null,
         provenance: structure.provenance ?? null,
@@ -1499,6 +1550,8 @@ export function buildSyntheticNodeLocalViewModel(
       powerUsageSummary: input.nodePowerUsageSummary ?? null,
       solarSystemName: input.solarSystemName ?? null,
       backendSource: null,
+      displayNameSource: null,
+      displayNameUpdatedAt: null,
       fetchedAt: null,
       lastUpdated: null,
       provenance: null,

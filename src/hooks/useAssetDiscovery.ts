@@ -34,10 +34,9 @@ export function useAssetDiscovery() {
     enabled: shouldUseDirectFallback,
     staleTime: 60_000,
     gcTime: 5 * 60_000,
-    placeholderData: (previousData) => previousData,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnReconnect: true,
+    refetchOnMount: "always",
     retry: false,
   });
 
@@ -48,8 +47,8 @@ export function useAssetDiscovery() {
     enabled: shouldUseDirectFallback && profile?.characterId != null,
     staleTime: 60_000,
     refetchOnWindowFocus: false,
-    refetchOnReconnect: false,
-    refetchOnMount: false,
+    refetchOnReconnect: true,
+    refetchOnMount: "always",
     retry: false,
   });
 

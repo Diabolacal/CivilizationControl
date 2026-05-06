@@ -30,6 +30,7 @@ import {
   loadStructurePowerSessionCorrections,
   saveStructurePowerSessionCorrections,
 } from "@/lib/structurePowerSessionCorrections";
+import { getSharedBackendBaseUrl } from "@/lib/assemblySummaryClient";
 import { normalizeOperatorInventoryWalletAddress } from "@/lib/operatorInventoryClient";
 import type { NetworkNodeGroup, Structure, StructureStatus } from "@/types/domain";
 import type { OperatorInventoryResponse } from "@/types/operatorInventory";
@@ -76,6 +77,7 @@ export function StructureWriteReconciliationProvider({ children }: PropsWithChil
   const refreshAfterWrite = useStructureWriteRefresh();
   const { walletAddress } = useConnection();
   const normalizedWalletAddress = normalizeOperatorInventoryWalletAddress(walletAddress);
+  const sharedBackendBaseUrl = getSharedBackendBaseUrl();
   const [overlaysByKey, setOverlaysByKey] = useState<Record<string, PendingStructureWriteOverlay>>(
     () => loadStructurePowerSessionCorrections(),
   );
@@ -187,10 +189,10 @@ export function StructureWriteReconciliationProvider({ children }: PropsWithChil
                 input.refreshOptions?.selectedNodeId ?? existing.networkNodeId ?? null,
               );
               const operatorInventory = normalizedWalletAddress
-                ? queryClient.getQueryData<OperatorInventoryResponse>(["operatorInventory", normalizedWalletAddress])
+                ? queryClient.getQueryData<OperatorInventoryResponse>(["operatorInventory", sharedBackendBaseUrl, normalizedWalletAddress])
                 : null;
               const nodeLookup = normalizedNodeId
-                ? queryClient.getQueryData<NodeAssembliesLookupResult>(["nodeAssemblies", normalizedNodeId])
+                ? queryClient.getQueryData<NodeAssembliesLookupResult>(["nodeAssemblies", sharedBackendBaseUrl, normalizedNodeId])
                 : null;
               const confirmation = resolveStructureWriteConfirmation(operatorInventory, nodeLookup, existing);
               const nextOverlay: PendingStructureWriteOverlay = {
@@ -236,7 +238,7 @@ export function StructureWriteReconciliationProvider({ children }: PropsWithChil
         });
       });
     },
-    [normalizedWalletAddress, queryClient, refreshAfterWrite],
+    [normalizedWalletAddress, queryClient, refreshAfterWrite, sharedBackendBaseUrl],
   );
 
   const value = useMemo<StructureWriteReconciliationContextValue>(() => ({

@@ -24,8 +24,8 @@ export function mergeAssemblySummaries(
 
     return {
       ...structure,
-      name: shouldUseSummaryName(structure) && summary.name
-        ? summary.name
+      name: shouldUseSummaryName(structure) && (summary.displayName ?? summary.name)
+        ? (summary.displayName ?? summary.name) as string
         : structure.name,
       summary,
     };

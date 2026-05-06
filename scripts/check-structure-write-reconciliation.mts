@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import type { NodeAssembliesLookupResult } from "../src/lib/nodeAssembliesClient";
 import { adaptOperatorInventory } from "../src/lib/operatorInventoryAdapter";
@@ -15,6 +16,7 @@ import {
 import {
   loadStructurePowerSessionCorrections,
   saveStructurePowerSessionCorrections,
+  STRUCTURE_POWER_SESSION_CORRECTION_MAX_AGE_MS,
 } from "../src/lib/structurePowerSessionCorrections";
 import type { NetworkNodeGroup, Structure } from "../src/types/domain";
 import type { OperatorInventoryResponse, OperatorInventoryStructure } from "../src/types/operatorInventory";
@@ -339,6 +341,36 @@ assert.deepEqual(
   [alreadyOfflineCorrection.key, alreadyOnlineSessionCorrection.key].sort(),
   "expected only digest-null already-in-state corrections to survive session persistence",
 );
+
+sessionStore.set("cc:structure-power-corrections:v1", JSON.stringify({
+  [alreadyOfflineCorrection.key]: {
+    savedAt: new Date(Date.now() - STRUCTURE_POWER_SESSION_CORRECTION_MAX_AGE_MS - 1_000).toISOString(),
+    overlay: alreadyOfflineCorrection,
+  },
+  legacyOverlay: alreadyOfflineCorrection,
+}));
+const expiredCorrections = loadStructurePowerSessionCorrections();
+assert.deepEqual(
+  expiredCorrections,
+  {},
+  "expected expired and legacy-format session corrections to be dropped on load",
+);
+
+saveStructurePowerSessionCorrections({
+  [alreadyOfflineCorrection.key]: alreadyOfflineCorrection,
+  [alreadyOnlineSessionCorrection.key]: alreadyOnlineSessionCorrection,
+});
+const persistedCorrections = JSON.parse(sessionStore.get("cc:structure-power-corrections:v1") ?? "{}");
+assert.ok(
+  typeof persistedCorrections[alreadyOfflineCorrection.key]?.savedAt === "string",
+  "expected persisted session corrections to record a savedAt timestamp for expiry",
+);
+assert.deepEqual(
+  Object.keys(loadStructurePowerSessionCorrections()).sort(),
+  [alreadyOfflineCorrection.key, alreadyOnlineSessionCorrection.key].sort(),
+  "expected fresh session corrections to keep loading after the expiry-format upgrade",
+);
+
 const sessionCorrectedInventory = applyStructureWriteOverlaysToOperatorInventory(staleOperatorInventory, Object.values(loadedCorrections));
 assert.equal(
   sessionCorrectedInventory?.networkNodes[0]?.structures[0]?.status,
@@ -424,6 +456,27 @@ assert.equal(
   true,
   "expected operator-inventory confirmation to be recorded once the refreshed backend response reports the new online state",
 );
+
+const useOperatorInventorySource = readFileSync("src/hooks/useOperatorInventory.ts", "utf8");
+assert(useOperatorInventorySource.includes('getSharedBackendBaseUrl'), "expected operator-inventory queries to key by the shared-backend base URL");
+assert(!useOperatorInventorySource.includes('placeholderData'), "expected operator-inventory queries not to keep placeholder previous data across reconnects");
+assert(useOperatorInventorySource.includes('refetchOnReconnect: true'), "expected operator-inventory queries to refetch on reconnect");
+assert(useOperatorInventorySource.includes('refetchOnMount: "always"'), "expected operator-inventory queries to refetch on mount");
+
+const useSignalHistorySource = readFileSync("src/hooks/useSignalHistory.ts", "utf8");
+assert(useSignalHistorySource.includes('getSharedBackendBaseUrl'), "expected signal-history queries to key by the shared-backend base URL");
+assert(useSignalHistorySource.includes('refetchOnReconnect: true'), "expected signal-history queries to refetch on reconnect");
+assert(useSignalHistorySource.includes('refetchOnMount: "always"'), "expected signal-history queries to refetch on mount");
+
+const useNodeAssembliesSource = readFileSync("src/hooks/useNodeAssemblies.ts", "utf8");
+assert(useNodeAssembliesSource.includes('getSharedBackendBaseUrl'), "expected node-assemblies queries to key by the shared-backend base URL");
+assert(useNodeAssembliesSource.includes('refetchOnReconnect: true'), "expected node-assemblies fallback queries to refetch on reconnect");
+assert(useNodeAssembliesSource.includes('refetchOnMount: "always"'), "expected node-assemblies fallback queries to refetch on mount");
+
+const useAssetDiscoverySource = readFileSync("src/hooks/useAssetDiscovery.ts", "utf8");
+assert(!useAssetDiscoverySource.includes('placeholderData'), "expected direct-chain fallback queries not to keep placeholder previous data across reconnects");
+assert(useAssetDiscoverySource.includes('refetchOnReconnect: true'), "expected direct-chain fallback queries to refetch on reconnect");
+assert(useAssetDiscoverySource.includes('refetchOnMount: "always"'), "expected direct-chain fallback queries to refetch on mount");
 
 const NODE_OFFLINE_NODE_ID = "0x0000000000000000000000000000000000000000000000000000000000000b00";
 const NODE_OFFLINE_TARGETS: StructureWriteTarget[] = [

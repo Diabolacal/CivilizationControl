@@ -902,6 +902,90 @@ assert.equal(
   "expected turret authority recovery to borrow owner-cap context from the operator-inventory structure row",
 );
 
+const staleFallbackGroup: NetworkNodeGroup = {
+  node: {
+    objectId: "0x00000000000000000000000000000000000000000000000000000000000000ee",
+    ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000000eee",
+    assemblyId: "9040",
+    type: "network_node",
+    name: "Fallback Node",
+    status: "online",
+    extensionStatus: "authorized",
+  },
+  gates: [],
+  storageUnits: [],
+  turrets: [
+    {
+      objectId: "0x0000000000000000000000000000000000000000000000000000000000000401",
+      ownerCapId: "0x000000000000000000000000000000000000000000000000000000000000d401",
+      assemblyId: "4401",
+      type: "turret",
+      name: "Left Turret",
+      status: "online",
+      networkNodeId: "0x00000000000000000000000000000000000000000000000000000000000000ee",
+      extensionStatus: "authorized",
+    },
+  ],
+};
+
+const staleFallbackLookup: NodeAssembliesLookupResult = {
+  status: "success",
+  networkNodeId: staleFallbackGroup.node.objectId,
+  node: {
+    objectId: staleFallbackGroup.node.objectId,
+    name: "Fallback Node",
+    status: "ONLINE",
+    assemblyId: "9040",
+    solarSystemId: null,
+    energySourceId: null,
+  },
+  assemblies: [
+    {
+      objectId: null,
+      assemblyId: "4401",
+      linkedGateId: null,
+      assemblyType: "turret",
+      typeId: 92279,
+      typeName: "Mini Turret",
+      name: "Mini Turret",
+      status: "OFFLINE",
+      fuelAmount: null,
+      solarSystemId: null,
+      energySourceId: null,
+      url: null,
+      lastUpdated: "2026-05-01T12:00:00.000Z",
+      source: "shared-frontier-backend",
+      provenance: "node-local-indexer",
+    },
+  ],
+  fetchedAt: "2026-05-06T12:00:00.000Z",
+  source: "shared-frontier-backend",
+  error: null,
+  isPartial: false,
+  droppedCount: 0,
+};
+
+const staleFallbackViewModel = buildLiveNodeLocalViewModelWithObserved(staleFallbackGroup, staleFallbackLookup);
+const staleFallbackRow = staleFallbackViewModel.structures.find((structure) => structure.assemblyId === "4401");
+
+assert.ok(staleFallbackRow, "expected stale fallback turret row to render");
+assert.equal(staleFallbackViewModel.sourceMode, "backend-membership", "expected stale fallback rows to stay in backend-membership mode");
+assert.equal(
+  staleFallbackRow?.displayName,
+  "Left Turret",
+  "expected direct-chain child naming to beat stale node-local fallback names when no displayName metadata is present",
+);
+assert.equal(
+  staleFallbackRow?.status,
+  "online",
+  "expected direct-chain child status to beat stale node-local fallback status when the fallback row comes from the node-local indexer",
+);
+assert.equal(
+  staleFallbackRow?.hasDirectChainAuthority,
+  true,
+  "expected stale fallback reconciliation to preserve direct-chain authority on the rendered row",
+);
+
 console.log(JSON.stringify({
   sourceMode: viewModel.sourceMode,
   totalRows: structures.length,

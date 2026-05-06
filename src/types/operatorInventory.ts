@@ -41,6 +41,8 @@ export interface OperatorInventoryStructure {
   family: OperatorInventoryFamily | null;
   size: OperatorInventorySize;
   displayName: string | null;
+  displayNameSource?: string | null;
+  displayNameUpdatedAt?: string | null;
   name: string | null;
   typeId: number | null;
   typeName: string | null;
