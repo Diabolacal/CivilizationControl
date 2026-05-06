@@ -209,6 +209,7 @@ function normalizeNodeAssemblySummary(
     fuelAmount: normalizeNullableString(candidate.fuelAmount),
     powerSummary: normalizeIndexedPowerSummary(candidate.powerSummary),
     solarSystemId: normalizeNullableString(candidate.solarSystemId),
+    networkNodeId: normalizeCanonicalObjectId(normalizeNullableString(candidate.networkNodeId)),
     energySourceId: normalizeNullableString(candidate.energySourceId),
     url: normalizeNullableString(candidate.url),
     lastUpdated: normalizeNullableTimestamp(candidate.lastUpdated),

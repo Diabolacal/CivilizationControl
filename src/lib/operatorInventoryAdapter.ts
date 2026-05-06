@@ -611,6 +611,7 @@ function toNodeAssemblySummary(
     powerSummary: row.powerSummary,
     powerRequirement: row.powerRequirement,
     solarSystemId: row.solarSystemId,
+    networkNodeId: row.networkNodeId,
     energySourceId: row.energySourceId,
     url: row.url,
     lastUpdated: row.lastUpdated,
@@ -649,11 +650,16 @@ function toCompatibleStructure(
   row: OperatorInventoryStructure,
   networkNodeId: ObjectId | null,
 ): Structure | null {
+  void networkNodeId;
   const compatibleType = row.family ? COMPATIBLE_TYPE_BY_FAMILY[row.family] : null;
   if (!compatibleType || !row.objectId) {
     return null;
   }
 
+  const explicitNetworkNodeId = row.networkNodeId
+    ?? row.actionCandidate?.actions.power?.requiredIds?.networkNodeId
+    ?? row.actionCandidate?.actions.rename?.requiredIds?.networkNodeId
+    ?? null;
   const summary = toAssemblySummary(row);
   return {
     assemblyId: row.assemblyId ?? undefined,
@@ -665,7 +671,7 @@ function toCompatibleStructure(
     type: compatibleType,
     name: resolveDisplayName(row, compatibleType),
     status: mapOperatorInventoryStatusToStructureStatus(row.status),
-    networkNodeId: compatibleType === "network_node" ? undefined : networkNodeId ?? undefined,
+    networkNodeId: compatibleType === "network_node" ? undefined : explicitNetworkNodeId ?? undefined,
     indexedFuelAmount: row.fuelAmount,
     indexedPowerSummary: row.powerSummary,
     indexedPowerRequirement: row.powerRequirement,
@@ -695,6 +701,8 @@ function toAssemblySummary(row: OperatorInventoryStructure): AssemblySummary | n
     powerRequirement: row.powerRequirement,
     powerUsageSummary: row.powerUsageSummary,
     solarSystemId: row.solarSystemId,
+    ownerCapId: row.ownerCapId,
+    networkNodeId: row.networkNodeId,
     energySourceId: row.energySourceId,
     url: row.url,
     lastUpdated: row.lastUpdated,
@@ -869,6 +877,7 @@ function mergeAssemblySummary(
     powerRequirement: preferred.powerRequirement ?? fallback.powerRequirement,
     powerUsageSummary: preferred.powerUsageSummary ?? fallback.powerUsageSummary,
     solarSystemId: preferTextValue(preferred.solarSystemId, fallback.solarSystemId),
+    networkNodeId: preferTextValue(preferred.networkNodeId ?? null, fallback.networkNodeId ?? null),
     energySourceId: preferTextValue(preferred.energySourceId, fallback.energySourceId),
     url: preferTextValue(preferred.url, fallback.url),
     lastUpdated: preferTextValue(preferred.lastUpdated, fallback.lastUpdated),
@@ -979,6 +988,7 @@ function mergeNodeAssemblySummaryFields(
     powerSummary: preferred.powerSummary ?? fallback.powerSummary,
     powerRequirement: preferred.powerRequirement ?? fallback.powerRequirement,
     solarSystemId: preferTextValue(preferred.solarSystemId, fallback.solarSystemId),
+    networkNodeId: preferTextValue(preferred.networkNodeId ?? null, fallback.networkNodeId ?? null),
     energySourceId: preferTextValue(preferred.energySourceId, fallback.energySourceId),
     url: preferTextValue(preferred.url, fallback.url),
     lastUpdated: preferTextValue(preferred.lastUpdated, fallback.lastUpdated),

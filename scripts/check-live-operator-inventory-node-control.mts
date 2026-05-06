@@ -52,9 +52,7 @@ function summarizeChildProof(row: OperatorInventoryStructure, nodeObjectId: stri
   const ownerCapId = normalizeCanonicalObjectId(requiredIds?.ownerCapId ?? row.ownerCapId);
   const networkNodeId = normalizeCanonicalObjectId(
     requiredIds?.networkNodeId
-      ?? row.networkNodeId
-      ?? row.energySourceId
-      ?? nodeObjectId,
+      ?? row.networkNodeId,
   );
   const powerAction = row.actionCandidate?.actions.power ?? null;
   const supportedWriteFamily = row.family === "gate" || row.family === "storage" || row.family === "turret";

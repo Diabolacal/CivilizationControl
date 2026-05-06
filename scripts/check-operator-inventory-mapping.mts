@@ -144,6 +144,7 @@ const response: OperatorInventoryResponse = {
         liveGenericAssemblyRow({
           objectId: PRINTER_ID,
           ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001104",
+          networkNodeId: NETWORK_NODE_A_ID,
           family: "printer",
           displayName: "Mini Printer",
           typeId: 88067,
@@ -155,6 +156,7 @@ const response: OperatorInventoryResponse = {
         liveGenericAssemblyRow({
           objectId: REFINERY_ID,
           ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001106",
+          networkNodeId: NETWORK_NODE_A_ID,
           family: "refinery",
           displayName: "Refinery",
           typeId: 88068,
@@ -165,6 +167,7 @@ const response: OperatorInventoryResponse = {
         liveGenericAssemblyRow({
           objectId: ASSEMBLER_ID,
           ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001107",
+          networkNodeId: NETWORK_NODE_A_ID,
           family: "assembler",
           displayName: "Assembler",
           typeId: 88069,
@@ -175,6 +178,7 @@ const response: OperatorInventoryResponse = {
         liveGenericAssemblyRow({
           objectId: BERTH_ID,
           ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001108",
+          networkNodeId: NETWORK_NODE_A_ID,
           family: "berth",
           displayName: "Mini Berth",
           typeId: 88070,
@@ -1097,6 +1101,7 @@ function createNodePowerUsageSummary(
 function liveGenericAssemblyRow(input: {
   objectId: string;
   ownerCapId: string | null;
+  networkNodeId: string | null;
   family: "printer" | "refinery" | "assembler" | "berth" | "relay" | "nursery" | "nest" | "shelter";
   displayName: string;
   typeId: number;
@@ -1117,8 +1122,8 @@ function liveGenericAssemblyRow(input: {
     typeName: input.typeName,
     assemblyType: input.assemblyType,
     status: input.status,
-    networkNodeId: null,
-    energySourceId: null,
+    networkNodeId: input.networkNodeId,
+    energySourceId: input.networkNodeId,
     linkedGateId: null,
     ownerWalletAddress: null,
     characterId: null,

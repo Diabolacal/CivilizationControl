@@ -4,7 +4,10 @@ import {
   getNodeLocalPowerControlState,
 } from "@/lib/nodeDrilldownActionAuthority";
 import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
-import { normalizeNodeDrilldownAssemblyId } from "@/lib/nodeDrilldownIdentity";
+import {
+  normalizeNodeDrilldownAssemblyId,
+  selectCanonicalNodeDrilldownDomainKey,
+} from "@/lib/nodeDrilldownIdentity";
 import { formatNodeLocalActionAvailability } from "@/lib/nodeDrilldownActionAuthority";
 
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
@@ -13,7 +16,11 @@ import type { SelectedNodeInventoryLookupResolution } from "@/lib/nodeControlInv
 import type { NodeDrilldownMenuContext, NodeDrilldownMenuItem } from "@/lib/nodeDrilldownMenuItems";
 import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 import type { NodePowerCapacityCheck, NodePowerOperationPlan, NodePowerUsageReadout } from "@/lib/nodePowerControlModel";
-import type { OperatorInventoryResponse, OperatorInventoryStructure } from "@/types/operatorInventory";
+import type {
+  OperatorInventoryRawStructureProof,
+  OperatorInventoryResponse,
+  OperatorInventoryStructure,
+} from "@/types/operatorInventory";
 import type { NetworkNodeGroup, Structure, TxResult, TxStatus } from "@/types/domain";
 
 export interface NodeControlDebugController {
@@ -145,6 +152,62 @@ interface OperatorInventoryProofRow {
   actionCandidate: OperatorInventoryStructure["actionCandidate"];
 }
 
+interface SelectedRowProofTraceStage {
+  stage: string;
+  displayName: string | null;
+  name: string | null;
+  typeName: string | null;
+  family: string | null;
+  size: string | null;
+  status: string | null;
+  objectId: string | null;
+  assemblyId: string | null;
+  ownerCapId: string | null;
+  networkNodeId: string | null;
+  energySourceId: string | null;
+  canonicalDomainKey: string | null;
+  powerRequirement: {
+    requiredGj: number | null;
+  };
+  actionCandidate: {
+    actions: {
+      power: { requiredIds: Record<string, unknown> | null };
+      rename: { requiredIds: Record<string, unknown> | null };
+    };
+  };
+  actionAuthority: {
+    state: string | null;
+    verifiedTarget: {
+      structureId: string | null;
+      ownerCapId: string | null;
+      networkNodeId: string | null;
+    };
+  };
+  source: string | null;
+  provenance: string | null;
+  displayNameSource: string | null;
+  displayNameUpdatedAt: string | null;
+}
+
+interface SelectedRowProofTrace {
+  selectedDisplayName: string | null;
+  selectedCanonicalDomainKey: string | null;
+  firstLost: {
+    objectId: string | null;
+    ownerCapId: string | null;
+    networkNodeId: string | null;
+    actionAuthority: string | null;
+    powerRequirement: string | null;
+  };
+  stages: SelectedRowProofTraceStage[];
+  menuItems: Array<{ key: string; label: string; disabled: boolean; disabledReason: string | null }>;
+  powerReadoutInputs: {
+    label: string | null;
+    isAvailable: boolean | null;
+    capacityGJ: number | null;
+  };
+}
+
 export interface NodeControlDebugCopySummary {
   schemaVersion: "node-control-debug.v1";
   capturedAt: string;
@@ -223,6 +286,7 @@ export interface NodeControlDebugCopySummary {
     contextMenuTarget: NodeControlStructureDebugRow | null;
     actionRailTarget: NodeControlStructureDebugRow | null;
   };
+  selectedRowProofTrace: SelectedRowProofTrace;
   pipeline: {
     phase: string;
     selectedNodeViewModelSourceMode: string | null;
@@ -400,6 +464,286 @@ function mapOperatorRow(row: OperatorInventoryStructure | null | undefined): Ope
   };
 }
 
+function mapRequiredIds(action: { requiredIds?: unknown } | null | undefined): Record<string, unknown> | null {
+  const requiredIds = action?.requiredIds;
+  return requiredIds && typeof requiredIds === "object" ? requiredIds as Record<string, unknown> : null;
+}
+
+function canonicalDomainKey(objectId: string | null | undefined, assemblyId: string | null | undefined): string | null {
+  return selectCanonicalNodeDrilldownDomainKey({ objectId, assemblyId });
+}
+
+function mapOperatorProofStage(stage: string, row: OperatorInventoryStructure | null | undefined): SelectedRowProofTraceStage {
+  const mapped = mapOperatorRow(row);
+  return {
+    stage,
+    displayName: mapped?.displayName ?? null,
+    name: row?.name ?? null,
+    typeName: mapped?.typeName ?? null,
+    family: mapped?.family ?? null,
+    size: mapped?.size ?? null,
+    status: mapped?.status ?? null,
+    objectId: mapped?.objectId ?? null,
+    assemblyId: mapped?.assemblyId ?? null,
+    ownerCapId: mapped?.ownerCapId ?? null,
+    networkNodeId: mapped?.networkNodeId ?? null,
+    energySourceId: mapped?.energySourceId ?? null,
+    canonicalDomainKey: canonicalDomainKey(mapped?.objectId, mapped?.assemblyId),
+    powerRequirement: { requiredGj: mapped?.powerRequirement?.requiredGj ?? null },
+    actionCandidate: {
+      actions: {
+        power: { requiredIds: mapRequiredIds(mapped?.actionCandidate?.actions.power) },
+        rename: { requiredIds: mapRequiredIds(mapped?.actionCandidate?.actions.rename) },
+      },
+    },
+    actionAuthority: {
+      state: null,
+      verifiedTarget: {
+        structureId: null,
+        ownerCapId: null,
+        networkNodeId: null,
+      },
+    },
+    source: mapped?.source ?? null,
+    provenance: mapped?.provenance ?? null,
+    displayNameSource: row?.displayNameSource ?? null,
+    displayNameUpdatedAt: row?.displayNameUpdatedAt ?? null,
+  };
+}
+
+function mapOperatorRawProofStage(stage: string, row: OperatorInventoryStructure | null | undefined): SelectedRowProofTraceStage {
+  const raw = row?.rawProof ?? null;
+  return mapOperatorRawProof(stage, raw);
+}
+
+function mapOperatorRawProof(stage: string, raw: OperatorInventoryRawStructureProof | null): SelectedRowProofTraceStage {
+  return {
+    stage,
+    displayName: raw?.displayName ?? raw?.name ?? null,
+    name: raw?.name ?? null,
+    typeName: raw?.typeName ?? null,
+    family: raw?.family ?? null,
+    size: raw?.size ?? null,
+    status: raw?.status ?? null,
+    objectId: raw?.objectId ?? null,
+    assemblyId: raw?.assemblyId ?? null,
+    ownerCapId: raw?.ownerCapId ?? null,
+    networkNodeId: raw?.networkNodeId ?? null,
+    energySourceId: raw?.energySourceId ?? null,
+    canonicalDomainKey: canonicalDomainKey(raw?.objectId, raw?.assemblyId),
+    powerRequirement: { requiredGj: raw?.powerRequirement?.requiredGj ?? null },
+    actionCandidate: {
+      actions: {
+        power: { requiredIds: mapRequiredIds(raw?.actionCandidate?.actions.power) },
+        rename: { requiredIds: mapRequiredIds(raw?.actionCandidate?.actions.rename) },
+      },
+    },
+    actionAuthority: {
+      state: null,
+      verifiedTarget: {
+        structureId: null,
+        ownerCapId: null,
+        networkNodeId: null,
+      },
+    },
+    source: raw?.source ?? null,
+    provenance: raw?.provenance ?? null,
+    displayNameSource: raw?.displayNameSource ?? null,
+    displayNameUpdatedAt: raw?.displayNameUpdatedAt ?? null,
+  };
+}
+
+function findAdaptedStructure(group: NetworkNodeGroup | null, selectedStructure: NodeLocalStructure | null): Structure | null {
+  if (!group || !selectedStructure) return null;
+
+  return [...group.gates, ...group.storageUnits, ...group.turrets].find((structure) => identityMatches(structure, selectedStructure)) ?? null;
+}
+
+function mapAdaptedProofStage(stage: string, structure: Structure | null): SelectedRowProofTraceStage {
+  const actionCandidate = structure?.summary?.actionCandidate ?? null;
+  return {
+    stage,
+    displayName: structure?.summary?.displayName ?? structure?.name ?? null,
+    name: structure?.summary?.name ?? structure?.name ?? null,
+    typeName: structure?.summary?.typeName ?? null,
+    family: structure?.summary?.family ?? structure?.type ?? null,
+    size: structure?.summary?.size ?? null,
+    status: structure?.status ?? structure?.summary?.status ?? null,
+    objectId: normalizeCanonicalObjectId(structure?.objectId),
+    assemblyId: normalizeNodeDrilldownAssemblyId(structure?.assemblyId ?? structure?.summary?.assemblyId),
+    ownerCapId: normalizeCanonicalObjectId(structure?.ownerCapId || structure?.summary?.ownerCapId),
+    networkNodeId: normalizeCanonicalObjectId(structure?.networkNodeId ?? structure?.summary?.networkNodeId),
+    energySourceId: normalizeCanonicalObjectId(structure?.summary?.energySourceId),
+    canonicalDomainKey: canonicalDomainKey(structure?.objectId, structure?.assemblyId),
+    powerRequirement: {
+      requiredGj: (structure?.indexedPowerRequirement ?? structure?.summary?.powerRequirement)?.requiredGj ?? null,
+    },
+    actionCandidate: {
+      actions: {
+        power: { requiredIds: mapRequiredIds(actionCandidate?.actions.power) },
+        rename: { requiredIds: mapRequiredIds(actionCandidate?.actions.rename) },
+      },
+    },
+    actionAuthority: {
+      state: null,
+      verifiedTarget: {
+        structureId: null,
+        ownerCapId: null,
+        networkNodeId: null,
+      },
+    },
+    source: structure?.readModelSource ?? structure?.summary?.source ?? null,
+    provenance: structure?.summary?.provenance ?? null,
+    displayNameSource: structure?.summary?.displayNameSource ?? null,
+    displayNameUpdatedAt: structure?.summary?.displayNameUpdatedAt ?? null,
+  };
+}
+
+function mapNodeLocalProofStage(stage: string, row: NodeControlStructureDebugRow | null): SelectedRowProofTraceStage {
+  return {
+    stage,
+    displayName: row?.displayName ?? null,
+    name: null,
+    typeName: row?.typeLabel ?? null,
+    family: row?.family ?? null,
+    size: row?.sizeVariant ?? null,
+    status: row?.status ?? null,
+    objectId: row?.objectId ?? null,
+    assemblyId: row?.assemblyId ?? null,
+    ownerCapId: row?.ownerCapId ?? null,
+    networkNodeId: row?.networkNodeId ?? null,
+    energySourceId: row?.energySourceId ?? null,
+    canonicalDomainKey: row?.canonicalDomainKey ?? null,
+    powerRequirement: { requiredGj: row?.powerRequirement?.requiredGj ?? null },
+    actionCandidate: {
+      actions: {
+        power: { requiredIds: mapRequiredIds(row?.actionCandidate?.actions.power) },
+        rename: { requiredIds: mapRequiredIds(row?.actionCandidate?.actions.rename) },
+      },
+    },
+    actionAuthority: {
+      state: row?.actionAuthority.state ?? null,
+      verifiedTarget: {
+        structureId: row?.actionAuthority.verifiedTarget?.structureId ?? null,
+        ownerCapId: row?.actionAuthority.verifiedTarget?.ownerCapId ?? null,
+        networkNodeId: row?.actionAuthority.verifiedTarget?.networkNodeId ?? null,
+      },
+    },
+    source: row?.source ?? null,
+    provenance: row?.provenance ?? null,
+    displayNameSource: row?.displayNameSource ?? null,
+    displayNameUpdatedAt: row?.displayNameUpdatedAt ?? null,
+  };
+}
+
+function findFirstProofLoss(
+  stages: SelectedRowProofTraceStage[],
+  hasProof: (stage: SelectedRowProofTraceStage) => boolean,
+): string | null {
+  let seen = false;
+  for (const stage of stages) {
+    if (hasProof(stage)) {
+      seen = true;
+      continue;
+    }
+
+    if (seen) return stage.stage;
+  }
+  return null;
+}
+
+function buildSelectedRowProofTrace({
+  adaptedStructure,
+  rawStructure,
+  lookupStructure,
+  selectedRow,
+  contextMenuRow,
+  actionRailRow,
+  rows,
+  visibleRows,
+  contextMenuItems,
+  nodeUsageReadout,
+}: {
+  adaptedStructure: Structure | null;
+  rawStructure: OperatorInventoryStructure | null;
+  lookupStructure: OperatorInventoryStructure | null;
+  selectedRow: NodeControlStructureDebugRow | null;
+  contextMenuRow: NodeControlStructureDebugRow | null;
+  actionRailRow: NodeControlStructureDebugRow | null;
+  rows: NodeControlStructureDebugRow[];
+  visibleRows: NodeControlStructureDebugRow[];
+  contextMenuItems: NodeDrilldownMenuItem[];
+  nodeUsageReadout: NodePowerUsageReadout | null;
+}): SelectedRowProofTrace {
+  const selectedCanonicalDomainKey = selectedRow?.canonicalDomainKey ?? contextMenuRow?.canonicalDomainKey ?? null;
+  const renderedRow = selectedCanonicalDomainKey
+    ? rows.find((row) => row.canonicalDomainKey === selectedCanonicalDomainKey) ?? null
+    : selectedRow;
+  const visibleRow = selectedCanonicalDomainKey
+    ? visibleRows.find((row) => row.canonicalDomainKey === selectedCanonicalDomainKey) ?? null
+    : selectedRow;
+  const stages = [
+    mapOperatorRawProofStage("1. raw EF-Map operator-inventory JSON", rawStructure),
+    mapOperatorProofStage("2. normalized operator-inventory response", rawStructure),
+    mapAdaptedProofStage("3. adaptOperatorInventory output", adaptedStructure),
+    mapOperatorProofStage("4. nodeLookupsByNodeId lookup entry", lookupStructure),
+    mapOperatorProofStage("5. selectedNodeObservedLookup", lookupStructure),
+    mapNodeLocalProofStage("6. selectedNodeViewModel.structures", renderedRow),
+    mapNodeLocalProofStage("7. visibleNodeViewModel.structures", visibleRow),
+    mapNodeLocalProofStage("8. selected inspector target", selectedRow),
+    mapNodeLocalProofStage("9. context menu target", contextMenuRow),
+    mapNodeLocalProofStage("10. action rail target", actionRailRow),
+    {
+      ...mapNodeLocalProofStage("11. power readout inputs", actionRailRow),
+      source: nodeUsageReadout?.label ?? null,
+      provenance: nodeUsageReadout ? JSON.stringify({
+        label: nodeUsageReadout.label,
+        capacityGJ: nodeUsageReadout.capacityGJ,
+        isAvailable: nodeUsageReadout.isAvailable,
+      }) : null,
+    },
+  ];
+
+  return {
+    selectedDisplayName: selectedRow?.displayName ?? contextMenuRow?.displayName ?? null,
+    selectedCanonicalDomainKey,
+    firstLost: {
+      objectId: findFirstProofLoss(stages, (stage) => Boolean(
+        stage.objectId
+          || stage.actionCandidate.actions.power.requiredIds?.structureId
+          || stage.actionCandidate.actions.rename.requiredIds?.structureId
+          || stage.actionAuthority.verifiedTarget.structureId,
+      )),
+      ownerCapId: findFirstProofLoss(stages, (stage) => Boolean(
+        stage.ownerCapId
+          || stage.actionCandidate.actions.power.requiredIds?.ownerCapId
+          || stage.actionCandidate.actions.rename.requiredIds?.ownerCapId
+          || stage.actionAuthority.verifiedTarget.ownerCapId,
+      )),
+      networkNodeId: findFirstProofLoss(stages, (stage) => Boolean(
+        stage.networkNodeId
+          || stage.actionCandidate.actions.power.requiredIds?.networkNodeId
+          || stage.actionCandidate.actions.rename.requiredIds?.networkNodeId
+          || stage.actionAuthority.verifiedTarget.networkNodeId,
+      )),
+      actionAuthority: findFirstProofLoss(stages, (stage) => stage.actionAuthority.state != null),
+      powerRequirement: findFirstProofLoss(stages, (stage) => stage.powerRequirement.requiredGj != null),
+    },
+    stages,
+    menuItems: contextMenuItems.map((item) => ({
+      key: item.key,
+      label: item.label,
+      disabled: item.disabled === true,
+      disabledReason: item.disabledReason ?? null,
+    })),
+    powerReadoutInputs: {
+      label: nodeUsageReadout?.label ?? null,
+      isAvailable: nodeUsageReadout?.isAvailable ?? null,
+      capacityGJ: nodeUsageReadout?.capacityGJ ?? null,
+    },
+  };
+}
+
 function findRawNodeGroup(inventory: OperatorInventoryResponse | null, selectedNodeId: string | null) {
   const normalizedNodeId = normalizeCanonicalObjectId(selectedNodeId);
   if (!inventory || !normalizedNodeId) return null;
@@ -427,6 +771,7 @@ export function buildNodeControlDebugSnapshot(input: BuildNodeControlDebugSnapsh
   const lookupStructure = input.selectedNodeObservedLookup?.status === "success"
     ? input.selectedNodeObservedLookup.assemblies.find((row) => identityMatches(row, input.selectedStructure))
     : null;
+  const adaptedStructure = findAdaptedStructure(input.selectedNodeGroup, input.selectedStructure);
   const rows = input.selectedNodeViewModel?.structures.map(mapStructureRow) ?? [];
   const visibleRows = input.visibleNodeViewModel?.structures.map(mapStructureRow) ?? [];
   const selectedRow = input.selectedStructure ? mapStructureRow(input.selectedStructure) : null;
@@ -602,6 +947,18 @@ export function buildNodeControlDebugSnapshot(input: BuildNodeControlDebugSnapsh
       contextMenuTarget: contextMenuRow,
       actionRailTarget: selectedRow,
     },
+    selectedRowProofTrace: buildSelectedRowProofTrace({
+      adaptedStructure,
+      rawStructure,
+      lookupStructure: lookupStructure as OperatorInventoryStructure | null,
+      selectedRow,
+      contextMenuRow,
+      actionRailRow: selectedRow,
+      rows,
+      visibleRows,
+      contextMenuItems: input.contextMenuItems,
+      nodeUsageReadout: input.nodeUsageReadout,
+    }),
     pipeline: {
       phase: input.operatorInventory.isLoading
         ? "operator-inventory-loading"

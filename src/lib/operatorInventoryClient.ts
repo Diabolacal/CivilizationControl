@@ -17,6 +17,8 @@ import type {
   OperatorInventorySize,
   OperatorInventoryStatus,
   OperatorInventoryStructure,
+  OperatorInventoryRawActionProof,
+  OperatorInventoryRawStructureProof,
 } from "@/types/operatorInventory";
 
 const OPERATOR_INVENTORY_PATH = "/api/civilization-control/operator-inventory";
@@ -307,6 +309,69 @@ function normalizeOperatorInventoryStructure(
       ? normalizeStringArray(candidate.warnings)
       : defaults.warnings,
     actionCandidate,
+    rawProof: normalizeOperatorInventoryRawProof(candidate),
+  };
+}
+
+function normalizeOperatorInventoryRawProof(candidate: Record<string, unknown>): OperatorInventoryRawStructureProof {
+  return {
+    objectId: normalizeCanonicalObjectId(normalizeNullableString(candidate.objectId)),
+    assemblyId: normalizeNullableString(candidate.assemblyId),
+    ownerCapId: normalizeCanonicalObjectId(normalizeNullableString(candidate.ownerCapId)),
+    networkNodeId: normalizeCanonicalObjectId(normalizeNullableString(candidate.networkNodeId)),
+    energySourceId: normalizeNullableString(candidate.energySourceId),
+    displayName: normalizeNullableString(candidate.displayName),
+    name: normalizeNullableString(candidate.name),
+    typeName: normalizeNullableString(candidate.typeName),
+    family: normalizeNullableString(candidate.family),
+    size: normalizeNullableString(candidate.size),
+    status: normalizeNullableString(candidate.status),
+    source: normalizeNullableString(candidate.source),
+    provenance: normalizeNullableString(candidate.provenance),
+    displayNameSource: normalizeNullableString(candidate.displayNameSource),
+    displayNameUpdatedAt: normalizeNullableTimestamp(candidate.displayNameUpdatedAt),
+    powerRequirement: normalizeIndexedPowerRequirement(candidate.powerRequirement),
+    powerUsageSummary: normalizeIndexedNodePowerUsageSummary(candidate.powerUsageSummary),
+    actionCandidate: normalizeRawActionProof(candidate.actionCandidate),
+  };
+}
+
+function normalizeRawActionProof(value: unknown): OperatorInventoryRawActionProof | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Record<string, unknown>;
+  const actions = candidate.actions && typeof candidate.actions === "object"
+    ? candidate.actions as Record<string, unknown>
+    : {};
+  const power = actions.power && typeof actions.power === "object" ? actions.power as Record<string, unknown> : null;
+  const rename = actions.rename && typeof actions.rename === "object" ? actions.rename as Record<string, unknown> : null;
+
+  return {
+    actions: {
+      power: { requiredIds: normalizeRawActionRequiredIds(power?.requiredIds) },
+      rename: { requiredIds: normalizeRawActionRequiredIds(rename?.requiredIds) },
+    },
+  };
+}
+
+function normalizeRawActionRequiredIds(value: unknown): IndexedActionRequiredIds | null {
+  if (!value || typeof value !== "object") return null;
+
+  const candidate = value as Record<string, unknown>;
+  const structureId = normalizeCanonicalObjectId(normalizeNullableString(candidate.structureId));
+  const ownerCapId = normalizeCanonicalObjectId(normalizeNullableString(candidate.ownerCapId));
+  const networkNodeId = normalizeCanonicalObjectId(normalizeNullableString(candidate.networkNodeId));
+  const structureType = normalizeStructureActionTargetType(candidate.structureType);
+
+  if (!structureId && !ownerCapId && !networkNodeId && !structureType) {
+    return null;
+  }
+
+  return {
+    structureId,
+    ownerCapId,
+    networkNodeId,
+    structureType,
   };
 }
 
@@ -549,9 +614,7 @@ function buildIndexedStructureActionDefaults(
     ownerCapId: normalizeCanonicalObjectId(normalizeNullableString(candidate.ownerCapId))
       ?? normalizeCanonicalObjectId(normalizeNullableString(rowCandidate.ownerCapId)),
     networkNodeId: normalizeCanonicalObjectId(normalizeNullableString(candidate.networkNodeId))
-      ?? normalizeCanonicalObjectId(normalizeNullableString(candidate.energySourceId))
-      ?? normalizeCanonicalObjectId(normalizeNullableString(rowCandidate.networkNodeId))
-      ?? normalizeCanonicalObjectId(normalizeNullableString(rowCandidate.energySourceId)),
+      ?? normalizeCanonicalObjectId(normalizeNullableString(rowCandidate.networkNodeId)),
   };
   const requiredIds = normalizeIndexedActionRequiredIds(candidate.requiredIds, requiredIdsFallback)
     ?? normalizeIndexedActionRequiredIds(null, requiredIdsFallback);
@@ -603,7 +666,6 @@ function normalizeIndexedActionRequiredIds(
       ?? fallback?.ownerCapId
       ?? null,
     networkNodeId: normalizeCanonicalObjectId(normalizeNullableString(candidate.networkNodeId))
-      ?? normalizeCanonicalObjectId(normalizeNullableString(candidate.energySourceId))
       ?? fallback?.networkNodeId
       ?? null,
   };

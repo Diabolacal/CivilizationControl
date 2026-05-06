@@ -534,6 +534,146 @@ function runLiveShapedPayloadAssertions(): void {
   ]);
 }
 
+function makeShadowBrokerRawPayload() {
+  const nodeId = "0x2deb4248ed82ecbe42410e6ff4f8902f2e48b0c348c3dfdfb3f2c83acde73b85";
+  const shadowBrokerId = "0xe009613ba63c34ffca0fee893123037eab35e25e23dc13644613d792d55886da";
+  const shadowBrokerOwnerCapId = "0x445107468d157a352784660a13f044709bbd6a8f2b77b6b25dae245359c55965";
+
+  return {
+    schemaVersion: "operator-inventory.v1",
+    operator: {
+      walletAddress: DEFAULT_WALLET_ADDRESS,
+      characterId: "0x3790bc6fcce39499f004833f0f02296e0f418fe8555b0abc3cc1fe04775ddde5",
+      characterName: "lacal",
+      tribeId: null,
+      tribeName: null,
+    },
+    networkNodes: [{
+      node: {
+        objectId: nodeId,
+        assemblyId: null,
+        ownerCapId: objectId(700),
+        family: "networkNode",
+        size: "standard",
+        displayName: "Network Node",
+        name: null,
+        typeId: 88092,
+        typeName: "Network Node",
+        assemblyType: "network_node",
+        status: "online",
+        powerUsageSummary: {
+          capacityGj: 1000,
+          usedGj: 770,
+          availableGj: 230,
+          onlineKnownLoadGj: 770,
+          onlineUnknownLoadCount: 0,
+          totalKnownLoadGj: 770,
+          totalUnknownLoadCount: 0,
+          source: "indexed_children",
+          confidence: "indexed",
+          lastUpdated: "2026-05-06T16:10:05.435296Z",
+        },
+      },
+      structures: [{
+        objectId: shadowBrokerId,
+        assemblyId: null,
+        ownerCapId: shadowBrokerOwnerCapId,
+        ownerWalletAddress: DEFAULT_WALLET_ADDRESS,
+        ownerCharacterId: "0x3790bc6fcce39499f004833f0f02296e0f418fe8555b0abc3cc1fe04775ddde5",
+        ownerCharacterName: "lacal",
+        typeId: 88082,
+        family: "storage",
+        size: "mini",
+        displayName: "Shadow Broker",
+        displayNameSource: "assembly_snapshot",
+        displayNameUpdatedAt: "2026-04-28T02:02:17.728000Z",
+        name: null,
+        typeName: null,
+        assemblyType: null,
+        status: "online",
+        energySourceId: nodeId,
+        networkNodeId: nodeId,
+        fuelAmount: "0",
+        powerSummary: null,
+        powerRequirement: {
+          requiredGj: 50,
+          source: "indexed_config",
+          confidence: "indexed",
+          typeId: "88082",
+          family: "storage",
+          size: "mini",
+          lastUpdated: null,
+        },
+        lastUpdated: "2026-04-28T02:02:17.728000Z",
+        source: "shared-frontier-backend",
+        provenance: "operator-inventory-indexer",
+        actionCandidate: {
+          supported: true,
+          familySupported: true,
+          hasIndexedOwnerCap: true,
+          indexedAuthorityCandidate: true,
+          indexedAuthorityUnavailableReason: null,
+          ownerCapId: shadowBrokerOwnerCapId,
+          requiredIds: {
+            objectId: shadowBrokerId,
+            ownerCapId: shadowBrokerOwnerCapId,
+            energySourceId: nodeId,
+            networkNodeId: nodeId,
+          },
+          actions: {
+            power: {
+              candidate: true,
+              currentlyImplementedInCivilizationControl: true,
+              unavailableReason: null,
+            },
+            rename: {
+              candidate: true,
+              currentlyImplementedInCivilizationControl: false,
+              unavailableReason: "frontend_action_not_implemented",
+            },
+          },
+          unavailableReason: null,
+        },
+      }],
+    }],
+    unlinkedStructures: [],
+    warnings: [],
+    partial: false,
+    source: "shared-frontier-backend",
+    fetchedAt: "2026-05-06T16:10:05.435296Z",
+  };
+}
+
+function runShadowBrokerPayloadAssertions(): void {
+  const inventory = normalizeOperatorInventoryResponse(makeShadowBrokerRawPayload());
+  assert(inventory, "expected Shadow Broker raw fixture to normalize");
+
+  const adapted = adaptOperatorInventory(inventory);
+  const group = adapted.nodeGroups.find((entry) => entry.node.objectId === "0x2deb4248ed82ecbe42410e6ff4f8902f2e48b0c348c3dfdfb3f2c83acde73b85");
+  assert(group, "expected Shadow Broker fixture to adapt into its real node group");
+
+  const lookup = adapted.nodeLookupsByNodeId.get(group.node.objectId) ?? null;
+  assert(lookup, "expected Shadow Broker fixture to build a selected-node lookup");
+
+  const viewModel = buildLiveNodeLocalViewModelWithObserved(group, lookup, { preferObservedMembership: true });
+  const shadowBrokerStructure = viewModel.structures.find((row) => row.displayName === "Shadow Broker");
+  assert(shadowBrokerStructure, "expected Shadow Broker row in rendered view model");
+  assert.equal(shadowBrokerStructure.objectId, "0xe009613ba63c34ffca0fee893123037eab35e25e23dc13644613d792d55886da");
+  assert.equal(shadowBrokerStructure.energySourceId, group.node.objectId);
+  assert.equal(shadowBrokerStructure.powerRequirement?.requiredGj, 50);
+  assert.equal(shadowBrokerStructure.actionAuthority.state, "verified-supported");
+  assert.equal(shadowBrokerStructure.actionAuthority.verifiedTarget?.structureType, "storage_unit");
+  assert.equal(shadowBrokerStructure.actionAuthority.verifiedTarget?.ownerCapId, "0x445107468d157a352784660a13f044709bbd6a8f2b77b6b25dae245359c55965");
+  assert.equal(shadowBrokerStructure.actionAuthority.verifiedTarget?.networkNodeId, group.node.objectId);
+
+  assertRenderedUiProof(viewModel, group.node, shadowBrokerStructure);
+
+  const readout = getNodePowerUsageReadout(viewModel.node, viewModel.structures);
+  assert.equal(readout.isAvailable, true, "expected Shadow Broker readout to be available");
+  assert.equal(readout.capacityGJ, 1000, "expected Shadow Broker-shaped fixture to retain indexed node capacity");
+  assert.notEqual(readout.label, "Power usage unavailable", "expected Shadow Broker-shaped fixture not to degrade power readout");
+}
+
 async function fetchLiveInventory(args: Args) {
   const response = await fetch(buildOperatorInventoryUrl(args.walletAddress, args.baseUrl), {
     headers: { Origin: args.origin },
@@ -615,6 +755,7 @@ function summarizeRawPayloadNode(rawPayload: unknown, nodeObjectId: string) {
 async function main() {
   runFixtureAssertions();
   runLiveShapedPayloadAssertions();
+  runShadowBrokerPayloadAssertions();
 
   const args = parseArgs(process.argv.slice(2));
   if (args.fixtureOnly) {

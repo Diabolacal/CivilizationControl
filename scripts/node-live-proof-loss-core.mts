@@ -160,13 +160,13 @@ function deriveStructureNetworkNodeId(structure: NodeLocalStructure): string | n
   return networkNodeIds.length === 1 ? networkNodeIds[0] ?? null : null;
 }
 
-function deriveRawProof(row: OperatorInventoryStructure, rawNodeObjectId: string | null | undefined): RawProof {
+function deriveRawProof(row: OperatorInventoryStructure, _rawNodeObjectId: string | null | undefined): RawProof {
   const powerRequiredIds = row.actionCandidate?.actions.power?.requiredIds ?? null;
   const renameRequiredIds = row.actionCandidate?.actions.rename?.requiredIds ?? null;
   const requiredIds = powerRequiredIds ?? renameRequiredIds;
   const objectId = normalizeCanonicalObjectId(requiredIds?.structureId ?? row.objectId);
   const ownerCapId = normalizeCanonicalObjectId(requiredIds?.ownerCapId ?? row.ownerCapId);
-  const networkNodeId = normalizeCanonicalObjectId(requiredIds?.networkNodeId ?? row.networkNodeId ?? rawNodeObjectId);
+  const networkNodeId = normalizeCanonicalObjectId(requiredIds?.networkNodeId ?? row.networkNodeId);
   const structureType = requiredIds?.structureType ?? null;
 
   return {

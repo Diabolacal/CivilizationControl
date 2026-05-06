@@ -195,7 +195,6 @@ export function Dashboard({
     warnings: signalFeedWarnings,
   } = useSignalFeed({
     limit: 10,
-    polling: false,
     ownedObjectIds,
     walletAddress: walletAddress ?? null,
     aggressiveRefetch: postureTransitioning,

@@ -836,11 +836,16 @@ function createNodeLocalStructure(
 ): NodeLocalStructure {
   const { family, sizeVariant } = structure;
   const resolvedType = resolveTypeLabel(family, structure.typeLabel, structure.typeId, sizeVariant);
+  const verifiedStructureId = normalizeCanonicalObjectId(structure.actionAuthority.verifiedTarget?.structureId);
+  const singleCandidateStructureId = structure.actionAuthority.candidateTargets.length === 1
+    ? normalizeCanonicalObjectId(structure.actionAuthority.candidateTargets[0]?.structureId)
+    : null;
+  const objectId = structure.objectId ?? verifiedStructureId ?? singleCandidateStructureId ?? undefined;
 
   return {
     id: structure.id,
     canonicalDomainKey: structure.canonicalDomainKey,
-    objectId: structure.objectId,
+    objectId,
     assemblyId: structure.assemblyId,
     directChainObjectId: structure.directChainObjectId,
     directChainAssemblyId: structure.directChainAssemblyId,
@@ -1098,6 +1103,11 @@ function mergeNodeLocalStructureBucket(
     typeId: displayRow.typeId ?? authoritativeRow.typeId,
     warningPip: bucket.entries.some((entry) => entry.warningPip) || status === "warning",
     backendSource: pickFirstDefined(bucket.entries.map((entry) => entry.backendSource ?? undefined)) ?? null,
+    displayNameSource: pickFirstDefined([
+      displayRow.displayNameSource ?? undefined,
+      ...bucket.entries.map((entry) => entry.displayNameSource ?? undefined),
+    ]) ?? null,
+    displayNameUpdatedAt: pickLatestTimestamp(bucket.entries.map((entry) => entry.displayNameUpdatedAt)) ?? null,
     fetchedAt: pickLatestTimestamp(bucket.entries.map((entry) => entry.fetchedAt)) ?? null,
     lastUpdated: pickLatestTimestamp(bucket.entries.map((entry) => entry.lastUpdated)) ?? null,
     provenance: pickFirstDefined(bucket.entries.map((entry) => entry.provenance ?? undefined)) ?? null,
@@ -1321,8 +1331,7 @@ function buildBackendMembershipStructures(
         ?? primaryAuthorityMatch?.ownerCapId
         ?? null,
       networkNodeId: observed.actionCandidate?.actions.power?.requiredIds?.networkNodeId
-        ?? normalizeCanonicalObjectId(observed.energySourceId)
-        ?? observedLookup.networkNodeId
+        ?? normalizeCanonicalObjectId(observed.networkNodeId)
         ?? primaryAuthorityMatch?.networkNodeId
         ?? null,
     };
