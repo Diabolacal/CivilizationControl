@@ -12,8 +12,13 @@ import { useAssemblySummaryEnrichment } from "@/hooks/useAssemblySummaryEnrichme
 import { useOperatorInventory } from "@/hooks/useOperatorInventory";
 import { useStructureWriteReconciliation } from "@/hooks/useStructureWriteReconciliation";
 import { buildDisplayNodeGroupsFromStructures, type AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
+import {
+  applyStructureExtensionStatusOverlayToNodeGroups,
+  applyStructureExtensionStatusOverlayToStructures,
+  buildStructureExtensionStatusOverlayTargetIds,
+} from "@/lib/structureExtensionStatusOverlay";
 import { getSuiDiscoveryErrorMessage, getConfiguredSuiRpcUrl } from "@/lib/suiRpcClient";
-import { discoverAssets, fetchCharacterMetadata } from "@/lib/suiReader";
+import { discoverAssets, fetchCharacterMetadata, fetchStructureExtensionStatuses } from "@/lib/suiReader";
 import type {
   Structure,
   NetworkMetrics,
@@ -67,17 +72,40 @@ export function useAssetDiscovery() {
     : null;
   const operatorStructures = operatorInventory.adapted?.structures ?? null;
   const baseStructures = operatorStructures ?? enrichedFallbackStructures;
+  const extensionStatusTargetIds = useMemo(
+    () => buildStructureExtensionStatusOverlayTargetIds(baseStructures),
+    [baseStructures],
+  );
+  const extensionStatusQuery = useQuery({
+    queryKey: ["structureExtensionStatus", rpcUrl, extensionStatusTargetIds],
+    queryFn: () => fetchStructureExtensionStatuses(extensionStatusTargetIds),
+    enabled: extensionStatusTargetIds.length > 0,
+    staleTime: 30_000,
+    gcTime: 5 * 60_000,
+    refetchOnWindowFocus: false,
+    refetchOnReconnect: true,
+    refetchOnMount: true,
+    retry: false,
+  });
+  const extensionVerifiedBaseStructures = useMemo(
+    () => applyStructureExtensionStatusOverlayToStructures(baseStructures, extensionStatusQuery.data),
+    [baseStructures, extensionStatusQuery.data],
+  );
   const structures = useMemo(
-    () => applyStructures(baseStructures),
-    [applyStructures, baseStructures],
+    () => applyStructures(extensionVerifiedBaseStructures),
+    [applyStructures, extensionVerifiedBaseStructures],
   );
   const isUsingOperatorInventory = operatorInventory.adapted != null;
   const profileResult = isUsingOperatorInventory
     ? operatorInventory.adapted?.profile ?? null
     : resolvedProfile;
-  const baseNodeGroups = isUsingOperatorInventory
+  const unverifiedBaseNodeGroups = isUsingOperatorInventory
     ? operatorInventory.adapted?.nodeGroups ?? []
     : buildDisplayNodeGroupsFromStructures(structures);
+  const baseNodeGroups = useMemo(
+    () => applyStructureExtensionStatusOverlayToNodeGroups(unverifiedBaseNodeGroups, extensionStatusQuery.data),
+    [extensionStatusQuery.data, unverifiedBaseNodeGroups],
+  );
   const nodeGroups = useMemo(
     () => applyNodeGroups(baseNodeGroups),
     [applyNodeGroups, baseNodeGroups],

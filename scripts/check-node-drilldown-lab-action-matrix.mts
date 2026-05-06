@@ -236,8 +236,8 @@ function assertScenarioCoverage(matrix: LabActionMatrixRow[]) {
     'expected Defense Heavy Node to include a controllable gate row',
   );
   assert(
-    matrix.some((row) => row.scenarioLabel === 'Defense Heavy Node' && row.family === 'turret' && row.warningDetail === 'Warning status plus extension authorization attention.'),
-    'expected Defense Heavy Node to preserve warning-marker explanation text for warning turret rows',
+    matrix.some((row) => row.scenarioLabel === 'Defense Heavy Node' && row.family === 'turret' && row.warningDetail === 'Warning status reported for this structure.'),
+    'expected Defense Heavy Node to preserve warning-marker explanation text for warning turret rows without unproven extension attention',
   );
   assert(
     matrix.some((row) => row.scenarioLabel === 'Defense Heavy Node' && row.family === 'turret' && row.renameSupported && row.menuItems.includes('Rename Assembly')),

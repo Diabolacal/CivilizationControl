@@ -176,7 +176,9 @@ function ExtensionSection({ turret }: { turret: Structure }) {
               ? "CC Extension Active"
               : turret.extensionStatus === "stale"
                 ? "Stale — old package"
-                : "None"}
+                : turret.extensionStatus === "none"
+                  ? "None"
+                  : "Unverified"}
           </p>
         </div>
         <div>

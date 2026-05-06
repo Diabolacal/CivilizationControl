@@ -27,6 +27,7 @@ import {
   normalizeNodeDrilldownAssemblyId,
   selectCanonicalNodeDrilldownDomainKey,
 } from "@/lib/nodeDrilldownIdentity";
+import { coerceExtensionStatus, mergeExtensionStatus } from "@/lib/extensionStatus";
 import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
 
 interface OperatorInventoryDiagnostics {
@@ -705,7 +706,7 @@ function toCompatibleStructure(
     indexedPowerUsageSummary: row.powerUsageSummary,
     linkedGateId: row.linkedGateId ?? undefined,
     summary: summary ?? undefined,
-    extensionStatus: row.extensionStatus ?? "none",
+    extensionStatus: coerceExtensionStatus(row.extensionStatus),
   };
 }
 
@@ -937,7 +938,7 @@ function mergeCompatibleStructureFields(preferred: Structure, fallback: Structur
     linkedGateId: preferTextValue(preferred.linkedGateId ?? null, fallback.linkedGateId ?? null) ?? undefined,
     summary: mergeAssemblySummary(preferred.summary, fallback.summary),
     networkNodeRenderMeta: preferred.networkNodeRenderMeta ?? fallback.networkNodeRenderMeta,
-    extensionStatus: preferred.extensionStatus !== "none" ? preferred.extensionStatus : fallback.extensionStatus,
+    extensionStatus: mergeExtensionStatus(preferred.extensionStatus, fallback.extensionStatus),
   };
 }
 

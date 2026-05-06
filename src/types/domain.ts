@@ -23,6 +23,9 @@ export type StructureActionTargetType = StructureType | "assembly";
 /** Operational status derived from on-chain state. */
 export type StructureStatus = "online" | "warning" | "offline" | "neutral";
 
+/** Extension authorization status used by direct-chain and indexed read models. */
+export type ExtensionStatus = "authorized" | "stale" | "none" | "unknown";
+
 export interface IndexedPowerSummary {
   fuelAmount: number | null;
   fuelMaxCapacity: number | null;
@@ -136,7 +139,7 @@ export interface AssemblySummary {
   provenance?: string | null;
   lastObservedCheckpoint?: string | null;
   lastObservedTimestamp?: string | null;
-  extensionStatus?: "authorized" | "stale" | "none" | null;
+  extensionStatus?: ExtensionStatus | null;
   partial?: boolean;
   warnings?: string[];
   actionCandidate?: IndexedActionCandidate | null;
@@ -192,7 +195,7 @@ export interface NodeAssemblySummary extends NodeAssemblyProvenance {
   ownerCapId?: ObjectId | null;
   ownerWalletAddress?: string | null;
   characterId?: ObjectId | null;
-  extensionStatus?: "authorized" | "stale" | "none" | null;
+  extensionStatus?: ExtensionStatus | null;
   partial?: boolean;
   warnings?: string[];
   actionCandidate?: IndexedActionCandidate | null;
@@ -255,8 +258,9 @@ export interface Structure {
    * - "authorized" — extension matches the current CC package witness type
    * - "stale" — an extension exists but from a different (old) package
    * - "none" — no extension registered
+   * - "unknown" — current read model did not prove extension state
    */
-  extensionStatus: "authorized" | "stale" | "none";
+  extensionStatus: ExtensionStatus;
 }
 
 /** Fuel state read from on-chain Fuel struct. */

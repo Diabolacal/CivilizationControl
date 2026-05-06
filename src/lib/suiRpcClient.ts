@@ -46,11 +46,12 @@ function isPreviewOrLocalHost(hostname: string): boolean {
 }
 
 export function isSuiDiagnosticsEnabled(): boolean {
+  const isDev = import.meta.env?.DEV ?? false;
   if (typeof window === "undefined") {
-    return import.meta.env.DEV;
+    return isDev;
   }
 
-  return import.meta.env.DEV || isPreviewOrLocalHost(window.location.hostname);
+  return isDev || isPreviewOrLocalHost(window.location.hostname);
 }
 
 export function isVerboseDiscoveryDebugEnabled(): boolean {
@@ -67,7 +68,7 @@ export function isVerboseDiscoveryDebugEnabled(): boolean {
 }
 
 export function getConfiguredSuiRpcUrl(): string {
-  const envValue = import.meta.env.VITE_SUI_RPC_URL;
+  const envValue = import.meta.env?.VITE_SUI_RPC_URL;
   if (typeof envValue === "string" && envValue.trim().length > 0) {
     return envValue.trim();
   }

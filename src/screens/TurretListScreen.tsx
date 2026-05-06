@@ -17,6 +17,7 @@ import { usePostureState } from "@/hooks/usePosture";
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
 import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { getAssemblySummarySolarSystemName } from "@/lib/assemblyEnrichment";
+import { isExtensionAuthorizationAttentionStatus } from "@/lib/extensionStatus";
 import { shortId } from "@/lib/formatAddress";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, PostureMode, TurretSwitchTarget } from "@/types/domain";
@@ -41,7 +42,7 @@ export function TurretListScreen({ structures, isLoading }: TurretListScreenProp
   const unauthorizedTargets: TurretSwitchTarget[] = useMemo(
     () =>
       turrets
-        .filter((t) => t.extensionStatus !== "authorized")
+        .filter((t) => isExtensionAuthorizationAttentionStatus(t.extensionStatus))
         .map((t) => ({ turretId: t.objectId, ownerCapId: t.ownerCapId })),
     [turrets],
   );
@@ -273,8 +274,10 @@ function TurretRow({
           <TagChip label="CC ACTIVE" variant="primary" size="sm" />
         ) : turret.extensionStatus === "stale" ? (
           <TagChip label="STALE — REBIND" variant="warning" size="sm" />
-        ) : (
+        ) : turret.extensionStatus === "none" ? (
           <TagChip label="UNBOUND" variant="danger" size="sm" />
+        ) : (
+          <TagChip label="UNVERIFIED" variant="default" size="sm" />
         )}
       </td>
       <td className="py-3 px-4">
