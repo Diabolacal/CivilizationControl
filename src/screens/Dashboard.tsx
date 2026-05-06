@@ -53,9 +53,14 @@ import { useStructureWriteReconciliation } from "@/hooks/useStructureWriteReconc
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
 import { formatLux, formatEve } from "@/lib/currency";
 import { buildFuelPresentation, formatRuntimeSeconds } from "@/lib/fuelRuntime";
+import { buildNodeControlDebugCopySummary, buildNodeControlDebugSnapshot } from "@/lib/nodeControlDebug";
 import { resolveNodeDrilldownScopeKey } from "@/lib/nodeDrilldownHiddenState";
 import { buildNodeDrilldownMenuItems } from "@/lib/nodeDrilldownMenuItems";
 import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapshot } from "@/lib/nodeDrilldownModel";
+import {
+  getAuthoritativeNodeLocalStructures,
+  resolveNodeLocalStructure,
+} from "@/lib/nodeDrilldownSelection";
 import {
   buildNodeChildBulkPowerPlan,
   buildNodePowerPresetApplyPlan,
@@ -276,6 +281,10 @@ export function Dashboard({
       : null),
     [selectedNodeBuildOptions, selectedNodeGroup, selectedNodeObservedLookup],
   );
+  const selectedNodeAuthorityStructures = useMemo(
+    () => getAuthoritativeNodeLocalStructures(selectedNodeViewModel),
+    [selectedNodeViewModel],
+  );
   const nodeDrilldownScopeKey = useMemo(
     () => resolveNodeDrilldownScopeKey(characterId, walletAddress),
     [characterId, walletAddress],
@@ -283,15 +292,15 @@ export function Dashboard({
   const nodePowerPresets = useNodePowerPresets({
     nodeId: selectedNodeViewModel?.node.id ?? null,
     scopeKey: nodeDrilldownScopeKey,
-    structures: selectedNodeViewModel?.structures ?? [],
+    structures: selectedNodeAuthorityStructures,
   });
   const nodeLayoutOverrides = useNodeDrilldownLayoutOverrides({
     nodeId: selectedNodeViewModel?.node.id ?? null,
     scopeKey: nodeDrilldownScopeKey,
   });
   const nodePowerUsageReadout = useMemo(
-    () => getNodePowerUsageReadout(selectedNodeViewModel?.node ?? null, selectedNodeViewModel?.structures ?? []),
-    [selectedNodeViewModel?.node, selectedNodeViewModel?.structures],
+    () => getNodePowerUsageReadout(selectedNodeViewModel?.node ?? null, selectedNodeAuthorityStructures),
+    [selectedNodeAuthorityStructures, selectedNodeViewModel?.node],
   );
   const {
     hiddenCanonicalKeySet,
@@ -309,24 +318,24 @@ export function Dashboard({
     [selectedNodeViewModel, visibleStructures],
   );
   const bringAllOnlinePlan = useMemo(
-    () => buildNodeChildBulkPowerPlan(selectedNodeViewModel?.structures ?? [], true),
-    [selectedNodeViewModel?.structures],
+    () => buildNodeChildBulkPowerPlan(selectedNodeAuthorityStructures, true),
+    [selectedNodeAuthorityStructures],
   );
   const takeAllOfflinePlan = useMemo(
-    () => buildNodeChildBulkPowerPlan(selectedNodeViewModel?.structures ?? [], false),
-    [selectedNodeViewModel?.structures],
+    () => buildNodeChildBulkPowerPlan(selectedNodeAuthorityStructures, false),
+    [selectedNodeAuthorityStructures],
   );
   const presetApplyPlans = useMemo(
-    () => nodePowerPresets.slots.map((slot) => buildNodePowerPresetApplyPlan(slot, selectedNodeViewModel?.structures ?? [])),
-    [nodePowerPresets.slots, selectedNodeViewModel?.structures],
+    () => nodePowerPresets.slots.map((slot) => buildNodePowerPresetApplyPlan(slot, selectedNodeAuthorityStructures)),
+    [nodePowerPresets.slots, selectedNodeAuthorityStructures],
   );
   const canSavePowerPreset = useMemo(
-    () => (selectedNodeViewModel?.structures ?? []).some((structure) => structure.status === "online" || structure.status === "offline"),
-    [selectedNodeViewModel?.structures],
+    () => selectedNodeAuthorityStructures.some((structure) => structure.status === "online" || structure.status === "offline"),
+    [selectedNodeAuthorityStructures],
   );
   const savePowerPresetCapacityCheck = useMemo(
-    () => evaluateNodePowerCapacity(selectedNodeViewModel?.node ?? null, selectedNodeViewModel?.structures ?? []),
-    [selectedNodeViewModel?.node, selectedNodeViewModel?.structures],
+    () => evaluateNodePowerCapacity(selectedNodeViewModel?.node ?? null, selectedNodeAuthorityStructures),
+    [selectedNodeAuthorityStructures, selectedNodeViewModel?.node],
   );
   const savePowerPresetDisabledReason = useMemo(() => {
     if (!canSavePowerPreset) {
@@ -339,11 +348,32 @@ export function Dashboard({
     const emptyIndex = nodePowerPresets.slots.findIndex((slot) => slot == null);
     return emptyIndex >= 0 ? emptyIndex + 1 : 1;
   }, [nodePowerPresets.slots]);
-  const selectedNodeStructureMap = useMemo(
-    () => new Map((selectedNodeViewModel?.structures ?? []).map((structure) => [structure.id, structure])),
-    [selectedNodeViewModel],
+  const resolvedSelectedStructureResolution = useMemo(
+    () => resolveNodeLocalStructure(
+      selectedNodeViewModel,
+      {
+        structureId: selectedStructureId,
+        canonicalDomainKey: selectedStructureCanonicalKeyRef.current,
+      },
+      "selected-state",
+    ),
+    [selectedNodeViewModel, selectedStructureId],
   );
-  const contextMenuStructure = contextMenu ? selectedNodeStructureMap.get(contextMenu.structureId) ?? null : null;
+  const resolvedSelectedStructure = resolvedSelectedStructureResolution.structure;
+  const resolvedSelectedStructureId = resolvedSelectedStructure?.id ?? selectedStructureId;
+  const contextMenuStructure = useMemo(
+    () => (contextMenu
+      ? resolveNodeLocalStructure(
+        selectedNodeViewModel,
+        {
+          structureId: contextMenu.structureId,
+          canonicalDomainKey: contextMenu.canonicalDomainKey,
+        },
+        "context-menu",
+      ).structure
+      : null),
+    [contextMenu, selectedNodeViewModel],
+  );
   const handleSelectNodeLocalStructure = useCallback(
     (structureId: string | null) => {
       if (structureId == null) {
@@ -352,23 +382,37 @@ export function Dashboard({
         return;
       }
 
-      const structure = selectedNodeStructureMap.get(structureId);
+      const structure = resolveNodeLocalStructure(
+        selectedNodeViewModel,
+        {
+          structureId,
+          canonicalDomainKey: structureId === selectedStructureId ? selectedStructureCanonicalKeyRef.current : null,
+        },
+        "selected-state",
+      ).structure;
       if (structure) {
         selectedStructureCanonicalKeyRef.current = structure.canonicalDomainKey;
+        setSelectedStructureId(structure.id);
+        return;
       }
 
       setSelectedStructureId(structureId);
     },
-    [selectedNodeStructureMap, selectedStructureCanonicalKeyRef],
+    [selectedNodeViewModel, selectedStructureId, selectedStructureCanonicalKeyRef],
   );
   const handleOpenNodeLocalStructureMenu = useCallback(
     (params: Parameters<typeof openStructureMenu>[0]) => {
+      const resolvedStructure = resolveNodeLocalStructure(
+        selectedNodeViewModel,
+        { structure: params.structure },
+        "context-menu",
+      ).structure ?? params.structure;
       nodeSurfaceActions.closeStructureContextMenu();
-      selectedStructureCanonicalKeyRef.current = params.structure.canonicalDomainKey;
-      setSelectedStructureId(params.structure.id);
-      openStructureMenu(params);
+      selectedStructureCanonicalKeyRef.current = resolvedStructure.canonicalDomainKey;
+      setSelectedStructureId(resolvedStructure.id);
+      openStructureMenu({ ...params, structure: resolvedStructure });
     },
-    [nodeSurfaceActions.closeStructureContextMenu, openStructureMenu, selectedStructureCanonicalKeyRef],
+    [nodeSurfaceActions.closeStructureContextMenu, openStructureMenu, selectedNodeViewModel, selectedStructureCanonicalKeyRef],
   );
   const handleCloseNodeControlMenus = useCallback(() => {
     closeStructureMenu();
@@ -487,7 +531,7 @@ export function Dashboard({
 
     const capacityCheck = evaluateNodePowerPlanCapacity(
       selectedNodeViewModel?.node ?? null,
-      selectedNodeViewModel?.structures ?? [],
+      selectedNodeAuthorityStructures,
       executionPlan.targets,
     );
     if (capacityCheck.status === "over-cap") {
@@ -519,7 +563,7 @@ export function Dashboard({
     return structurePower.toggleMixed({
       targets: executionPlan.targets.map(toMixedAssemblyPowerTarget),
     }, refreshOptions, buildNodePowerFeedbackResult(feedbackContext, outcome, "submitted"));
-  }, [handleCloseNodeControlMenus, preflightNodePowerPlan, reconcileWrite, refetchSelectedNodeAssemblies, selectedNodeGroup, selectedNodeInventoryLookup, selectedNodeViewModel, selectedStructureCanonicalKeyRef, structurePower]);
+  }, [handleCloseNodeControlMenus, preflightNodePowerPlan, reconcileWrite, refetchSelectedNodeAssemblies, selectedNodeAuthorityStructures, selectedNodeGroup, selectedNodeInventoryLookup, selectedNodeViewModel?.node, selectedStructureCanonicalKeyRef, structurePower]);
   const requestNodePowerPlanExecution = useCallback((params: {
     feedbackContext: NodePowerFeedbackContext;
     plan: NodePowerOperationPlan;
@@ -579,7 +623,12 @@ export function Dashboard({
   }, [executeNodePowerPlan, pendingNodePowerPlan]);
   const handleToggleNodeLocalPower = useCallback(
     async (structure: NodeLocalStructure, nextOnline: boolean) => {
-      const verifiedTarget = structure.actionAuthority.verifiedTarget;
+      const resolvedStructure = resolveNodeLocalStructure(
+        selectedNodeViewModel,
+        { structure },
+        "action-rail",
+      ).structure ?? structure;
+      const verifiedTarget = resolvedStructure.actionAuthority.verifiedTarget;
       if (!verifiedTarget) return;
 
       const desiredStatus: "online" | "offline" = nextOnline ? "online" : "offline";
@@ -588,20 +637,20 @@ export function Dashboard({
         structureType: verifiedTarget.structureType,
         ownerCapId: verifiedTarget.ownerCapId,
         networkNodeId: verifiedTarget.networkNodeId,
-        assemblyId: structure.assemblyId ?? null,
-        canonicalDomainKey: structure.canonicalDomainKey,
-        displayName: structure.displayName,
+        assemblyId: resolvedStructure.assemblyId ?? null,
+        canonicalDomainKey: resolvedStructure.canonicalDomainKey,
+        displayName: resolvedStructure.displayName,
         desiredStatus,
       };
 
       closeStructureMenu();
-      selectedStructureCanonicalKeyRef.current = structure.canonicalDomainKey;
-      setSelectedStructureId(structure.id);
-      setPowerStructureId(structure.id);
-      setPowerSuccessLabel(`${structure.familyLabel} ${nextOnline ? "brought online" : "taken offline"}. Awaiting read-model sync.`);
+      selectedStructureCanonicalKeyRef.current = resolvedStructure.canonicalDomainKey;
+      setSelectedStructureId(resolvedStructure.id);
+      setPowerStructureId(resolvedStructure.id);
+      setPowerSuccessLabel(`${resolvedStructure.familyLabel} ${nextOnline ? "brought online" : "taken offline"}. Awaiting read-model sync.`);
 
       const preflightPlan = await preflightNodePowerPlan({
-        targets: [{ desiredOnline: nextOnline, structure, verifiedTarget }],
+        targets: [{ desiredOnline: nextOnline, structure: resolvedStructure, verifiedTarget }],
         disabledReason: null,
         capacityReason: null,
       });
@@ -653,12 +702,18 @@ export function Dashboard({
       refetchSelectedNodeAssemblies,
       selectedNodeGroup,
       selectedNodeInventoryLookup,
+      selectedNodeViewModel,
       selectedStructureCanonicalKeyRef,
       structurePower,
     ],
   );
   const handleOpenNodeLocalRename = useCallback((structure: NodeLocalStructure) => {
-    const verifiedTarget = structure.actionAuthority.verifiedTarget;
+    const resolvedStructure = resolveNodeLocalStructure(
+      selectedNodeViewModel,
+      { structure },
+      "context-menu",
+    ).structure ?? structure;
+    const verifiedTarget = resolvedStructure.actionAuthority.verifiedTarget;
     if (!verifiedTarget) {
       return;
     }
@@ -666,16 +721,40 @@ export function Dashboard({
     structureRename.reset();
     setRenameSuccessLabel("Assembly renamed. Awaiting read-model sync.");
     setRenameTarget({
-      assemblyId: structure.assemblyId ?? null,
-      canonicalDomainKey: structure.canonicalDomainKey,
-      displayName: structure.displayName,
+      assemblyId: resolvedStructure.assemblyId ?? null,
+      canonicalDomainKey: resolvedStructure.canonicalDomainKey,
+      displayName: resolvedStructure.displayName,
       networkNodeId: verifiedTarget.networkNodeId,
       ownerCapId: verifiedTarget.ownerCapId,
       selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
       structureId: verifiedTarget.structureId,
       structureType: verifiedTarget.structureType,
     });
-  }, [selectedNodeGroup, structureRename]);
+  }, [selectedNodeGroup, selectedNodeViewModel, structureRename]);
+  const nodeControlContextMenuItems = useMemo(
+    () => (contextMenu
+      ? buildNodeDrilldownMenuItems({
+        contextMenu,
+        structure: contextMenuStructure,
+        isPowerPending: structurePower.status === "pending",
+        isRenamePending: structureRename.status === "pending",
+        onHideStructure: hideStructure,
+        onUnhideStructure: unhideStructure,
+        onTogglePower: handleToggleNodeLocalPower,
+        onRenameStructure: handleOpenNodeLocalRename,
+      })
+      : []),
+    [
+      contextMenu,
+      contextMenuStructure,
+      handleOpenNodeLocalRename,
+      handleToggleNodeLocalPower,
+      hideStructure,
+      structurePower.status,
+      structureRename.status,
+      unhideStructure,
+    ],
+  );
   const handleCloseNodeLocalRename = useCallback(() => {
     if (structureRename.status !== "pending") {
       setRenameTarget(null);
@@ -725,6 +804,12 @@ export function Dashboard({
   const isOperatorInventoryDebugEnabled = useMemo(() => {
     if (typeof window === "undefined") return false;
     const value = new URLSearchParams(window.location.search).get("debugOperatorInventory");
+    if (value == null) return false;
+    return value !== "0" && value.toLowerCase() !== "false";
+  }, []);
+  const isNodeControlDebugEnabled = useMemo(() => {
+    if (typeof window === "undefined") return false;
+    const value = new URLSearchParams(window.location.search).get("debugNodeControl");
     if (value == null) return false;
     return value !== "0" && value.toLowerCase() !== "false";
   }, []);
@@ -782,9 +867,19 @@ export function Dashboard({
       return;
     }
 
-    const currentStructure = selectedNodeViewModel.structures.find((structure) => structure.id === selectedStructureId);
-    if (currentStructure) {
-      selectedStructureCanonicalKeyRef.current = currentStructure.canonicalDomainKey;
+    const resolvedStructure = resolveNodeLocalStructure(
+      selectedNodeViewModel,
+      {
+        structureId: selectedStructureId,
+        canonicalDomainKey: selectedStructureCanonicalKeyRef.current,
+      },
+      "selected-state",
+    ).structure;
+    if (resolvedStructure) {
+      selectedStructureCanonicalKeyRef.current = resolvedStructure.canonicalDomainKey;
+      if (resolvedStructure.id !== selectedStructureId) {
+        setSelectedStructureId(resolvedStructure.id);
+      }
       return;
     }
 
@@ -915,6 +1010,132 @@ export function Dashboard({
     structures,
   ]);
 
+  useEffect(() => {
+    if (!isNodeControlDebugEnabled) {
+      if (window.__CC_NODE_CONTROL_DEBUG__) {
+        window.__CC_NODE_CONTROL_DEBUG__.clear();
+        delete window.__CC_NODE_CONTROL_DEBUG__;
+      }
+      return;
+    }
+
+    const controller = window.__CC_NODE_CONTROL_DEBUG__ ?? {
+      enabled: true,
+      latest: null,
+      clear: () => {
+        if (!window.__CC_NODE_CONTROL_DEBUG__) return;
+        window.__CC_NODE_CONTROL_DEBUG__.latest = null;
+      },
+      copySummary: () => null,
+    };
+
+    controller.enabled = true;
+    controller.latest = buildNodeControlDebugSnapshot({
+      walletAddress: operatorInventory.walletAddress,
+      isConnected,
+      characterId,
+      selectedNodeId: selectedNodeGroup?.node.objectId ?? null,
+      selectedNode: selectedNodeGroup?.node ?? null,
+      selectedNodeGroup,
+      selectedNodeViewModel,
+      visibleStructureCount: visibleStructures.length,
+      hiddenCanonicalKeys: [...hiddenCanonicalKeySet],
+      selectedStructureId: resolvedSelectedStructureId,
+      selectedStructureCanonicalDomainKey: resolvedSelectedStructure?.canonicalDomainKey ?? selectedStructureCanonicalKeyRef.current,
+      selectedStructure: resolvedSelectedStructure,
+      selectedStructureResolutionSource: resolvedSelectedStructureResolution.source,
+      selectedStructureResolutionMatchedKey: resolvedSelectedStructureResolution.matchedKey,
+      selectedStructureReplacedWeakRow: resolvedSelectedStructureResolution.replacedWeakRow,
+      contextMenu,
+      contextMenuItems: nodeControlContextMenuItems,
+      macroContextMenu: nodeSurfaceActions.contextMenu,
+      nodeUsageReadout: nodePowerUsageReadout,
+      capacityCheck: savePowerPresetCapacityCheck,
+      powerTx: {
+        status: structurePower.status,
+        result: structurePower.result,
+        error: structurePower.error,
+      },
+      pendingPlan: pendingNodePowerPlan
+        ? {
+          mode: pendingNodePowerPlan.mode,
+          title: pendingNodePowerPlan.title,
+          primaryLabel: pendingNodePowerPlan.primaryLabel,
+          plan: pendingNodePowerPlan.plan,
+        }
+        : null,
+      canSavePowerPreset,
+      savePresetDisabledReason: savePowerPresetDisabledReason,
+      bringAllOnlinePlan,
+      takeAllOfflinePlan,
+      presetPlans: presetApplyPlans.map((plan, index) => ({
+        slotIndex: index + 1,
+        label: nodePowerPresets.slots[index]?.label ?? null,
+        savedAt: nodePowerPresets.slots[index]?.savedAt ?? null,
+        plan,
+      })),
+      readModelDebug,
+      operatorInventory: {
+        walletAddress: operatorInventory.walletAddress,
+        inventory: operatorInventory.inventory,
+        isLoading: operatorInventory.isLoading,
+        isError: operatorInventory.isError,
+        errorMessage: operatorInventory.errorMessage,
+      },
+      selectedNodeObservedLookup,
+      nodeAssembliesFallbackEnabled: shouldUseNodeAssembliesFallback,
+      nodeAssembliesFallbackRan: shouldUseNodeAssembliesFallback && hasAttemptedNodeAssembliesFallback,
+    });
+    controller.copySummary = () => {
+      const summary = buildNodeControlDebugCopySummary(controller.latest);
+      if (!summary) return null;
+
+      if (typeof navigator !== "undefined" && navigator.clipboard?.writeText) {
+        void navigator.clipboard.writeText(JSON.stringify(summary, null, 2)).catch(() => undefined);
+      }
+
+      return summary;
+    };
+    window.__CC_NODE_CONTROL_DEBUG__ = controller;
+
+    console.info("[node-control-debug] window.__CC_NODE_CONTROL_DEBUG__.latest updated");
+  }, [
+    bringAllOnlinePlan,
+    canSavePowerPreset,
+    characterId,
+    contextMenu,
+    hasAttemptedNodeAssembliesFallback,
+    hiddenCanonicalKeySet,
+    isConnected,
+    isNodeControlDebugEnabled,
+    nodeControlContextMenuItems,
+    nodePowerPresets.slots,
+    nodePowerUsageReadout,
+    nodeSurfaceActions.contextMenu,
+    operatorInventory.errorMessage,
+    operatorInventory.inventory,
+    operatorInventory.isError,
+    operatorInventory.isLoading,
+    operatorInventory.walletAddress,
+    pendingNodePowerPlan,
+    presetApplyPlans,
+    readModelDebug,
+    resolvedSelectedStructure,
+    resolvedSelectedStructureId,
+    resolvedSelectedStructureResolution,
+    savePowerPresetCapacityCheck,
+    savePowerPresetDisabledReason,
+    selectedNodeGroup,
+    selectedNodeObservedLookup,
+    selectedNodeViewModel,
+    shouldUseNodeAssembliesFallback,
+    structurePower.error,
+    structurePower.result,
+    structurePower.status,
+    takeAllOfflinePlan,
+    visibleStructures.length,
+  ]);
+
   return (
     <div>
       {/* Page Header */}
@@ -976,7 +1197,7 @@ export function Dashboard({
               <NodeDrilldownSurface
                 embedded
                 viewModel={visibleNodeViewModel}
-                selectedStructureId={selectedStructureId}
+                selectedStructureId={resolvedSelectedStructureId}
                 onSelectStructure={handleSelectNodeLocalStructure}
                 onOpenNodeMenu={handleOpenSelectedNodeMenu}
                 onOpenStructureMenu={handleOpenNodeLocalStructureMenu}
@@ -1029,7 +1250,7 @@ export function Dashboard({
                 <NodeStructureListPanel
                   embedded
                   viewModel={selectedNodeViewModel}
-                  selectedStructureId={selectedStructureId}
+                  selectedStructureId={resolvedSelectedStructureId}
                   onSelectStructure={handleSelectNodeLocalStructure}
                   hiddenCanonicalKeySet={hiddenCanonicalKeySet}
                   onUnhideStructure={unhideStructure}
@@ -1085,7 +1306,7 @@ export function Dashboard({
                   embedded
                   viewModel={selectedNodeViewModel}
                   selectedNode={selectedNodeGroup?.node ?? null}
-                  selectedStructureId={selectedStructureId}
+                  selectedStructureId={resolvedSelectedStructureId}
                   hiddenCanonicalKeySet={hiddenCanonicalKeySet}
                   onOpenNodeMenu={handleOpenSelectedNodeMenu}
                   onUnhideStructure={unhideStructure}
@@ -1123,16 +1344,7 @@ export function Dashboard({
             structureName: contextMenu.structureName,
             left: contextMenu.left,
             top: contextMenu.top,
-            items: buildNodeDrilldownMenuItems({
-              contextMenu,
-              structure: contextMenuStructure,
-              isPowerPending: structurePower.status === "pending",
-              isRenamePending: structureRename.status === "pending",
-              onHideStructure: hideStructure,
-              onUnhideStructure: unhideStructure,
-              onTogglePower: handleToggleNodeLocalPower,
-              onRenameStructure: handleOpenNodeLocalRename,
-            }),
+            items: nodeControlContextMenuItems,
           }}
           menuRef={menuRef}
           onClose={closeStructureMenu}

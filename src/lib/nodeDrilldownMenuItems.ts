@@ -1,3 +1,5 @@
+import { getNodeLocalPowerControlState } from "@/lib/nodeDrilldownActionAuthority";
+
 import type { NodeLocalStructure } from "@/lib/nodeDrilldownTypes";
 
 export interface NodeDrilldownMenuContext {
@@ -42,29 +44,32 @@ export function buildNodeDrilldownMenuItems({
   onTogglePower,
   onRenameStructure,
 }: BuildNodeDrilldownMenuItemsOptions): NodeDrilldownMenuItem[] {
+  const powerControl = structure ? getNodeLocalPowerControlState(structure) : null;
+  const nextOnline = powerControl?.nextOnline ?? null;
+  const visibilityCanonicalDomainKey = structure?.canonicalDomainKey ?? contextMenu.canonicalDomainKey;
   const items: NodeDrilldownMenuItem[] = [
     {
       key: contextMenu.visibilityAction,
       label: contextMenu.visibilityActionLabel,
       onSelect: () => {
         if (contextMenu.visibilityAction === "unhide") {
-          onUnhideStructure(contextMenu.canonicalDomainKey);
+          onUnhideStructure(visibilityCanonicalDomainKey);
           return;
         }
 
-        onHideStructure(contextMenu.canonicalDomainKey);
+        onHideStructure(visibilityCanonicalDomainKey);
       },
     },
   ];
 
-  if (structure && contextMenu.nextOnline != null && onTogglePower) {
+  if (structure && nextOnline != null && onTogglePower) {
     items.push({
-      key: contextMenu.nextOnline ? "bring-online" : "take-offline",
-      label: contextMenu.powerActionLabel ?? (contextMenu.nextOnline ? "Bring Online" : "Take Offline"),
+      key: nextOnline ? "bring-online" : "take-offline",
+      label: powerControl?.actionLabel ?? contextMenu.powerActionLabel ?? (nextOnline ? "Bring Online" : "Take Offline"),
       disabled: isPowerPending,
       disabledReason: isPowerPending ? "Submitting structure power action…" : null,
-      tone: contextMenu.nextOnline ? "online" : "offline",
-      onSelect: () => onTogglePower(structure, contextMenu.nextOnline as boolean),
+      tone: nextOnline ? "online" : "offline",
+      onSelect: () => onTogglePower(structure, nextOnline),
     });
   }
 

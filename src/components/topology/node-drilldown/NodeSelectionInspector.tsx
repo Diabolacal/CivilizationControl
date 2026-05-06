@@ -12,11 +12,11 @@ import { buildFuelPresentation, type FuelPresentation, type FuelSeverity } from 
 import { selectCanonicalNodeDrilldownDomainKey } from "@/lib/nodeDrilldownIdentity";
 import {
   describeNodeLocalWarningMarker,
-  findNodeLocalStructure,
   formatNodeLocalSize,
   formatNodeLocalStatus,
   summarizeNodeLocalFamilies,
 } from "@/lib/nodeDrilldownModel";
+import { resolveNodeLocalStructure } from "@/lib/nodeDrilldownSelection";
 
 import type { Structure, TxResult, TxStatus } from "@/types/domain";
 import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
@@ -339,7 +339,11 @@ function NodeSelectionInspectorContent({
   | "debugOperatorInventoryEnabled"
   | "previewMode"
 >) {
-  const selectedStructure = findNodeLocalStructure(viewModel, selectedStructureId);
+  const selectedStructure = resolveNodeLocalStructure(
+    viewModel,
+    { structureId: selectedStructureId },
+    "inspector",
+  ).structure;
   const isSelectedStructureHidden = selectedStructure
     ? hiddenCanonicalKeySet.has(selectedStructure.canonicalDomainKey)
     : false;

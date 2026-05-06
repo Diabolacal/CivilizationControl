@@ -3,10 +3,12 @@ import {
   getNodeLocalActionStatus,
   getNodeLocalPowerControlState,
 } from "../src/lib/nodeDrilldownActionAuthority.ts";
+import { buildNodeDrilldownMenuItems } from "../src/lib/nodeDrilldownMenuItems.ts";
 import {
   normalizeNodeDrilldownAssemblyId,
   selectCanonicalNodeDrilldownDomainKey,
 } from "../src/lib/nodeDrilldownIdentity.ts";
+import { resolveNodeLocalStructure } from "../src/lib/nodeDrilldownSelection.ts";
 import { normalizeCanonicalObjectId } from "../src/lib/nodeAssembliesClient.ts";
 
 import type { NodeAssembliesLookupResult } from "../src/lib/nodeAssembliesClient.ts";
@@ -69,6 +71,26 @@ interface ProofLossFailure {
   inspectorProjection: InspectorStructureProjection;
   adaptedStructure: Record<string, unknown> | null;
   nodeAssemblySummary: Record<string, unknown> | null;
+}
+
+interface RenderedTargetResolution {
+  displayName: string;
+  weakInput: {
+    id: string;
+    canonicalDomainKey: string;
+    objectId: string | null;
+    assemblyId: string | null;
+    source: string;
+  };
+  resolver: {
+    resolved: boolean;
+    source: string;
+    matchedKey: string | null;
+    replacedWeakRow: boolean;
+  };
+  inspectorProjection: InspectorStructureProjection | null;
+  actionRailState: ReturnType<typeof getNodeLocalPowerControlState> | null;
+  contextMenuItems: string[];
 }
 
 function hasValue(value: string | null | undefined): value is string {
@@ -207,6 +229,75 @@ function buildInspectorProjection(viewModel: NodeLocalViewModel, selectedNode: S
     },
     structures: viewModel.structures.map(buildInspectorStructureProjection),
   };
+}
+
+function makeWeakRenderedInput(structure: NodeLocalStructure): NodeLocalStructure {
+  return {
+    ...structure,
+    id: structure.assemblyId ? `assembly:${structure.assemblyId}` : structure.id,
+    objectId: undefined,
+    directChainObjectId: null,
+    directChainAssemblyId: null,
+    hasDirectChainAuthority: false,
+    directChainMatchCount: 0,
+    futureActionEligible: false,
+    actionCandidate: null,
+    powerRequirement: null,
+    actionAuthority: {
+      state: "backend-only",
+      verifiedTarget: null,
+      candidateTargets: [],
+      unavailableReason: null,
+    },
+    isReadOnly: true,
+    isActionable: false,
+  };
+}
+
+function buildRenderedTargetResolution(viewModel: NodeLocalViewModel): RenderedTargetResolution[] {
+  return viewModel.structures.map((structure) => {
+    const weakInput = makeWeakRenderedInput(structure);
+    const resolution = resolveNodeLocalStructure(viewModel, { structure: weakInput }, "canvas-projection");
+    const resolved = resolution.structure;
+    const menuItems = resolved ? buildNodeDrilldownMenuItems({
+      contextMenu: {
+        structureId: weakInput.id,
+        canonicalDomainKey: weakInput.canonicalDomainKey,
+        structureName: weakInput.displayName,
+        left: 0,
+        top: 0,
+        visibilityAction: "hide",
+        visibilityActionLabel: "Hide from Node View",
+        powerActionLabel: null,
+        nextOnline: null,
+      },
+      structure: resolved,
+      onHideStructure: () => undefined,
+      onUnhideStructure: () => undefined,
+      onTogglePower: () => undefined,
+      onRenameStructure: () => undefined,
+    }).map((item) => item.label) : [];
+
+    return {
+      displayName: structure.displayName,
+      weakInput: {
+        id: weakInput.id,
+        canonicalDomainKey: weakInput.canonicalDomainKey,
+        objectId: normalizeCanonicalObjectId(weakInput.objectId),
+        assemblyId: normalizeAssemblyId(weakInput.assemblyId),
+        source: weakInput.source,
+      },
+      resolver: {
+        resolved: resolved != null,
+        source: resolution.source,
+        matchedKey: resolution.matchedKey,
+        replacedWeakRow: resolution.replacedWeakRow,
+      },
+      inspectorProjection: resolved ? buildInspectorStructureProjection(resolved) : null,
+      actionRailState: resolved ? getNodeLocalPowerControlState(resolved) : null,
+      contextMenuItems: menuItems,
+    };
+  });
 }
 
 function describeAdaptedStructure(structure: Structure) {
@@ -371,6 +462,7 @@ export function buildNodeDiagnostic({
     nodeLookup: describeNodeAssemblySummary(lookup),
     selectedNodeViewModel: viewModel,
     nodeSelectionInspectorProjection: projection,
+    renderedUiTargetProjection: buildRenderedTargetResolution(viewModel),
     proofLoss: {
       ok: proofLossFailures.length === 0,
       failureCount: proofLossFailures.length,

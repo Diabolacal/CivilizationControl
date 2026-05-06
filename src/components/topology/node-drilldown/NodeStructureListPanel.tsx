@@ -6,6 +6,7 @@ import { NodeStructureActionRail } from "@/components/topology/node-drilldown/No
 import type { OpenNodeDrilldownStructureMenuParams } from "@/hooks/useNodeDrilldownStructureMenu";
 import { getNodeLocalActionStatus } from "@/lib/nodeDrilldownActionAuthority";
 import { formatNodeLocalSize, formatNodeLocalStatus, sortNodeLocalStructures } from "@/lib/nodeDrilldownModel";
+import { resolveNodeLocalStructure } from "@/lib/nodeDrilldownSelection";
 import { cn } from "@/lib/utils";
 
 import type { TxStatus } from "@/types/domain";
@@ -113,14 +114,16 @@ function NodeStructureListContent({
     <div className="max-h-[420px] overflow-y-auto p-2 lg:max-h-[min(76vh,720px)]">
       <div className="space-y-1.5">
         {structures.map((structure) => {
+          const resolvedStructure = resolveNodeLocalStructure(viewModel, { structure }, "attached-list-projection").structure ?? structure;
           const isHidden = hiddenCanonicalKeySet.has(structure.canonicalDomainKey);
           const subtitle = buildStructureSubtitle(structure, isHidden);
+          const isSelected = selectedStructureId === structure.id || selectedStructureId === resolvedStructure.id;
           const openStructureContextMenu = (event: React.MouseEvent<HTMLElement>) => {
             event.preventDefault();
             event.stopPropagation();
-            onSelectStructure(structure.id);
+            onSelectStructure(resolvedStructure.id);
             onOpenStructureMenu?.({
-              structure,
+              structure: resolvedStructure,
               clientX: event.clientX,
               clientY: event.clientY,
               isHidden,
@@ -134,7 +137,7 @@ function NodeStructureListContent({
               className={cn(
                 "rounded border px-3 py-2 transition-colors",
                 isHidden ? "border-dashed" : null,
-                selectedStructureId === structure.id
+                isSelected
                   ? "border-primary/60 bg-primary/8"
                   : isHidden
                     ? "border-border/50 bg-muted/5"
@@ -146,7 +149,7 @@ function NodeStructureListContent({
                   type="button"
                   onClick={() => {
                     onCloseStructureMenu?.();
-                    onSelectStructure(structure.id);
+                    onSelectStructure(resolvedStructure.id);
                   }}
                   onContextMenu={openStructureContextMenu}
                   onKeyDown={(event) => {
@@ -157,9 +160,9 @@ function NodeStructureListContent({
                     event.preventDefault();
                     event.stopPropagation();
                     const bounds = event.currentTarget.getBoundingClientRect();
-                    onSelectStructure(structure.id);
+                    onSelectStructure(resolvedStructure.id);
                     onOpenStructureMenu?.({
-                      structure,
+                      structure: resolvedStructure,
                       clientX: bounds.left + bounds.width / 2,
                       clientY: bounds.top + bounds.height / 2,
                       isHidden,
@@ -171,7 +174,7 @@ function NodeStructureListContent({
                     family={structure.iconFamily}
                     badge={structure.badge}
                     tone={structure.tone}
-                    selected={selectedStructureId === structure.id}
+                    selected={isSelected}
                     warningPip={structure.warningPip}
                     size={20}
                   />
@@ -191,7 +194,7 @@ function NodeStructureListContent({
                 </button>
 
                 <NodeStructureActionRail
-                  structure={structure}
+                  structure={resolvedStructure}
                   isHidden={isHidden}
                   onUnhideStructure={onUnhideStructure}
                   onTogglePower={onTogglePower}

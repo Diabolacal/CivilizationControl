@@ -1,7 +1,16 @@
 import assert from "node:assert/strict";
 
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+
+import { StructureActionContextMenu } from "../src/components/structure-actions/StructureActionContextMenu.tsx";
+import { NodeSelectionInspector } from "../src/components/topology/node-drilldown/NodeSelectionInspector.tsx";
+import { NodeStructureActionRail } from "../src/components/topology/node-drilldown/NodeStructureActionRail.tsx";
 import { adaptOperatorInventory } from "../src/lib/operatorInventoryAdapter.ts";
+import { buildNodeDrilldownMenuItems } from "../src/lib/nodeDrilldownMenuItems.ts";
 import { buildLiveNodeLocalViewModelWithObserved } from "../src/lib/nodeDrilldownModel.ts";
+import { resolveNodeLocalStructure } from "../src/lib/nodeDrilldownSelection.ts";
+import { getNodePowerUsageReadout } from "../src/lib/nodePowerControlModel.ts";
 import {
   buildOperatorInventoryUrl,
   normalizeOperatorInventoryResponse,
@@ -16,6 +25,7 @@ import {
 } from "./node-live-proof-loss-core.mts";
 
 import type { OperatorInventoryResponse } from "../src/types/operatorInventory.ts";
+import type { NodeLocalStructure, NodeLocalViewModel } from "../src/lib/nodeDrilldownTypes.ts";
 
 const DEFAULT_WALLET_ADDRESS = "0x11dd567e72d160ad7116a7358684dfff800af2a8e429cd1a65778640f8a61f62";
 const DEFAULT_BASE_URL = "https://ef-map.com";
@@ -211,6 +221,118 @@ function runFixtureAssertions(): void {
   ]);
 }
 
+function makeWeakRenderedStructure(structure: NodeLocalStructure): NodeLocalStructure {
+  return {
+    ...structure,
+    id: structure.assemblyId ? `assembly:${structure.assemblyId}` : structure.id,
+    objectId: undefined,
+    directChainObjectId: null,
+    directChainAssemblyId: null,
+    hasDirectChainAuthority: false,
+    directChainMatchCount: 0,
+    futureActionEligible: false,
+    source: "backendObserved",
+    powerRequirement: null,
+    actionCandidate: null,
+    actionAuthority: {
+      state: "backend-only",
+      verifiedTarget: null,
+      candidateTargets: [],
+      unavailableReason: null,
+    },
+    isReadOnly: true,
+    isActionable: false,
+  };
+}
+
+function withWeakRenderedSelection(viewModel: NodeLocalViewModel, weakStructure: NodeLocalStructure): NodeLocalViewModel {
+  return {
+    ...viewModel,
+    structures: [
+      weakStructure,
+      ...viewModel.structures,
+    ],
+  };
+}
+
+function assertRenderedUiProof(viewModel: NodeLocalViewModel, groupNode: Parameters<typeof NodeSelectionInspector>[0]["selectedNode"], strongStructure: NodeLocalStructure): void {
+  const weakStructure = makeWeakRenderedStructure(strongStructure);
+  const weakViewModel = withWeakRenderedSelection(viewModel, weakStructure);
+  const resolution = resolveNodeLocalStructure(weakViewModel, { structure: weakStructure }, "canvas-projection");
+  const resolvedStructure = resolution.structure;
+  assert(resolvedStructure, "expected weak rendered selection to resolve");
+  assert.equal(resolvedStructure.objectId, strongStructure.objectId, "expected weak rendered selection to resolve to authoritative object row");
+  assert.equal(resolvedStructure.actionAuthority.verifiedTarget?.ownerCapId, strongStructure.actionAuthority.verifiedTarget?.ownerCapId, "expected weak rendered selection to resolve OwnerCap proof");
+  assert.equal(resolution.replacedWeakRow, true, "expected selected-row resolver to report weak row replacement");
+
+  const inspectorMarkup = renderToStaticMarkup(React.createElement(NodeSelectionInspector, {
+    embedded: true,
+    viewModel: weakViewModel,
+    selectedNode: groupNode,
+    selectedStructureId: weakStructure.id,
+    hiddenCanonicalKeySet: new Set<string>(),
+    onUnhideStructure: () => undefined,
+    onTogglePower: () => undefined,
+  }));
+  assert(inspectorMarkup.includes(strongStructure.displayName), "expected rendered inspector to show selected structure label");
+  assert(inspectorMarkup.includes("Copy structure object ID"), "expected rendered inspector to include Object ID proof control");
+  assert(!inspectorMarkup.includes("Not supplied"), "expected rendered inspector not to show missing Object ID proof");
+  assert(inspectorMarkup.includes("Copy structure owner cap ID"), "expected rendered inspector to include OwnerCap proof control");
+  assert(!inspectorMarkup.includes("Not indexed"), "expected rendered inspector not to show missing indexed proof");
+  assert(inspectorMarkup.includes("Copy linked network node ID"), "expected rendered inspector to include Network Node proof control");
+  assert(inspectorMarkup.includes("Power and rename available"), "expected rendered inspector to show write authority");
+
+  const railMarkup = renderToStaticMarkup(React.createElement(NodeStructureActionRail, {
+    structure: resolvedStructure,
+    isHidden: false,
+    onUnhideStructure: () => undefined,
+    onTogglePower: () => undefined,
+    variant: "panel",
+  }));
+  assert(railMarkup.includes("Action Control"), "expected action rail to render");
+  assert(railMarkup.includes("ONLINE"), "expected action rail to show online status");
+  assert(railMarkup.includes("Take offline"), "expected action rail to render enabled Take offline action");
+
+  const menuItems = buildNodeDrilldownMenuItems({
+    contextMenu: {
+      structureId: weakStructure.id,
+      canonicalDomainKey: weakStructure.canonicalDomainKey,
+      structureName: weakStructure.displayName,
+      left: 0,
+      top: 0,
+      visibilityAction: "hide",
+      visibilityActionLabel: "Hide from Node View",
+      powerActionLabel: null,
+      nextOnline: null,
+    },
+    structure: resolvedStructure,
+    onHideStructure: () => undefined,
+    onUnhideStructure: () => undefined,
+    onTogglePower: () => undefined,
+    onRenameStructure: () => undefined,
+  });
+  assert.deepEqual(menuItems.map((item) => item.label), ["Hide from Node View", "Take Offline", "Rename Assembly"]);
+
+  const menuMarkup = renderToStaticMarkup(React.createElement(StructureActionContextMenu, {
+    menu: {
+      structureName: strongStructure.displayName,
+      left: 0,
+      top: 0,
+      items: menuItems,
+    },
+    menuRef: { current: null },
+    onClose: () => undefined,
+  }));
+  assert(menuMarkup.includes('role="menu"'), "expected context menu markup");
+  assert(menuMarkup.includes(`${strongStructure.displayName} actions`), "expected context menu aria label for selected structure");
+  assert(menuMarkup.includes("Take Offline"), "expected rendered context menu to include power action");
+  assert(menuMarkup.includes("Rename Assembly"), "expected rendered context menu to include rename action");
+
+  const readout = getNodePowerUsageReadout(viewModel.node, viewModel.structures);
+  assert.equal(readout.isAvailable, true, "expected rendered target power readout to be available");
+  assert.notEqual(readout.label, "Power usage unavailable", "expected rendered target power readout not to degrade");
+}
+
 function makeLiveShapedRawPayload() {
   const nodeId = objectId(400);
   const assemblerId = objectId(401);
@@ -357,6 +479,10 @@ function runLiveShapedPayloadAssertions(): void {
   assert.equal(assemblerProjection.networkNodeId, objectId(400), "expected live-shaped Network Node proof");
   assert.equal(assemblerProjection.verifiedTarget?.structureType, "assembly", "expected live-shaped generic assembly write target");
   assert.equal(assemblerProjection.powerRequirement?.requiredGj, 200, "expected live-shaped power requirement proof");
+
+  const assemblerStructure = viewModel.structures.find((row) => row.assemblyId === "8101");
+  assert(assemblerStructure, "expected live-shaped assembler row in rendered view model");
+  assertRenderedUiProof(viewModel, group.node, assemblerStructure);
 
   const lossyProjection = {
     ...diagnostic.nodeSelectionInspectorProjection,

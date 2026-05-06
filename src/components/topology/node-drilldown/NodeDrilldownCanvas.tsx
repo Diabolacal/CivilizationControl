@@ -7,6 +7,7 @@ import {
   layoutNodeDrilldown,
 } from "@/lib/nodeDrilldownLayout";
 import { describeNodeLocalWarningMarker } from "@/lib/nodeDrilldownModel";
+import { resolveNodeLocalStructure } from "@/lib/nodeDrilldownSelection";
 import { cn } from "@/lib/utils";
 
 import { NodeDrilldownTooltip, type NodeDrilldownTooltipData } from "./NodeDrilldownTooltip";
@@ -267,7 +268,9 @@ export function NodeDrilldownCanvas({
       {displayedLayout.structures.map((item) => {
         const structure = structureMap.get(item.id);
         if (!structure) return null;
+        const resolvedStructure = resolveNodeLocalStructure(viewModel, { structure }, "canvas-projection").structure ?? structure;
         const isDragging = dragPreview?.structureId === structure.id;
+        const isSelected = selectedStructureId === structure.id || selectedStructureId === resolvedStructure.id;
 
         return (
           <button
@@ -280,7 +283,7 @@ export function NodeDrilldownCanvas({
               }
 
               onCloseStructureMenu?.();
-              onSelectStructure(structure.id);
+              onSelectStructure(resolvedStructure.id);
             }}
             onPointerDown={(event) => {
               if (!onUpdateStructurePosition || event.button !== 0) return;
@@ -344,9 +347,9 @@ export function NodeDrilldownCanvas({
               event.preventDefault();
               event.stopPropagation();
               setTooltip(null);
-              onSelectStructure(structure.id);
+              onSelectStructure(resolvedStructure.id);
               onOpenStructureMenu?.({
-                structure,
+                structure: resolvedStructure,
                 clientX: event.clientX,
                 clientY: event.clientY,
                 isHidden: false,
@@ -361,9 +364,9 @@ export function NodeDrilldownCanvas({
               event.stopPropagation();
               setTooltip(null);
               const bounds = event.currentTarget.getBoundingClientRect();
-              onSelectStructure(structure.id);
+              onSelectStructure(resolvedStructure.id);
               onOpenStructureMenu?.({
-                structure,
+                structure: resolvedStructure,
                 clientX: bounds.left + bounds.width / 2,
                 clientY: bounds.top + bounds.height / 2,
                 isHidden: false,
@@ -384,7 +387,7 @@ export function NodeDrilldownCanvas({
               "absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-transform hover:scale-[1.03]",
               onUpdateStructurePosition ? "cursor-grab active:cursor-grabbing" : null,
               isDragging ? "scale-[1.04]" : null,
-              selectedStructureId === structure.id ? "z-20" : "z-10",
+              isSelected ? "z-20" : "z-10",
             )}
             style={{ left: `${item.xPercent}%`, top: `${item.yPercent}%` }}
           >
@@ -392,7 +395,7 @@ export function NodeDrilldownCanvas({
               family={structure.iconFamily}
               badge={structure.badge}
               tone={structure.tone}
-              selected={selectedStructureId === structure.id}
+              selected={isSelected}
               warningPip={structure.warningPip}
               size={item.iconSize}
             />
