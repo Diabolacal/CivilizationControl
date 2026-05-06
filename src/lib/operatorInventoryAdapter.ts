@@ -22,7 +22,11 @@ import type {
   OperatorInventoryStatus,
   OperatorInventoryStructure,
 } from "@/types/operatorInventory";
-import { selectCanonicalNodeDrilldownDomainKey } from "@/lib/nodeDrilldownIdentity";
+import {
+  createNodeDrilldownIdentityAliases,
+  normalizeNodeDrilldownAssemblyId,
+  selectCanonicalNodeDrilldownDomainKey,
+} from "@/lib/nodeDrilldownIdentity";
 import { normalizeCanonicalObjectId } from "@/lib/nodeAssembliesClient";
 
 interface OperatorInventoryDiagnostics {
@@ -268,7 +272,7 @@ function buildNodeLookupMap(response: OperatorInventoryResponse): Map<ObjectId, 
       continue;
     }
 
-    lookups.set(nodeObjectId, {
+    const lookup = {
       status: "success",
       networkNodeId: nodeObjectId,
       node: bucket.node,
@@ -278,7 +282,27 @@ function buildNodeLookupMap(response: OperatorInventoryResponse): Map<ObjectId, 
       error: null,
       isPartial: bucket.isPartial,
       droppedCount: 0,
-    });
+    } satisfies NodeAssembliesLookupResult;
+    const lookupKeys = new Set<string>([
+      nodeObjectId,
+      normalizeNodeDrilldownAssemblyId(bucket.node?.assemblyId) ?? "",
+      selectCanonicalNodeDrilldownDomainKey({
+        objectId: nodeObjectId,
+        assemblyId: bucket.node?.assemblyId,
+      }) ?? "",
+      ...createNodeDrilldownIdentityAliases({
+        objectId: nodeObjectId,
+        assemblyId: bucket.node?.assemblyId,
+        renderId: nodeObjectId,
+        source: "backendMembership",
+      }),
+    ].filter(Boolean));
+
+    for (const key of lookupKeys) {
+      if (!lookups.has(key)) {
+        lookups.set(key, lookup);
+      }
+    }
   }
 
   return lookups;

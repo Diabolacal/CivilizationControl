@@ -9,6 +9,7 @@ import { formatNodeLocalActionAvailability } from "@/lib/nodeDrilldownActionAuth
 
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
 import type { NodeAssembliesLookupResult } from "@/lib/nodeAssembliesClient";
+import type { SelectedNodeInventoryLookupResolution } from "@/lib/nodeControlInventoryLookup";
 import type { NodeDrilldownMenuContext, NodeDrilldownMenuItem } from "@/lib/nodeDrilldownMenuItems";
 import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 import type { NodePowerCapacityCheck, NodePowerOperationPlan, NodePowerUsageReadout } from "@/lib/nodePowerControlModel";
@@ -50,11 +51,14 @@ export interface BuildNodeControlDebugSnapshotInput {
   selectedNode: Structure | null;
   selectedNodeGroup: NetworkNodeGroup | null;
   selectedNodeViewModel: NodeLocalViewModel | null;
+  visibleNodeViewModel: NodeLocalViewModel | null;
+  selectedNodeInventoryLookupResolution: SelectedNodeInventoryLookupResolution;
   visibleStructureCount: number;
   hiddenCanonicalKeys: string[];
   selectedStructureId: string | null;
   selectedStructureCanonicalDomainKey: string | null;
   selectedStructure: NodeLocalStructure | null;
+  contextMenuStructure: NodeLocalStructure | null;
   selectedStructureResolutionSource: string | null;
   selectedStructureResolutionMatchedKey: string | null;
   selectedStructureReplacedWeakRow: boolean;
@@ -115,6 +119,11 @@ interface NodeControlStructureDebugRow {
   actionAuthorityDetail: string;
   actionAvailability: string;
   actionCandidate: NodeLocalStructure["actionCandidate"];
+  displayNameSource: string | null;
+  displayNameUpdatedAt: string | null;
+  sizeVariant: string | null;
+  verifiedTargetPresent: boolean;
+  candidateTargetCount: number;
 }
 
 interface OperatorInventoryProofRow {
@@ -166,6 +175,7 @@ export interface NodeControlDebugCopySummary {
   authority: {
     selectedStructure: Record<string, unknown> | null;
     rows: Array<Record<string, unknown>>;
+    visibleRows: Array<Record<string, unknown>>;
   };
   contextMenu: {
     nodeLocalStructureMenu: Record<string, unknown>;
@@ -173,6 +183,7 @@ export interface NodeControlDebugCopySummary {
   };
   actionRail: {
     selectedStructure: Record<string, unknown> | null;
+    selectedStructureRow: NodeControlStructureDebugRow | null;
   };
   power: {
     nodeUsageReadout: NodePowerUsageReadout | null;
@@ -196,6 +207,7 @@ export interface NodeControlDebugCopySummary {
   provenance: {
     readModelDebug: AssetDiscoveryDisplayDebugState;
     operatorInventory: Record<string, unknown>;
+    selectedNodeInventoryLookup: Record<string, unknown>;
     nodeAssembliesFallbackEnabled: boolean;
     nodeAssembliesFallbackRan: boolean;
     selectedNodeObservedLookup: Record<string, unknown> | null;
@@ -206,6 +218,18 @@ export interface NodeControlDebugCopySummary {
     rawNodeAssemblyLookupStructure: OperatorInventoryProofRow | null;
     adaptedNodeGroup: Record<string, unknown> | null;
     renderedNodeControlRows: NodeControlStructureDebugRow[];
+    visibleNodeControlRows: NodeControlStructureDebugRow[];
+    selectedInspectorTarget: NodeControlStructureDebugRow | null;
+    contextMenuTarget: NodeControlStructureDebugRow | null;
+    actionRailTarget: NodeControlStructureDebugRow | null;
+  };
+  pipeline: {
+    phase: string;
+    selectedNodeViewModelSourceMode: string | null;
+    selectedNodeInventoryLookupFound: boolean;
+    selectedNodeInventoryLookupMatchedKey: string | null;
+    selectedNodeInventoryLookupKeysTried: string[];
+    selectedNodeInventoryLookupRawChildCount: number;
   };
 }
 
@@ -259,6 +283,11 @@ function mapStructureRow(structure: NodeLocalStructure): NodeControlStructureDeb
     futureActionEligible: structure.futureActionEligible,
     isReadOnly: structure.isReadOnly,
     isActionable: structure.isActionable,
+    displayNameSource: structure.displayNameSource ?? null,
+    displayNameUpdatedAt: structure.displayNameUpdatedAt ?? null,
+    sizeVariant: structure.sizeVariant,
+    verifiedTargetPresent: structure.actionAuthority.verifiedTarget != null,
+    candidateTargetCount: structure.actionAuthority.candidateTargets.length,
     actionAuthority: structure.actionAuthority,
     actionAuthorityLabel: formatNodeLocalActionAuthorityLabel(structure),
     actionAuthorityDetail: formatNodeLocalActionAuthorityDetail(structure),
@@ -399,7 +428,9 @@ export function buildNodeControlDebugSnapshot(input: BuildNodeControlDebugSnapsh
     ? input.selectedNodeObservedLookup.assemblies.find((row) => identityMatches(row, input.selectedStructure))
     : null;
   const rows = input.selectedNodeViewModel?.structures.map(mapStructureRow) ?? [];
+  const visibleRows = input.visibleNodeViewModel?.structures.map(mapStructureRow) ?? [];
   const selectedRow = input.selectedStructure ? mapStructureRow(input.selectedStructure) : null;
+  const contextMenuRow = input.contextMenuStructure ? mapStructureRow(input.contextMenuStructure) : null;
   const selectedAuthority = selectedRow ? {
     state: selectedRow.actionAuthority.state,
     verifiedTarget: selectedRow.actionAuthority.verifiedTarget,
@@ -457,6 +488,25 @@ export function buildNodeControlDebugSnapshot(input: BuildNodeControlDebugSnapsh
         label: row.actionAuthorityLabel,
         detail: row.actionAuthorityDetail,
       })),
+      visibleRows: visibleRows.map((row) => ({
+        id: row.id,
+        canonicalDomainKey: row.canonicalDomainKey,
+        displayName: row.displayName,
+        typeLabel: row.typeLabel,
+        sizeVariant: row.sizeVariant,
+        status: row.status,
+        source: row.source,
+        objectId: row.objectId,
+        assemblyId: row.assemblyId,
+        ownerCapId: row.ownerCapId,
+        networkNodeId: row.networkNodeId,
+        powerRequirement: row.powerRequirement,
+        state: row.actionAuthority.state,
+        verifiedTargetPresent: row.verifiedTargetPresent,
+        candidateTargetCount: row.candidateTargetCount,
+        isActionable: row.isActionable,
+        isReadOnly: row.isReadOnly,
+      })),
     },
     contextMenu: {
       nodeLocalStructureMenu: {
@@ -468,6 +518,7 @@ export function buildNodeControlDebugSnapshot(input: BuildNodeControlDebugSnapsh
         visibilityActionLabel: input.contextMenu?.visibilityActionLabel ?? null,
         powerActionLabel: input.contextMenu?.powerActionLabel ?? null,
         nextOnline: input.contextMenu?.nextOnline ?? null,
+        target: contextMenuRow,
         items: mapMenuItems(input.contextMenuItems),
       },
       selectedNodeMenu: {
@@ -479,6 +530,7 @@ export function buildNodeControlDebugSnapshot(input: BuildNodeControlDebugSnapsh
     },
     actionRail: {
       selectedStructure: mapPowerControl(input.selectedStructure, input.powerTx.status),
+      selectedStructureRow: selectedRow,
     },
     power: {
       nodeUsageReadout: input.nodeUsageReadout,
@@ -521,6 +573,13 @@ export function buildNodeControlDebugSnapshot(input: BuildNodeControlDebugSnapsh
         partial: input.operatorInventory.inventory?.partial ?? null,
         warnings: input.operatorInventory.inventory?.warnings ?? [],
       },
+      selectedNodeInventoryLookup: {
+        found: input.selectedNodeInventoryLookupResolution.found,
+        foundBy: input.selectedNodeInventoryLookupResolution.foundBy,
+        matchedKey: input.selectedNodeInventoryLookupResolution.matchedKey,
+        lookupKeysTried: input.selectedNodeInventoryLookupResolution.lookupKeysTried,
+        rawChildCount: input.selectedNodeInventoryLookupResolution.rawChildCount,
+      },
       nodeAssembliesFallbackEnabled: input.nodeAssembliesFallbackEnabled,
       nodeAssembliesFallbackRan: input.nodeAssembliesFallbackRan,
       selectedNodeObservedLookup: summarizeLookup(input.selectedNodeObservedLookup),
@@ -538,6 +597,24 @@ export function buildNodeControlDebugSnapshot(input: BuildNodeControlDebugSnapsh
         },
       } : null,
       renderedNodeControlRows: rows,
+      visibleNodeControlRows: visibleRows,
+      selectedInspectorTarget: selectedRow,
+      contextMenuTarget: contextMenuRow,
+      actionRailTarget: selectedRow,
+    },
+    pipeline: {
+      phase: input.operatorInventory.isLoading
+        ? "operator-inventory-loading"
+        : input.selectedNodeViewModel?.sourceMode === "backend-membership"
+          ? "operator-inventory-authoritative"
+          : input.operatorInventory.isError
+            ? "operator-inventory-error"
+            : "operator-inventory-unavailable",
+      selectedNodeViewModelSourceMode: input.selectedNodeViewModel?.sourceMode ?? null,
+      selectedNodeInventoryLookupFound: input.selectedNodeInventoryLookupResolution.found,
+      selectedNodeInventoryLookupMatchedKey: input.selectedNodeInventoryLookupResolution.matchedKey,
+      selectedNodeInventoryLookupKeysTried: input.selectedNodeInventoryLookupResolution.lookupKeysTried,
+      selectedNodeInventoryLookupRawChildCount: input.selectedNodeInventoryLookupResolution.rawChildCount,
     },
   };
 }

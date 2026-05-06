@@ -163,6 +163,9 @@ function assertFamilyCoverage(matrix: LabActionMatrixRow[]) {
 function assertScenarioCoverage(matrix: LabActionMatrixRow[]) {
   const scenarioLabels = new Set(matrix.map((row) => row.scenarioLabel));
   const requiredLabels = [
+    'Power Summary Known',
+    'Power Summary Over Cap',
+    'Power Summary Unknown',
     'Authority Matrix',
     'Sparse Solo Nodes',
     'Node Gate Industry Node',
@@ -176,7 +179,7 @@ function assertScenarioCoverage(matrix: LabActionMatrixRow[]) {
 
   assert.equal(
     scenarioLabels.size,
-    requiredLabels.length,
+    NODE_DRILLDOWN_SCENARIOS.length,
     'expected the lab action matrix to cover every active node-drilldown lab scenario',
   );
 

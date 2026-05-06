@@ -172,6 +172,7 @@ interface SelectedNodeStructuresBuildResult {
 interface BuildNodeDrilldownOptions {
   isLoading?: boolean;
   preferObservedMembership?: boolean;
+  requireObservedMembership?: boolean;
 }
 
 interface NodeLocalActionTargetFallback {
@@ -317,44 +318,68 @@ function compareObservedDisplayFreshness(
   return 0;
 }
 
+function scoreObservedAssemblyAuthority(entry: ObservedAssembly): number {
+  const powerAction = entry.actionCandidate?.actions.power;
+  const requiredIds = powerAction?.requiredIds;
+
+  return (entry.objectId ? 16 : 0)
+    + (entry.ownerCapId ? 12 : 0)
+    + (entry.energySourceId ? 4 : 0)
+    + (entry.actionCandidate ? 10 : 0)
+    + (requiredIds?.structureId ? 12 : 0)
+    + (requiredIds?.ownerCapId ? 12 : 0)
+    + (requiredIds?.networkNodeId ? 12 : 0)
+    + (entry.powerRequirement ? 6 : 0)
+    + (entry.typeId != null ? 2 : 0)
+    + (entry.size ? 2 : 0);
+}
+
 function mergeObservedAssemblyEntry(
   current: ObservedAssembly,
   next: ObservedAssembly,
 ): ObservedAssembly {
-  const presentation = compareObservedDisplayFreshness(current, next) > 0 ? next : current;
+  const currentAuthorityScore = scoreObservedAssemblyAuthority(current);
+  const nextAuthorityScore = scoreObservedAssemblyAuthority(next);
+  const authority = nextAuthorityScore > currentAuthorityScore
+    ? next
+    : nextAuthorityScore < currentAuthorityScore
+      ? current
+      : compareObservedDisplayFreshness(current, next) > 0
+        ? next
+        : current;
 
   return {
     objectId: next.objectId ?? current.objectId,
     assemblyId: next.assemblyId ?? current.assemblyId,
     linkedGateId: next.linkedGateId ?? current.linkedGateId,
-    assemblyType: next.assemblyType ?? current.assemblyType,
-    typeId: next.typeId ?? current.typeId,
-    name: presentation.name ?? next.name ?? current.name,
-    displayName: presentation.displayName ?? next.displayName ?? current.displayName,
-    displayNameSource: presentation.displayNameSource ?? next.displayNameSource ?? current.displayNameSource,
-    displayNameUpdatedAt: presentation.displayNameUpdatedAt ?? next.displayNameUpdatedAt ?? current.displayNameUpdatedAt,
-    family: next.family ?? current.family,
-    size: next.size ?? current.size,
-    status: presentation.status ?? next.status ?? current.status,
-    fuelAmount: next.fuelAmount ?? current.fuelAmount,
-    powerSummary: next.powerSummary ?? current.powerSummary,
-    powerRequirement: next.powerRequirement ?? current.powerRequirement,
-    solarSystemId: next.solarSystemId ?? current.solarSystemId,
-    energySourceId: next.energySourceId ?? current.energySourceId,
-    url: next.url ?? current.url,
-    lastUpdated: next.lastUpdated ?? current.lastUpdated,
-    lastObservedCheckpoint: next.lastObservedCheckpoint ?? current.lastObservedCheckpoint,
-    lastObservedTimestamp: next.lastObservedTimestamp ?? current.lastObservedTimestamp,
-    typeName: next.typeName ?? current.typeName,
-    ownerCapId: next.ownerCapId ?? current.ownerCapId,
-    ownerWalletAddress: next.ownerWalletAddress ?? current.ownerWalletAddress,
-    characterId: next.characterId ?? current.characterId,
-    extensionStatus: next.extensionStatus ?? current.extensionStatus,
-    partial: next.partial ?? current.partial,
-    warnings: next.warnings ?? current.warnings,
-    actionCandidate: next.actionCandidate ?? current.actionCandidate,
-    source: next.source ?? current.source,
-    provenance: next.provenance ?? current.provenance,
+    assemblyType: authority.assemblyType ?? next.assemblyType ?? current.assemblyType,
+    typeId: authority.typeId ?? next.typeId ?? current.typeId,
+    name: authority.name ?? next.name ?? current.name,
+    displayName: authority.displayName ?? next.displayName ?? current.displayName,
+    displayNameSource: authority.displayNameSource ?? next.displayNameSource ?? current.displayNameSource,
+    displayNameUpdatedAt: authority.displayNameUpdatedAt ?? next.displayNameUpdatedAt ?? current.displayNameUpdatedAt,
+    family: authority.family ?? next.family ?? current.family,
+    size: authority.size ?? next.size ?? current.size,
+    status: authority.status ?? next.status ?? current.status,
+    fuelAmount: authority.fuelAmount ?? next.fuelAmount ?? current.fuelAmount,
+    powerSummary: authority.powerSummary ?? next.powerSummary ?? current.powerSummary,
+    powerRequirement: authority.powerRequirement ?? next.powerRequirement ?? current.powerRequirement,
+    solarSystemId: authority.solarSystemId ?? next.solarSystemId ?? current.solarSystemId,
+    energySourceId: authority.energySourceId ?? next.energySourceId ?? current.energySourceId,
+    url: authority.url ?? next.url ?? current.url,
+    lastUpdated: authority.lastUpdated ?? next.lastUpdated ?? current.lastUpdated,
+    lastObservedCheckpoint: authority.lastObservedCheckpoint ?? next.lastObservedCheckpoint ?? current.lastObservedCheckpoint,
+    lastObservedTimestamp: authority.lastObservedTimestamp ?? next.lastObservedTimestamp ?? current.lastObservedTimestamp,
+    typeName: authority.typeName ?? next.typeName ?? current.typeName,
+    ownerCapId: authority.ownerCapId ?? next.ownerCapId ?? current.ownerCapId,
+    ownerWalletAddress: authority.ownerWalletAddress ?? next.ownerWalletAddress ?? current.ownerWalletAddress,
+    characterId: authority.characterId ?? next.characterId ?? current.characterId,
+    extensionStatus: authority.extensionStatus ?? next.extensionStatus ?? current.extensionStatus,
+    partial: authority.partial ?? next.partial ?? current.partial,
+    warnings: authority.warnings ?? next.warnings ?? current.warnings,
+    actionCandidate: authority.actionCandidate ?? next.actionCandidate ?? current.actionCandidate,
+    source: authority.source ?? next.source ?? current.source,
+    provenance: authority.provenance ?? next.provenance ?? current.provenance,
   };
 }
 
@@ -527,6 +552,17 @@ function resolveTypeLabel(
   explicitTypeId?: number,
   sizeVariant?: NodeLocalSizeVariant,
 ): { typeLabel: string; typeId?: number } {
+  if (explicitTypeLabel && sizeVariant && sizeVariant !== "standard" && deriveSizeVariant(explicitTypeLabel) !== sizeVariant) {
+    const catalogName = DEFAULT_CATALOG_NAMES[family]?.[sizeVariant];
+    if (catalogName) {
+      const itemType = getItemTypeByName(catalogName);
+      if (itemType) {
+        return { typeLabel: itemType.name, typeId: itemType.typeId };
+      }
+      return { typeLabel: catalogName, typeId: explicitTypeId };
+    }
+  }
+
   if (explicitTypeLabel) {
     const itemType = getItemTypeByName(explicitTypeLabel);
     if (itemType) {
@@ -1264,14 +1300,15 @@ function buildBackendMembershipStructures(
     const normalizedAssemblyId = normalizeNodeDrilldownAssemblyId(observed.assemblyId)
       ?? normalizeNodeDrilldownAssemblyId(primaryAuthorityMatch?.assemblyId)
       ?? undefined;
+    const indexedSizeVariant = normalizeObservedSize(observed.size);
     const resolvedType = resolveTypeLabel(
       family,
       observed.typeName ?? resolveObservedTypeLabel(family, observed.typeId),
       observed.typeId ?? undefined,
-      null,
+      indexedSizeVariant,
     );
     const status = resolveBackendMembershipStatus(observed, primaryDirectChainMatch);
-    const sizeVariant = normalizeObservedSize(observed.size) ?? deriveSizeVariant(resolvedType.typeLabel) ?? "standard";
+    const sizeVariant = indexedSizeVariant ?? deriveSizeVariant(resolvedType.typeLabel) ?? "standard";
     const needsExtensionWarning = primaryAuthorityMatch != null
       && (primaryAuthorityMatch.type === "gate" || primaryAuthorityMatch.type === "turret")
       && (observed.extensionStatus ?? primaryAuthorityMatch.extensionStatus) !== "authorized";
@@ -1387,6 +1424,16 @@ function buildSelectedNodeStructures(
       sourceMode,
       omittedBackendCount: backendMembership.omittedBackendCount,
       structures: finalizeNodeLocalStructures(backendMembership.structures).structures,
+    };
+  }
+
+  if (options.requireObservedMembership === true) {
+    return {
+      liveStructures,
+      observedEntries,
+      sourceMode,
+      omittedBackendCount: 0,
+      structures: [],
     };
   }
 

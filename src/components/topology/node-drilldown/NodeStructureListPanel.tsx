@@ -92,7 +92,19 @@ function NodeStructureListContent({
 }: Pick<NodeStructureListPanelProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "hiddenCanonicalKeySet" | "onUnhideStructure" | "onOpenStructureMenu" | "onCloseStructureMenu" | "onTogglePower" | "powerStatus" | "powerStructureId">) {
   const structures = useMemo(
     () => {
-      const sortedStructures = sortNodeLocalStructures(viewModel.structures);
+      const structuresById = new Map<string, NodeLocalStructure>();
+      for (const structure of viewModel.structures) {
+        const resolvedStructure = resolveNodeLocalStructure(
+          viewModel,
+          { structure },
+          "attached-list-projection",
+        ).structure ?? structure;
+        if (!structuresById.has(resolvedStructure.id)) {
+          structuresById.set(resolvedStructure.id, resolvedStructure);
+        }
+      }
+
+      const sortedStructures = sortNodeLocalStructures([...structuresById.values()]);
       const visibleStructures: typeof sortedStructures = [];
       const hiddenStructures: typeof sortedStructures = [];
 
@@ -114,16 +126,15 @@ function NodeStructureListContent({
     <div className="max-h-[420px] overflow-y-auto p-2 lg:max-h-[min(76vh,720px)]">
       <div className="space-y-1.5">
         {structures.map((structure) => {
-          const resolvedStructure = resolveNodeLocalStructure(viewModel, { structure }, "attached-list-projection").structure ?? structure;
           const isHidden = hiddenCanonicalKeySet.has(structure.canonicalDomainKey);
           const subtitle = buildStructureSubtitle(structure, isHidden);
-          const isSelected = selectedStructureId === structure.id || selectedStructureId === resolvedStructure.id;
+          const isSelected = selectedStructureId === structure.id;
           const openStructureContextMenu = (event: React.MouseEvent<HTMLElement>) => {
             event.preventDefault();
             event.stopPropagation();
-            onSelectStructure(resolvedStructure.id);
+            onSelectStructure(structure.id);
             onOpenStructureMenu?.({
-              structure: resolvedStructure,
+              structure,
               clientX: event.clientX,
               clientY: event.clientY,
               isHidden,
@@ -149,7 +160,7 @@ function NodeStructureListContent({
                   type="button"
                   onClick={() => {
                     onCloseStructureMenu?.();
-                    onSelectStructure(resolvedStructure.id);
+                    onSelectStructure(structure.id);
                   }}
                   onContextMenu={openStructureContextMenu}
                   onKeyDown={(event) => {
@@ -160,9 +171,9 @@ function NodeStructureListContent({
                     event.preventDefault();
                     event.stopPropagation();
                     const bounds = event.currentTarget.getBoundingClientRect();
-                    onSelectStructure(resolvedStructure.id);
+                    onSelectStructure(structure.id);
                     onOpenStructureMenu?.({
-                      structure: resolvedStructure,
+                      structure,
                       clientX: bounds.left + bounds.width / 2,
                       clientY: bounds.top + bounds.height / 2,
                       isHidden,
@@ -194,7 +205,7 @@ function NodeStructureListContent({
                 </button>
 
                 <NodeStructureActionRail
-                  structure={resolvedStructure}
+                  structure={structure}
                   isHidden={isHidden}
                   onUnhideStructure={onUnhideStructure}
                   onTogglePower={onTogglePower}

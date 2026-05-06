@@ -136,10 +136,25 @@ export function NodeDrilldownCanvas({
   const dragStateRef = useRef<DragState | null>(null);
   const suppressClickStructureIdRef = useRef<string | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
-  const baseLayout = useMemo(() => layoutNodeDrilldown(viewModel), [viewModel]);
+  const renderViewModel = useMemo(() => {
+    const structuresById = new Map<string, NodeLocalViewModel["structures"][number]>();
+    for (const structure of viewModel.structures) {
+      const resolvedStructure = resolveNodeLocalStructure(
+        viewModel,
+        { structure },
+        "canvas-projection",
+      ).structure ?? structure;
+      if (!structuresById.has(resolvedStructure.id)) {
+        structuresById.set(resolvedStructure.id, resolvedStructure);
+      }
+    }
+
+    return { ...viewModel, structures: [...structuresById.values()] };
+  }, [viewModel]);
+  const baseLayout = useMemo(() => layoutNodeDrilldown(renderViewModel), [renderViewModel]);
   const layout = useMemo(
-    () => applyNodeDrilldownPositionOverrides(baseLayout, viewModel.structures, layoutOverrides),
-    [baseLayout, layoutOverrides, viewModel.structures],
+    () => applyNodeDrilldownPositionOverrides(baseLayout, renderViewModel.structures, layoutOverrides),
+    [baseLayout, layoutOverrides, renderViewModel.structures],
   );
   const displayedLayout = useMemo(() => {
     if (!dragPreview) return layout;
@@ -155,10 +170,10 @@ export function NodeDrilldownCanvas({
   }, [dragPreview, layout]);
   const [tooltip, setTooltip] = useState<NodeDrilldownTooltipData | null>(null);
   const structureMap = useMemo(
-    () => new Map(viewModel.structures.map((structure) => [structure.id, structure])),
-    [viewModel.structures],
+    () => new Map(renderViewModel.structures.map((structure) => [structure.id, structure])),
+    [renderViewModel.structures],
   );
-  const visibleStructureCount = viewModel.structures.length;
+  const visibleStructureCount = renderViewModel.structures.length;
 
   const getCanvasPosition = (clientX: number, clientY: number, iconSize: number): NodeDrilldownLayoutPosition | null => {
     const bounds = canvasRef.current?.getBoundingClientRect();
@@ -268,9 +283,8 @@ export function NodeDrilldownCanvas({
       {displayedLayout.structures.map((item) => {
         const structure = structureMap.get(item.id);
         if (!structure) return null;
-        const resolvedStructure = resolveNodeLocalStructure(viewModel, { structure }, "canvas-projection").structure ?? structure;
         const isDragging = dragPreview?.structureId === structure.id;
-        const isSelected = selectedStructureId === structure.id || selectedStructureId === resolvedStructure.id;
+        const isSelected = selectedStructureId === structure.id;
 
         return (
           <button
@@ -283,7 +297,7 @@ export function NodeDrilldownCanvas({
               }
 
               onCloseStructureMenu?.();
-              onSelectStructure(resolvedStructure.id);
+              onSelectStructure(structure.id);
             }}
             onPointerDown={(event) => {
               if (!onUpdateStructurePosition || event.button !== 0) return;
@@ -347,9 +361,9 @@ export function NodeDrilldownCanvas({
               event.preventDefault();
               event.stopPropagation();
               setTooltip(null);
-              onSelectStructure(resolvedStructure.id);
+              onSelectStructure(structure.id);
               onOpenStructureMenu?.({
-                structure: resolvedStructure,
+                structure,
                 clientX: event.clientX,
                 clientY: event.clientY,
                 isHidden: false,
@@ -364,9 +378,9 @@ export function NodeDrilldownCanvas({
               event.stopPropagation();
               setTooltip(null);
               const bounds = event.currentTarget.getBoundingClientRect();
-              onSelectStructure(resolvedStructure.id);
+              onSelectStructure(structure.id);
               onOpenStructureMenu?.({
-                structure: resolvedStructure,
+                structure,
                 clientX: bounds.left + bounds.width / 2,
                 clientY: bounds.top + bounds.height / 2,
                 isHidden: false,

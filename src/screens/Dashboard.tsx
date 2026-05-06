@@ -31,6 +31,7 @@ import { StructureRenameDialog } from "@/components/structure-actions/StructureR
 import { StrategicMapPanel } from "@/components/topology/StrategicMapPanel";
 import { TopologyPanelFade, TopologyPanelFrame } from "@/components/topology/TopologyPanelFrame";
 import { NodeDrilldownSurface } from "@/components/topology/node-drilldown/NodeDrilldownSurface";
+import { NodeControlAuthorityStatePanel } from "@/components/topology/node-drilldown/NodeControlAuthorityStatePanel";
 import { NodePowerActionStrip } from "@/components/topology/node-drilldown/NodePowerActionStrip";
 import { NodePowerCapacityDialog } from "@/components/topology/node-drilldown/NodePowerCapacityDialog";
 import { NodePowerPresetDialog } from "@/components/topology/node-drilldown/NodePowerPresetDialog";
@@ -54,6 +55,7 @@ import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDispla
 import { formatLux, formatEve } from "@/lib/currency";
 import { buildFuelPresentation, formatRuntimeSeconds } from "@/lib/fuelRuntime";
 import { buildNodeControlDebugCopySummary, buildNodeControlDebugSnapshot } from "@/lib/nodeControlDebug";
+import { resolveSelectedNodeInventoryLookup } from "@/lib/nodeControlInventoryLookup";
 import { resolveNodeDrilldownScopeKey } from "@/lib/nodeDrilldownHiddenState";
 import { buildNodeDrilldownMenuItems } from "@/lib/nodeDrilldownMenuItems";
 import { buildLiveNodeLocalViewModelWithObserved, buildNodeDrilldownDebugSnapshot } from "@/lib/nodeDrilldownModel";
@@ -209,12 +211,14 @@ export function Dashboard({
     () => nodeGroups.find((group) => group.node.objectId === selectedNodeId) ?? null,
     [nodeGroups, selectedNodeId],
   );
-  const selectedNodeInventoryLookup = useMemo(
-    () => (selectedNodeGroup?.node.objectId
-      ? operatorInventory.adapted?.nodeLookupsByNodeId.get(selectedNodeGroup.node.objectId) ?? null
-      : null),
+  const selectedNodeInventoryLookupResolution = useMemo(
+    () => resolveSelectedNodeInventoryLookup(
+      selectedNodeGroup,
+      operatorInventory.adapted?.nodeLookupsByNodeId ?? null,
+    ),
     [operatorInventory.adapted?.nodeLookupsByNodeId, selectedNodeGroup],
   );
+  const selectedNodeInventoryLookup = selectedNodeInventoryLookupResolution.lookup;
   const shouldUseNodeAssembliesFallback = Boolean(
     selectedNodeGroup?.node.objectId
     && selectedNodeGroup.node.objectId !== "unassigned"
@@ -240,8 +244,9 @@ export function Dashboard({
         ? (shouldUseNodeAssembliesFallback ? isNodeAssembliesLoading : operatorInventory.isLoading)
         : false,
       preferObservedMembership: selectedNodeInventoryLookup != null,
+      requireObservedMembership: selectedNodeGroup != null && operatorInventory.isConnected,
     }),
-    [isNodeAssembliesLoading, operatorInventory.isLoading, selectedNodeInventoryLookup, shouldUseNodeAssembliesFallback],
+    [isNodeAssembliesLoading, operatorInventory.isConnected, operatorInventory.isLoading, selectedNodeGroup, selectedNodeInventoryLookup, shouldUseNodeAssembliesFallback],
   );
   const structurePower = useStructurePower();
   const structureRename = useStructureRename();
@@ -302,6 +307,15 @@ export function Dashboard({
     () => getNodePowerUsageReadout(selectedNodeViewModel?.node ?? null, selectedNodeAuthorityStructures),
     [selectedNodeAuthorityStructures, selectedNodeViewModel?.node],
   );
+  const nodeControlAuthorityState = useMemo(() => {
+    if (!selectedNodeViewModel || selectedNodeViewModel.sourceMode === "backend-membership") {
+      return null;
+    }
+
+    return selectedNodeBuildOptions.isLoading
+      ? "loading" as const
+      : "unavailable" as const;
+  }, [selectedNodeBuildOptions.isLoading, selectedNodeViewModel]);
   const {
     hiddenCanonicalKeySet,
     hiddenCount,
@@ -816,12 +830,10 @@ export function Dashboard({
   const topologyTitle = selectedNodeViewModel ? "Node Control" : "Strategic Network";
   const topologySubtitle = selectedNodeViewModel
     ? `${selectedNodeViewModel.node.displayName} • ${selectedNodeViewModel.sourceMode === "backend-membership"
-      ? "Backend membership view"
-      : selectedNodeViewModel.sourceMode === "loading"
-        ? "Live fallback while backend membership loads"
-        : selectedNodeViewModel.sourceMode === "error-fallback"
-          ? "Live fallback after backend lookup error"
-          : "Direct-chain fallback view"}`
+      ? "Indexed membership view"
+      : nodeControlAuthorityState === "loading"
+        ? "Resolving indexed membership"
+        : "Indexed membership unavailable"}`
     : "Infrastructure Posture & Topology Control";
   const topologyHeaderAction = selectedNodeViewModel ? (
     <NodePowerActionStrip
@@ -1038,6 +1050,8 @@ export function Dashboard({
       selectedNode: selectedNodeGroup?.node ?? null,
       selectedNodeGroup,
       selectedNodeViewModel,
+      visibleNodeViewModel,
+      selectedNodeInventoryLookupResolution,
       visibleStructureCount: visibleStructures.length,
       hiddenCanonicalKeys: [...hiddenCanonicalKeySet],
       selectedStructureId: resolvedSelectedStructureId,
@@ -1046,6 +1060,7 @@ export function Dashboard({
       selectedStructureResolutionSource: resolvedSelectedStructureResolution.source,
       selectedStructureResolutionMatchedKey: resolvedSelectedStructureResolution.matchedKey,
       selectedStructureReplacedWeakRow: resolvedSelectedStructureResolution.replacedWeakRow,
+      contextMenuStructure,
       contextMenu,
       contextMenuItems: nodeControlContextMenuItems,
       macroContextMenu: nodeSurfaceActions.contextMenu,
@@ -1104,6 +1119,7 @@ export function Dashboard({
     canSavePowerPreset,
     characterId,
     contextMenu,
+    contextMenuStructure,
     hasAttemptedNodeAssembliesFallback,
     hiddenCanonicalKeySet,
     isConnected,
@@ -1126,6 +1142,7 @@ export function Dashboard({
     savePowerPresetCapacityCheck,
     savePowerPresetDisabledReason,
     selectedNodeGroup,
+    selectedNodeInventoryLookupResolution,
     selectedNodeObservedLookup,
     selectedNodeViewModel,
     shouldUseNodeAssembliesFallback,
@@ -1133,6 +1150,7 @@ export function Dashboard({
     structurePower.result,
     structurePower.status,
     takeAllOfflinePlan,
+    visibleNodeViewModel,
     visibleStructures.length,
   ]);
 
@@ -1194,6 +1212,15 @@ export function Dashboard({
         >
           <TopologyPanelFade contentKey={topologyModeKey} durationMs={TRANSITION_DURATION_MS}>
             {visibleNodeViewModel && selectedNodeViewModel ? (
+              nodeControlAuthorityState ? (
+                <NodeControlAuthorityStatePanel
+                  state={nodeControlAuthorityState}
+                  nodeObjectId={selectedNodeGroup?.node.objectId ?? null}
+                  walletAddress={operatorInventory.walletAddress}
+                  lookupKeysTried={selectedNodeInventoryLookupResolution.lookupKeysTried}
+                  className="h-[min(62vh,560px)] min-h-[360px]"
+                />
+              ) : (
               <NodeDrilldownSurface
                 embedded
                 viewModel={visibleNodeViewModel}
@@ -1213,6 +1240,7 @@ export function Dashboard({
                 title=""
                 subtitle=""
               />
+              )
             ) : (
               <StrategicMapPanel
                 embedded
@@ -1247,6 +1275,15 @@ export function Dashboard({
           >
             <TopologyPanelFade contentKey={`lower-left-${topologyModeKey}`} durationMs={TRANSITION_DURATION_MS} className="h-auto">
               {selectedNodeViewModel ? (
+                nodeControlAuthorityState ? (
+                  <NodeControlAuthorityStatePanel
+                    state={nodeControlAuthorityState}
+                    nodeObjectId={selectedNodeGroup?.node.objectId ?? null}
+                    walletAddress={operatorInventory.walletAddress}
+                    lookupKeysTried={selectedNodeInventoryLookupResolution.lookupKeysTried}
+                    className="min-h-[260px]"
+                  />
+                ) : (
                 <NodeStructureListPanel
                   embedded
                   viewModel={selectedNodeViewModel}
@@ -1260,6 +1297,7 @@ export function Dashboard({
                   powerStatus={structurePower.status}
                   powerStructureId={powerStructureId}
                 />
+                )
               ) : (
                 <div className="max-h-[420px] overflow-y-auto divide-y divide-border/50">
                   {showSignalFeedLagHint ? (
@@ -1302,6 +1340,15 @@ export function Dashboard({
           >
             <TopologyPanelFade contentKey={`lower-right-${topologyModeKey}`} durationMs={TRANSITION_DURATION_MS} className="h-auto">
               {selectedNodeViewModel ? (
+                nodeControlAuthorityState ? (
+                  <NodeControlAuthorityStatePanel
+                    state={nodeControlAuthorityState}
+                    nodeObjectId={selectedNodeGroup?.node.objectId ?? null}
+                    walletAddress={operatorInventory.walletAddress}
+                    lookupKeysTried={selectedNodeInventoryLookupResolution.lookupKeysTried}
+                    className="min-h-[260px]"
+                  />
+                ) : (
                 <NodeSelectionInspector
                   embedded
                   viewModel={selectedNodeViewModel}
@@ -1319,6 +1366,7 @@ export function Dashboard({
                   onDismissPowerFeedback={handleDismissNodeLocalPowerFeedback}
                   debugOperatorInventoryEnabled={isOperatorInventoryDebugEnabled}
                 />
+                )
               ) : (
                 <div className="divide-y divide-border/50">
                   <AttentionAlerts metrics={metrics} structures={structures} />

@@ -4,8 +4,10 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 
 import { StructureActionContextMenu } from "../src/components/structure-actions/StructureActionContextMenu.tsx";
+import { NodeDrilldownCanvas } from "../src/components/topology/node-drilldown/NodeDrilldownCanvas.tsx";
 import { NodeSelectionInspector } from "../src/components/topology/node-drilldown/NodeSelectionInspector.tsx";
 import { NodeStructureActionRail } from "../src/components/topology/node-drilldown/NodeStructureActionRail.tsx";
+import { NodeStructureListPanel } from "../src/components/topology/node-drilldown/NodeStructureListPanel.tsx";
 import { adaptOperatorInventory } from "../src/lib/operatorInventoryAdapter.ts";
 import { buildNodeDrilldownMenuItems } from "../src/lib/nodeDrilldownMenuItems.ts";
 import { buildLiveNodeLocalViewModelWithObserved } from "../src/lib/nodeDrilldownModel.ts";
@@ -225,6 +227,10 @@ function makeWeakRenderedStructure(structure: NodeLocalStructure): NodeLocalStru
   return {
     ...structure,
     id: structure.assemblyId ? `assembly:${structure.assemblyId}` : structure.id,
+    displayName: "Test 3",
+    typeLabel: structure.familyLabel,
+    sizeVariant: null,
+    badge: null,
     objectId: undefined,
     directChainObjectId: null,
     directChainAssemblyId: null,
@@ -242,6 +248,7 @@ function makeWeakRenderedStructure(structure: NodeLocalStructure): NodeLocalStru
     },
     isReadOnly: true,
     isActionable: false,
+    sortLabel: "test 3",
   };
 }
 
@@ -281,6 +288,31 @@ function assertRenderedUiProof(viewModel: NodeLocalViewModel, groupNode: Paramet
   assert(!inspectorMarkup.includes("Not indexed"), "expected rendered inspector not to show missing indexed proof");
   assert(inspectorMarkup.includes("Copy linked network node ID"), "expected rendered inspector to include Network Node proof control");
   assert(inspectorMarkup.includes("Power and rename available"), "expected rendered inspector to show write authority");
+  assert(!inspectorMarkup.includes("Test 3"), "expected inspector display to ignore stale weak-row names");
+
+  const listMarkup = renderToStaticMarkup(React.createElement(NodeStructureListPanel, {
+    embedded: true,
+    viewModel: weakViewModel,
+    selectedStructureId: weakStructure.id,
+    hiddenCanonicalKeySet: new Set<string>(),
+    onSelectStructure: () => undefined,
+    onUnhideStructure: () => undefined,
+    onTogglePower: () => undefined,
+  }));
+  assert(listMarkup.includes(strongStructure.displayName), "expected attached list to render the authoritative display name");
+  assert(!listMarkup.includes("Test 3"), "expected attached list not to render stale weak-row names");
+  assert(listMarkup.includes("Copy") === false, "expected attached list to remain a list projection, not inspector markup");
+
+  const canvasMarkup = renderToStaticMarkup(React.createElement(NodeDrilldownCanvas, {
+    viewModel: weakViewModel,
+    selectedStructureId: weakStructure.id,
+    onSelectStructure: () => undefined,
+    totalStructureCount: viewModel.structures.length,
+    hiddenStructureCount: 0,
+    powerUsageLabel: "320 / 1000 GJ",
+  }));
+  assert(canvasMarkup.includes(strongStructure.displayName), "expected canvas aria labels to use the authoritative display name");
+  assert(!canvasMarkup.includes("Test 3"), "expected canvas projection not to expose stale weak-row names");
 
   const railMarkup = renderToStaticMarkup(React.createElement(NodeStructureActionRail, {
     structure: resolvedStructure,
