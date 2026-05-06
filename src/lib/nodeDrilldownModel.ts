@@ -291,23 +291,54 @@ function selectCanonicalAssemblyKey(
   return selectCanonicalNodeDrilldownDomainKey(identity, fallbackAliases);
 }
 
+function parseDisplayTimestamp(value: string | null | undefined): number | null {
+  if (!value) return null;
+
+  const timestamp = Date.parse(value);
+  return Number.isFinite(timestamp) ? timestamp : null;
+}
+
+function compareObservedDisplayFreshness(
+  current: ObservedAssembly,
+  next: ObservedAssembly,
+): number {
+  const currentTimestamp = parseDisplayTimestamp(current.displayNameUpdatedAt);
+  const nextTimestamp = parseDisplayTimestamp(next.displayNameUpdatedAt);
+  if (currentTimestamp != null && nextTimestamp != null && currentTimestamp !== nextTimestamp) {
+    return nextTimestamp - currentTimestamp;
+  }
+
+  if (currentTimestamp == null && nextTimestamp != null) return 1;
+  if (currentTimestamp != null && nextTimestamp == null) return -1;
+  if (!current.displayNameSource && next.displayNameSource) return 1;
+  if (current.displayNameSource && !next.displayNameSource) return -1;
+  if (!current.displayName && next.displayName) return 1;
+  if (current.displayName && !next.displayName) return -1;
+  return 0;
+}
+
 function mergeObservedAssemblyEntry(
   current: ObservedAssembly,
   next: ObservedAssembly,
 ): ObservedAssembly {
+  const presentation = compareObservedDisplayFreshness(current, next) > 0 ? next : current;
+
   return {
     objectId: next.objectId ?? current.objectId,
     assemblyId: next.assemblyId ?? current.assemblyId,
     linkedGateId: next.linkedGateId ?? current.linkedGateId,
     assemblyType: next.assemblyType ?? current.assemblyType,
     typeId: next.typeId ?? current.typeId,
-    name: next.name ?? current.name,
-    displayName: next.displayName ?? current.displayName,
+    name: presentation.name ?? next.name ?? current.name,
+    displayName: presentation.displayName ?? next.displayName ?? current.displayName,
+    displayNameSource: presentation.displayNameSource ?? next.displayNameSource ?? current.displayNameSource,
+    displayNameUpdatedAt: presentation.displayNameUpdatedAt ?? next.displayNameUpdatedAt ?? current.displayNameUpdatedAt,
     family: next.family ?? current.family,
     size: next.size ?? current.size,
-    status: next.status ?? current.status,
+    status: presentation.status ?? next.status ?? current.status,
     fuelAmount: next.fuelAmount ?? current.fuelAmount,
     powerSummary: next.powerSummary ?? current.powerSummary,
+    powerRequirement: next.powerRequirement ?? current.powerRequirement,
     solarSystemId: next.solarSystemId ?? current.solarSystemId,
     energySourceId: next.energySourceId ?? current.energySourceId,
     url: next.url ?? current.url,
@@ -843,6 +874,94 @@ function preferDisplayStructure(
   return left;
 }
 
+// Display freshness can come from weaker rows; authority fields follow the strongest proof row.
+function scoreActionTargetProof(
+  target: NodeLocalActionCandidateTarget | null | undefined,
+): number {
+  if (!target) {
+    return 0;
+  }
+
+  return (target.structureId ? 8 : 0)
+    + (target.structureType ? 2 : 0)
+    + (target.ownerCapId ? 8 : 0)
+    + (target.networkNodeId ? 8 : 0)
+    + (target.status !== "neutral" ? 1 : 0);
+}
+
+function scoreActionAuthorityProof(authority: NodeLocalActionAuthority): number {
+  const bestCandidateScore = Math.max(
+    0,
+    ...authority.candidateTargets.map(scoreActionTargetProof),
+  );
+
+  return (authority.verifiedTarget ? 64 + scoreActionTargetProof(authority.verifiedTarget) : 0)
+    + bestCandidateScore;
+}
+
+function scoreActionCandidateProof(
+  actionCandidate: NodeLocalStructure["actionCandidate"],
+): number {
+  const powerAction = actionCandidate?.actions.power;
+  if (!powerAction) {
+    return 0;
+  }
+
+  const requiredIds = powerAction.requiredIds;
+  return 8
+    + (powerAction.candidate ? 4 : 0)
+    + (powerAction.indexedOwnerCapPresent ? 4 : 0)
+    + (requiredIds?.structureId ? 8 : 0)
+    + (requiredIds?.structureType ? 2 : 0)
+    + (requiredIds?.ownerCapId ? 8 : 0)
+    + (requiredIds?.networkNodeId ? 8 : 0);
+}
+
+function scoreStructureProof(row: NodeLocalStructure): number {
+  return scoreActionAuthorityProof(row.actionAuthority)
+    + scoreActionCandidateProof(row.actionCandidate)
+    + (row.objectId ? 8 : 0)
+    + (row.assemblyId ? 4 : 0)
+    + (row.energySourceId ? 3 : 0)
+    + (row.powerRequirement ? 3 : 0)
+    + (row.hasDirectChainAuthority ? 2 : 0);
+}
+
+function preferProofStructure(
+  left: NodeLocalStructure,
+  right: NodeLocalStructure,
+): NodeLocalStructure {
+  const leftScore = scoreStructureProof(left);
+  const rightScore = scoreStructureProof(right);
+
+  if (rightScore > leftScore) return right;
+  if (rightScore < leftScore) return left;
+
+  if (left.source !== "live" && right.source === "live") {
+    return right;
+  }
+
+  if (left.source === "synthetic" && right.source !== "synthetic") {
+    return right;
+  }
+
+  return left;
+}
+
+function getActionAuthorityObjectId(authority: NodeLocalActionAuthority): string | undefined {
+  if (authority.verifiedTarget?.structureId) {
+    return authority.verifiedTarget.structureId;
+  }
+
+  const candidateObjectIds = [...new Set(
+    authority.candidateTargets
+      .map((target) => target.structureId)
+      .filter((structureId): structureId is string => Boolean(structureId)),
+  )];
+
+  return candidateObjectIds.length === 1 ? candidateObjectIds[0] : undefined;
+}
+
 function pickFirstDefined<T>(values: Array<T | null | undefined>): T | undefined {
   return values.find((value): value is T => value != null);
 }
@@ -889,6 +1008,7 @@ function mergeNodeLocalStructureBucket(
     ?? bucket.entries.find((entry) => entry.source === "backendObserved")
     ?? bucket.entries[0];
   const displayRow = bucket.entries.reduce(preferDisplayStructure, authoritativeRow);
+  const proofRow = bucket.entries.reduce(preferProofStructure, authoritativeRow);
   const mergedSource = liveRow
     ? "live"
     : bucket.entries.some((entry) => entry.source === "backendMembership")
@@ -897,16 +1017,24 @@ function mergeNodeLocalStructureBucket(
       ? "backendObserved"
       : "synthetic";
 
-  const objectId = pickFirstDefined(bucket.entries.map((entry) => entry.objectId));
+  const objectId = pickFirstDefined([
+    proofRow.objectId,
+    getActionAuthorityObjectId(proofRow.actionAuthority),
+    ...bucket.entries.map((entry) => entry.objectId),
+    ...bucket.entries.map((entry) => getActionAuthorityObjectId(entry.actionAuthority)),
+  ]);
   const assemblyId = normalizeNodeDrilldownAssemblyId(
-    pickFirstDefined(bucket.entries.map((entry) => entry.assemblyId)),
+    pickFirstDefined([
+      proofRow.assemblyId,
+      ...bucket.entries.map((entry) => entry.assemblyId),
+    ]),
   ) ?? undefined;
   const renderId = liveRow?.id
     ?? objectId
     ?? (assemblyId ? `assembly:${assemblyId}` : authoritativeRow.id);
   const status = mergeCollapsedStructureStatus(bucket.entries);
   const sizeVariant = displayRow.sizeVariant ?? deriveSizeVariant(displayRow.typeLabel) ?? authoritativeRow.sizeVariant;
-  const actionAuthority = liveRow?.actionAuthority ?? authoritativeRow.actionAuthority;
+  const actionAuthority = proofRow.actionAuthority;
 
   return createNodeLocalStructure({
     id: renderId,
@@ -925,6 +1053,10 @@ function mergeNodeLocalStructureBucket(
     status,
     source: mergedSource,
     extensionStatus: liveRow?.extensionStatus ?? authoritativeRow.extensionStatus,
+    actionCandidate: pickFirstDefined([
+      proofRow.actionCandidate,
+      ...bucket.entries.map((entry) => entry.actionCandidate),
+    ]) ?? null,
     actionAuthority,
     typeLabel: displayRow.typeLabel,
     typeId: displayRow.typeId ?? authoritativeRow.typeId,
@@ -935,9 +1067,15 @@ function mergeNodeLocalStructureBucket(
     provenance: pickFirstDefined(bucket.entries.map((entry) => entry.provenance ?? undefined)) ?? null,
     url: pickFirstDefined(bucket.entries.map((entry) => entry.url ?? undefined)) ?? null,
     solarSystemId: pickFirstDefined(bucket.entries.map((entry) => entry.solarSystemId ?? undefined)) ?? null,
-    energySourceId: pickFirstDefined(bucket.entries.map((entry) => entry.energySourceId ?? undefined)) ?? null,
+    energySourceId: pickFirstDefined([
+      proofRow.energySourceId ?? undefined,
+      ...bucket.entries.map((entry) => entry.energySourceId ?? undefined),
+    ]) ?? null,
     fuelAmount: pickFirstDefined(bucket.entries.map((entry) => entry.fuelAmount ?? undefined)) ?? null,
-    powerRequirement: pickFirstDefined(bucket.entries.map((entry) => entry.powerRequirement ?? undefined)) ?? null,
+    powerRequirement: pickFirstDefined([
+      proofRow.powerRequirement ?? undefined,
+      ...bucket.entries.map((entry) => entry.powerRequirement ?? undefined),
+    ]) ?? null,
     isReadOnly: actionAuthority.state !== "verified-supported",
     isActionable: actionAuthority.state === "verified-supported",
   });
@@ -1265,6 +1403,16 @@ function fuelSummary(structure: Structure): string | undefined {
   return formatFuelPresentationSummary(buildFuelPresentation(structure)) ?? undefined;
 }
 
+function resolveNodePowerUsageSummary(
+  group: NetworkNodeGroup,
+  observedLookup?: NodeAssembliesLookupResult | null,
+) {
+  return group.node.indexedPowerUsageSummary
+    ?? group.node.summary?.powerUsageSummary
+    ?? (observedLookup?.status === "success" ? observedLookup.node?.powerUsageSummary : null)
+    ?? null;
+}
+
 export function sortNodeLocalStructures(structures: NodeLocalStructure[]): NodeLocalStructure[] {
   return [...structures].sort((left, right) => {
     const bandDiff = BAND_ORDER[left.band] - BAND_ORDER[right.band];
@@ -1306,7 +1454,7 @@ export function buildLiveNodeLocalViewModelWithObserved(
       warningPip: group.node.status === "warning",
       source: group.node.readModelSource === "operator-inventory" ? "backendMembership" : "live",
       fuelSummary: fuelSummary(group.node),
-      powerUsageSummary: group.node.indexedPowerUsageSummary ?? group.node.summary?.powerUsageSummary ?? null,
+      powerUsageSummary: resolveNodePowerUsageSummary(group, observedLookup),
       extensionStatus: group.node.summary?.extensionStatus ?? group.node.extensionStatus,
       solarSystemName: group.node.summary?.solarSystemId ?? (group.solarSystemId != null ? `System ${group.solarSystemId}` : null),
       isSyntheticContainer: group.node.objectId === "unassigned",
@@ -1318,7 +1466,9 @@ export function buildLiveNodeLocalViewModelWithObserved(
       provenance: isBackendMembership ? "node-local-indexer" : null,
       url: null,
       solarSystemId: group.node.summary?.solarSystemId ?? null,
-      energySourceId: null,
+      energySourceId: group.node.summary?.energySourceId
+        ?? (observedLookup?.status === "success" ? observedLookup.node?.energySourceId : null)
+        ?? null,
       fuelAmount: getIndexedFuelAmount(group.node) ?? group.node.fuel?.quantity?.toString() ?? null,
       isReadOnly: false,
       isActionable: true,

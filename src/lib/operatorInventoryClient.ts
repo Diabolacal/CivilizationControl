@@ -517,10 +517,11 @@ function normalizeIndexedActionCandidate(
 
   const candidate = value as Record<string, unknown>;
   const actionsCandidate = candidate.actions as Record<string, unknown> | undefined;
+  const actionDefaults = buildIndexedStructureActionDefaults(candidate, rowCandidate);
   return {
     actions: {
-      power: normalizeIndexedStructureAction(actionsCandidate?.power),
-      rename: normalizeIndexedStructureAction(actionsCandidate?.rename),
+      power: normalizeIndexedStructureAction(actionsCandidate?.power, actionDefaults),
+      rename: normalizeIndexedStructureAction(actionsCandidate?.rename, actionDefaults),
     },
     supported: normalizeBoolean(candidate.supported) ?? normalizeBoolean(rowCandidate.supported),
     familySupported: normalizeBoolean(candidate.familySupported) ?? normalizeBoolean(rowCandidate.familySupported),
@@ -528,32 +529,86 @@ function normalizeIndexedActionCandidate(
   };
 }
 
-function normalizeIndexedStructureAction(value: unknown): IndexedStructureAction | null {
+interface IndexedStructureActionDefaults {
+  indexedOwnerCapPresent: boolean | null;
+  requiredIds: IndexedActionRequiredIds | null;
+}
+
+function buildIndexedStructureActionDefaults(
+  candidate: Record<string, unknown>,
+  rowCandidate: Record<string, unknown>,
+): IndexedStructureActionDefaults {
+  const requiredIdsFallback: IndexedActionRequiredIds = {
+    structureId: normalizeCanonicalObjectId(normalizeNullableString(candidate.objectId))
+      ?? normalizeCanonicalObjectId(normalizeNullableString(rowCandidate.objectId)),
+    structureType: normalizeStructureActionTargetType(candidate.structureType)
+      ?? normalizeStructureActionTargetType(rowCandidate.structureType)
+      ?? normalizeStructureActionTargetType(rowCandidate.family)
+      ?? normalizeStructureActionTargetType(rowCandidate.assemblyType)
+      ?? normalizeStructureActionTargetType(rowCandidate.typeName),
+    ownerCapId: normalizeCanonicalObjectId(normalizeNullableString(candidate.ownerCapId))
+      ?? normalizeCanonicalObjectId(normalizeNullableString(rowCandidate.ownerCapId)),
+    networkNodeId: normalizeCanonicalObjectId(normalizeNullableString(candidate.networkNodeId))
+      ?? normalizeCanonicalObjectId(normalizeNullableString(candidate.energySourceId))
+      ?? normalizeCanonicalObjectId(normalizeNullableString(rowCandidate.networkNodeId))
+      ?? normalizeCanonicalObjectId(normalizeNullableString(rowCandidate.energySourceId)),
+  };
+  const requiredIds = normalizeIndexedActionRequiredIds(candidate.requiredIds, requiredIdsFallback)
+    ?? normalizeIndexedActionRequiredIds(null, requiredIdsFallback);
+
+  return {
+    indexedOwnerCapPresent: normalizeBoolean(candidate.indexedOwnerCapPresent)
+      ?? normalizeBoolean(candidate.hasIndexedOwnerCap)
+      ?? (requiredIds?.ownerCapId ? true : null),
+    requiredIds,
+  };
+}
+
+function normalizeIndexedStructureAction(
+  value: unknown,
+  defaults: IndexedStructureActionDefaults = { indexedOwnerCapPresent: null, requiredIds: null },
+): IndexedStructureAction | null {
   if (!value || typeof value !== "object") return null;
 
   const candidate = value as Record<string, unknown>;
-  const requiredIds = normalizeIndexedActionRequiredIds(candidate.requiredIds);
+  const requiredIds = normalizeIndexedActionRequiredIds(candidate.requiredIds, defaults.requiredIds ?? undefined)
+    ?? defaults.requiredIds;
 
   return {
     candidate: normalizeBoolean(candidate.candidate) ?? false,
     currentlyImplementedInCivilizationControl: normalizeBoolean(candidate.currentlyImplementedInCivilizationControl) ?? false,
     familySupported: normalizeBoolean(candidate.familySupported),
-    indexedOwnerCapPresent: normalizeBoolean(candidate.indexedOwnerCapPresent),
+    indexedOwnerCapPresent: normalizeBoolean(candidate.indexedOwnerCapPresent) ?? defaults.indexedOwnerCapPresent,
     requiredIds,
     unavailableReason: normalizeNullableString(candidate.unavailableReason),
   };
 }
 
-function normalizeIndexedActionRequiredIds(value: unknown): IndexedActionRequiredIds | null {
-  if (!value || typeof value !== "object") return null;
+function normalizeIndexedActionRequiredIds(
+  value: unknown,
+  fallback?: Partial<IndexedActionRequiredIds>,
+): IndexedActionRequiredIds | null {
+  if ((!value || typeof value !== "object") && !fallback) return null;
 
-  const candidate = value as Record<string, unknown>;
-  return {
-    structureId: normalizeCanonicalObjectId(normalizeNullableString(candidate.structureId)),
-    structureType: normalizeStructureActionTargetType(candidate.structureType),
-    ownerCapId: normalizeCanonicalObjectId(normalizeNullableString(candidate.ownerCapId)),
-    networkNodeId: normalizeCanonicalObjectId(normalizeNullableString(candidate.networkNodeId)),
+  const candidate = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const requiredIds: IndexedActionRequiredIds = {
+    structureId: normalizeCanonicalObjectId(normalizeNullableString(candidate.structureId))
+      ?? normalizeCanonicalObjectId(normalizeNullableString(candidate.objectId))
+      ?? fallback?.structureId
+      ?? null,
+    structureType: normalizeStructureActionTargetType(candidate.structureType)
+      ?? fallback?.structureType
+      ?? null,
+    ownerCapId: normalizeCanonicalObjectId(normalizeNullableString(candidate.ownerCapId))
+      ?? fallback?.ownerCapId
+      ?? null,
+    networkNodeId: normalizeCanonicalObjectId(normalizeNullableString(candidate.networkNodeId))
+      ?? normalizeCanonicalObjectId(normalizeNullableString(candidate.energySourceId))
+      ?? fallback?.networkNodeId
+      ?? null,
   };
+
+  return Object.values(requiredIds).some((field) => field != null) ? requiredIds : null;
 }
 
 function normalizeStructureActionTargetType(value: unknown): StructureActionTargetType | null {
