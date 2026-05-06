@@ -6,6 +6,7 @@ import { NodeStructureActionRail } from "@/components/topology/node-drilldown/No
 import type { OpenNodeDrilldownStructureMenuParams } from "@/hooks/useNodeDrilldownStructureMenu";
 import { getNodeLocalActionStatus } from "@/lib/nodeDrilldownActionAuthority";
 import { formatNodeLocalSize, formatNodeLocalStatus, sortNodeLocalStructures } from "@/lib/nodeDrilldownModel";
+import { resolveNodeLocalStructure } from "@/lib/nodeDrilldownSelection";
 import { cn } from "@/lib/utils";
 
 import type { TxStatus } from "@/types/domain";
@@ -91,7 +92,19 @@ function NodeStructureListContent({
 }: Pick<NodeStructureListPanelProps, "viewModel" | "selectedStructureId" | "onSelectStructure" | "hiddenCanonicalKeySet" | "onUnhideStructure" | "onOpenStructureMenu" | "onCloseStructureMenu" | "onTogglePower" | "powerStatus" | "powerStructureId">) {
   const structures = useMemo(
     () => {
-      const sortedStructures = sortNodeLocalStructures(viewModel.structures);
+      const structuresById = new Map<string, NodeLocalStructure>();
+      for (const structure of viewModel.structures) {
+        const resolvedStructure = resolveNodeLocalStructure(
+          viewModel,
+          { structure },
+          "attached-list-projection",
+        ).structure ?? structure;
+        if (!structuresById.has(resolvedStructure.id)) {
+          structuresById.set(resolvedStructure.id, resolvedStructure);
+        }
+      }
+
+      const sortedStructures = sortNodeLocalStructures([...structuresById.values()]);
       const visibleStructures: typeof sortedStructures = [];
       const hiddenStructures: typeof sortedStructures = [];
 
@@ -115,6 +128,7 @@ function NodeStructureListContent({
         {structures.map((structure) => {
           const isHidden = hiddenCanonicalKeySet.has(structure.canonicalDomainKey);
           const subtitle = buildStructureSubtitle(structure, isHidden);
+          const isSelected = selectedStructureId === structure.id;
           const openStructureContextMenu = (event: React.MouseEvent<HTMLElement>) => {
             event.preventDefault();
             event.stopPropagation();
@@ -134,7 +148,7 @@ function NodeStructureListContent({
               className={cn(
                 "rounded border px-3 py-2 transition-colors",
                 isHidden ? "border-dashed" : null,
-                selectedStructureId === structure.id
+                isSelected
                   ? "border-primary/60 bg-primary/8"
                   : isHidden
                     ? "border-border/50 bg-muted/5"
@@ -171,7 +185,7 @@ function NodeStructureListContent({
                     family={structure.iconFamily}
                     badge={structure.badge}
                     tone={structure.tone}
-                    selected={selectedStructureId === structure.id}
+                    selected={isSelected}
                     warningPip={structure.warningPip}
                     size={20}
                   />

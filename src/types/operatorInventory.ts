@@ -1,5 +1,6 @@
 import type {
   IndexedActionCandidate,
+  IndexedActionRequiredIds,
   IndexedNodePowerUsageSummary,
   IndexedPowerRequirement,
   IndexedPowerSummary,
@@ -68,6 +69,35 @@ export interface OperatorInventoryStructure {
   partial: boolean;
   warnings: string[];
   actionCandidate: IndexedActionCandidate | null;
+  rawProof?: OperatorInventoryRawStructureProof | null;
+}
+
+export interface OperatorInventoryRawActionProof {
+  actions: {
+    power: { requiredIds: IndexedActionRequiredIds | null };
+    rename: { requiredIds: IndexedActionRequiredIds | null };
+  };
+}
+
+export interface OperatorInventoryRawStructureProof {
+  objectId: ObjectId | null;
+  assemblyId: string | null;
+  ownerCapId: ObjectId | null;
+  networkNodeId: ObjectId | null;
+  energySourceId: string | null;
+  displayName: string | null;
+  name: string | null;
+  typeName: string | null;
+  family: string | null;
+  size: string | null;
+  status: string | null;
+  source: string | null;
+  provenance: string | null;
+  displayNameSource: string | null;
+  displayNameUpdatedAt: string | null;
+  powerRequirement: IndexedPowerRequirement | null;
+  powerUsageSummary: IndexedNodePowerUsageSummary | null;
+  actionCandidate: OperatorInventoryRawActionProof | null;
 }
 
 export interface OperatorInventoryNode {

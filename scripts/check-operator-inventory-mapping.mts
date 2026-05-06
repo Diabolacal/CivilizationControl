@@ -31,6 +31,10 @@ const PRINTER_ID = "0x0000000000000000000000000000000000000000000000000000000000
 const REFINERY_ID = "0x0000000000000000000000000000000000000000000000000000000000000106";
 const ASSEMBLER_ID = "0x0000000000000000000000000000000000000000000000000000000000000107";
 const BERTH_ID = "0x0000000000000000000000000000000000000000000000000000000000000108";
+const DUPLICATE_AUTHORITY_NODE_ID = "0x0000000000000000000000000000000000000000000000000000000000000110";
+const DUPLICATE_AUTHORITY_TURRET_ID = "0x0000000000000000000000000000000000000000000000000000000000000111";
+const DUPLICATE_AUTHORITY_NODE_OWNER_CAP_ID = "0x0000000000000000000000000000000000000000000000000000000000000f10";
+const DUPLICATE_AUTHORITY_TURRET_OWNER_CAP_ID = "0x000000000000000000000000000000000000000000000000000000000000c111";
 const UNLINKED_STORAGE_ID = "0x0000000000000000000000000000000000000000000000000000000000000105";
 const GATE_B_ID = "0x0000000000000000000000000000000000000000000000000000000000000201";
 const TURRET_B_ID = "0x0000000000000000000000000000000000000000000000000000000000000202";
@@ -140,6 +144,7 @@ const response: OperatorInventoryResponse = {
         liveGenericAssemblyRow({
           objectId: PRINTER_ID,
           ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001104",
+          networkNodeId: NETWORK_NODE_A_ID,
           family: "printer",
           displayName: "Mini Printer",
           typeId: 88067,
@@ -151,6 +156,7 @@ const response: OperatorInventoryResponse = {
         liveGenericAssemblyRow({
           objectId: REFINERY_ID,
           ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001106",
+          networkNodeId: NETWORK_NODE_A_ID,
           family: "refinery",
           displayName: "Refinery",
           typeId: 88068,
@@ -161,6 +167,7 @@ const response: OperatorInventoryResponse = {
         liveGenericAssemblyRow({
           objectId: ASSEMBLER_ID,
           ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001107",
+          networkNodeId: NETWORK_NODE_A_ID,
           family: "assembler",
           displayName: "Assembler",
           typeId: 88069,
@@ -171,6 +178,7 @@ const response: OperatorInventoryResponse = {
         liveGenericAssemblyRow({
           objectId: BERTH_ID,
           ownerCapId: "0x0000000000000000000000000000000000000000000000000000000000001108",
+          networkNodeId: NETWORK_NODE_A_ID,
           family: "berth",
           displayName: "Mini Berth",
           typeId: 88070,
@@ -583,6 +591,148 @@ const viewModel = buildLiveNodeLocalViewModelWithObserved(group, lookup, { prefe
 const reserveViewModel = buildLiveNodeLocalViewModelWithObserved(reserveGroup, reserveLookup, { preferObservedMembership: true });
 const offlineViewModel = buildLiveNodeLocalViewModelWithObserved(offlineGroup, offlineLookup, { preferObservedMembership: true });
 
+const duplicateAuthorityResponse: OperatorInventoryResponse = {
+  schemaVersion: "operator-inventory.v1",
+  operator: response.operator,
+  networkNodes: [
+    {
+      node: networkNodeRow({
+        objectId: DUPLICATE_AUTHORITY_NODE_ID,
+        assemblyId: "9410",
+        ownerCapId: DUPLICATE_AUTHORITY_NODE_OWNER_CAP_ID,
+        displayName: "Authority Node",
+        solarSystemId: "30000144",
+        fuelAmount: null,
+        powerUsageSummary: createNodePowerUsageSummary({
+          capacityGj: 1000,
+          usedGj: 320,
+          availableGj: 680,
+          onlineKnownLoadGj: 320,
+          onlineUnknownLoadCount: 0,
+          totalKnownLoadGj: 320,
+          totalUnknownLoadCount: 0,
+        }),
+      }),
+      powerUsageSummary: createNodePowerUsageSummary({
+        capacityGj: 1000,
+        usedGj: 320,
+        availableGj: 680,
+        onlineKnownLoadGj: 320,
+        onlineUnknownLoadCount: 0,
+        totalKnownLoadGj: 320,
+        totalUnknownLoadCount: 0,
+      }),
+      structures: [
+        actionRow({
+          objectId: DUPLICATE_AUTHORITY_TURRET_ID,
+          assemblyId: "9411",
+          ownerCapId: DUPLICATE_AUTHORITY_TURRET_OWNER_CAP_ID,
+          family: "turret",
+          displayName: "Authority Turret",
+          typeId: 92279,
+          typeName: "Mini Turret",
+          assemblyType: "turret",
+          status: "online",
+          extensionStatus: "authorized",
+          size: "mini",
+          powerRequirement: createPowerRequirement({ requiredGj: 180 }),
+          requiredIds: {
+            structureId: DUPLICATE_AUTHORITY_TURRET_ID,
+            structureType: "turret",
+            ownerCapId: DUPLICATE_AUTHORITY_TURRET_OWNER_CAP_ID,
+            networkNodeId: DUPLICATE_AUTHORITY_NODE_ID,
+          },
+        }),
+      ],
+    },
+    {
+      node: networkNodeRow({
+        objectId: DUPLICATE_AUTHORITY_NODE_ID,
+        assemblyId: "9410",
+        ownerCapId: null,
+        displayName: "Authority Node Corrected",
+        displayNameSource: "metadata_event",
+        displayNameUpdatedAt: OBSERVED_AT,
+        solarSystemId: "30000144",
+        fuelAmount: "1600",
+        powerSummary: createPowerSummary({
+          fuelAmount: 1600,
+          fuelMaxCapacity: 2400,
+          fuelTypeId: 88319,
+          fuelTypeName: "D2 Fuel",
+          fuelGrade: "D2",
+          efficiencyPercent: 15,
+          burnRateUnitsPerHour: 6.6,
+          estimatedSecondsRemaining: 873600,
+          estimatedHoursRemaining: 242,
+          criticalFuelThresholdSeconds: 3600,
+          lowFuelThresholdSeconds: 86400,
+          isLowFuel: false,
+          isCriticalFuel: false,
+          confidence: "indexed",
+        }),
+      }),
+      powerUsageSummary: null,
+      structures: [
+        actionRow({
+          objectId: DUPLICATE_AUTHORITY_TURRET_ID,
+          assemblyId: "9411",
+          ownerCapId: null,
+          family: "turret",
+          displayName: "Authority Turret Corrected",
+          displayNameSource: "metadata_event",
+          displayNameUpdatedAt: OBSERVED_AT,
+          typeId: 92279,
+          typeName: "Mini Turret",
+          assemblyType: "turret",
+          status: "offline",
+          extensionStatus: "authorized",
+          size: "mini",
+          fuelAmount: "40",
+          powerSummary: createPowerSummary({
+            fuelAmount: 40,
+            fuelMaxCapacity: 80,
+            fuelTypeId: 88319,
+            fuelTypeName: "D2 Fuel",
+            fuelGrade: "D2",
+            efficiencyPercent: 15,
+            burnRateUnitsPerHour: 6.6,
+            estimatedSecondsRemaining: 21600,
+            estimatedHoursRemaining: 6,
+            criticalFuelThresholdSeconds: 3600,
+            lowFuelThresholdSeconds: 86400,
+            isLowFuel: true,
+            isCriticalFuel: false,
+            confidence: "indexed",
+          }),
+          requiredIds: {
+            structureId: DUPLICATE_AUTHORITY_TURRET_ID,
+            structureType: "turret",
+            ownerCapId: null,
+            networkNodeId: DUPLICATE_AUTHORITY_NODE_ID,
+          },
+        }),
+      ],
+    },
+  ],
+  unlinkedStructures: [],
+  warnings: [],
+  partial: false,
+  source: SHARED_BACKEND_SOURCE,
+  fetchedAt: OBSERVED_AT,
+};
+const duplicateAuthorityAdapted = adaptOperatorInventory(duplicateAuthorityResponse);
+const duplicateAuthorityGroup = buildGroup(duplicateAuthorityAdapted.nodeGroups, DUPLICATE_AUTHORITY_NODE_ID);
+const duplicateAuthorityLookup = duplicateAuthorityAdapted.nodeLookupsByNodeId.get(DUPLICATE_AUTHORITY_NODE_ID);
+const duplicateAuthorityViewModel = buildLiveNodeLocalViewModelWithObserved(
+  duplicateAuthorityGroup,
+  duplicateAuthorityLookup,
+  { preferObservedMembership: true },
+);
+const duplicateAuthorityTurret = duplicateAuthorityViewModel.structures.find(
+  (structure) => structure.objectId === DUPLICATE_AUTHORITY_TURRET_ID,
+);
+
 assert.equal(viewModel.sourceMode, "backend-membership");
 assert.equal(viewModel.structures.length, 7);
 assert.equal(group.node.summary?.displayNameSource, "metadata_event");
@@ -599,6 +749,19 @@ assert.equal(reserveViewModel.node.status, "neutral", "expected Node Control to 
 assert.equal(getStructurePowerAction(reserveGroup.node), null, "expected neutral network nodes not to receive a fake node power action");
 assert.equal(reserveViewModel.node.fuelSummary, "D1 · 900 / 3,571 units");
 assert.equal(reserveViewModel.node.fuelAmount, "900");
+assert.equal(duplicateAuthorityGroup.node.ownerCapId, DUPLICATE_AUTHORITY_NODE_OWNER_CAP_ID, "expected duplicate node merge to preserve operator-inventory node authority");
+assert.equal(duplicateAuthorityGroup.node.indexedPowerUsageSummary?.usedGj, 320, "expected duplicate node merge to preserve node power usage summaries");
+assert(duplicateAuthorityLookup, "expected duplicate authority scenario to produce a selected-node lookup");
+assert.equal(duplicateAuthorityLookup?.node.displayName, "Authority Node Corrected", "expected duplicate node merge to keep fresher display names");
+assert.equal(duplicateAuthorityLookup?.node.powerUsageSummary?.usedGj, 320, "expected duplicate node merge to keep wrapper-level node power usage summaries in the selected-node lookup");
+assert.equal(duplicateAuthorityViewModel.node.displayName, "Authority Node Corrected", "expected Node Control to use fresher duplicate node labels without stripping authority");
+assert.equal(duplicateAuthorityViewModel.node.powerUsageSummary?.usedGj, 320, "expected Node Control to retain authoritative node power usage after duplicate merge");
+assert(duplicateAuthorityTurret, "expected duplicate authority turret to render in Node Control");
+assert.equal(duplicateAuthorityTurret?.displayName, "Authority Turret Corrected", "expected duplicate turret merge to keep fresher display names");
+assert.equal(duplicateAuthorityTurret?.actionAuthority.state, "verified-supported", "expected duplicate turret merge not to strip Node Control write authority");
+assert.equal(duplicateAuthorityTurret?.actionAuthority.verifiedTarget?.ownerCapId, DUPLICATE_AUTHORITY_TURRET_OWNER_CAP_ID, "expected duplicate turret merge to keep owner-cap authority for write actions");
+assert.equal(duplicateAuthorityTurret?.powerRequirement?.requiredGj, 180, "expected duplicate turret merge to keep indexed child power requirements");
+assert.equal(getNodeLocalPowerToggleIntent(duplicateAuthorityTurret!)?.actionLabel, "Bring Online", "expected duplicate turret merge to preserve power actions while using fresher status labels");
 
 const gate = viewModel.structures.find((structure) => structure.objectId === GATE_ID);
 const storage = viewModel.structures.find((structure) => structure.objectId === STORAGE_ID);
@@ -760,6 +923,10 @@ function actionRow(input: {
   assemblyType: string;
   status: "online" | "offline" | "unknown";
   extensionStatus: "authorized" | "stale" | "none" | null;
+  fuelAmount?: string | null;
+  powerSummary?: IndexedPowerSummary | null;
+  powerRequirement?: Structure["indexedPowerRequirement"];
+  powerUsageSummary?: Structure["indexedPowerUsageSummary"];
   requiredIds: {
     structureId: string;
     structureType: "gate" | "storage_unit" | "turret";
@@ -788,8 +955,10 @@ function actionRow(input: {
     ownerWalletAddress: OPERATOR_WALLET,
     characterId: CHARACTER_ID,
     extensionStatus: input.extensionStatus,
-    fuelAmount: null,
-    powerSummary: null,
+    fuelAmount: input.fuelAmount ?? null,
+    powerSummary: input.powerSummary ?? null,
+    powerRequirement: input.powerRequirement ?? null,
+    powerUsageSummary: input.powerUsageSummary ?? null,
     solarSystemId: null,
     url: null,
     lastObservedCheckpoint: "101010",
@@ -837,6 +1006,7 @@ function networkNodeRow(input: {
   fuelAmount: string | null;
   status?: "online" | "offline" | "warning" | "unknown" | "unanchored";
   powerSummary?: IndexedPowerSummary | null;
+  powerUsageSummary?: Structure["indexedPowerUsageSummary"];
   energySourceId?: string | null;
 }) {
   return {
@@ -861,6 +1031,8 @@ function networkNodeRow(input: {
     extensionStatus: "authorized",
     fuelAmount: input.fuelAmount,
     powerSummary: input.powerSummary ?? null,
+    powerRequirement: null,
+    powerUsageSummary: input.powerUsageSummary ?? null,
     solarSystemId: input.solarSystemId,
     url: null,
     lastObservedCheckpoint: "101010",
@@ -895,9 +1067,41 @@ function createPowerSummary(overrides: Partial<IndexedPowerSummary> = {}): Index
   };
 }
 
+function createPowerRequirement(
+  overrides: Partial<NonNullable<Structure["indexedPowerRequirement"]>> = {},
+): NonNullable<Structure["indexedPowerRequirement"]> {
+  return {
+    requiredGj: overrides.requiredGj ?? null,
+    source: overrides.source ?? "indexed_type",
+    confidence: overrides.confidence ?? "indexed",
+    typeId: overrides.typeId ?? null,
+    family: overrides.family ?? null,
+    size: overrides.size ?? null,
+    lastUpdated: overrides.lastUpdated ?? OBSERVED_AT,
+  };
+}
+
+function createNodePowerUsageSummary(
+  overrides: Partial<NonNullable<Structure["indexedPowerUsageSummary"]>> = {},
+): NonNullable<Structure["indexedPowerUsageSummary"]> {
+  return {
+    capacityGj: overrides.capacityGj ?? null,
+    usedGj: overrides.usedGj ?? null,
+    availableGj: overrides.availableGj ?? null,
+    onlineKnownLoadGj: overrides.onlineKnownLoadGj ?? null,
+    onlineUnknownLoadCount: overrides.onlineUnknownLoadCount ?? null,
+    totalKnownLoadGj: overrides.totalKnownLoadGj ?? null,
+    totalUnknownLoadCount: overrides.totalUnknownLoadCount ?? null,
+    source: overrides.source ?? "indexed_children",
+    confidence: overrides.confidence ?? "indexed",
+    lastUpdated: overrides.lastUpdated ?? OBSERVED_AT,
+  };
+}
+
 function liveGenericAssemblyRow(input: {
   objectId: string;
   ownerCapId: string | null;
+  networkNodeId: string | null;
   family: "printer" | "refinery" | "assembler" | "berth" | "relay" | "nursery" | "nest" | "shelter";
   displayName: string;
   typeId: number;
@@ -918,8 +1122,8 @@ function liveGenericAssemblyRow(input: {
     typeName: input.typeName,
     assemblyType: input.assemblyType,
     status: input.status,
-    networkNodeId: null,
-    energySourceId: null,
+    networkNodeId: input.networkNodeId,
+    energySourceId: input.networkNodeId,
     linkedGateId: null,
     ownerWalletAddress: null,
     characterId: null,

@@ -602,11 +602,10 @@ export function buildNodePowerPresetApplyPlan(
     if (!structure) continue;
     matchedCount += 1;
 
-    if (!isExactPowerStatus(structure.status)) continue;
-    if ((structure.status === "online") === savedTarget.desiredOnline) continue;
-
     const verifiedTarget = structure.actionAuthority.verifiedTarget;
     if (!verifiedTarget) continue;
+    if (!isExactPowerStatus(verifiedTarget.status)) continue;
+    if ((verifiedTarget.status === "online") === savedTarget.desiredOnline) continue;
 
     targets.push({ desiredOnline: savedTarget.desiredOnline, structure, verifiedTarget });
   }

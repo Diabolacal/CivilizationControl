@@ -124,6 +124,8 @@ export interface AssemblySummary {
   powerRequirement?: IndexedPowerRequirement | null;
   powerUsageSummary?: IndexedNodePowerUsageSummary | null;
   solarSystemId: string | null;
+  ownerCapId?: ObjectId | null;
+  networkNodeId?: ObjectId | null;
   energySourceId: string | null;
   url: string | null;
   lastUpdated: string | null;
@@ -180,6 +182,7 @@ export interface NodeAssemblySummary extends NodeAssemblyProvenance {
   powerSummary?: IndexedPowerSummary | null;
   powerRequirement?: IndexedPowerRequirement | null;
   solarSystemId: string | null;
+  networkNodeId?: ObjectId | null;
   energySourceId: string | null;
   url: string | null;
   lastUpdated: string | null;

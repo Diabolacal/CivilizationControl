@@ -334,5 +334,6 @@ try {
 
   console.log("signal-history mapping probe passed");
 } finally {
+  queryClient.clear();
   globalThis.fetch = originalFetch;
 }

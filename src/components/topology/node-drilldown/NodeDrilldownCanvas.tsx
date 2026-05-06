@@ -7,6 +7,7 @@ import {
   layoutNodeDrilldown,
 } from "@/lib/nodeDrilldownLayout";
 import { describeNodeLocalWarningMarker } from "@/lib/nodeDrilldownModel";
+import { resolveNodeLocalStructure } from "@/lib/nodeDrilldownSelection";
 import { cn } from "@/lib/utils";
 
 import { NodeDrilldownTooltip, type NodeDrilldownTooltipData } from "./NodeDrilldownTooltip";
@@ -135,10 +136,25 @@ export function NodeDrilldownCanvas({
   const dragStateRef = useRef<DragState | null>(null);
   const suppressClickStructureIdRef = useRef<string | null>(null);
   const [dragPreview, setDragPreview] = useState<DragPreview | null>(null);
-  const baseLayout = useMemo(() => layoutNodeDrilldown(viewModel), [viewModel]);
+  const renderViewModel = useMemo(() => {
+    const structuresById = new Map<string, NodeLocalViewModel["structures"][number]>();
+    for (const structure of viewModel.structures) {
+      const resolvedStructure = resolveNodeLocalStructure(
+        viewModel,
+        { structure },
+        "canvas-projection",
+      ).structure ?? structure;
+      if (!structuresById.has(resolvedStructure.id)) {
+        structuresById.set(resolvedStructure.id, resolvedStructure);
+      }
+    }
+
+    return { ...viewModel, structures: [...structuresById.values()] };
+  }, [viewModel]);
+  const baseLayout = useMemo(() => layoutNodeDrilldown(renderViewModel), [renderViewModel]);
   const layout = useMemo(
-    () => applyNodeDrilldownPositionOverrides(baseLayout, viewModel.structures, layoutOverrides),
-    [baseLayout, layoutOverrides, viewModel.structures],
+    () => applyNodeDrilldownPositionOverrides(baseLayout, renderViewModel.structures, layoutOverrides),
+    [baseLayout, layoutOverrides, renderViewModel.structures],
   );
   const displayedLayout = useMemo(() => {
     if (!dragPreview) return layout;
@@ -154,10 +170,10 @@ export function NodeDrilldownCanvas({
   }, [dragPreview, layout]);
   const [tooltip, setTooltip] = useState<NodeDrilldownTooltipData | null>(null);
   const structureMap = useMemo(
-    () => new Map(viewModel.structures.map((structure) => [structure.id, structure])),
-    [viewModel.structures],
+    () => new Map(renderViewModel.structures.map((structure) => [structure.id, structure])),
+    [renderViewModel.structures],
   );
-  const visibleStructureCount = viewModel.structures.length;
+  const visibleStructureCount = renderViewModel.structures.length;
 
   const getCanvasPosition = (clientX: number, clientY: number, iconSize: number): NodeDrilldownLayoutPosition | null => {
     const bounds = canvasRef.current?.getBoundingClientRect();
@@ -268,6 +284,7 @@ export function NodeDrilldownCanvas({
         const structure = structureMap.get(item.id);
         if (!structure) return null;
         const isDragging = dragPreview?.structureId === structure.id;
+        const isSelected = selectedStructureId === structure.id;
 
         return (
           <button
@@ -384,7 +401,7 @@ export function NodeDrilldownCanvas({
               "absolute -translate-x-1/2 -translate-y-1/2 rounded-full transition-transform hover:scale-[1.03]",
               onUpdateStructurePosition ? "cursor-grab active:cursor-grabbing" : null,
               isDragging ? "scale-[1.04]" : null,
-              selectedStructureId === structure.id ? "z-20" : "z-10",
+              isSelected ? "z-20" : "z-10",
             )}
             style={{ left: `${item.xPercent}%`, top: `${item.yPercent}%` }}
           >
@@ -392,7 +409,7 @@ export function NodeDrilldownCanvas({
               family={structure.iconFamily}
               badge={structure.badge}
               tone={structure.tone}
-              selected={selectedStructureId === structure.id}
+              selected={isSelected}
               warningPip={structure.warningPip}
               size={item.iconSize}
             />

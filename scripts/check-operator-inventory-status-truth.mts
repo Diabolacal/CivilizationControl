@@ -115,7 +115,7 @@ function normalizeInventoryStatus(status: string | null | undefined): "online" |
 function makeNodeControlStructureFromLiveRow(row: OperatorInventoryStructure): NodeLocalStructure | null {
   const objectId = row.objectId ?? null;
   const ownerCapId = row.ownerCapId ?? null;
-  const networkNodeId = row.networkNodeId ?? row.energySourceId ?? null;
+  const networkNodeId = row.networkNodeId ?? row.actionCandidate?.actions.power?.requiredIds?.networkNodeId ?? null;
   const status = normalizeInventoryStatus(row.status);
   if (!objectId || !ownerCapId || !networkNodeId || (status !== "online" && status !== "offline")) {
     return null;
