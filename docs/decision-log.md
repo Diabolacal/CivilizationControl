@@ -1,6 +1,13 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-07 - Compact navigation for narrow in-game browser
+- Goal: preserve the normal desktop command layout while giving narrow in-game DApp windows a compact left navigation rail and reachable Node Control power actions.
+- Files: `src/App.tsx`, `src/components/Sidebar.tsx`, `src/components/topology/TopologyPanelFrame.tsx`, `src/components/topology/node-drilldown/NodePowerActionStrip.tsx`
+- Diff: sidebar width is now driven by a persisted collapse preference plus a sub-1000px compact default; collapsed navigation hides text labels and the decorative CC logo; Node Control presets collapse into a compact dropdown below `lg` while Save, bulk power, and Back actions stay visible with shorter labels below `xl`.
+- Risk: low - frontend layout and action-header presentation only; no Move contracts, EF-Map, sponsor-worker policy, direct-chain read/write paths, or Signal Feed backend/API logic changed.
+- Gates: `npm run typecheck`; explicit public-env `npm run build`; `git diff --check`; `check-node-power-presets`; `check-node-control-action-projection`; `check-node-layout-overrides`; `check-signal-history-mapping`; local built-app route and responsive smoke.
+- Follow-ups: deploy a fresh Cloudflare Pages preview and have a connected operator smoke Node Control in the in-game browser width.
 ## 2026-05-07 - Merge and production deploy turret extension alert truth
 - Goal: merge the human-smoked turret extension false-negative fix and cut it to production without changing EF-Map, Move contracts, sponsor-worker policy, package IDs, or broader extension-management architecture.
 - Files: `docs/decision-log.md`, `docs/operations/network-node-drilldown-implementation-plan-20260501.md`, `scripts/check-turret-extension-truth.mts`, extension-status read/model/UI files from `fix/turret-extension-alert-truth`

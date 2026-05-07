@@ -47,7 +47,7 @@ export function TopologyPanelFrame({
   children,
 }: TopologyPanelFrameProps) {
   return (
-    <section className="w-full overflow-hidden rounded border border-border bg-[var(--card)]">
+    <section className="w-full overflow-visible rounded border border-border bg-[var(--card)]">
       <div className="relative z-10 flex h-[76px] items-center justify-between gap-4 border-b border-border/50 bg-muted/5 px-5 py-4">
         <div className="min-w-0 flex items-center gap-3">
           <Network className="h-4 w-4 shrink-0 text-primary opacity-80" />

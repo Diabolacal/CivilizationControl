@@ -1,7 +1,7 @@
 /**
  * App — Root layout shell.
  *
- * Layout: Fixed Header (h-16) + Fixed Sidebar (w-64) + Main content area.
+ * Layout: Fixed Header (h-16) + variable Sidebar + Main content area.
  * Routes follow UX architecture spec §3 screen hierarchy.
  *
  * Data flow: useAssetDiscovery → structures → nodeGroups → child components.
@@ -9,7 +9,7 @@
  */
 
 import { BrowserRouter, Routes, Route, useLocation, type Location } from "react-router";
-import { useCallback, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import { Header } from "@/components/Header";
 import { ShellRouteTransition } from "@/components/ShellRouteTransition";
 import { Sidebar } from "@/components/Sidebar";
@@ -34,6 +34,42 @@ import { StructureWriteReconciliationProvider } from "@/hooks/useStructureWriteR
 import { useTribesRefresh } from "@/hooks/useTribesRefresh";
 import { CharacterContext } from "@/hooks/useCharacter";
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
+
+const SIDEBAR_COLLAPSE_STORAGE_KEY = "cc:operator-sidebar-collapsed:v1";
+const SIDEBAR_COMPACT_MEDIA_QUERY = "(max-width: 999px)";
+
+function readStoredSidebarPreference(): boolean | null {
+  if (typeof window === "undefined") return null;
+
+  try {
+    const stored = window.localStorage.getItem(SIDEBAR_COLLAPSE_STORAGE_KEY);
+    if (stored === "collapsed") return true;
+    if (stored === "expanded") return false;
+  } catch {
+    return null;
+  }
+
+  return null;
+}
+
+function writeStoredSidebarPreference(isCollapsed: boolean) {
+  try {
+    window.localStorage.setItem(SIDEBAR_COLLAPSE_STORAGE_KEY, isCollapsed ? "collapsed" : "expanded");
+  } catch {
+    // Local storage may be unavailable inside embedded browser shells.
+  }
+}
+
+function getInitialSidebarCollapsed(): boolean {
+  if (typeof window === "undefined") return false;
+
+  const isCompactViewport = window.matchMedia(SIDEBAR_COMPACT_MEDIA_QUERY).matches;
+  const storedPreference = readStoredSidebarPreference();
+  if (isCompactViewport && storedPreference !== true) return true;
+  if (storedPreference != null) return storedPreference;
+
+  return isCompactViewport;
+}
 
 export default function App() {
   return (
@@ -62,12 +98,15 @@ export default function App() {
 function OperatorShell() {
   const location = useLocation();
   const [homeRequestToken, setHomeRequestToken] = useState(0);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(getInitialSidebarCollapsed);
   const shellLayoutVars = {
-    "--operator-sidebar-width": "16rem",
+    "--operator-sidebar-width": isSidebarCollapsed ? "3.75rem" : "16rem",
     "--operator-main-gutter": "1.5rem",
   } as CSSProperties;
   const mainScrollStyle = {
+    marginLeft: "var(--operator-sidebar-width)",
     scrollbarGutter: "stable",
+    transition: "margin-left 160ms ease-out",
   } as CSSProperties;
   const {
     profile,
@@ -84,8 +123,33 @@ function OperatorShell() {
   const { pins, assignPin, removePin } = useSpatialPins();
   useTribesRefresh();
 
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(SIDEBAR_COMPACT_MEDIA_QUERY);
+    const syncDefaultCollapsedState = () => {
+      const storedPreference = readStoredSidebarPreference();
+      if (mediaQuery.matches && storedPreference !== true) {
+        setIsSidebarCollapsed(true);
+        return;
+      }
+      setIsSidebarCollapsed(storedPreference ?? false);
+    };
+
+    syncDefaultCollapsedState();
+    mediaQuery.addEventListener("change", syncDefaultCollapsedState);
+
+    return () => mediaQuery.removeEventListener("change", syncDefaultCollapsedState);
+  }, []);
+
   const handleRequestHome = useCallback(() => {
     setHomeRequestToken((current) => current + 1);
+  }, []);
+
+  const handleToggleSidebarCollapsed = useCallback(() => {
+    setIsSidebarCollapsed((current) => {
+      const next = !current;
+      writeStoredSidebarPreference(next);
+      return next;
+    });
   }, []);
 
   const characterId = profile?.characterId ?? null;
@@ -101,9 +165,11 @@ function OperatorShell() {
           isError={isError}
           discoveryErrorMessage={errorMessage}
           onRequestHome={handleRequestHome}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapsed={handleToggleSidebarCollapsed}
         />
-        <LogoBadge />
-        <main className="ml-64 h-screen overflow-y-auto px-6 pb-6 pt-[5.5rem]" style={mainScrollStyle}>
+        {!isSidebarCollapsed && <LogoBadge />}
+        <main className="h-screen overflow-y-auto px-4 pb-6 pt-[5.5rem] lg:px-6" style={mainScrollStyle}>
           <div className="max-w-[1760px] mx-auto">
             <ShellRouteTransition location={location} className="min-h-[calc(100vh-8rem)]">
               {(transitionLocation) => (
