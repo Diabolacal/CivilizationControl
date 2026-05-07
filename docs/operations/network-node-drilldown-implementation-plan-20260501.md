@@ -10,6 +10,14 @@ This plan defines that node-local interaction model, the first safe implementati
 
 ## 1.1 Status update - 2026-05-02
 
+### Turret extension alert false-negative repair - 2026-05-07
+
+This merge-readiness pass stays on `fix/turret-extension-alert-truth`. It does not change EF-Map, Move contracts, sponsor-worker policy, package IDs, or the broader extension-management model.
+
+- The final diagnosis for the two turret alerts was a frontend false negative: EF-Map operator inventory returned `extensionStatus: null` for both affected turrets even though direct Sui object reads proved `902948c11c7291a7b64d150291283548dad878c84b6a0db279c57535d5971021::turret::CommercialAuth` was applied.
+- CivilizationControl now treats null indexed extension state as `unknown` instead of `none`, overlays direct-chain gate/turret extension status when object IDs are available, and only renders missing-extension attention for proven `none` or `stale`.
+- Human preview smoke on `https://b2db108a.civilizationcontrol.pages.dev` confirmed the affected turret alerts cleared, the UI reports the extension as applied, posture change still works, Signal Feed updated, and Node Control still loads structures with write access.
+
 ### Node Control rendered authority regression repair - 2026-05-06
 
 This corrective pass stays on `fix/node-control-authority-regression`. It does not change EF-Map or VPS contracts, Move contracts, package IDs, sponsor-worker behavior, browser `queryEvents`, broad polling, WebSockets, merge state, or production deploy state.
