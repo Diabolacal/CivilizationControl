@@ -1,6 +1,13 @@
 ## Decision Log
 
 Newest first. Use the template in `docs/operations/DECISIONS_TEMPLATE.md`.
+## 2026-05-07 - Add synthetic Node Control demo power postures
+- Goal: let `/dev/node-drilldown-lab` demonstrate Industry, Defense, and all-offline power postures without wallet, API, persistence, or live read/write paths.
+- Files: `src/screens/NodeDrilldownLabScreen.tsx`
+- Diff: the lab now has in-memory demo posture buttons that keep the network node online, flip child structure statuses by fixture family, update the same map/list/readout surfaces, and clearly label the controls as synthetic-only.
+- Risk: low - dev-only route state mutation; no production wallet preset model, direct-chain authority, EF-Map read path, sponsor policy, Move contract, or persistence changed.
+- Gates: `npm run typecheck`; explicit public-env `npm run build`; `git diff --check`; `check-node-drilldown-lab-action-matrix`; local preview route smoke for `/dev/node-drilldown-lab`, `/`, `/nodes`, `/activity`, `/settings`; lab browser smoke for Industry and Defense readout changes.
+- Follow-ups: Cloudflare Pages feature preview and operator manual smoke.
 ## 2026-05-07 - Compact navigation for narrow in-game browser
 - Goal: preserve the normal desktop command layout while giving narrow in-game DApp windows a compact left navigation rail and reachable Node Control power actions.
 - Files: `src/App.tsx`, `src/components/Sidebar.tsx`, `src/components/topology/TopologyPanelFrame.tsx`, `src/components/topology/node-drilldown/NodePowerActionStrip.tsx`

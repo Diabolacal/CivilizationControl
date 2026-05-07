@@ -16,6 +16,78 @@ import { cn } from "@/lib/utils";
 
 import type { NodeLocalStructure, NodeLocalViewModel } from "@/lib/nodeDrilldownTypes";
 
+type DemoPowerPresetId = "industry" | "defense" | "offline";
+
+interface DemoPowerPreset {
+  id: DemoPowerPresetId;
+  label: string;
+  description: string;
+}
+
+const DEMO_POWER_PRESETS: readonly DemoPowerPreset[] = [
+  {
+    id: "industry",
+    label: "Industry",
+    description: "Industry and storage online; turrets offline.",
+  },
+  {
+    id: "defense",
+    label: "Defense",
+    description: "Turrets and storage online; industry offline.",
+  },
+  {
+    id: "offline",
+    label: "All Offline",
+    description: "Everything except the network node offline.",
+  },
+];
+
+const INDUSTRY_DEMO_FAMILIES = new Set<NodeLocalStructure["family"]>([
+  "printer",
+  "refinery",
+  "assembler",
+  "tradePost",
+]);
+
+function getDemoPresetDesiredOnline(
+  presetId: DemoPowerPresetId,
+  structure: NodeLocalStructure,
+): boolean {
+  if (presetId === "offline") {
+    return false;
+  }
+
+  if (presetId === "defense") {
+    return structure.family === "turret" || structure.family === "tradePost";
+  }
+
+  return INDUSTRY_DEMO_FAMILIES.has(structure.family);
+}
+
+function applyStructurePowerStatus(
+  structure: NodeLocalStructure,
+  nextOnline: boolean,
+): NodeLocalStructure {
+  const nextStatus = nextOnline ? "online" : "offline";
+
+  return {
+    ...structure,
+    status: nextStatus,
+    tone: nextStatus,
+    warningPip: false,
+    actionAuthority: {
+      ...structure.actionAuthority,
+      verifiedTarget: structure.actionAuthority.verifiedTarget
+        ? { ...structure.actionAuthority.verifiedTarget, status: nextStatus }
+        : null,
+      candidateTargets: structure.actionAuthority.candidateTargets.map((candidate) => ({
+        ...candidate,
+        status: nextStatus,
+      })),
+    },
+  };
+}
+
 function cloneScenarioViewModel(viewModel: NodeLocalViewModel): NodeLocalViewModel {
   return {
     ...viewModel,
@@ -38,6 +110,7 @@ export function NodeDrilldownLabScreen() {
   const [selectedStructureId, setSelectedStructureId] = useState<string | null>(null);
   const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
   const [isNodeRenameOpen, setIsNodeRenameOpen] = useState(false);
+  const [activeDemoPresetId, setActiveDemoPresetId] = useState<DemoPowerPresetId | null>(null);
 
   const scenario = useMemo(
     () => NODE_DRILLDOWN_SCENARIOS.find((entry) => entry.id === scenarioId) ?? NODE_DRILLDOWN_SCENARIOS[0],
@@ -83,6 +156,7 @@ export function NodeDrilldownLabScreen() {
   const renameTarget = renameTargetId ? scenarioStructureMap.get(renameTargetId) ?? null : null;
 
   const handlePreviewTogglePower = (structure: NodeLocalStructure, nextOnline: boolean) => {
+    setActiveDemoPresetId(null);
     setSelectedStructureId(structure.id);
     setScenarioViewModel((current) => {
       if (!current) return current;
@@ -92,29 +166,13 @@ export function NodeDrilldownLabScreen() {
         structures: current.structures.map((entry) => {
           if (entry.id !== structure.id) return entry;
 
-          const nextStatus = nextOnline ? "online" : "offline";
-          return {
-            ...entry,
-            status: nextStatus,
-            tone: nextOnline ? "online" : "offline",
-            warningPip: false,
-            actionAuthority: {
-              ...entry.actionAuthority,
-              verifiedTarget: entry.actionAuthority.verifiedTarget
-                ? { ...entry.actionAuthority.verifiedTarget, status: nextStatus }
-                : null,
-              candidateTargets: entry.actionAuthority.candidateTargets.map((candidate) => (
-                candidate.structureId === entry.actionAuthority.verifiedTarget?.structureId
-                  ? { ...candidate, status: nextStatus }
-                  : candidate
-              )),
-            },
-          };
+          return applyStructurePowerStatus(entry, nextOnline);
         }),
       };
     });
   };
   const handlePreviewNodePower = (nextOnline: boolean) => {
+    setActiveDemoPresetId(null);
     setSelectedStructureId(null);
     setScenarioViewModel((current) => {
       if (!current) return current;
@@ -128,22 +186,29 @@ export function NodeDrilldownLabScreen() {
           tone: nextStatus,
           warningPip: nextOnline ? current.node.warningPip : false,
         },
-        structures: nextOnline ? current.structures : current.structures.map((entry) => ({
-          ...entry,
-          status: "offline",
-          tone: "offline",
-          warningPip: false,
-          actionAuthority: {
-            ...entry.actionAuthority,
-            verifiedTarget: entry.actionAuthority.verifiedTarget
-              ? { ...entry.actionAuthority.verifiedTarget, status: "offline" }
-              : null,
-            candidateTargets: entry.actionAuthority.candidateTargets.map((candidate) => ({
-              ...candidate,
-              status: "offline",
-            })),
-          },
-        })),
+        structures: nextOnline ? current.structures : current.structures.map((entry) => applyStructurePowerStatus(entry, false)),
+      };
+    });
+  };
+  const handleApplyDemoPreset = (presetId: DemoPowerPresetId) => {
+    setActiveDemoPresetId(presetId);
+    setSelectedStructureId(null);
+    closeStructureMenu();
+    nodeActionMenu.closeStructureActionMenu();
+    setScenarioViewModel((current) => {
+      if (!current) return current;
+
+      return {
+        ...current,
+        node: {
+          ...current.node,
+          status: "online",
+          tone: "online",
+          warningPip: current.node.warningPip,
+        },
+        structures: current.structures.map((structure) => (
+          applyStructurePowerStatus(structure, getDemoPresetDesiredOnline(presetId, structure))
+        )),
       };
     });
   };
@@ -203,6 +268,7 @@ export function NodeDrilldownLabScreen() {
     closeStructureMenu();
     nodeActionMenu.closeStructureActionMenu();
     setIsNodeRenameOpen(false);
+    setActiveDemoPresetId(null);
   }, [closeStructureMenu, nodeActionMenu.closeStructureActionMenu, scenarioId]);
 
   useEffect(() => {
@@ -261,6 +327,34 @@ export function NodeDrilldownLabScreen() {
             </button>
           ))}
         </div>
+
+        <section className="mt-3 flex flex-wrap items-center gap-2 border-y border-border/40 py-3">
+          <div className="mr-2 min-w-[180px]">
+            <p className="text-[11px] font-mono uppercase tracking-[0.2em] text-muted-foreground/75">
+              Demo power posture
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              In-memory lab fixture only. No wallet, API, chain write, or saved preset is used.
+            </p>
+          </div>
+          {DEMO_POWER_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              aria-pressed={activeDemoPresetId === preset.id}
+              title={preset.description}
+              onClick={() => handleApplyDemoPreset(preset.id)}
+              className={cn(
+                "rounded border px-3 py-1.5 text-xs font-medium transition-colors",
+                activeDemoPresetId === preset.id
+                  ? "border-primary/60 bg-primary/10 text-primary"
+                  : "border-border/70 text-muted-foreground hover:border-primary/40 hover:text-foreground",
+              )}
+            >
+              {preset.label}
+            </button>
+          ))}
+        </section>
 
         {visibleViewModel ? (
           <div className="mt-3 flex flex-wrap gap-2">
