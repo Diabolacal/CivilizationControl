@@ -19,6 +19,7 @@ import { useGatePolicyMutation, useBatchPresetMutation } from "@/hooks/useGatePo
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
 import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { useConnection } from "@evefrontier/dapp-kit";
+import { isExtensionAuthorizationAttentionStatus } from "@/lib/extensionStatus";
 import { getSpatialPin } from "@/lib/spatialPins";
 import { Copy, Check } from "lucide-react";
 import { useState, useCallback, useMemo } from "react";
@@ -234,7 +235,7 @@ function PolicyComposerSection({ gate, structures }: { gate: Structure; structur
     [structures, gate.objectId],
   );
 
-  if (gate.extensionStatus !== "authorized") {
+  if (isExtensionAuthorizationAttentionStatus(gate.extensionStatus)) {
     const isStale = gate.extensionStatus === "stale";
     return (
       <section className="border border-border rounded p-5 space-y-4">
@@ -328,13 +329,15 @@ function ExtensionSection({ gate }: { gate: Structure }) {
   const { authorizeGates, gateStatus, gateResult, gateError, resetGate } =
     useAuthorizeExtension();
   const queryClient = useQueryClient();
-  const needsAuth = gate.extensionStatus !== "authorized";
+  const needsAuth = isExtensionAuthorizationAttentionStatus(gate.extensionStatus);
 
   const statusLabel = gate.extensionStatus === "authorized"
     ? "Active"
     : gate.extensionStatus === "stale"
       ? "Needs re-authorization"
-      : "Not authorized";
+      : gate.extensionStatus === "none"
+        ? "Not authorized"
+        : "Unverified";
 
   const handleReAuth = () => {
     authorizeGates(
@@ -387,7 +390,9 @@ function ExtensionSection({ gate }: { gate: Structure }) {
                 ? "CivilizationControl"
                 : gate.extensionStatus === "stale"
                   ? "Stale — needs rebind"
-                  : "None"}
+                  : gate.extensionStatus === "none"
+                    ? "None"
+                    : "Unverified"}
             </p>
           </div>
           <div>

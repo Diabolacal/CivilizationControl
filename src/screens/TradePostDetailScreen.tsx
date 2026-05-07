@@ -23,6 +23,7 @@ import { useCreateListing } from "@/hooks/useCreateListing";
 import { useCancelListing } from "@/hooks/useCancelListing";
 import { useSsuInventory } from "@/hooks/useSsuInventory";
 import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
+import { isExtensionAuthorizationAttentionStatus } from "@/lib/extensionStatus";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure } from "@/types/domain";
 
@@ -160,7 +161,7 @@ function MarketplaceSection({ post }: { post: Structure }) {
   const createMutation = useCreateListing(post.objectId);
   const cancelMutation = useCancelListing(post.objectId);
 
-  if (post.extensionStatus !== "authorized") {
+  if (isExtensionAuthorizationAttentionStatus(post.extensionStatus)) {
     const isStale = post.extensionStatus === "stale";
     return (
       <section className="border border-border rounded p-5 space-y-3">
@@ -333,13 +334,15 @@ function ExtensionSection({ post }: { post: Structure }) {
   const { authorizeSsus, ssuStatus, ssuResult, ssuError, resetSsu } =
     useAuthorizeExtension();
   const queryClient = useQueryClient();
-  const needsAuth = post.extensionStatus !== "authorized";
+  const needsAuth = isExtensionAuthorizationAttentionStatus(post.extensionStatus);
 
   const statusLabel = post.extensionStatus === "authorized"
     ? "Active"
     : post.extensionStatus === "stale"
       ? "Needs re-authorization"
-      : "Not authorized";
+      : post.extensionStatus === "none"
+        ? "Not authorized"
+        : "Unverified";
 
   const handleReAuth = () => {
     authorizeSsus(
@@ -392,7 +395,9 @@ function ExtensionSection({ post }: { post: Structure }) {
                 ? "CivilizationControl"
                 : post.extensionStatus === "stale"
                   ? "Stale — needs rebind"
-                  : "None"}
+                  : post.extensionStatus === "none"
+                    ? "None"
+                    : "Unverified"}
             </p>
           </div>
           <div>

@@ -21,7 +21,9 @@ import type {
   InventorySlot,
   InventoryEntry,
   PostureMode,
+  ExtensionStatus,
 } from "@/types/domain";
+import type { ProvenExtensionStatus } from "@/lib/extensionStatus";
 import {
   callSuiRead,
   classifySuiRpcError,
@@ -1296,7 +1298,7 @@ function resolveOptionU64(raw: unknown): number | undefined {
  */
 function resolveExtensionAuth(
   content: Record<string, unknown> | null,
-): "authorized" | "stale" | "none" {
+): ProvenExtensionStatus {
   if (!content) return "none";
 
   const ext = content.extension;
@@ -1325,4 +1327,44 @@ function resolveExtensionAuth(
   }
 
   return "stale";
+}
+
+export async function fetchStructureExtensionStatuses(
+  objectIds: ObjectId[],
+): Promise<Map<ObjectId, ExtensionStatus>> {
+  const uniqueIds = [...new Set(objectIds)].filter((id) => id.trim().length > 0);
+  const statuses = new Map<ObjectId, ExtensionStatus>();
+
+  if (uniqueIds.length === 0) {
+    return statuses;
+  }
+
+  const batches = chunkArray(uniqueIds, STRUCTURE_BATCH_SIZE);
+  for (const [batchIndex, batch] of batches.entries()) {
+    const responses = await callSuiRead(
+      `fetchStructureExtensionStatuses.multiGetObjects[${batchIndex + 1}/${batches.length}]`,
+      (client) => client.multiGetObjects({
+        ids: batch,
+        options: { showContent: true, showType: true },
+      }),
+    );
+
+    responses.forEach((response, responseIndex) => {
+      const requestedId = batch[responseIndex];
+      if (!requestedId) {
+        return;
+      }
+
+      if (!response.data) {
+        statuses.set(requestedId, "unknown");
+        return;
+      }
+
+      const objectId = getObjectId(response) || requestedId;
+      const content = getObjectContent(response);
+      statuses.set(objectId, content ? resolveExtensionAuth(content) : "unknown");
+    });
+  }
+
+  return statuses;
 }

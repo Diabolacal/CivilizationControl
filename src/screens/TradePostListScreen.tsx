@@ -15,6 +15,7 @@ import { TradePostGlyph } from "@/components/topology/Glyphs";
 import { useAuthorizeExtension } from "@/hooks/useAuthorizeExtension";
 import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { getAssemblySummarySolarSystemName } from "@/lib/assemblyEnrichment";
+import { isExtensionAuthorizationAttentionStatus } from "@/lib/extensionStatus";
 import { shortId } from "@/lib/formatAddress";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, SsuAuthTarget } from "@/types/domain";
@@ -34,7 +35,7 @@ export function TradePostListScreen({ structures, isLoading }: TradePostListScre
   const unauthorizedSsus: SsuAuthTarget[] = useMemo(
     () =>
       posts
-        .filter((p) => p.extensionStatus !== "authorized")
+        .filter((p) => isExtensionAuthorizationAttentionStatus(p.extensionStatus))
         .map((p) => ({ ssuId: p.objectId, ownerCapId: p.ownerCapId })),
     [posts],
   );
@@ -246,8 +247,10 @@ function PostRow({
           <TagChip label="AUTHORIZED" variant="primary" size="sm" />
         ) : post.extensionStatus === "stale" ? (
           <TagChip label="STALE — RE-AUTH" variant="warning" size="sm" />
-        ) : (
+        ) : post.extensionStatus === "none" ? (
           <TagChip label="NONE" variant="default" size="sm" />
+        ) : (
+          <TagChip label="UNVERIFIED" variant="default" size="sm" />
         )}
       </td>
       <td className="py-3 px-4">

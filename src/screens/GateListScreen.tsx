@@ -18,6 +18,7 @@ import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { usePostureState } from "@/hooks/usePosture";
 import { useBatchTreasuryMutation } from "@/hooks/useGatePolicyMutation";
 import { getAssemblySummarySolarSystemName } from "@/lib/assemblyEnrichment";
+import { isExtensionAuthorizationAttentionStatus } from "@/lib/extensionStatus";
 import { shortId } from "@/lib/formatAddress";
 import { getSpatialPin } from "@/lib/spatialPins";
 import type { Structure, GateAuthTarget } from "@/types/domain";
@@ -43,7 +44,7 @@ export function GateListScreen({ structures, isLoading }: GateListScreenProps) {
   const unauthorizedTargets: GateAuthTarget[] = useMemo(
     () =>
       gates
-        .filter((g) => g.extensionStatus !== "authorized")
+        .filter((g) => isExtensionAuthorizationAttentionStatus(g.extensionStatus))
         .map((g) => ({ gateId: g.objectId, ownerCapId: g.ownerCapId })),
     [gates],
   );
@@ -312,8 +313,10 @@ function GateRow({
           <TagChip label="CC ACTIVE" variant="primary" size="sm" />
         ) : gate.extensionStatus === "stale" ? (
           <TagChip label="CC STALE" variant="warning" size="sm" />
-        ) : (
+        ) : gate.extensionStatus === "none" ? (
           <TagChip label="NOT SET" variant="default" size="sm" />
+        ) : (
+          <TagChip label="UNVERIFIED" variant="default" size="sm" />
         )}
       </td>
       <td className="py-3 px-4">

@@ -1,5 +1,6 @@
 import type { AssemblySummary, NetworkNodeGroup, Structure, StructureStatus } from "@/types/domain";
 import { buildFuelPresentation, formatFuelPresentationSummary, getIndexedFuelAmount } from "@/lib/fuelRuntime";
+import { isExtensionAuthorizationAttentionStatus, mergeExtensionStatus } from "@/lib/extensionStatus";
 import { getItemTypeById, getItemTypeByName } from "@/lib/typeCatalog";
 import { normalizeCanonicalObjectId, type NodeAssembliesLookupResult } from "@/lib/nodeAssembliesClient";
 import {
@@ -374,7 +375,7 @@ function mergeObservedAssemblyEntry(
     ownerCapId: authority.ownerCapId ?? next.ownerCapId ?? current.ownerCapId,
     ownerWalletAddress: authority.ownerWalletAddress ?? next.ownerWalletAddress ?? current.ownerWalletAddress,
     characterId: authority.characterId ?? next.characterId ?? current.characterId,
-    extensionStatus: authority.extensionStatus ?? next.extensionStatus ?? current.extensionStatus,
+    extensionStatus: mergeExtensionStatus(authority.extensionStatus, next.extensionStatus ?? current.extensionStatus),
     partial: authority.partial ?? next.partial ?? current.partial,
     warnings: authority.warnings ?? next.warnings ?? current.warnings,
     actionCandidate: authority.actionCandidate ?? next.actionCandidate ?? current.actionCandidate,
@@ -1076,6 +1077,13 @@ function mergeNodeLocalStructureBucket(
   const status = mergeCollapsedStructureStatus(bucket.entries);
   const sizeVariant = displayRow.sizeVariant ?? deriveSizeVariant(displayRow.typeLabel) ?? authoritativeRow.sizeVariant;
   const actionAuthority = proofRow.actionAuthority;
+  const family = liveRow?.family ?? authoritativeRow.family;
+  const extensionStatus = mergeExtensionStatus(liveRow?.extensionStatus, authoritativeRow.extensionStatus);
+  const hasInheritedWarningPip = bucket.entries.some((entry) => entry.warningPip);
+  const extensionNeedsAttention = (family === "gate" || family === "turret")
+    && isExtensionAuthorizationAttentionStatus(extensionStatus);
+  const warningPip = status === "warning"
+    || (hasInheritedWarningPip && (extensionNeedsAttention || (family !== "gate" && family !== "turret")));
 
   return createNodeLocalStructure({
     id: renderId,
@@ -1089,11 +1097,11 @@ function mergeNodeLocalStructureBucket(
     futureActionEligible: bucket.entries.some((entry) => entry.futureActionEligible),
     linkedGateId: pickFirstDefined(bucket.entries.map((entry) => entry.linkedGateId)),
     displayName: displayRow.displayName,
-    family: liveRow?.family ?? authoritativeRow.family,
+    family,
     sizeVariant,
     status,
     source: mergedSource,
-    extensionStatus: liveRow?.extensionStatus ?? authoritativeRow.extensionStatus,
+    extensionStatus,
     actionCandidate: pickFirstDefined([
       proofRow.actionCandidate,
       ...bucket.entries.map((entry) => entry.actionCandidate),
@@ -1101,7 +1109,7 @@ function mergeNodeLocalStructureBucket(
     actionAuthority,
     typeLabel: displayRow.typeLabel,
     typeId: displayRow.typeId ?? authoritativeRow.typeId,
-    warningPip: bucket.entries.some((entry) => entry.warningPip) || status === "warning",
+    warningPip,
     backendSource: pickFirstDefined(bucket.entries.map((entry) => entry.backendSource ?? undefined)) ?? null,
     displayNameSource: pickFirstDefined([
       displayRow.displayNameSource ?? undefined,
@@ -1223,7 +1231,7 @@ function buildLiveFallbackStructures(liveStructures: Structure[]): NodeLocalStru
     const status = mergeLiveStructureStatus(structure.status, null);
     const needsExtensionWarning =
       (structure.type === "gate" || structure.type === "turret") &&
-      (structure.summary?.extensionStatus ?? structure.extensionStatus) !== "authorized";
+      isExtensionAuthorizationAttentionStatus(structure.summary?.extensionStatus ?? structure.extensionStatus);
     const normalizedAssemblyId = normalizeNodeDrilldownAssemblyId(structure.assemblyId) ?? undefined;
     const authorityCandidates = [toNodeLocalActionCandidate(structure)];
     const actionAuthority = createNodeLocalActionAuthority(
@@ -1321,7 +1329,7 @@ function buildBackendMembershipStructures(
     const sizeVariant = indexedSizeVariant ?? deriveSizeVariant(resolvedType.typeLabel) ?? "standard";
     const needsExtensionWarning = primaryAuthorityMatch != null
       && (primaryAuthorityMatch.type === "gate" || primaryAuthorityMatch.type === "turret")
-      && (observed.extensionStatus ?? primaryAuthorityMatch.extensionStatus) !== "authorized";
+      && isExtensionAuthorizationAttentionStatus(observed.extensionStatus ?? primaryAuthorityMatch.extensionStatus);
     const authorityCandidates = authorityMatches.map(toNodeLocalActionCandidate);
     const fallbackActionTarget: NodeLocalActionTargetFallback = {
       structureId: normalizeCanonicalObjectId(observed.objectId) ?? primaryAuthorityMatch?.objectId ?? null,
@@ -1788,7 +1796,7 @@ export function describeNodeLocalWarningMarker(
   }
 
   const extensionNeedsAttention = (structure.family === "gate" || structure.family === "turret")
-    && structure.extensionStatus !== "authorized";
+    && isExtensionAuthorizationAttentionStatus(structure.extensionStatus);
 
   if (structure.status === "warning" && extensionNeedsAttention) {
     return "Warning status plus extension authorization attention.";

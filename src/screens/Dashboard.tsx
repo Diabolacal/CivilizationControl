@@ -53,6 +53,7 @@ import { useStructureRename } from "@/hooks/useStructureRename";
 import { useStructureWriteReconciliation } from "@/hooks/useStructureWriteReconciliation";
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
 import { formatLux, formatEve } from "@/lib/currency";
+import { isExtensionAuthorizationAttentionStatus } from "@/lib/extensionStatus";
 import { buildFuelPresentation, formatRuntimeSeconds } from "@/lib/fuelRuntime";
 import { buildNodeControlDebugCopySummary, buildNodeControlDebugSnapshot } from "@/lib/nodeControlDebug";
 import { operatorInventoryContainsNode, resolveSelectedNodeInventoryLookup } from "@/lib/nodeControlInventoryLookup";
@@ -1501,7 +1502,7 @@ export function Dashboard({
 function AttentionAlerts({ metrics, structures }: { metrics: NetworkMetrics; structures: Structure[] }) {
   const offlineCount = metrics.totalStructures - metrics.onlineCount;
   const noExtCount = structures.filter(
-    (s) => (s.type === "gate" || s.type === "turret") && s.extensionStatus !== "authorized",
+    (s) => (s.type === "gate" || s.type === "turret") && isExtensionAuthorizationAttentionStatus(s.extensionStatus),
   ).length;
 
   const alerts: { icon: React.ReactNode; name: string; issue: string; severity: "critical" | "warning" | "info"; to?: string }[] = [];

@@ -1,5 +1,6 @@
 import { useCallback, useState } from "react";
 import { Transaction } from "@mysten/sui/transactions";
+import { useQueryClient } from "@tanstack/react-query";
 import { useSponsoredExecution } from "@/hooks/useSponsoredExecution";
 import {
   CC_PACKAGE_ID,
@@ -19,6 +20,16 @@ type AuthStatus = "idle" | "pending" | "success" | "error";
 export function useAuthorizeExtension() {
   const executeTx = useSponsoredExecution();
   const characterId = useCharacterId();
+  const queryClient = useQueryClient();
+
+  const refreshExtensionStatusReads = useCallback(async () => {
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["operatorInventory"] }),
+      queryClient.invalidateQueries({ queryKey: ["assetDiscovery"] }),
+      queryClient.invalidateQueries({ queryKey: ["nodeAssemblies"] }),
+      queryClient.invalidateQueries({ queryKey: ["structureExtensionStatus"] }),
+    ]);
+  }, [queryClient]);
 
   const [gateStatus, setGateStatus] = useState<AuthStatus>("idle");
   const [gateResult, setGateResult] = useState<AuthResult | null>(null);
@@ -74,13 +85,14 @@ export function useAuthorizeExtension() {
         const { digest } = await executeTx(tx);
         setGateResult({ digest });
         setGateStatus("success");
+        await refreshExtensionStatusReads();
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         setGateError(message);
         setGateStatus("error");
       }
     },
-    [executeTx, characterId],
+    [executeTx, characterId, refreshExtensionStatusReads],
   );
 
   const authorizeSsus = useCallback(
@@ -129,13 +141,14 @@ export function useAuthorizeExtension() {
         const { digest } = await executeTx(tx);
         setSsuResult({ digest });
         setSsuStatus("success");
+        await refreshExtensionStatusReads();
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         setSsuError(message);
         setSsuStatus("error");
       }
     },
-    [executeTx, characterId],
+    [executeTx, characterId, refreshExtensionStatusReads],
   );
 
   const setSsuDappUrl = useCallback(
@@ -224,13 +237,14 @@ export function useAuthorizeExtension() {
         const { digest } = await executeTx(tx);
         setTurretResult({ digest });
         setTurretStatus("success");
+        await refreshExtensionStatusReads();
       } catch (err: unknown) {
         const message = err instanceof Error ? err.message : String(err);
         setTurretError(message);
         setTurretStatus("error");
       }
     },
-    [executeTx, characterId],
+    [executeTx, characterId, refreshExtensionStatusReads],
   );
 
   const setGateDappUrl = useCallback(

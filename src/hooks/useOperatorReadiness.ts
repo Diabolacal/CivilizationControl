@@ -11,6 +11,7 @@
  */
 
 import { useMemo } from "react";
+import { isExtensionAuthorizationAttentionStatus } from "@/lib/extensionStatus";
 import type { NetworkNodeGroup } from "@/types/domain";
 
 export interface ReadinessBlocker {
@@ -53,7 +54,7 @@ export function useOperatorReadiness(
     // ── Turret extension check ──
     const allTurrets = nodeGroups.flatMap((g) => g.turrets);
     const authorized = allTurrets.filter((t) => t.extensionStatus === "authorized").length;
-    const unauthorized = allTurrets.length - authorized;
+    const unauthorized = allTurrets.filter((t) => isExtensionAuthorizationAttentionStatus(t.extensionStatus)).length;
 
     if (unauthorized > 0) {
       blockers.push({
@@ -66,7 +67,7 @@ export function useOperatorReadiness(
 
     // ── Gate extension check ──
     const allGates = nodeGroups.flatMap((g) => g.gates);
-    const gatesUnauth = allGates.filter((g) => g.extensionStatus !== "authorized").length;
+    const gatesUnauth = allGates.filter((g) => isExtensionAuthorizationAttentionStatus(g.extensionStatus)).length;
     if (gatesUnauth > 0) {
       blockers.push({
         key: "gate-ext",
