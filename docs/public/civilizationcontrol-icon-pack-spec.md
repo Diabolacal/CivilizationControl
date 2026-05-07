@@ -1,4 +1,4 @@
-# CivilizationControl Node Icon Pack Spec
+# CivilizationControl Icon Pack Spec
 
 ## Purpose
 
@@ -156,6 +156,6 @@ These assets are part of CivilizationControl. If reused, attribution is apprecia
 
 ## Scope and Limitations
 
-This spec covers the current static SVG assets and visual grammar for the CivilizationControl node icon pack. Runtime layout, drag behavior, wallet actions, live read paths, transaction logic, production-line logic, and Cloudflare deployment behavior are outside the icon pack.
+This spec covers the current static SVG assets and visual grammar for the CivilizationControl icon pack. Runtime layout, drag behavior, wallet actions, live read paths, transaction logic, production-line logic, and Cloudflare deployment behavior are outside the icon pack.
 
 This document does not create download links, package archives, or app UI changes.

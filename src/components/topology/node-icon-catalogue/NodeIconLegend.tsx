@@ -1,8 +1,12 @@
+import { ExternalLink, FileText, Package } from "lucide-react";
+
 import { NodeIconPreviewGlyph } from "./NodeIconPreviewGlyph";
 import {
   NODE_ICON_COLOR_REFERENCE,
   STATE_EXAMPLE_ICONS,
 } from "./nodeIconCatalogueData";
+
+const GITHUB_SPEC_URL = "https://github.com/Diabolacal/CivilizationControl/blob/master/docs/public/civilizationcontrol-icon-pack-spec.md";
 
 export function NodeIconLegend() {
   return (
@@ -12,6 +16,17 @@ export function NodeIconLegend() {
           Reference Key
         </p>
         <h2 className="mt-2 text-sm font-semibold text-foreground">State, size, and color grammar</h2>
+      </div>
+
+      <div className="rounded border border-border/60 bg-background/80 p-3">
+        <p className="text-[11px] font-mono uppercase tracking-wide text-muted-foreground/60">
+          Icon Pack
+        </p>
+        <div className="mt-3 grid gap-2">
+          <IconPackLink href={GITHUB_SPEC_URL} label="View spec on GitHub" icon="external" external />
+          <IconPackLink href="/downloads/civilizationcontrol-icon-pack-spec.md" label="Download spec" icon="file" download />
+          <IconPackLink href="/downloads/civilizationcontrol-icon-pack.zip" label="Download SVG icon pack" icon="package" download />
+        </div>
       </div>
 
       <div className="rounded border border-border/60 bg-background/80 p-3">
@@ -71,6 +86,35 @@ export function NodeIconLegend() {
         </div>
       </div>
     </aside>
+  );
+}
+
+function IconPackLink({
+  href,
+  label,
+  icon,
+  external = false,
+  download = false,
+}: {
+  href: string;
+  label: string;
+  icon: "external" | "file" | "package";
+  external?: boolean;
+  download?: boolean;
+}) {
+  const Icon = icon === "external" ? ExternalLink : icon === "file" ? FileText : Package;
+
+  return (
+    <a
+      href={href}
+      target={external ? "_blank" : undefined}
+      rel={external ? "noreferrer" : undefined}
+      download={download ? true : undefined}
+      className="inline-flex min-h-9 items-center gap-2 rounded border border-border/60 bg-card/60 px-2.5 py-2 text-xs font-medium text-muted-foreground transition-colors hover:border-primary/45 hover:text-primary"
+    >
+      <Icon className="h-3.5 w-3.5 shrink-0" />
+      <span className="min-w-0 truncate">{label}</span>
+    </a>
   );
 }
 
