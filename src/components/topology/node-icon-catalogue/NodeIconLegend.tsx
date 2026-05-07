@@ -6,7 +6,20 @@ import {
   STATE_EXAMPLE_ICONS,
 } from "./nodeIconCatalogueData";
 
-const GITHUB_SPEC_URL = "https://github.com/Diabolacal/CivilizationControl/blob/master/docs/public/civilizationcontrol-icon-pack-spec.md";
+const GITHUB_SPEC_BRANCH = "docs/public-node-icon-pack-spec";
+const GITHUB_SPEC_PATH = "docs/public/civilizationcontrol-icon-pack-spec.md";
+const PRODUCTION_HOSTS = new Set([
+  "civilizationcontrol.com",
+  "www.civilizationcontrol.com",
+  "civilizationcontrol.pages.dev",
+]);
+
+function getGithubSpecUrl() {
+  const hostname = typeof window === "undefined" ? "" : window.location.hostname;
+  const branch = PRODUCTION_HOSTS.has(hostname) ? "master" : GITHUB_SPEC_BRANCH;
+
+  return `https://github.com/Diabolacal/CivilizationControl/blob/${encodeURIComponent(branch)}/${GITHUB_SPEC_PATH}`;
+}
 
 export function NodeIconLegend() {
   return (
@@ -23,9 +36,9 @@ export function NodeIconLegend() {
           Icon Pack
         </p>
         <div className="mt-3 grid gap-2">
-          <IconPackLink href={GITHUB_SPEC_URL} label="View spec on GitHub" icon="external" external />
-          <IconPackLink href="/downloads/civilizationcontrol-icon-pack-spec.md" label="Download spec" icon="file" download />
           <IconPackLink href="/downloads/civilizationcontrol-icon-pack.zip" label="Download SVG icon pack" icon="package" download />
+          <IconPackLink href="/downloads/civilizationcontrol-icon-pack-spec.md" label="Download spec" icon="file" download />
+          <IconPackLink href={getGithubSpecUrl()} label="View spec on GitHub" icon="external" external />
         </div>
       </div>
 
