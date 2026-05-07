@@ -51,6 +51,7 @@ import { useStructureSurfaceActions } from "@/hooks/useStructureSurfaceActions";
 import { useStructurePower } from "@/hooks/useStructurePower";
 import { useStructureRename } from "@/hooks/useStructureRename";
 import { useStructureWriteReconciliation } from "@/hooks/useStructureWriteReconciliation";
+import { useStructureWriteRefresh } from "@/hooks/useStructureWriteRefresh";
 import type { AssetDiscoveryDisplayDebugState } from "@/lib/assetDiscoveryDisplayModel";
 import { formatLux, formatEve } from "@/lib/currency";
 import { isExtensionAuthorizationAttentionStatus } from "@/lib/extensionStatus";
@@ -255,10 +256,12 @@ export function Dashboard({
   );
   const structurePower = useStructurePower();
   const structureRename = useStructureRename();
+  const refreshNodeControlData = useStructureWriteRefresh();
   const nodeSurfaceActions = useStructureSurfaceActions();
   const [powerStructureId, setPowerStructureId] = useState<string | null>(null);
   const [powerSuccessLabel, setPowerSuccessLabel] = useState("Structure power state updated");
   const [isPowerPresetDialogOpen, setIsPowerPresetDialogOpen] = useState(false);
+  const [isNodeControlRefreshing, setIsNodeControlRefreshing] = useState(false);
   const [pendingNodePowerPlan, setPendingNodePowerPlan] = useState<{
     body: string;
     feedbackContext: NodePowerFeedbackContext;
@@ -461,6 +464,30 @@ export function Dashboard({
     setSelectedStructureId(null);
     setSelectedNodeId(null);
   }, [handleCloseNodeControlMenus, selectedStructureCanonicalKeyRef]);
+  const handleRefreshNodeControl = useCallback(async () => {
+    if (!selectedNodeGroup?.node.objectId || isNodeControlRefreshing) {
+      return;
+    }
+
+    handleCloseNodeControlMenus();
+    setIsNodeControlRefreshing(true);
+    try {
+      await refreshNodeControlData({
+        selectedNodeId: selectedNodeGroup.node.objectId,
+        refetchNodeAssemblies: shouldUseNodeAssembliesFallback ? refetchSelectedNodeAssemblies : null,
+        refetchStructureExtensionStatus: true,
+      });
+    } finally {
+      setIsNodeControlRefreshing(false);
+    }
+  }, [
+    handleCloseNodeControlMenus,
+    isNodeControlRefreshing,
+    refreshNodeControlData,
+    refetchSelectedNodeAssemblies,
+    selectedNodeGroup,
+    shouldUseNodeAssembliesFallback,
+  ]);
   const handleDismissNodeLocalPowerFeedback = useCallback(() => {
     structurePower.reset();
     setPowerStructureId(null);
@@ -1239,7 +1266,9 @@ export function Dashboard({
                 layoutOverrides={nodeLayoutOverrides.positions}
                 powerUsageLabel={nodePowerUsageReadout.label}
                 hasManualLayout={nodeLayoutOverrides.hasManualLayout}
+                isRefreshing={isNodeControlRefreshing}
                 isStructureMenuOpen={contextMenu != null || nodeSurfaceActions.contextMenu != null}
+                onRefresh={handleRefreshNodeControl}
                 onResetLayout={nodeLayoutOverrides.resetLayout}
                 onUpdateStructurePosition={nodeLayoutOverrides.setStructurePosition}
                 title=""

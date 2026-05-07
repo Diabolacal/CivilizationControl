@@ -14,6 +14,7 @@ export interface StructureWriteRefreshOptions {
   refetchNodeAssemblies?: (() => Promise<unknown>) | null;
   refetchSignalFeed?: boolean;
   refetchAssetDiscovery?: boolean;
+  refetchStructureExtensionStatus?: boolean;
   target?: StructureWriteTarget;
   targets?: StructureWriteTarget[];
 }
@@ -55,6 +56,11 @@ export function useStructureWriteRefresh() {
       if (options.refetchSignalFeed && normalizedWalletAddress) {
         queryClient.invalidateQueries({ queryKey: [SIGNAL_FEED_QUERY_KEY] });
         refreshes.push(queryClient.refetchQueries({ queryKey: [SIGNAL_FEED_QUERY_KEY], type: "active" }));
+      }
+
+      if (options.refetchStructureExtensionStatus) {
+        queryClient.invalidateQueries({ queryKey: ["structureExtensionStatus"] });
+        refreshes.push(queryClient.refetchQueries({ queryKey: ["structureExtensionStatus"], type: "active" }));
       }
 
       if (refreshes.length === 0) {

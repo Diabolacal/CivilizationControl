@@ -77,7 +77,7 @@ assert.notEqual(
 
 const surfaceSource = readFileSync('src/components/topology/node-drilldown/NodeDrilldownSurface.tsx', 'utf8');
 const canvasSource = readFileSync('src/components/topology/node-drilldown/NodeDrilldownCanvas.tsx', 'utf8');
-assert(surfaceSource.includes('Reset layout'), 'expected Node Control surface to expose a Reset layout control');
+assert(surfaceSource.includes('Reset Layout'), 'expected Node Control surface to expose a Reset Layout control');
 assert(canvasSource.includes('onContextMenu'), 'expected right-click context menus to remain wired after drag support');
 assert(canvasSource.includes('suppressClickStructureIdRef'), 'expected drag threshold behavior to suppress accidental click selection');
 assert(canvasSource.includes('Power usage unavailable') === false, 'expected power readout copy to come from the model, not debug canvas text');

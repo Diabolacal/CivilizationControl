@@ -22,7 +22,9 @@ interface NodeDrilldownSurfaceProps {
   layoutOverrides?: NodeDrilldownLayoutOverrides;
   powerUsageLabel?: string;
   hasManualLayout?: boolean;
+  isRefreshing?: boolean;
   isStructureMenuOpen?: boolean;
+  onRefresh?: () => void | Promise<void>;
   onResetLayout?: () => void;
   onUpdateStructurePosition?: (canonicalDomainKey: string, position: NodeDrilldownLayoutPosition) => void;
   title: string;
@@ -43,7 +45,9 @@ function NodeDrilldownSurfaceBody({
   layoutOverrides,
   powerUsageLabel,
   hasManualLayout,
+  isRefreshing = false,
   isStructureMenuOpen,
+  onRefresh,
   onResetLayout,
   onUpdateStructurePosition,
 }: Pick<
@@ -59,7 +63,9 @@ function NodeDrilldownSurfaceBody({
   | "layoutOverrides"
   | "powerUsageLabel"
   | "hasManualLayout"
+  | "isRefreshing"
   | "isStructureMenuOpen"
+  | "onRefresh"
   | "onResetLayout"
   | "onUpdateStructurePosition"
 >) {
@@ -83,24 +89,38 @@ function NodeDrilldownSurfaceBody({
       />
 
       <div className="pointer-events-none absolute inset-0 z-20">
+        {onRefresh ? (
+          <div className="pointer-events-auto absolute left-2 top-2">
+            <button
+              type="button"
+              onClick={() => void onRefresh()}
+              disabled={isRefreshing}
+              aria-label="Refresh node structures"
+              className="rounded bg-background/50 px-1.5 py-0.5 font-mono text-[9px] text-foreground/85 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-55"
+            >
+              {isRefreshing ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+        ) : null}
+
         <div className="pointer-events-auto absolute right-2 top-2 flex items-center gap-1.5">
           {onResetLayout ? (
             <button
               type="button"
               onClick={onResetLayout}
               disabled={!hasManualLayout}
-              className="rounded bg-background/50 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground/50 transition-colors hover:text-muted-foreground/75 disabled:cursor-not-allowed disabled:opacity-35"
+              className="rounded bg-background/50 px-1.5 py-0.5 font-mono text-[9px] text-foreground/85 transition-colors hover:text-foreground disabled:cursor-not-allowed disabled:opacity-35"
             >
-              Reset layout
+              Reset Layout
             </button>
           ) : null}
           <button
             type="button"
             onClick={() => setIsLegendVisible((current) => !current)}
             aria-pressed={isLegendVisible}
-            className="rounded bg-background/50 px-1.5 py-0.5 font-mono text-[9px] text-muted-foreground/50 transition-colors hover:text-muted-foreground/75"
+            className="rounded bg-background/50 px-1.5 py-0.5 font-mono text-[9px] text-foreground/85 transition-colors hover:text-foreground"
           >
-            {isLegendVisible ? "hide key" : "key"}
+            {isLegendVisible ? "Hide Key" : "Show Key"}
           </button>
         </div>
 
@@ -126,7 +146,9 @@ export function NodeDrilldownSurface({
   layoutOverrides,
   powerUsageLabel,
   hasManualLayout,
+  isRefreshing,
   isStructureMenuOpen,
+  onRefresh,
   onResetLayout,
   onUpdateStructurePosition,
   title,
@@ -147,7 +169,9 @@ export function NodeDrilldownSurface({
       layoutOverrides={layoutOverrides}
       powerUsageLabel={powerUsageLabel}
       hasManualLayout={hasManualLayout}
+      isRefreshing={isRefreshing}
       isStructureMenuOpen={isStructureMenuOpen}
+      onRefresh={onRefresh}
       onResetLayout={onResetLayout}
       onUpdateStructurePosition={onUpdateStructurePosition}
     />

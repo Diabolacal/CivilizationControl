@@ -418,7 +418,7 @@ export function NodeDrilldownCanvas({
       })}
 
       {powerUsageLabel ? (
-        <div className="pointer-events-none absolute bottom-3 right-3 z-10 rounded border border-border/45 bg-background/45 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-muted-foreground/60 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
+        <div className="pointer-events-none absolute bottom-3 right-3 z-10 rounded border border-border/45 bg-background/45 px-2 py-1 font-mono text-[10px] uppercase tracking-[0.16em] text-foreground/85 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
           {powerUsageLabel}
         </div>
       ) : null}
